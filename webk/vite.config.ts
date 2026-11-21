@@ -226,6 +226,11 @@ const ADDITIONAL_ALIASES = {
   // and sees the API through src/lib/widgetSandbox/vendor.d.ts instead.
   'widget-sandbox': resolve(rootDir, 'src/vendor/widget-sandbox/src'),
   '@signal-app/provider': path.join(signalAppDir, 'api/signal/methods/init.ts'),
+  // * the page's side of the vault: the passcode the page unlocks with and the sign-out that erases unreadable data
+  '@signal-app/passcode': path.join(signalAppDir, 'util/passcode/index.ts'),
+  '@signal-app/passcode-channel': path.join(signalAppDir, 'util/passcode/channel.ts'),
+  '@signal-app/clear-local-data': path.join(signalAppDir, 'lib/signal/clearLocalData.ts'),
+  '@signal-app/passcode-session': path.join(signalAppDir, 'util/passcode/sessionStore.ts'),
   '@': resolve(rootDir, 'src')
 };
 

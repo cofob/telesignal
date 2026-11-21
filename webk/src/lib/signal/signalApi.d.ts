@@ -137,7 +137,9 @@ export type SignalInitialArgs = {
   platform?: string,
   langCode: string,
   signalProxyUrl?: string,
-  signalSealedSenderProxyUrl?: string
+  signalSealedSenderProxyUrl?: string,
+  /** the key of the engine's stores, when the account has a passcode (`@lib/signal/passcode`) */
+  storageKey?: ArrayBuffer
 };
 
 export function initApi(onUpdate: (update: SignalApiUpdate) => void, initialArgs: SignalInitialArgs): Promise<void>;

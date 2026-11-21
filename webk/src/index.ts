@@ -48,7 +48,8 @@ import MEDIA_MIME_TYPES_SUPPORTED from '@environment/mediaMimeTypesSupport';
 import {doubleRaf} from '@helpers/schedulers';
 import {getCurrentAccount} from '@lib/accounts/getCurrentAccount';
 import AccountController from '@lib/accounts/accountController';
-import {isSignalPasscodeEnabled, showSignalPasscodeScreen} from '@lib/signal/frontend';
+import {getSignalLockState, getSignalStorageKey} from '@lib/signal/passcode';
+import {showSignalLockScreen} from '@components/signalLockScreen';
 import {changeAccount} from '@lib/accounts/changeAccount';
 import {getValidatedAccount} from '@lib/accounts/getValidatedAccount';
 import {MAX_ACCOUNTS_FREE, MAX_ACCOUNTS_PREMIUM} from '@lib/accounts/constants';
@@ -471,6 +472,16 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
   // If this value is cached, and a different tab locks/unlocks, we'll see the wrong state of the app.
   await preventCrossTabDynamicImportDeadlock();
 
+  // * TeleSignal: a passcode of the A version locks the account's vault, and nothing reads the account before it is
+  // * unlocked: the lock screen comes first, with the theme and the language it needs. The engine starts with the key
+  // * of its stores once the vault is open
+  const lockState = await getSignalLockState().catch((): undefined => undefined);
+  if(lockState?.isLocked) {
+    themeController.setThemeListener();
+    await I18n.getCacheLangPackAndApply();
+    await showSignalLockScreen();
+  }
+
   await PasscodeLockScreenController.waitForUnlock(async() => {
     const settings = await commonStateStorage.get('settings');
     settings && setAppSettingsSilent(settings);
@@ -587,22 +598,16 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
   appChatBackground.attach();
   appChatBackground.setBackground({transition: 'instant'});
 
-  // * TeleSignal: the account is the Signal engine's, and the slot marker of Web A says whether this slot has one
-  // * (`isLinked`). Without one the link QR code is the way in: Telegram's sign-in by phone number is not used
   const isLinked = AccountController.isSignedIn(await AccountController.get(getCurrentAccount()));
   let authState: AuthState = isLinked ? {_: 'authStateSignedIn'} : {_: 'authStateSignQr'};
   if(stateResult.state.authState._ !== authState._) {
     rootScope.managers.appStateManager.pushToState('authState', authState);
   }
 
-  if(isSignalPasscodeEnabled()) {
-    showSignalPasscodeScreen();
-    return;
-  }
-
   rootScope.managers.appSignalManager.start({
     platform: navigator.platform,
-    langCode: I18n.getLastRequestedLangCode()
+    langCode: I18n.getLastRequestedLangCode(),
+    storageKey: await getSignalStorageKey()
   });
 
   const hash = location.hash;

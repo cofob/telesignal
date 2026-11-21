@@ -15,14 +15,12 @@ import {subscribeOn} from '@helpers/solid/subscribeOn';
 import IS_GEOLOCATION_SUPPORTED from '@environment/geolocationSupport';
 import {StateSettings} from '@config/state';
 import {AccentPreset, getAccentPresetsForBase, presetThemeId} from '@config/themePresets';
-import {BaseTheme} from '@layer';
 import Scrollable from '@components/scrollable2';
 import themeController from '@helpers/themeController';
 import liteMode from '@helpers/liteMode';
 import {joinDeepPath} from '@helpers/object/setDeepProperty';
 import eachMinute from '@helpers/eachMinute';
 import fastSmoothScroll from '@helpers/fastSmoothScroll';
-import ChatThemesPicker from '@components/chatThemesPicker';
 import ChatBackgroundStore from '@lib/chatBackgroundStore';
 import appDownloadManager from '@lib/appDownloadManager';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
@@ -34,23 +32,6 @@ import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 const SettingsSection = () => {
   const [tab] = useSuperTab();
   const [appSettings, setAppSettings] = useAppSettings();
-
-  const liteModeStatus = (): LangPackKey =>
-    appSettings.liteMode.all ? 'Checkbox.Enabled' : 'Checkbox.Disabled';
-
-  const liteModeStatusEl = new I18n.IntlElement();
-
-  const onUpdate = () => {
-    liteModeStatusEl.compareAndUpdate({key: liteModeStatus()});
-  };
-
-  onMount(() => {
-    onUpdate();
-    // Warm the Chat Wallpaper picker (one tap away via the row below) so it opens instantly
-    // instead of fetching the list + downloading thumbnails only once it's already on screen.
-    ChatBackgroundStore.preloadWallPapers(rootScope.managers, appDownloadManager);
-  });
-  subscribeOn(rootScope)('settings_updated', onUpdate);
 
   return (
     <Section name="Settings">
@@ -92,12 +73,6 @@ const SettingsSection = () => {
         </Row.CheckboxField>
         <Row.Title>{i18n('EnableAnimations')}</Row.Title>
       </Row> */}
-      <Row clickable={() => tab.slider.createTab(hotReloadGuard.tabs.AppPowerSavingTab).open()}>
-        <Row.Icon icon="sputnik_filled" />
-        <Row.Title titleRight={liteModeStatusEl.element} titleRightSecondary>
-          {i18n('LiteMode.EnableText')}
-        </Row.Title>
-      </Row>
     </Section>
   );
 };
@@ -117,25 +92,6 @@ const THEME_VARIANTS: [StateSettings['theme'], LangPackKey][] = [
 const ThemeSection = () => {
   const stateKey = joinDeepPath('settings', 'theme');
 
-  // Live (id, name) of the global theme. `id` drives the shared picker's
-  // selection ring (empty string = the DEFAULT_THEME tile; 'preset:N' from the
-  // accent picker matches no tile, so the ring clears — same as the legacy tab);
-  // `name` drives the brightness its thumbnails render at (via base theme).
-  // Tracked as primitives with a custom equality so we only re-notify the picker
-  // when a relevant field actually changes. Every theme apply (tile pick, radio,
-  // accent preset, auto-night) dispatches `theme_changed`.
-  const readThemeState = () => {
-    const theme = themeController.getTheme();
-    return {id: String(theme.id ?? ''), name: theme.name};
-  };
-  const [themeState, setThemeState] = createSignal(readThemeState(), {
-    equals: (a, b) => a.id === b.id && a.name === b.name
-  });
-  subscribeOn(rootScope)('theme_changed', () => setThemeState(readThemeState()));
-
-  const selectedThemeId = () => themeState().id;
-  const pickerBaseTheme = (): BaseTheme['_'] => themeController.getBaseThemeForName(themeState().name);
-
   // Theme variant changes flow through the radio's `stateKey`. Bridge the
   // resulting `settings_updated` to a `theme_change` dispatch (preserved from
   // the legacy tab — this is what reapplies the picked theme everywhere).
@@ -154,16 +110,6 @@ const ThemeSection = () => {
 
   return (
     <Section name="ColorTheme">
-      {/* Shared with the My QR popup (chatThemesPicker.tsx). Pure-UI: selection
-          state is owned here. onSelect → applyNewTheme themes the whole app and
-          dispatches theme_changed, which feeds selectedThemeId back to re-stripe
-          the active tile. baseTheme repaints thumbnails on day/night/tinted switch. */}
-      <ChatThemesPicker
-        selectedId={selectedThemeId}
-        baseTheme={pickerBaseTheme}
-        onSelect={(theme) => themeController.applyNewTheme(theme)}
-        recenterOnBaseChange
-      />
       <form style={{'margin-top': '.5rem'}}>
         {THEME_VARIANTS.map(([value, langKey]) => (
           <Row>

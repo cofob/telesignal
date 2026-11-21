@@ -66,6 +66,10 @@
       "@layer": ["./src/layer.d.ts"],
       "@types": ["./src/types.d.ts"],
       "@signal-app/provider": ["./src/lib/signal/signalApi.d.ts"],
+      "@signal-app/passcode": ["./src/lib/signal/passcodeApi.d.ts"],
+      "@signal-app/passcode-channel": ["./src/lib/signal/passcodeChannelApi.d.ts"],
+      "@signal-app/clear-local-data": ["./src/lib/signal/clearLocalDataApi.d.ts"],
+      "@signal-app/passcode-session": ["./src/lib/signal/passcodeSessionApi.d.ts"],
       "@/*": ["./src/*"]
     },
     // "rootDirs": [],                        /* List of root folders whose combined content represents the structure of the project at runtime. */

@@ -5,13 +5,11 @@ import type {SliderSuperTab} from '@components/slider';
 import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId';
 import type {MyDialogFilter} from '@lib/storages/filters';
 import {FormatterArgument, LangPackKey} from '@lib/langPack';
-import type {PasscodeActions} from '@lib/passcode/actions';
 import {InstanceOf} from '@types';
 import {SetStoreFunction} from 'solid-js/store';
 import {scaffoldSolidJSTab, scaffoldSolidJSTabEventable} from '@components/solidJsTabs/scaffoldSolidJSTab';
 import rootScope from '@lib/rootScope';
 import {appSettings} from '@stores/appSettings';
-import type {EditProfileTabPayload} from '@components/sidebarLeft/tabs/editProfile';
 import type {BusinessHoursTabPayload} from '@components/sidebarLeft/tabs/businessHours';
 import type {BusinessLocationTabPayload} from '@components/sidebarLeft/tabs/businessLocation';
 import type {BusinessChatLinksTabPayload} from '@components/sidebarLeft/tabs/businessChatLinks';
@@ -30,74 +28,6 @@ import type {
 import type {IsPeerType} from '@appManagers/appPeersManager';
 import type {NotifyException} from '@appManagers/appNotificationsManager';
 import type {AppChatFull} from '@appManagers/appProfileManager';
-
-
-/**
- * The passcode's screen turns the passcode off and sets a new one without asking for it again, so
- * every way there — the Privacy and Security row, the settings search, a `tg://settings/privacy/passcode`
- * link — goes through here, and is asked for the current passcode first while one is set. Resolves with
- * the passcode's screen once it is open, so a search result or a link can point at its control there, or
- * with nothing when the check is given up.
- */
-async function openPasscodeLockTabChecked(slider: SidebarSlider): Promise<SliderSuperTab> {
-  if(!appSettings.passcode?.enabled) {
-    const tab = slider.createTab(AppPasscodeLockTab);
-    await tab.open();
-    return tab;
-  }
-
-  const opened = deferredPromise<SliderSuperTab>();
-  const checkTab = slider.createTab(AppPasscodeEnterPasswordTab);
-  checkTab.middlewareHelper.onDestroy(() => opened.resolve(undefined));
-  await checkTab.open({
-    buttonText: 'PasscodeLock.Next',
-    inputLabel: 'PasscodeLock.EnterYourPasscode',
-    onSubmit: async(passcode, _, {isMyPasscode}) => {
-      const isCorrect = await isMyPasscode(passcode);
-      passcode = '';
-      if(!isCorrect) throw {};
-      // the check was left while the passcode was being verified (Back, an account switch): it opens
-      // nothing after all
-      if(!slider.getHistory().includes(checkTab)) return;
-
-      const tab = slider.createTab(AppPasscodeLockTab);
-      await tab.open();
-      opened.resolve(tab);
-    }
-  });
-  return opened;
-}
-
-export const AppPasscodeLockTab = Object.assign(
-  scaffoldSolidJSTab({
-    title: 'PasscodeLock.Title',
-    getComponentModule: () => import('../sidebarLeft/tabs/passcodeLock/mainTab'),
-    onOpenAfterTimeout: async function() {
-      // the check that let us in is no step to go back to: Back lands where the passcode was opened
-      // from — Privacy and Security, or the settings search
-      const history = this.slider.getHistory();
-      const below = history[history.indexOf(this) - 1];
-      if(below instanceof AppPasscodeEnterPasswordTab) {
-        this.slider.removeTabFromHistory(below);
-      }
-    }
-  }),
-  {openChecked: openPasscodeLockTabChecked}
-);
-
-
-type AppPasscodeEnterPasswordTabPayload = {
-  onSubmit: (passcode: string, tab: InstanceOf<typeof AppPasscodeEnterPasswordTab>, passcodeActions: PasscodeActions) => MaybePromise<void>;
-
-  inputLabel: LangPackKey;
-  buttonText: LangPackKey;
-};
-
-export const AppPasscodeEnterPasswordTab =
-  scaffoldSolidJSTab<AppPasscodeEnterPasswordTabPayload>({
-    title: 'PasscodeLock.Title',
-    getComponentModule: () => import('../sidebarLeft/tabs/passcodeLock/enterPasswordTab')
-  });
 
 
 type AppPrivacyMessagesTabPayload = {
@@ -142,17 +72,8 @@ export const AppNotificationExceptionsTab =
   });
 
 
-export function getEditProfileInitArgs(overwriteConnectedBot?: boolean): EditProfileTabPayload {
-  return {
-    bioMaxLength: rootScope.managers.apiManager.getLimit('bio'),
-    user: rootScope.managers.appUsersManager.getSelf(),
-    userFull: rootScope.managers.appProfileManager.getProfile(rootScope.myId.toUserId()),
-    connectedBot: rootScope.managers.appBusinessManager.getConnectedBot(overwriteConnectedBot)
-  };
-}
-
 export const AppEditProfileTab =
-  scaffoldSolidJSTab<EditProfileTabPayload>({
+  scaffoldSolidJSTab({
     title: 'EditAccount.Title',
     getComponentModule: () => import('../sidebarLeft/tabs/editProfile')
   });
@@ -596,17 +517,11 @@ export const AppPrivacyGiftsTab =
   });
 
 
-type AppActiveSessionsTabPayload = {
-  authorizations: Authorization.authorization[];
-  connectedBot?: ConnectedBot.connectedBot;
-  /** `account.authorizations.authorization_ttl_days` — 0 while unknown. */
-  ttlDays?: number;
-};
-
-export const AppActiveSessionsTab =
-  scaffoldSolidJSTabEventable<AppActiveSessionsTabPayload>({
-    title: 'SessionsTitle',
-    getComponentModule: () => import('../sidebarLeft/tabs/activeSessions')
+/** TeleSignal: the linked devices of the Signal account, which the settings open from their own row */
+export const AppLinkedDevicesTab =
+  scaffoldSolidJSTab({
+    title: 'Signal.Devices.Title',
+    getComponentModule: () => import('../sidebarLeft/tabs/linkedDevices')
   });
 
 type AppSessionTabPayload = {
@@ -875,23 +790,11 @@ export const AppGroupPermissionsTab =
     }
   });
 
-const getPrivacyAndSecurityInitArgs = (fromTab: SliderSuperTab) => ({
-  appConfig: fromTab.managers.apiManager.getAppConfig(),
-  globalPrivacy: fromTab.managers.appPrivacyManager.getGlobalPrivacySettings(),
-  webAuthorizations: fromTab.managers.appSeamlessLoginManager.getWebAuthorizations()
-});
-
-type AppPrivacyAndSecurityTabPayload = ReturnType<typeof getPrivacyAndSecurityInitArgs>;
-
 export const AppPrivacyAndSecurityTab =
-  scaffoldSolidJSTabEventable<AppPrivacyAndSecurityTabPayload>({
+  scaffoldSolidJSTab({
     title: 'PrivacySettings',
     getComponentModule: () => import('../sidebarLeft/tabs/privacyAndSecurity')
   });
-
-// Preload (appConfig / globalPrivacy / webAuthorizations) read off the constructor
-// by settings.tsx's makeSubTabConfig, matching the old static getInitArgs.
-(AppPrivacyAndSecurityTab as any).getInitArgs = getPrivacyAndSecurityInitArgs;
 
 
 type AppEditChatInviteLinkTabPayload = {

@@ -1,0 +1,176 @@
+/*
+ * TeleSignal: the Signal provider's methods that Web K's settings screens call. The engine runs in the worker, so the
+ * screens reach it through `appSignalManager`; the results are typed here for the screens that read them, since the
+ * provider's types stay out of this tree (`signalApi.d.ts`).
+ */
+
+import rootScope from '@lib/rootScope';
+
+export type SignalDevice = {
+  id: number,
+  name?: string,
+  lastSeen: number
+};
+
+export type SignalDevices = {
+  isPrimary: boolean,
+  currentDeviceId: number,
+  devices: SignalDevice[]
+};
+
+export type SignalMessageSettings = {
+  isReadReceiptsEnabled: boolean,
+  isTypingIndicatorsEnabled: boolean,
+  isLinkPreviewsEnabled: boolean,
+  isSealedSenderIndicatorsEnabled: boolean
+};
+
+export type SignalPinSettings = {
+  hasPin: boolean,
+  isRegistrationLockEnabled?: boolean,
+  [key: string]: unknown
+};
+
+/** Who sees our number and who can find us by it: `everybody` or `nobody`, as the provider has only those two */
+export type SignalPhoneNumberPrivacy = {
+  phoneNumber: {visibility: 'everybody' | 'nobody'},
+  addByPhone: {visibility: 'everybody' | 'nobody'}
+};
+
+export type SignalNotifyDefaults = {
+  users: SignalNotifyDefault,
+  groups: SignalNotifyDefault
+};
+
+export type SignalNotifyDefault = {
+  mutedUntil?: number,
+  hasSound?: boolean,
+  shouldShowPreviews?: boolean
+};
+
+export type SignalBlockedUsers = {
+  blockedIds: string[],
+  totalCount: number
+};
+
+export type SignalUsernameResult = {
+  username?: string,
+  error?: string
+};
+
+export type SignalDeviceLinkResult = {
+  device?: SignalDevice,
+  isPending?: true,
+  error?: string
+};
+
+/**
+ * A call of a provider method on the engine, which runs in the worker: the screens of this tab call it through the
+ * Signal manager. A method the engine does not implement resolves with `undefined`.
+ */
+export function callSignalApi<T = any>(name: string, ...args: any[]): Promise<T> {
+  return rootScope.managers.appSignalManager.callSignal(name, ...args);
+}
+
+export function fetchLinkedDevices(): Promise<SignalDevices | undefined> {
+  return callSignalApi('fetchSignalDevices');
+}
+
+export function fetchIsPrimaryDevice(): Promise<boolean | undefined> {
+  return callSignalApi('fetchIsSignalPrimary');
+}
+
+export function linkDevice(url: string): Promise<SignalDeviceLinkResult | undefined> {
+  return callSignalApi('linkSignalDevice', url);
+}
+
+export function unlinkDevice(deviceId: number): Promise<true | undefined> {
+  return callSignalApi('unlinkSignalDevice', deviceId);
+}
+
+export function fetchMessageSettings(): Promise<SignalMessageSettings | undefined> {
+  return callSignalApi('fetchSignalMessageSettings');
+}
+
+export function updateMessageSettings(update: Partial<SignalMessageSettings>): Promise<SignalMessageSettings | undefined> {
+  return callSignalApi('updateSignalMessageSettings', update);
+}
+
+export function fetchBlocked(): Promise<SignalBlockedUsers | undefined> {
+  return callSignalApi('fetchBlockedUsers', {});
+}
+
+/** The provider looks the peer up by its id, which is the one `fetchBlocked` returns */
+export function unblockPeer(peerId: string): Promise<true | undefined> {
+  return callSignalApi('unblockUser', {user: {id: peerId}});
+}
+
+export function fetchPinSettings(): Promise<SignalPinSettings | undefined> {
+  return callSignalApi('fetchSignalPinSettings');
+}
+
+export function setPin(pin: string): Promise<unknown> {
+  return callSignalApi('setSignalPin', pin);
+}
+
+export function removePin(): Promise<unknown> {
+  return callSignalApi('removeSignalPin');
+}
+
+export function setRegistrationLock(isEnabled: boolean): Promise<unknown> {
+  return callSignalApi('setSignalRegistrationLock', isEnabled);
+}
+
+export function fetchContactDiscovery(): Promise<boolean | undefined> {
+  return callSignalApi('fetchSignalContactDiscovery');
+}
+
+export function setContactDiscovery(isEnabled: boolean): Promise<unknown> {
+  return callSignalApi('setSignalContactDiscovery', isEnabled);
+}
+
+export function fetchPhoneNumberPrivacy(): Promise<SignalPhoneNumberPrivacy | undefined> {
+  return callSignalApi('fetchPhoneNumberPrivacy');
+}
+
+export function updatePhoneNumberPrivacy(update: {isShared?: boolean, isDiscoverable?: boolean}): Promise<SignalPhoneNumberPrivacy | undefined> {
+  return callSignalApi('updatePhoneNumberPrivacy', update);
+}
+
+export function fetchNotifyDefaults(): Promise<SignalNotifyDefaults | undefined> {
+  return callSignalApi('fetchNotifyDefaultSettings');
+}
+
+export function updateNotifyDefault(peerType: 'users' | 'groups', update: {isMuted?: boolean, shouldShowPreviews?: boolean}): Promise<unknown> {
+  return callSignalApi('updateNotificationSettings', peerType, update);
+}
+
+export function fetchUsernameLink(): Promise<string | undefined> {
+  return callSignalApi('fetchUsernameLink');
+}
+
+export function resetUsernameLink(): Promise<string | undefined> {
+  return callSignalApi('resetUsernameLink');
+}
+
+export function reserveUsername(nickname: string, discriminator?: string): Promise<SignalUsernameResult | undefined> {
+  return callSignalApi('reserveUsername', {nickname, discriminator});
+}
+
+export function confirmUsername(username: string): Promise<SignalUsernameResult | undefined> {
+  return callSignalApi('confirmUsername', {username});
+}
+
+export function deleteUsername(): Promise<true | undefined> {
+  return callSignalApi('deleteUsername');
+}
+
+export function updateProfile(params: {
+  firstName: string,
+  lastName?: string,
+  bio?: string,
+  photo?: File,
+  shouldRemovePhoto?: true
+}): Promise<true | undefined> {
+  return callSignalApi('updateOwnProfile', params);
+}

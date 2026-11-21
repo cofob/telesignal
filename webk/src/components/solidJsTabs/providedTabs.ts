@@ -1,10 +1,8 @@
 import type {AppNewGroupTab} from '@components/solidJsTabs/tabs';
-import {AppAddMembersTab, AppNotificationsTab, AppPasscodeEnterPasswordTab, AppPasscodeLockTab, AppPrivacyAndSecurityTab, AppUserPermissionsTab} from '@components/solidJsTabs/tabs';
+import {AppAddMembersTab, AppNotificationsTab, AppPrivacyAndSecurityTab, AppUserPermissionsTab} from '@components/solidJsTabs/tabs';
 
 
 export type ProvidedTabs = {
-  AppPasscodeLockTab: typeof AppPasscodeLockTab;
-  AppPasscodeEnterPasswordTab: typeof AppPasscodeEnterPasswordTab;
   AppNotificationsTab: typeof AppNotificationsTab;
   AppAddMembersTab: typeof AppAddMembersTab;
   AppPrivacyAndSecurityTab: typeof AppPrivacyAndSecurityTab;
@@ -18,8 +16,6 @@ export type ProvidedTabs = {
  * To avoid circular imports, other tabs should be assigned elsewhere in the app (they can be assigned in the module of the tab itself)
  */
 export const providedTabs = {
-  AppPasscodeLockTab,
-  AppPasscodeEnterPasswordTab,
   AppNotificationsTab,
   AppAddMembersTab,
   AppPrivacyAndSecurityTab,

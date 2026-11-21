@@ -1,7 +1,6 @@
-import PasscodeLockScreenController from '@components/passcodeLock/passcodeLockScreenController';
 import showTooltip from '@components/tooltip';
-import apiManagerProxy from '@lib/apiManagerProxy';
 import I18n, {i18n} from '@lib/langPack';
+import {lockSignalPasscode} from '@lib/signal/passcode';
 import {createEffect, createRoot, createSignal, onCleanup} from 'solid-js';
 
 
@@ -16,7 +15,6 @@ const LockIcon = () => {
 
 const LockButton = () => {
   let button: HTMLButtonElement;
-  let iconWrapper: HTMLSpanElement;
 
   let tooltipShowTimeout: number;
 
@@ -50,11 +48,8 @@ const LockButton = () => {
     class="btn-icon sidebar-lock-button"
     aria-label={I18n.format('PasscodeLock.TapToLock', true)}
     onClick={() => {
-      PasscodeLockScreenController.lock(iconWrapper, () => {
-        apiManagerProxy.lock();
-        clearTooltipVisible();
-      });
-      // PasscodeLockScreenController.lockOtherTabs();
+      clearTooltipVisible();
+      lockSignalPasscode();
     }}
     onMouseEnter={() => {
       tooltipShowTimeout = window.setTimeout(() => {
@@ -65,7 +60,7 @@ const LockButton = () => {
       clearTooltipVisible();
     }}
   >
-    <span ref={iconWrapper} class="sidebar-lock-button-icon">
+    <span class="sidebar-lock-button-icon">
       <LockIcon />
     </span>
   </button>

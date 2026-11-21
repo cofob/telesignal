@@ -16,6 +16,9 @@ import EncryptedStorageLayer from '@lib/encryptedStorageLayer';
 import {logger} from '@lib/logger';
 import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
 import DeferredIsUsingPasscode from '@lib/passcode/deferredIsUsingPasscode';
+// * TeleSignal: the account's values go through Web A's session store, which keeps them in memory while its vault is
+// * unlocked and in the vault while it is locked (`src/util/passcode/sessionStore`)
+import {readSessionValue, removeSessionValue, writeSessionValue} from '@signal-app/passcode-session';
 
 
 // * the keys of Web A (`tt-` and the account slots that both frontends share), which Web K's `clear` leaves
@@ -38,7 +41,7 @@ export class LocalStorage<Storage extends Record<string, any>> {
     } else if(this.useStorage) {
       let value: Storage[T];
       try {
-        value = localStorage.getItem(this.prefix + (key as string)) as any;
+        value = (readSessionValue(this.prefix + (key as string)) ?? null) as any;
       } catch(err) {
         this.useStorage = false;
         throw makeError('STORAGE_OFFLINE');
@@ -74,7 +77,7 @@ export class LocalStorage<Storage extends Record<string, any>> {
             }
 
             const stringified = JSON.stringify(value);
-            localStorage.setItem(this.prefix + key, stringified);
+            writeSessionValue(this.prefix + key, stringified);
           } catch(err) {
             this.useStorage = false;
             lastError = err;
@@ -98,7 +101,7 @@ export class LocalStorage<Storage extends Record<string, any>> {
 
     // if(this.useStorage) {
     try {
-      localStorage.removeItem(this.prefix + (key as string));
+      removeSessionValue(this.prefix + (key as string));
     } catch(err) {
 
     }

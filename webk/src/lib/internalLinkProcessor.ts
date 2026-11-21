@@ -51,7 +51,7 @@ import {AppContactsTab} from '@components/solidJsTabs/tabs';
 import {AppNewChannelTab} from '@components/solidJsTabs/tabs';
 import showCreateContactPopup from '@components/popups/createContact';
 import createNewGroupTab from '@components/sidebarLeft/tabs/createNewGroupTab';
-import {AppEditProfileTab, AppSettingsTab, getEditProfileInitArgs} from '@components/solidJsTabs';
+import {AppEditProfileTab, AppSettingsTab} from '@components/solidJsTabs';
 import showBirthdayPopup, {saveMyBirthday} from '@components/popups/birthday';
 import {getStickerSetInputByShortName} from '@lib/appManagers/utils/stickers/getStickerSetInput';
 import {AppMyStoriesTab} from '@components/solidJsTabs/tabs';
@@ -978,12 +978,12 @@ export class InternalLinkProcessor {
             // inits once — so the field is pointed at afterwards, from outside,
             // the way every other settings link points at its control.
             const tab = appSidebarLeft.createTab(AppEditProfileTab);
-            return tab.open(getEditProfileInitArgs()).then(async() => {
+            return tab.open().then(async() => {
               // pointing at a field while the tab is still sliding in scrolls it
               await tab.shown;
 
               if(path === 'profile-photo' || path === 'edit/set-photo') {
-                shake(tab.container.querySelector('.avatar-edit'));
+                shake(tab.container.querySelector('.edit-profile-photo'));
                 return;
               }
 

@@ -184,3 +184,32 @@ members, admins, rights, link, requests, leaving and creating a group) fails ins
 generic error toast. The adapter calls and the provider calls are checked up to that point, but a change that
 succeeds on the server has not been seen in the app. Testing the success path needs a linked account on a reachable
 server, which a contributor cannot use from the demo seed.
+
+## Web K's settings call the provider only through its worker, and a page-side call reads no account
+
+Web K's managers run in its SharedWorker, and so does the Signal engine. A page module that imports the provider
+(`import('@signal-app/provider')`) gets a second copy with no started engine: its `fetchFullUser` and `fetchChats`
+answer `undefined` for the demo account, while `rootScope.managers.appSignalManager.callSignal(name, ...)` reaches the
+engine (`webk/src/lib/signal/settingsApi.ts`). Verified in Chromium: the page-side `fetchFullUser` for the self user
+returned `undefined`, and the same call through the manager returned the profile. Some calls look right from the page
+without the engine, such as `fetchSignalDevices`, which answers from the stored demo devices, so the mistake shows only
+on the screens that read the account. Screens of Web K should use the managers, and a new engine method needs its
+manager method first.
+
+## Web K reads the account slot before it has the passcode, and a read writes a placeholder
+
+`AccountController.get` (`webk/src/lib/accounts/accountController.ts`) fills a missing slot with defaults and writes it
+back (`fillMissingData` then `update`). While a passcode's vault is locked, the page's session store is not yet in
+memory, so such a read writes the placeholder to plain `localStorage`, next to the vault. Verified in Chromium: when
+the startup read the slot before the lock screen, the slot held `{}` after unlocking. Web K now shows the lock screen
+(`webk/src/index.ts`, before the Telegram lock wait) before any slot read; any new code that reads the slot at startup
+has to stay behind that gate, or the placeholder reaches plain storage.
+
+## Web K's Telegram lock controller still gates the notifications and the wallet
+
+`webk/src/components/passcodeLock/passcodeLockScreenController.tsx` is the Telegram lock screen. Its startup wait
+(`PasscodeLockScreenController.waitForUnlock` in `webk/src/index.ts`) only runs its callback when Telegram's passcode is
+on, which Web K no longer sets, but `uiNotificationsManager.ts` (hiding content while locked), `components/wallet/screens/phrase.tsx`,
+`lib/appManagers/utils/useLockScreenShortcut.ts` and the sidebar's `InlineSelect` (in `passcodeLock/inlineSelect.tsx`)
+still import it or its folder. Removing the folder means deciding what those places show while the vault of Web A is
+locked, which is `getSignalLockState()` in `webk/src/lib/signal/passcode.ts`.

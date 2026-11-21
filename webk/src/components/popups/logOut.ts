@@ -1,45 +1,37 @@
 import rootScope from '@lib/rootScope';
+import appNavigationController from '@components/appNavigationController';
 import confirmationPopup from '@components/confirmationPopup';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import {getManagersSession, isSessionLeaving} from '@lib/accounts/getCurrentAccount';
-import {AppManagers} from '@lib/managers';
-import pause from '@helpers/schedulers/pause';
+import sessionStorage from '@lib/sessionStorage';
 import noop from '@helpers/noop';
+import pause from '@helpers/schedulers/pause';
+import clearSignalLocalData from '@signal-app/clear-local-data';
 
-/** how long the confirmation waits for the server's word on the wallet before it goes with the last one it had */
-const WALLET_STATUS_WAIT = 1500;
+// * how long each step of a log out is waited for, as Web A's sign-out waits for the engine (`signOut`)
+const LOG_OUT_WAIT_MS = 3000;
 
 /**
- * What logging out destroys of the wallet keys on this device, as tdesktop says it in the same confirmation; nothing
- * when there are none. The vault is read in the tab: the wallet's engine is never loaded for it.
+ * Logging out unlinks this device from the Signal account and removes its data, as the A version's sign-out does
+ * (`SignOutDialog`); the confirmation is the same one. The engine forgets the account first, the page clears what the
+ * engine did not, and the page starts again on the link screen.
  */
-async function readLogoutDescription(managers: AppManagers, userId: UserId) {
-  const wallet = managers.appWalletManager;
-  const {readWalletLoss, describeWalletLoss} = await import('@lib/wallet/logoutLoss');
-  const loss = await readWalletLoss(userId, () => Promise.race([
-    wallet.getStatus(),
-    pause(WALLET_STATUS_WAIT).then(() => wallet.getCachedStatus())
-  ]));
-
-  return describeWalletLoss('LogOut.Description', loss);
-}
-
-export default async function showLogOutPopup() {
+export default function showLogOutPopup() {
   const managers = bindManagersToSession(rootScope.managers);
-  const userId = rootScope.myId.toUserId();
-  const description = await readLogoutDescription(managers, userId).catch((): DocumentFragment => undefined);
-  // * the account switched while the vault was read: this account's confirmation does not open over the next one
-  if(isSessionLeaving(getManagersSession(managers))) return;
-
   confirmationPopup({
-    titleLangKey: 'LogOut',
-    descriptionLangKey: description ? undefined : 'LogOut.Description',
-    description,
+    titleLangKey: 'LogOutTitle',
+    descriptionLangKey: 'SureLogout',
     button: {
-      langKey: 'LogOut',
+      langKey: 'AccountSettingsLogout',
       isDanger: true
     }
-  }).then(() => {
-    managers.apiManager.logOut();
+  }).then(async() => {
+    // * the account switched while the confirmation was open: this account's log out is not carried over
+    if(isSessionLeaving(getManagersSession(managers))) return;
+
+    await Promise.race([managers.apiManager.logOut(), pause(LOG_OUT_WAIT_MS)]).catch(noop);
+    await Promise.race([clearSignalLocalData(), pause(LOG_OUT_WAIT_MS)]).catch(noop);
+    await sessionStorage.delete('account1').catch(noop);
+    appNavigationController.reload();
   }, noop);
 }

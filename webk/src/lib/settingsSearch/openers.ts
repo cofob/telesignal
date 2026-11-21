@@ -24,7 +24,6 @@ export const NON_NAVIGABLE_SECTIONS = new Set([
   'AppTwoStepVerificationEmailTab',
   'AppTwoStepVerificationEmailConfirmationTab',
   'AppTwoStepVerificationSetTab',
-  'AppPasscodeEnterPasswordTab',
   'AppSessionTab',
   'AppConnectedBotSessionTab',
   'AppEditFolderTab',
@@ -95,21 +94,8 @@ const SECTION_OPENERS: {[sectionId: string]: SectionOpener} = {
     const settings = await rootScope.managers.appPrivacyManager.getGlobalPrivacySettings();
     return openTab(slider, hotReloadGuard.tabs.AppPrivacyGiftsTab, middleware, settings);
   },
-  AppActiveSessionsTab: async(slider, middleware) => {
-    const managers = bindManagersToSession(rootScope.managers);
-    const authorizations = await managers.appAccountManager.getAuthorizations();
-
-    // The bot row is optional — a failed request must not keep the sessions list closed.
-    let connectedBot: ConnectedBot.connectedBot;
-    try {
-      connectedBot = await managers.appBusinessManager.getConnectedBot();
-    } catch{}
-
-    return openTab(slider, hotReloadGuard.tabs.AppActiveSessionsTab, middleware, {
-      authorizations: authorizations.authorizations,
-      connectedBot,
-      ttlDays: authorizations.authorization_ttl_days
-    });
+  AppLinkedDevicesTab: async(slider, middleware) => {
+    return openTab(slider, hotReloadGuard.tabs.AppLinkedDevicesTab, middleware);
   },
   AppBlockedUsersTab: async(slider, middleware) => {
     const {peerIds} = await rootScope.managers.appUsersManager.getBlocked();
@@ -133,8 +119,6 @@ const SECTION_OPENERS: {[sectionId: string]: SectionOpener} = {
   AppBusinessLocationTab: (slider) => hotReloadGuard.tabs.openBusinessEditorTab(slider, hotReloadGuard.tabs.AppBusinessLocationTab),
   AppBusinessChatLinksTab: (slider) => hotReloadGuard.tabs.openBusinessEditorTab(slider, hotReloadGuard.tabs.AppBusinessChatLinksTab),
   AppBusinessIntroTab: (slider) => hotReloadGuard.tabs.openBusinessEditorTab(slider, hotReloadGuard.tabs.AppBusinessIntroTab),
-  // the current passcode is asked for first, as it is from Privacy and Security
-  AppPasscodeLockTab: (slider) => hotReloadGuard.tabs.AppPasscodeLockTab.openChecked(slider),
   // and so is the cloud password while one is set
   AppTwoStepVerificationTab: async(slider, middleware) => {
     const state = await rootScope.managers.passwordManager.getState();
@@ -150,7 +134,7 @@ const SECTION_OPENERS: {[sectionId: string]: SectionOpener} = {
   },
   // the payload Settings gives it (its rows load it as the tab opens)
   AppEditProfileTab: (slider, middleware) => {
-    return openTab(slider, hotReloadGuard.tabs.AppEditProfileTab, middleware, hotReloadGuard.tabs.getEditProfileInitArgs(true));
+    return openTab(slider, hotReloadGuard.tabs.AppEditProfileTab, middleware);
   },
   AppMessagesAutoDeleteTab: async(slider, middleware) => {
     const period = await rootScope.managers.appPrivacyManager.getDefaultAutoDeletePeriod();

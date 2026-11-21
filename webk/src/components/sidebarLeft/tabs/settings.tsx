@@ -6,21 +6,14 @@ import rootScope from '@lib/rootScope';
 import Row from '@components/rowTsx';
 import {i18n, LangPackKey} from '@lib/langPack';
 import {SliderSuperTabConstructable, SliderSuperTabEventable} from '@components/sliderTab';
-import {AccountAuthorizations, Authorization, ConnectedBot} from '@layer';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import Section from '@components/section';
-import apiManagerProxy from '@lib/apiManagerProxy';
-import useStars, {hasTonTransactions} from '@stores/stars';
 import {renderPeerProfile} from '@components/peerProfile';
 import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import showMyQrCodePopup from '@components/popups/myQrCode';
-import showSendGiftPicker from '@components/popups/sendGiftPicker';
-import {formatNanoton} from '@helpers/paymentsWrapCurrencyAmount';
 import showLogOutPopup from '@components/popups/logOut';
-import askQuestion, {openTelegramFaq} from '@components/askQuestion';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import {usePromiseCollector} from '@components/solidJsTabs/promiseCollector';
-import {subscribeOn} from '@helpers/solid/subscribeOn';
 import InputSearch from '@components/inputSearch';
 import Scrollable from '@components/scrollable2';
 import InlinePortal from '@helpers/solid/inlinePortal';
@@ -32,11 +25,16 @@ import {SettingsSearchItem} from '@lib/settingsSearch';
 import {openSettingsSearchItem} from '@lib/settingsSearch/navigate';
 import {ROOT_SECTION_ID} from '@lib/settingsSearch/registry';
 import {bumpRecentSettingsSearch} from '@lib/settingsSearch/recent';
-import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import A11yButton from '@components/a11yButton';
 import {getAppVersionText} from '@config/app';
+import safeWindowOpen from '@helpers/dom/safeWindowOpen';
+import {fetchLinkedDevices} from '@lib/signal/settingsApi';
+
+// * Signal's help, which the settings point to instead of Telegram's FAQ
+const SUPPORT_URL = 'https://support.signal.org/';
 import {getKeptFlags} from '@config/modes';
 import styles from '@components/sidebarLeft/tabs/settings.module.scss';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper — wraps a sub-tab declaration. If the tab has a static `getInitArgs`,
@@ -93,7 +91,7 @@ const Settings = () => {
       icon: 'edit',
       text: 'EditAccount.Title',
       // fresh args on every open, so a failed connected-bot request isn't retained
-      onClick: () => tab.slider.createTab(hotReloadGuard.tabs.AppEditProfileTab).open(hotReloadGuard.tabs.getEditProfileInitArgs(true))
+      onClick: () => tab.slider.createTab(hotReloadGuard.tabs.AppEditProfileTab).open()
     }, {
       icon: 'qr',
       text: 'QRCode.Title',
@@ -243,6 +241,7 @@ const Settings = () => {
     makeSubTabConfig('data_filled', 'DataSettings', hotReloadGuard.tabs.AppDataAndStorageTab, tab),
     makeSubTabConfig('key_filled', 'AccountSettings.PrivacyAndSecurity', hotReloadGuard.tabs.AppPrivacyAndSecurityTab, tab),
     makeSubTabConfig('general_filled', 'Telegram.GeneralSettingsViewController', hotReloadGuard.tabs.AppGeneralSettingsTab, tab),
+    makeSubTabConfig('limit_folders_filled', 'AccountSettings.Filters', hotReloadGuard.tabs.AppChatFoldersTab, tab),
     makeSubTabConfig('reactions_filled', 'StickersName', hotReloadGuard.tabs.AppStickersAndEmojiTab, tab),
     makeSubTabConfig('speaker_filled', 'AccountSettings.SpeakersAndCamera', hotReloadGuard.tabs.AppSpeakersAndCameraTab, tab)
   ];
@@ -259,92 +258,15 @@ const Settings = () => {
     }
   };
 
-  // ── Devices row + active sessions fetch (we wait on this so the tab opens
-  //    with the device count already filled in).
-  let authorizations: Authorization.authorization[] | undefined;
-  let authorizationTTLDays: number | undefined;
-  let connectedBot: ConnectedBot.connectedBot | undefined;
-  let getAuthorizationsPromise: Promise<AccountAuthorizations.accountAuthorizations> | undefined;
-  const [authCount, setAuthCount] = createSignal('');
-  const updateAuthCount = () => {
-    if(authorizations) {
-      setAuthCount('' + (authorizations.length + (connectedBot ? 1 : 0)));
-    }
+  // ── Linked devices row: its count comes from the engine, the screen loads the list itself.
+  const [deviceCount, setDeviceCount] = createSignal('');
+  fetchLinkedDevices().then((devices) => {
+    if(devices) setDeviceCount('' + devices.devices.length);
+  }, () => {});
+
+  const onDevicesClick = () => {
+    tab.slider.createTab(hotReloadGuard.tabs.AppLinkedDevicesTab).open();
   };
-
-  const getAuthorizations = (overwrite?: boolean) => {
-    if(getAuthorizationsPromise && !overwrite) return getAuthorizationsPromise;
-
-    const promise = getAuthorizationsPromise = rootScope.managers.appAccountManager.getAuthorizations()
-    .finally(() => {
-      if(getAuthorizationsPromise === promise) {
-        getAuthorizationsPromise = undefined;
-      }
-    });
-
-    return promise;
-  };
-
-  const updateActiveSessions = (overwrite?: boolean) => {
-    return Promise.all([
-      getAuthorizations(overwrite),
-      rootScope.managers.appBusinessManager.getConnectedBot(overwrite).then((bot) => {
-        connectedBot = bot;
-      }, () => {})
-    ]).then(([auths]) => {
-      authorizations = auths.authorizations;
-      authorizationTTLDays = auths.authorization_ttl_days;
-      updateAuthCount();
-    });
-  };
-
-  subscribeOn(rootScope)('chat_automation_update', (bot) => {
-    connectedBot = bot;
-    updateAuthCount();
-  });
-
-  // Fire-and-forget: `account.getAuthorizations` is a real MTProto roundtrip
-  // every time (no caching). Letting the device count fill in via the
-  // `authCount` signal after the tab is shown matches the legacy behaviour.
-  updateActiveSessions();
-
-  const onDevicesClick = async() => {
-    const managers = bindManagersToSession(rootScope.managers);
-    if(!authorizations) {
-      await updateActiveSessions();
-    }
-
-    try {
-      connectedBot = await managers.appBusinessManager.getConnectedBot(true);
-      updateAuthCount();
-    } catch{
-      // Keep the latest event-backed snapshot. Active Sessions still exposes
-      // device authorizations, and the next open retries the bot request.
-    }
-
-    const subTab = tab.slider.createTab(hotReloadGuard.tabs.AppActiveSessionsTab);
-    subTab.eventListener.addEventListener('destroy', () => {
-      authorizations = undefined;
-      authorizationTTLDays = undefined;
-      connectedBot = undefined;
-      updateActiveSessions(true);
-    }, {once: true});
-    subTab.open({authorizations, connectedBot, ttlDays: authorizationTTLDays});
-  };
-
-  // ── Premium section. Signal-backed so `<Show>` re-evaluates when the
-  //    "purchase blocked" check resolves before `selectTab` fires — the section
-  //    either appears with the rest of the tab, or doesn't appear at all.
-  const [premiumBlocked, setPremiumBlocked] = createSignal(false);
-  promiseCollector.collect(
-    Promise.resolve(apiManagerProxy.isPremiumPurchaseBlocked()).then(setPremiumBlocked)
-  );
-
-  // ── Reactive star balances drive the titleRight text and stars row
-  //    visibility. Keep the starsTon row available when it has a balance or
-  //    transaction history, including after the balance returns to zero.
-  const stars = useStars();
-  const starsTon = useStars(true);
 
   // ── Self profile (avatar + name + collapse-on-scroll). The avatar inside
   //    `PeerProfileAvatars` is filled async via `setPeer()` (peer photo IPC →
@@ -401,14 +323,8 @@ const Settings = () => {
           </For>
           <Row clickable={onDevicesClick}>
             <Row.Icon icon="devices_filled" />
-            <Row.Title titleRight={<span>{authCount()}</span>} titleRightSecondary>
-              {i18n('Devices')}
-            </Row.Title>
-          </Row>
-          <Row clickable={() => tab.slider.createTab(hotReloadGuard.tabs.AppLanguageTab).open()}>
-            <Row.Icon icon="web_filled" />
-            <Row.Title titleRight={i18n('LanguageName')} titleRightSecondary>
-              {i18n('AccountSettings.Language')}
+            <Row.Title titleRight={<span>{deviceCount()}</span>} titleRightSecondary>
+              {i18n('Signal.Devices.Title')}
             </Row.Title>
           </Row>
           <Row clickable={() => tab.slider.createTab(hotReloadGuard.tabs.AppKeyboardShortcutsTab).open()}>
@@ -417,47 +333,11 @@ const Settings = () => {
           </Row>
         </div>
       </Section>
-      <Show when={!premiumBlocked()}>
-        <Section>
-          <Row clickable={() => hotReloadGuard.showPremiumPopup()}>
-            <Row.Icon icon="premium_badge" />
-            <Row.Title>{i18n('Premium.Boarding.Title')}</Row.Title>
-          </Row>
-          <Row clickable={() => hotReloadGuard.showBusinessPopup()}>
-            <Row.Icon icon="business_filled" />
-            <Row.Title>{i18n('TelegramBusiness')}</Row.Title>
-          </Row>
-          <Show when={!!stars()}>
-            <Row clickable={() => hotReloadGuard.showStarsPopup()}>
-              <Row.Icon icon="star_circle_filled" />
-              <Row.Title titleRight={'' + stars()} titleRightSecondary>
-                {i18n('MenuTelegramStars')}
-              </Row.Title>
-            </Row>
-          </Show>
-          <Show when={hasTonTransactions() || String(starsTon()) !== '0'}>
-            <Row clickable={() => hotReloadGuard.showStarsPopup({ton: true})}>
-              <Row.Icon icon="gram_filled" />
-              <Row.Title titleRight={formatNanoton(starsTon())} titleRightSecondary>
-                {i18n('MenuTelegramStarsTon')}
-              </Row.Title>
-            </Row>
-          </Show>
-          <Row clickable={() => showSendGiftPicker()}>
-            <Row.Icon icon="gift_filled" />
-            <Row.Title>{i18n('Chat.Menu.SendGift')}</Row.Title>
-          </Row>
-        </Section>
-      </Show>
-      {/* help, the way tdesktop ends its main settings */}
+      {/* help: Signal's support, which replaces Telegram's FAQ and its question to volunteers */}
       <Section>
-        <Row clickable={openTelegramFaq}>
+        <Row clickable={() => safeWindowOpen(SUPPORT_URL)}>
           <Row.Icon icon="faq_filled" />
-          <Row.Title>{i18n('TelegramFaq')}</Row.Title>
-        </Row>
-        <Row clickable={() => askQuestion(bindManagersToSession(rootScope.managers))}>
-          <Row.Icon icon="message_filled" />
-          <Row.Title>{i18n('AskAQuestion')}</Row.Title>
+          <Row.Title>{i18n('MenuSignalSupport')}</Row.Title>
         </Row>
       </Section>
       <A11yButton class={styles.version} onClick={openExperimental}>

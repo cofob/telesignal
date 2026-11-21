@@ -1,694 +1,303 @@
-import {Component, createEffect, createRoot, createSignal, For, JSX, onMount, Show} from 'solid-js';
-import {createStore, SetStoreFunction} from 'solid-js/store';
-import {AccountPassword, GlobalPrivacySettings, InputPrivacyKey, Passkey, WebAuthorization} from '@layer';
-import rootScope from '@lib/rootScope';
-import {i18n, LangPackKey} from '@lib/langPack';
+import {Component, createSignal, onMount, Show} from 'solid-js';
 import CheckboxFieldTsx from '@components/checkboxFieldTsx';
-import showPeerPopup from '@components/popups/peer';
-import Button from '@components/buttonTsx';
+import InputField from '@components/inputField';
 import Section from '@components/section';
-import toggleDisability from '@helpers/dom/toggleDisability';
-import convertKeyToInputKey from '@helpers/string/convertKeyToInputKey';
-import getPrivacyRulesDetails from '@appManagers/utils/privacy/getPrivacyRulesDetails';
-import PrivacyType from '@appManagers/utils/privacy/privacyType';
-import confirmationPopup, {PopupConfirmationOptions} from '@components/confirmationPopup';
-import noop from '@helpers/noop';
-import createOptimisticSave from '@helpers/createOptimisticSave';
-import {toastNew} from '@components/toast';
-import apiManagerProxy from '@lib/apiManagerProxy';
-import Icon from '@components/icon';
-import {joinDeepPath} from '@helpers/object/setDeepProperty';
-import createAgeVerification from '@components/popups/ageVerification';
-import {clearSensitiveSpoilers} from '@components/wrappers/mediaSpoiler';
-import useContentSettings from '@stores/contentSettings';
-import {openChangeLoginEmailTab} from '@components/sidebarLeft/tabs/changeLoginEmail';
-import {wrapEmailPattern} from '@components/emailVerification';
-import IS_WEB_AUTHN_SUPPORTED from '@environment/webAuthn';
-import showPasskeyPopup from '@components/popups/passkey';
-import {findExistingOrCreateCustomOption} from '@components/sidebarLeft/tabs/autoDeleteMessages/options';
-import InactivityPeriodRow, {ACCOUNT_TTL_OPTIONS} from '@components/sidebarLeft/tabs/inactivityPeriodRow';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
-import {usePromiseCollector} from '@components/solidJsTabs/promiseCollector';
-import type {AppPrivacyAndSecurityTab} from '@components/solidJsTabs/tabs';
-import Row from '@components/rowTsx';
-import {renderComponent} from '@helpers/solid/renderComponent';
-import type {AppPrivacyLastSeenTab} from '@components/solidJsTabs/tabs';
+import {type AppPrivacyAndSecurityTab} from '@components/solidJsTabs/tabs';
+import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
-import toastError from '@components/toastError';
+import rootScope from '@lib/rootScope';
+import {isSignalPasscodeEnabled, switchToWebA} from '@lib/signal/frontend';
+import {
+  fetchContactDiscovery,
+  fetchMessageSettings,
+  fetchPhoneNumberPrivacy,
+  fetchPinSettings,
+  removePin,
+  SignalMessageSettings,
+  SignalPhoneNumberPrivacy,
+  SignalPinSettings,
+  setContactDiscovery,
+  setPin,
+  setRegistrationLock,
+  updateMessageSettings,
+  updatePhoneNumberPrivacy
+} from '@lib/signal/settingsApi';
+
+// * Signal's PIN is at least four characters (Signal Android `PinEditText`)
+const PIN_MIN_LENGTH = 4;
 
 const PrivacyAndSecurity: Component = () => {
   const [tab] = useSuperTab<typeof AppPrivacyAndSecurityTab>();
-  const promiseCollector = usePromiseCollector();
-  const p = tab.payload;
+  const {Row, i18n, confirmationPopup, toastNew} = useHotReloadGuard();
 
-  const contentSettings = useContentSettings();
+  const [messageSettings, setMessageSettings] = createSignal<SignalMessageSettings>();
+  const [phoneNumberPrivacy, setPhoneNumberPrivacy] = createSignal<SignalPhoneNumberPrivacy>();
+  // * the PIN, the registration lock and contact discovery belong to the primary device: they are missing on linked ones
+  const [pinSettings, setPinSettings] = createSignal<SignalPinSettings>();
+  const [isDiscoveryEnabled, setIsDiscoveryEnabled] = createSignal<boolean>();
+  const [isPasscodeOn, setIsPasscodeOn] = createSignal(isSignalPasscodeEnabled());
 
-  let sessionsContent!: HTMLElement;
-  let privacyContent!: HTMLElement;
-  let newChatsContent!: HTMLElement;
-  let sensitiveContent!: HTMLElement;
-  let clearButton!: HTMLElement;
-  let deleteButton!: HTMLElement;
-
-  const [privacyCaption, setPrivacyCaption] = createSignal<LangPackKey>();
-  const [newChatsHidden, setNewChatsHidden] = createSignal(false);
-  const [sensitiveHidden, setSensitiveHidden] = createSignal(true);
-  // * undefined while the server has not said: the switch offers nothing until it does (the next open)
-  const topPeersSignal = createSignal<boolean>();
-  // * 0 until `account.getAccountTTL` answers — the screen does not wait for it
-  const accountTTLSignal = createSignal(0);
-
-  // * the manager sends the flips in turn; one refused with none behind it puts back what the server holds
-  const saveTopPeers = createOptimisticSave((enabled: boolean) => {
-    return tab.managers.appUsersManager.toggleTopPeers(enabled);
-  }, (enabled) => {
-    topPeersSignal[1](enabled);
-    toastNew({langPackKey: 'Error.AnError'});
-  }, () => tab.managers.appUsersManager.isTopPeersEnabled());
-  // * the switch has already moved: it showed the other value before
-  const onTopPeersChange = (enabled: boolean) => saveTopPeers(enabled, !enabled);
-
-  const onClearClick = () => {
-    const options: PopupConfirmationOptions = {
-      titleLangKey: 'PrivacyPaymentsClearAlertTitle',
-      descriptionLangKey: 'PrivacyPaymentsClearAlertText',
-      button: {
-        langKey: 'Clear'
-      },
-      checkboxes: [{
-        text: 'PrivacyClearShipping',
-        checked: true
-      }, {
-        text: 'PrivacyClearPayment',
-        checked: true
-      }]
-    };
-
-    confirmationPopup(options).then(() => {
-      const [info, payment] = options.checkboxes.map((c) => c.checkboxField.checked);
-      const toggle = toggleDisability([clearButton], true);
-      tab.managers.appPaymentsManager.clearSavedInfo(info, payment).then(() => {
-        if(!info && !payment) {
-          return;
-        }
-
-        toastNew({
-          langPackKey: info && payment ? 'PrivacyPaymentsPaymentShippingCleared' : (info ? 'PrivacyPaymentsShippingInfoCleared' : 'PrivacyPaymentsPaymentInfoCleared')
-        });
-      }, (err: ApiError) => {
-        toastError(err, 'clear saved info error');
-      }).finally(toggle);
-    }, noop);
-  };
-
-  const onDeleteClick = () => {
-    showPeerPopup('popup-delete-drafts', {
-      buttons: [{
-        langKey: 'Delete',
-        callback: () => {
-          const toggle = toggleDisability([deleteButton], true);
-          tab.managers.appDraftsManager.clearAllDrafts().catch((err: ApiError) => {
-            toastError(err, 'clear drafts error');
-          }).finally(toggle);
-        },
-        isDanger: true
-      }],
-      titleLangKey: 'AreYouSureClearDraftsTitle',
-      descriptionLangKey: 'AreYouSureClearDrafts'
-    });
+  const loadSettings = async() => {
+    const [messages, phone, pin, discovery] = await Promise.all([
+      fetchMessageSettings(),
+      fetchPhoneNumberPrivacy(),
+      fetchPinSettings(),
+      fetchContactDiscovery()
+    ]);
+    setMessageSettings(messages);
+    setPhoneNumberPrivacy(phone);
+    setPinSettings(pin);
+    setIsDiscoveryEnabled(discovery);
   };
 
   onMount(() => {
-    tab.container.classList.add('dont-u-dare-block-me');
-
-    const build = async() => {
-      const SUBTITLE: LangPackKey = 'Loading';
-      const promises: Promise<any>[] = [];
-
-      {
-        let blockedPeerIds: PeerId[];
-        let passwordState: AccountPassword;
-        let websites: WebAuthorization[];
-        let passkeys: Passkey[];
-        let setPasskeys: SetStoreFunction<Passkey[]>;
-        let autoDeletePeriod: number;
-
-        const [blockedSubtitle, setBlockedSubtitle] = createSignal<JSX.Element>(i18n(SUBTITLE));
-        const [blockedFrozen, setBlockedFrozen] = createSignal(true);
-        const [websitesSubtitle, setWebsitesSubtitle] = createSignal<JSX.Element>(i18n(SUBTITLE));
-        const [websitesFrozen, setWebsitesFrozen] = createSignal(true);
-        const [websitesHidden, setWebsitesHidden] = createSignal(false);
-        const [autoDeleteSubtitle, setAutoDeleteSubtitle] = createSignal<JSX.Element>(i18n(SUBTITLE));
-        const [autoDeleteFrozen, setAutoDeleteFrozen] = createSignal(true);
-        const [passcodeSubtitle, setPasscodeSubtitle] = createSignal<JSX.Element>(i18n(SUBTITLE));
-        const [passcodeFrozen, setPasscodeFrozen] = createSignal(true);
-        const [twoFactorSubtitle, setTwoFactorSubtitle] = createSignal<JSX.Element>(i18n(SUBTITLE));
-        const [twoFactorFrozen, setTwoFactorFrozen] = createSignal(true);
-        const [emailSubtitle, setEmailSubtitle] = createSignal<JSX.Element>(i18n(SUBTITLE));
-        const [emailFrozen, setEmailFrozen] = createSignal(true);
-        const [emailHidden, setEmailHidden] = createSignal(true);
-        const [passkeysSubtitle, setPasskeysSubtitle] = createSignal<JSX.Element>(i18n(SUBTITLE));
-        const [passkeysFrozen, setPasskeysFrozen] = createSignal(true);
-        const [passkeysHidden, setPasskeysHidden] = createSignal(false);
-
-        const openPasskeysTab = () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppPasskeysTab).open({
-            passkeys,
-            setPasskeys
-          });
-        };
-
-        const updateActiveWebsites = (promise = tab.managers.appSeamlessLoginManager.getWebAuthorizations()) => {
-          return promise.then((authorizations) => {
-            websites = authorizations;
-            setWebsitesSubtitle(i18n('Privacy.Websites', [websites.length]));
-            setWebsitesHidden(!websites.length);
-            setWebsitesFrozen(false);
-          });
-        };
-
-        const updatePasskeys = () => {
-          setPasskeysFrozen(true);
-          return Promise.all([
-            tab.managers.apiManager.getAppConfig(),
-            tab.managers.appAccountManager.getPasskeys()
-          ]).then(([appConfig, passkeysResult]) => {
-            setPasskeysFrozen(false);
-            [passkeys, setPasskeys] = createStore(passkeysResult.passkeys);
-
-            createRoot((dispose) => {
-              tab.middlewareHelper.onDestroy(dispose);
-              createEffect(() => {
-                setPasskeysSubtitle(i18n('Passkeys', [passkeys.length]));
-                setPasskeysHidden(
-                  !passkeys.length && (!appConfig.settings_display_passkeys || !IS_WEB_AUTHN_SUPPORTED)
-                );
-              });
-            });
-          });
-        };
-
-        renderComponent({
-          element: sessionsContent,
-          Component: () => (
-            <>
-              <Row clickable={() => {
-                if(!blockedFrozen()) tab.slider.createTab(hotReloadGuard.tabs.AppBlockedUsersTab).open({peerIds: blockedPeerIds});
-              }}>
-                <Row.Icon icon="person_crossed_filled" />
-                <Row.Title>{i18n('BlockedUsers')}</Row.Title>
-                <Row.Subtitle>{blockedSubtitle()}</Row.Subtitle>
-              </Row>
-              <Row
-                classList={{hide: websitesHidden()}}
-                clickable={() => {
-                  if(websitesFrozen()) return;
-                  const webTab = tab.slider.createTab(hotReloadGuard.tabs.AppActiveWebSessionsTab);
-                  webTab.eventListener.addEventListener('destroy', () => {
-                    updateActiveWebsites();
-                  });
-                  webTab.open(websites);
-                }}
-              >
-                <Row.Icon icon="mention_filled" />
-                <Row.Title>{i18n('OtherWebSessions')}</Row.Title>
-                <Row.Subtitle>{websitesSubtitle()}</Row.Subtitle>
-              </Row>
-              <Row clickable={() => {
-                if(autoDeleteFrozen() || isNaN(autoDeletePeriod)) return;
-                tab.slider.createTab(hotReloadGuard.tabs.AppMessagesAutoDeleteTab).open({
-                  period: autoDeletePeriod,
-                  onSaved: (period) => {
-                    autoDeletePeriod = period;
-                    updateAutoDeleteRow();
-                  }
-                });
-              }}>
-                <Row.Icon icon="auto_delete_filled" />
-                <Row.Title>{i18n('AutoDeleteMessages')}</Row.Title>
-                <Row.Subtitle>{autoDeleteSubtitle()}</Row.Subtitle>
-              </Row>
-              <Row clickable={() => !passcodeFrozen() && hotReloadGuard.tabs.AppPasscodeLockTab.openChecked(tab.slider)}>
-                <Row.Icon icon="key_filled" />
-                <Row.Title>{i18n('PasscodeLock.Item.Title')}</Row.Title>
-                <Row.Subtitle>{passcodeSubtitle()}</Row.Subtitle>
-              </Row>
-              <Row clickable={() => !twoFactorFrozen() && hotReloadGuard.tabs.AppTwoStepVerificationTab.openChecked(tab.slider, passwordState)}>
-                <Row.Icon icon="two_factor_auth_filled" />
-                <Row.Title>{i18n('TwoStepVerification')}</Row.Title>
-                <Row.Subtitle>{twoFactorSubtitle()}</Row.Subtitle>
-              </Row>
-              <Show when={!emailHidden()}>
-                <Row clickable={() => {
-                  if(emailFrozen()) return;
-                  openChangeLoginEmailTab(tab.slider, passwordState);
-                }}>
-                  <Row.Icon icon="email_filled" />
-                  <Row.Title>{i18n('LoginEmail')}</Row.Title>
-                  <Row.Subtitle>{emailSubtitle()}</Row.Subtitle>
-                </Row>
-              </Show>
-              <Row
-                classList={{hide: passkeysHidden()}}
-                clickable={() => {
-                  if(passkeysFrozen()) return;
-                  if(passkeys.length) {
-                    openPasskeysTab();
-                    return;
-                  }
-
-                  showPasskeyPopup((passkey) => {
-                    setPasskeys([passkey]);
-                    openPasskeysTab();
-                  });
-                }}
-              >
-                <Row.Icon icon="faceid_filled" />
-                <Row.Title>{i18n('Privacy.Passkeys')}</Row.Title>
-                <Row.Subtitle>{passkeysSubtitle()}</Row.Subtitle>
-              </Row>
-            </>
-          ),
-          middleware: tab.middlewareHelper.get()
-        });
-
-        const setBlockedCount = (count: number) => {
-          setBlockedSubtitle(i18n(
-            count ? 'PrivacySettingsController.UserCount' : 'BlockedEmpty',
-            [count]
-          ));
-        };
-
-        tab.listenerSetter.add(rootScope)('peer_block', () => {
-          /* const {blocked, peerId} = update;
-          if(!blocked) blockedPeerIds.findAndSplice((p) => p === peerId);
-          else blockedPeerIds.unshift(peerId);
-          blockedCount += blocked ? 1 : -1;
-          setBlockedCount(blockedCount); */
-          updateBlocked();
-        });
-
-        const updateBlocked = () => {
-          tab.managers.appUsersManager.getBlocked().then((res) => {
-            setBlockedCount(res.count);
-            blockedPeerIds = res.peerIds;
-            setBlockedFrozen(false);
-          });
-        };
-
-        updateBlocked();
-
-        tab.managers.passwordManager.getState().then((state) => {
-          passwordState = state;
-          setTwoFactorSubtitle(i18n(state.pFlags.has_password ? 'PrivacyAndSecurity.Item.On' : 'PrivacyAndSecurity.Item.Off'));
-          setTwoFactorFrozen(false);
-
-          if(state.login_email_pattern) {
-            setEmailSubtitle(wrapEmailPattern(state.login_email_pattern));
-            setEmailFrozen(false);
-            setEmailHidden(false);
-          }
-
-          // console.log('password state', state);
-        });
-
-        const setPasscodeEnabledState = (enabled?: boolean) => {
-          setPasscodeSubtitle(i18n(enabled ? 'PrivacyAndSecurity.Item.On' : 'PrivacyAndSecurity.Item.Off'));
-        };
-        tab.managers.appStateManager.getState().then((state) => {
-          setPasscodeEnabledState(state.settings?.passcode?.enabled || false);
-          setPasscodeFrozen(false);
-        });
-        tab.listenerSetter.add(rootScope)('settings_updated', ({key, value}) => {
-          if(key === joinDeepPath('settings', 'passcode', 'enabled'))
-            setPasscodeEnabledState(value);
-        });
-
-        promises.push(updateActiveWebsites(p.webAuthorizations));
-        updatePasskeys();
-
-
-        function updateAutoDeleteRow() {
-          setAutoDeleteSubtitle(
-            !autoDeletePeriod ?
-              i18n('Off') :
-              findExistingOrCreateCustomOption(autoDeletePeriod).label()
-          );
-        }
-
-        (async() => {
-          autoDeletePeriod = await tab.managers.appPrivacyManager.getDefaultAutoDeletePeriod();
-          updateAutoDeleteRow();
-          setAutoDeleteFrozen(false);
-        })();
-      }
-
-      {
-        const isPremiumFeaturesHidden = await apiManagerProxy.isPremiumFeaturesHidden();
-        setPrivacyCaption(isPremiumFeaturesHidden ? 'GroupsAndChannelsHelp' : 'Privacy.MessagesCaption');
-
-        type RowKey = InputPrivacyKey['_'] | (keyof GlobalPrivacySettings['pFlags']);
-        type PrivacyRow = {
-          key: RowKey,
-          title: JSX.Element,
-          clickable: () => void
-        };
-
-        const rowsByKeys: Partial<Record<RowKey, ReturnType<typeof createSignal<JSX.Element>>>> = {};
-        const rows: PrivacyRow[] = [];
-        const addRow = (key: RowKey, title: JSX.Element, clickable: () => void) => {
-          rowsByKeys[key] = createSignal<JSX.Element>(i18n(SUBTITLE));
-          rows.push({key, title, clickable});
-        };
-
-        const openTabWithGlobalPrivacy = async(
-          constructor: typeof AppPrivacyLastSeenTab,
-          key: RowKey
-        ) => {
-          const globalPrivacy = await p.globalPrivacy;
-          const subTab = tab.slider.createTab(constructor);
-          subTab.open(globalPrivacy);
-          subTab.eventListener.addEventListener('privacy', (privacy) => {
-            p.globalPrivacy = privacy;
-            updatePrivacyRow(key);
-          });
-        };
-
-        addRow('inputPrivacyKeyPhoneNumber', i18n('PrivacyPhoneTitle'), () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppPrivacyPhoneNumberTab).open();
-        });
-        addRow('inputPrivacyKeyStatusTimestamp', i18n('LastSeenTitle'), () => {
-          openTabWithGlobalPrivacy(hotReloadGuard.tabs.AppPrivacyLastSeenTab, 'inputPrivacyKeyStatusTimestamp');
-        });
-        addRow('inputPrivacyKeyProfilePhoto', i18n('PrivacyProfilePhotoTitle'), () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppPrivacyProfilePhotoTab).open();
-        });
-        addRow('inputPrivacyKeyAbout', i18n('Privacy.BioRow'), () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppPrivacyAboutTab).open();
-        });
-        addRow('inputPrivacyKeyPhoneCall', i18n('WhoCanCallMe'), () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppPrivacyCallsTab).open();
-        });
-        addRow('inputPrivacyKeyForwards', i18n('PrivacyForwardsTitle'), () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppPrivacyForwardMessagesTab).open();
-        });
-        addRow('inputPrivacyKeyChatInvite', i18n('WhoCanAddMe'), () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppPrivacyAddToGroupsTab).open();
-        });
-
-        const createPremiumTitle = (langKey: LangPackKey) => {
-          const fragment = document.createDocumentFragment();
-          const icon = Icon('star', 'privacy-premium-icon');
-          fragment.append(i18n(langKey), icon);
-          const onPremium = () => {
-            icon.classList.toggle('hide', !rootScope.premium);
-          };
-          onPremium();
-          tab.listenerSetter.add(rootScope)('premium_toggle', onPremium);
-          return fragment;
-        };
-
-        if(!isPremiumFeaturesHidden) {
-          addRow('inputPrivacyKeyVoiceMessages', createPremiumTitle('PrivacyVoiceMessagesTitle'), () => {
-            tab.slider.createTab(hotReloadGuard.tabs.AppPrivacyVoicesTab).open();
-          });
-          addRow('new_noncontact_peers_require_premium', createPremiumTitle('PrivacyMessagesTitle'), () => {
-            tab.slider.createTab(hotReloadGuard.tabs.AppPrivacyMessagesTab).open({
-              onSaved: (updatedPrivacy) => {
-                p.globalPrivacy = updatedPrivacy;
-                updatePrivacyRow('new_noncontact_peers_require_premium');
-              }
-            });
-          });
-        }
-
-        addRow('inputPrivacyKeyBirthday', i18n('Privacy.BirthdayRow'), () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppPrivacyBirthdayTab).open();
-        });
-        addRow('inputPrivacyKeyStarGiftsAutoSave', i18n('Privacy.GiftsRow'), () => {
-          openTabWithGlobalPrivacy(hotReloadGuard.tabs.AppPrivacyGiftsTab, 'inputPrivacyKeyStarGiftsAutoSave');
-        });
-        addRow('inputPrivacyKeySavedMusic', i18n('Privacy.SavedMusicRow'), () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppPrivacySavedMusicTab).open();
-        });
-
-        renderComponent({
-          element: privacyContent,
-          Component: () => (
-            <For each={rows}>{(row) => (
-              <Row clickable={row.clickable}>
-                <Row.Title>{row.title}</Row.Title>
-                <Row.Subtitle>{rowsByKeys[row.key][0]()}</Row.Subtitle>
-              </Row>
-            )}</For>
-          ),
-          middleware: tab.middlewareHelper.get()
-        });
-
-        const updatePrivacyRow = (key: RowKey) => {
-          const subtitleSignal = rowsByKeys[key];
-          if(!subtitleSignal) {
-            return;
-          }
-
-          const map: {[key in PrivacyType]: LangPackKey} = {
-            [PrivacyType.Everybody]: 'PrivacySettingsController.Everbody',
-            [PrivacyType.Contacts]: 'PrivacySettingsController.MyContacts',
-            [PrivacyType.Nobody]: 'PrivacySettingsController.Nobody'
-          };
-
-          const getLangKeyForMessagesPrivacy = (globalPrivacy: GlobalPrivacySettings.globalPrivacySettings): LangPackKey => {
-            if(!rootScope.premium) return map[PrivacyType.Everybody];
-
-            if(+globalPrivacy.noncontact_peers_paid_stars) return 'PrivacySettingsController.Paid';
-
-            if(globalPrivacy.pFlags.new_noncontact_peers_require_premium) return 'Privacy.ContactsAndPremium';
-
-            return map[PrivacyType.Everybody];
-          };
-
-          if(!key.startsWith('inputPrivacy')) {
-            p.globalPrivacy.then((globalPrivacy) => {
-              const langKey = getLangKeyForMessagesPrivacy(globalPrivacy);
-              subtitleSignal[1](i18n(langKey));
-            });
-            return;
-          }
-
-          tab.managers.appPrivacyManager.getPrivacy(key as InputPrivacyKey['_']).then((rules) => {
-            const details = getPrivacyRulesDetails(rules);
-            let langKey = map[details.type];
-            if(details.type === PrivacyType.Nobody && details.allowPremium) {
-              langKey = 'PrivacyPremium';
-            } else if(details.type === PrivacyType.Contacts && details.allowPremium) {
-              langKey = 'Privacy.ContactsAndPremium';
-            } else if(details.type === PrivacyType.Nobody && details.allowMiniApps) {
-              langKey = 'PrivacyMiniApps';
-            } else if(details.type === PrivacyType.Everybody && details.disallowMiniApps) {
-              langKey = 'PrivacyNoMiniApps';
-            } else if(details.type === PrivacyType.Contacts && details.allowMiniApps) {
-              langKey = 'PrivacyContactsAndMiniApps';
-            }
-            const disallowLength = details.disallowPeers.users.length + details.disallowPeers.chats.length;
-            const allowLength = details.allowPeers.users.length + details.allowPeers.chats.length;
-
-            const subtitle: JSX.Element[] = [i18n(langKey)];
-            if(disallowLength || allowLength) {
-              // * signed counts read left to right in any language, "(-2, +3)", not "(2-, 3+)"
-              const counts = `(${[-disallowLength, allowLength ? '+' + allowLength : 0].filter(Boolean).join(', ')})`;
-              subtitle.push(' ', <span dir="ltr">{counts}</span>);
-            }
-            subtitleSignal[1](subtitle);
-          });
-        };
-
-        for(const key in rowsByKeys) {
-          updatePrivacyRow(key as keyof typeof rowsByKeys);
-        }
-
-        tab.listenerSetter.add(rootScope)('privacy_update', (update) => {
-          updatePrivacyRow(convertKeyToInputKey(update.key._) as any);
-        });
-      }
-
-      {
-        const archiveAndMuteSignal = createSignal(false);
-        renderComponent({
-          element: newChatsContent,
-          Component: () => (
-            <Row>
-              <Row.CheckboxFieldToggle>
-                <CheckboxFieldTsx signal={archiveAndMuteSignal} toggle />
-              </Row.CheckboxFieldToggle>
-              <Row.Title>{i18n('ArchiveAndMute')}</Row.Title>
-            </Row>
-          ),
-          middleware: tab.middlewareHelper.get()
-        });
-
-        let enabled: boolean, destroyed: boolean;
-        tab.eventListener.addEventListener('destroy', async() => {
-          destroyed = true;
-          if(enabled === undefined || enabled === archiveAndMuteSignal[0]()) return;
-          return tab.managers.appPrivacyManager.setGlobalPrivacySettings({
-            _: 'globalPrivacySettings',
-            pFlags: {
-              ...(await p.globalPrivacy).pFlags,
-              archive_and_mute_new_noncontact_peers: archiveAndMuteSignal[0]() || undefined
-            }
-          });
-        }, {once: true});
-
-        const promise = Promise.all([
-          p.appConfig,
-          p.globalPrivacy
-        ]).then(([appConfig, settings]) => {
-          if(destroyed) {
-            return;
-          }
-
-          const onPremiumToggle = (isPremium: boolean) => {
-            setNewChatsHidden(!isPremium && !appConfig.autoarchive_setting_available);
-          };
-
-          tab.listenerSetter.add(rootScope)('premium_toggle', onPremiumToggle);
-          onPremiumToggle(rootScope.premium);
-
-          enabled = !!settings.pFlags.archive_and_mute_new_noncontact_peers;
-          archiveAndMuteSignal[1](enabled);
-        });
-
-        promises.push(promise);
-      }
-
-      {
-        const sensitiveSignal = createSignal(false);
-        let pendingChange = false;
-        const onSensitiveChange = (newEnabled: boolean) => {
-          if(pendingChange) {
-            sensitiveSignal[1](!newEnabled);
-            return;
-          }
-
-          if(newEnabled && contentSettings.needAgeVerification()) {
-            sensitiveSignal[1](false);
-            createAgeVerification().then((verified) => {
-              if(verified) {
-                sensitiveSignal[1](true);
-                clearSensitiveSpoilers();
-              }
-            })
-            return;
-          }
-
-          pendingChange = true;
-
-          tab.managers.appPrivacyManager.setContentSettings({
-            sensitive_enabled: newEnabled
-          }).then(() => {
-            if(newEnabled) {
-              clearSensitiveSpoilers();
-            }
-          }, () => {
-            toastNew({langPackKey: 'Error.AnError'});
-            sensitiveSignal[1](!newEnabled);
-          }).finally(() => {
-            pendingChange = false;
-          });
-        };
-
-        renderComponent({
-          element: sensitiveContent,
-          Component: () => (
-            <Row>
-              <Row.CheckboxFieldToggle>
-                <CheckboxFieldTsx signal={sensitiveSignal} toggle onChange={onSensitiveChange} />
-              </Row.CheckboxFieldToggle>
-              <Row.Title>{i18n('PrivacyAndSecurity.SensitiveText')}</Row.Title>
-            </Row>
-          ),
-          middleware: tab.middlewareHelper.get()
-        });
-
-        if(contentSettings.sensitiveCanChange()) {
-          sensitiveSignal[1](contentSettings.sensitiveEnabled());
-          setSensitiveHidden(false);
-        }
-      }
-
-      // * read off the people list the search keeps warm, so the switch opens in its place
-      promises.push(tab.managers.appUsersManager.isTopPeersEnabled().then(topPeersSignal[1], noop));
-      tab.managers.appAccountManager.getAccountTTL().then(accountTTLSignal[1], noop);
-
-      await Promise.all(promises);
-    };
-
-    promiseCollector.collect(build());
+    loadSettings();
   });
+
+  const onMessageSettingChange = async(update: Partial<SignalMessageSettings>) => {
+    const updated = await updateMessageSettings(update);
+    if(!updated) {
+      toastNew({langPackKey: 'Signal.Privacy.SaveFailed'});
+      return;
+    }
+
+    setMessageSettings(updated);
+  };
+
+  const onPhoneNumberChange = async(update: {isShared?: boolean, isDiscoverable?: boolean}) => {
+    const updated = await updatePhoneNumberPrivacy(update);
+    if(!updated) {
+      toastNew({langPackKey: 'Signal.Privacy.SaveFailed'});
+      return;
+    }
+
+    setPhoneNumberPrivacy(updated);
+  };
+
+  const onDiscoveryChange = async(isEnabled: boolean) => {
+    const updated = await setContactDiscovery(isEnabled);
+    if(updated === undefined) {
+      toastNew({langPackKey: 'Signal.Privacy.SaveFailed'});
+      return;
+    }
+
+    setIsDiscoveryEnabled(updated as boolean);
+  };
+
+  const onRegistrationLockChange = async(isEnabled: boolean) => {
+    const updated = await setRegistrationLock(isEnabled) as SignalPinSettings | undefined;
+    if(!updated) {
+      toastNew({langPackKey: 'Signal.Privacy.SaveFailed'});
+      return;
+    }
+
+    setPinSettings(updated);
+  };
+
+  // * Create or change the PIN: the new one is asked for once, as the engine stores it without a confirmation
+  const onPinClick = () => {
+    const pinField = new InputField({
+      label: 'SignalPinNew',
+      plainText: true,
+      required: true,
+      withLinebreaks: false
+    });
+
+    confirmationPopup({
+      titleLangKey: pinSettings()?.hasPin ? 'SignalPinChange' : 'SignalPinCreate',
+      descriptionLangKey: 'SignalPinNewDescription',
+      inputField: pinField,
+      button: {
+        langKey: 'Save',
+        callback: async() => {
+          const pin = pinField.value;
+          if(pin.length < PIN_MIN_LENGTH) {
+            toastNew({langPackKey: 'SignalPinErrorShort'});
+            return false;
+          }
+
+          const updated = await setPin(pin) as SignalPinSettings | undefined;
+          if(!updated) {
+            toastNew({langPackKey: 'SignalPinErrorSave'});
+            return false;
+          }
+
+          setPinSettings(updated);
+        }
+      }
+    }).catch(() => {});
+  };
+
+  const onRemovePinClick = () => {
+    confirmationPopup({
+      titleLangKey: 'SignalPinRemove',
+      descriptionLangKey: 'SignalPinRemoveText',
+      button: {
+        langKey: 'SignalPinRemove',
+        isDanger: true,
+        callback: async() => {
+          const updated = await removePin() as SignalPinSettings | undefined;
+          if(!updated) {
+            toastNew({langPackKey: 'SignalPinErrorSave'});
+            return false;
+          }
+
+          setPinSettings(updated);
+        }
+      }
+    }).catch(() => {});
+  };
+
+  // * the passcode is set and changed in the A version, which keeps the vault (`src/util/passcode`)
+  const onPasscodeClick = () => {
+    switchToWebA();
+  };
+
+  const onBlockedClick = async() => {
+    const {peerIds} = await rootScope.managers.appUsersManager.getBlocked();
+    tab.slider.createTab(hotReloadGuard.tabs.AppBlockedUsersTab).open({peerIds});
+  };
 
   return (
     <>
-      <Section
-        caption="SessionsInfo"
-        noDelimiter
-        contentProps={{ref: (el) => sessionsContent = el}}
-      />
-      <Section
-        name="PrivacyTitle"
-        caption={privacyCaption()}
-        contentProps={{ref: (el) => privacyContent = el, class: 'privacy-navigation-container'}}
-      />
-      <Section
-        name="NewChatsFromNonContacts"
-        caption="ArchiveAndMuteInfo"
-        classList={{hide: newChatsHidden()}}
-        contentProps={{ref: (el) => newChatsContent = el}}
-      />
-      <Section
-        name="Privacy.SensitiveContent"
-        caption="PrivacyAndSecurity.SensitiveDesc"
-        classList={{hide: sensitiveHidden()}}
-        contentProps={{ref: (el) => sensitiveContent = el}}
-      />
-      <Section name="PrivacyPayments" caption="PrivacyPaymentsClearInfo">
-        <Button
-          ref={clearButton}
-          class="btn-primary btn-transparent"
-          icon="delete"
-          text="PrivacyPaymentsClear"
-          onClick={onClearClick}
-        />
-      </Section>
-      <Section name="FilterChats">
-        <Button
-          ref={deleteButton}
-          class="btn-primary btn-transparent"
-          icon="delete"
-          text="PrivacyDeleteCloudDrafts"
-          onClick={onDeleteClick}
-        />
-      </Section>
-      <Section name="Contacts" caption="SuggestContactsInfo">
-        <Row>
-          <Row.CheckboxFieldToggle>
-            <CheckboxFieldTsx
-              signal={topPeersSignal}
-              toggle
-              disabled={topPeersSignal[0]() === undefined}
-              onChange={onTopPeersChange}
-            />
-          </Row.CheckboxFieldToggle>
-          <Row.Title>{i18n('SuggestContacts')}</Row.Title>
+      <Show when={messageSettings()}>
+        {(settings) => (
+          <Section name="Signal.Privacy.Messages">
+            <Row>
+              <Row.CheckboxFieldToggle>
+                <CheckboxFieldTsx
+                  checked={settings().isReadReceiptsEnabled}
+                  onChange={(value) => onMessageSettingChange({isReadReceiptsEnabled: value})}
+                  toggle
+                />
+              </Row.CheckboxFieldToggle>
+              <Row.Title>{i18n('SignalReadReceipts')}</Row.Title>
+              <Row.Subtitle>{i18n('SignalReadReceiptsAbout')}</Row.Subtitle>
+            </Row>
+            <Row>
+              <Row.CheckboxFieldToggle>
+                <CheckboxFieldTsx
+                  checked={settings().isTypingIndicatorsEnabled}
+                  onChange={(value) => onMessageSettingChange({isTypingIndicatorsEnabled: value})}
+                  toggle
+                />
+              </Row.CheckboxFieldToggle>
+              <Row.Title>{i18n('SignalTypingIndicators')}</Row.Title>
+              <Row.Subtitle>{i18n('SignalTypingIndicatorsAbout')}</Row.Subtitle>
+            </Row>
+            <Row>
+              <Row.CheckboxFieldToggle>
+                <CheckboxFieldTsx
+                  checked={settings().isLinkPreviewsEnabled}
+                  onChange={(value) => onMessageSettingChange({isLinkPreviewsEnabled: value})}
+                  toggle
+                />
+              </Row.CheckboxFieldToggle>
+              <Row.Title>{i18n('SignalLinkPreviews')}</Row.Title>
+              <Row.Subtitle>{i18n('SignalLinkPreviewsAbout')}</Row.Subtitle>
+            </Row>
+            <Row>
+              <Row.CheckboxFieldToggle>
+                <CheckboxFieldTsx
+                  checked={settings().isSealedSenderIndicatorsEnabled}
+                  onChange={(value) => onMessageSettingChange({isSealedSenderIndicatorsEnabled: value})}
+                  toggle
+                />
+              </Row.CheckboxFieldToggle>
+              <Row.Title>{i18n('SignalSealedSenderIndicators')}</Row.Title>
+              <Row.Subtitle>{i18n('SignalSealedSenderIndicatorsAbout')}</Row.Subtitle>
+            </Row>
+          </Section>
+        )}
+      </Show>
+
+      <Show when={phoneNumberPrivacy()}>
+        {(privacy) => (
+          <Section name="PrivacyPhoneTitle" caption={privacy().phoneNumber.visibility === 'everybody' ? 'SignalPhoneSharedInfo' : 'SignalPhoneHiddenInfo'}>
+            <Row>
+              <Row.CheckboxFieldToggle>
+                <CheckboxFieldTsx
+                  checked={privacy().phoneNumber.visibility === 'everybody'}
+                  onChange={(value) => onPhoneNumberChange({isShared: value})}
+                  toggle
+                />
+              </Row.CheckboxFieldToggle>
+              <Row.Title>{i18n('Signal.Privacy.ShowPhone')}</Row.Title>
+            </Row>
+            <Row>
+              <Row.CheckboxFieldToggle>
+                <CheckboxFieldTsx
+                  checked={privacy().addByPhone.visibility === 'everybody'}
+                  onChange={(value) => onPhoneNumberChange({isDiscoverable: value})}
+                  toggle
+                />
+              </Row.CheckboxFieldToggle>
+              <Row.Title>{i18n('Signal.Privacy.FindByPhone')}</Row.Title>
+              <Row.Subtitle>
+                {i18n(privacy().addByPhone.visibility === 'everybody' ? 'SignalPhoneDiscoverableInfo' : 'SignalPhoneUnlistedInfo')}
+              </Row.Subtitle>
+            </Row>
+          </Section>
+        )}
+      </Show>
+
+      <Show when={isDiscoveryEnabled() !== undefined}>
+        <Section caption="SignalContactDiscoveryAbout">
+          <Row>
+            <Row.CheckboxFieldToggle>
+              <CheckboxFieldTsx
+                checked={!!isDiscoveryEnabled()}
+                onChange={onDiscoveryChange}
+                toggle
+              />
+            </Row.CheckboxFieldToggle>
+            <Row.Title>{i18n('SignalContactDiscovery')}</Row.Title>
+          </Row>
+        </Section>
+      </Show>
+
+      <Section name="Signal.Privacy.Security">
+        <Show when={pinSettings()}>
+          {(pin) => (
+            <>
+              <Row clickable={onPinClick}>
+                <Row.Icon icon="key" />
+                <Row.Title titleRight={i18n(pin().hasPin ? 'SettingsItemPrivacyOn' : 'SettingsItemPrivacyOff')} titleRightSecondary>
+                  {i18n('SignalPinSettings')}
+                </Row.Title>
+                <Row.Subtitle>{i18n('SignalPinAbout')}</Row.Subtitle>
+              </Row>
+              <Show when={pin().hasPin}>
+                <Row>
+                  <Row.CheckboxFieldToggle>
+                    <CheckboxFieldTsx
+                      checked={!!pin().isRegistrationLockEnabled}
+                      onChange={onRegistrationLockChange}
+                      toggle
+                    />
+                  </Row.CheckboxFieldToggle>
+                  <Row.Title>{i18n('SignalPinRegistrationLock')}</Row.Title>
+                  <Row.Subtitle>{i18n('SignalPinRegistrationLockAbout')}</Row.Subtitle>
+                </Row>
+                <Row color="danger" clickable={onRemovePinClick}>
+                  <Row.Icon icon="delete" />
+                  <Row.Title class="danger">{i18n('SignalPinRemove')}</Row.Title>
+                </Row>
+              </Show>
+            </>
+          )}
+        </Show>
+        <Row clickable={onBlockedClick}>
+          <Row.Icon icon="user_block" />
+          <Row.Title>{i18n('BlockedUsers')}</Row.Title>
         </Row>
-      </Section>
-      <Section name="DeleteAccountTitle" caption="DeleteAccountHelp">
-        <InactivityPeriodRow
-          title="DeleteAccountIfAwayFor2"
-          options={ACCOUNT_TTL_OPTIONS}
-          days={accountTTLSignal}
-          save={(days) => tab.managers.appAccountManager.setAccountTTL(days)}
-          reload={() => tab.managers.appAccountManager.getAccountTTL()}
-        />
+        <Row clickable={onPasscodeClick}>
+          <Row.Icon icon="lock" />
+          <Row.Title titleRight={i18n(isPasscodeOn() ? 'SettingsItemPrivacyOn' : 'SettingsItemPrivacyOff')} titleRightSecondary>
+            {i18n('PasscodeLock.Title')}
+          </Row.Title>
+        </Row>
       </Section>
     </>
   );

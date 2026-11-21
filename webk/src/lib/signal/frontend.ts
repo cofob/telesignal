@@ -4,7 +4,6 @@
  */
 
 import appNavigationController from '@components/appNavigationController';
-import {showDeactivatedScreen} from '@/pages/deactivatedScreen';
 
 // * Web A's `IS_SCREEN_LOCKED_CACHE_KEY` (`src/config.ts`): it is there while Web A has a passcode
 const WEB_A_PASSCODE_STATE_KEY = 'tt-is-screen-locked';
@@ -33,10 +32,3 @@ export function isSignalPasscodeEnabled() {
   }
 }
 
-export function showSignalPasscodeScreen() {
-  showDeactivatedScreen({
-    title: 'Signal.Passcode.Title',
-    subtitle: 'Signal.Passcode.Subtitle',
-    onClick: switchToWebA
-  });
-}

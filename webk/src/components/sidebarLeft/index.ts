@@ -58,7 +58,6 @@ import openClientPip, {closeClientPip, isClientPipOpen} from '@components/client
 import liteMode, {AnimationLevel} from '@helpers/liteMode';
 import {AppPowerSavingTab} from '@components/solidJsTabs/tabs';
 import {AppMyStoriesTab} from '@components/solidJsTabs/tabs';
-import {AppPasscodeLockTab} from '@components/solidJsTabs/tabs';
 import Icon from '@components/icon';
 import AppSelectPeers from '@components/appSelectPeers';
 import setBadgeContent, {setBadgeCount} from '@helpers/setBadgeContent';
@@ -95,7 +94,7 @@ import {AppEditFolderTab} from '@components/solidJsTabs/tabs';
 import {addShortcutListener} from '@helpers/shortcutListener';
 import tsNow from '@helpers/tsNow';
 import {toastNew} from '@components/toast';
-import DeferredIsUsingPasscode from '@lib/passcode/deferredIsUsingPasscode';
+import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
 import createLockButton from '@components/sidebarLeft/lockButton';
 import createSubmenuTrigger, {CreateSubmenuArgs} from '@components/createSubmenuTrigger';
 import ChatTypeMenu from '@components/chatTypeMenu';
@@ -108,7 +107,6 @@ import useHasFoldersSidebar, {
   useFoldersSidebarShown
 } from '@stores/foldersSidebar';
 import isObject from '@helpers/object/isObject';
-import {useAppSettings} from '@stores/appSettings';
 import {useCollapsedCommunityDialogsKey} from '@stores/communities';
 import isCommunity from '@appManagers/utils/communities/isCommunity';
 import {openEmojiStatusPicker} from '@components/sidebarLeft/emojiStatusPicker';
@@ -338,7 +336,7 @@ export class AppSidebarLeft extends SidebarSlider {
       if(isPremium) {
         await wrapStatus((statusMiddlewareHelper = middleware.create()).get());
         if(!middleware()) return;
-        toggleRightButtons(true, await DeferredIsUsingPasscode.isUsingPasscode());
+        toggleRightButtons(true, isSignalPasscodeEnabled());
 
         const onEmojiStatusChange = () => {
           const oldStatusMiddlewareHelper = statusMiddlewareHelper;
@@ -354,7 +352,7 @@ export class AppSidebarLeft extends SidebarSlider {
           rootScope.removeEventListener('emoji_status_change', onEmojiStatusChange);
         });
       } else {
-        toggleRightButtons(false, await DeferredIsUsingPasscode.isUsingPasscode());
+        toggleRightButtons(false, isSignalPasscodeEnabled());
       }
 
       appDialogsManager.resizeStoriesList?.();
@@ -385,8 +383,8 @@ export class AppSidebarLeft extends SidebarSlider {
       void warmTopPeers();
     });
 
-    const [appSettings] = useAppSettings();
-    toggleRightButtons(rootScope.premium, appSettings.passcode?.enabled);
+    // * TeleSignal: the lock button follows the passcode of the A version
+    toggleRightButtons(rootScope.premium, isSignalPasscodeEnabled());
 
     void warmTopPeers();
 

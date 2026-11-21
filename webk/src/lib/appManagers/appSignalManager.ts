@@ -127,6 +127,11 @@ export default class AppSignalManager extends AppManager {
     await this.call('destroy');
   }
 
+  /** A provider method that the settings screens call, run by the engine of this worker (`lib/signal/settingsApi`) */
+  public callSignal(name: string, ...args: any[]) {
+    return this.call(name, ...args);
+  }
+
   private async call<T = any>(name: string, ...args: any[]): Promise<T> {
     const {callApi} = await getProvider();
     return callApi(name, ...args);
@@ -598,8 +603,6 @@ export default class AppSignalManager extends AppManager {
     });
     return (result?.users || []).map(buildUser);
   }
-
-  /** Finds the Signal user of a username; Web K asks for it on a click only, as Web A does */
 
   private async getContacts() {
     const result: {users: SignalUser[]} = await this.call('fetchContactList');

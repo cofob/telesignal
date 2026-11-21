@@ -115,11 +115,9 @@ function showAuthorizationPrevented(authorization: UnconfirmedAuthorization) {
   createPopupTsx(() => <AuthorizationPreventedPopup authorization={authorization} />);
 }
 
-async function openActiveSessions() {
-  const authorizations = await rootScope.managers.appAccountManager.getAuthorizations();
-  hotReloadGuard.appSidebarLeft.createTab(hotReloadGuard.tabs.AppActiveSessionsTab).open({
-    authorizations: authorizations.authorizations
-  });
+function openActiveSessions() {
+  hotReloadGuard.appSidebarLeft.createTab(hotReloadGuard.tabs.AppLinkedDevicesTab).open();
+  return Promise.resolve();
 }
 
 function showAuthorizationConfirmed() {

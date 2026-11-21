@@ -1,517 +1,314 @@
-import {createEffect, createMemo, createResource, createSignal, JSX, on, onCleanup, onMount, Show} from 'solid-js';
-import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
-import {usePromiseCollector} from '@components/solidJsTabs/promiseCollector';
-import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
-import {type AppEditProfileTab} from '@components/solidJsTabs/tabs';
-import Section from '@components/section';
-import Row from '@components/rowTsx';
+import {Component, createEffect, createMemo, createResource, createSignal, on, onMount, Show} from 'solid-js';
+import ButtonIcon from '@components/buttonIcon';
+import {AvatarNewTsx} from '@components/avatarNew';
 import {InputFieldTsx} from '@components/inputFieldTsx';
-import {i18n} from '@lib/langPack';
-import rootScope from '@lib/rootScope';
-import getPeerEditableUsername from '@appManagers/utils/peers/getPeerEditableUsername';
-import EditPeer from '@components/editPeer';
-import InputField, {InputState} from '@components/inputField';
-import {UsernameInputField} from '@components/usernameInputField';
-import UsernamesSection from '@components/usernamesSection';
-import showBirthdayPopup, {saveMyBirthday} from '@components/popups/birthday';
-import showPickUserPopup from '@components/popups/pickUser';
-import PopupElement from '@components/popups/indexTsx';
-import wrapPeerTitle from '@components/wrappers/peerTitle';
-import {toastNew} from '@components/toast';
-import toastError from '@components/toastError';
+import InputField from '@components/inputField';
+import Section from '@components/section';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
-import {purchaseUsernameCaption} from '@components/sidebarLeft/tabs/purchaseUsernameCaption';
-import {BusinessWorkHours, ConnectedBot, User, UserFull} from '@layer';
-import OpeningHours from '@helpers/openingHours';
-import {trackAvatarUpload} from '@stores/avatarUpload';
-import usePremium from '@stores/premium';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
-import Modes from '@config/modes';
+import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
+import {type AppEditProfileTab} from '@components/solidJsTabs/tabs';
+import showLinkQrCodePopup from '@components/popups/linkQrCode';
+import {LangPackKey} from '@lib/langPack';
+import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
+import rootScope from '@lib/rootScope';
+import {toSignalPeerId} from '@lib/signal/builders';
+import {
+  callSignalApi,
+  confirmUsername,
+  deleteUsername,
+  fetchUsernameLink,
+  reserveUsername,
+  resetUsernameLink,
+  updateProfile
+} from '@lib/signal/settingsApi';
 
-type AppEditProfileTabType = typeof AppEditProfileTab;
-
-export type EditProfileTabPayload = {
-  bioMaxLength: MaybePromise<number>,
-  user: MaybePromise<User.user>,
-  userFull: MaybePromise<UserFull.userFull>,
-  connectedBot: MaybePromise<ConnectedBot.connectedBot | undefined>
+// * Signal Android `ProfileName.MAX_PART_LENGTH` and the about limit of Signal Desktop's profile editor
+const MAX_NAME_LENGTH = 26;
+const MAX_ABOUT_LENGTH = 140;
+// * `UsernameErrorKey` of the provider (`src/api/signal/methods/profile.ts`)
+const USERNAME_ERROR_KEYS: Record<string, LangPackKey> = {
+  taken: 'Signal.Username.Taken',
+  reservationExpired: 'Signal.Username.Expired',
+  rateLimited: 'Signal.Username.RateLimited',
+  nicknameTooShort: 'Signal.Username.TooShort',
+  nicknameTooLong: 'Signal.Username.TooLong',
+  nicknameStartsWithDigit: 'Signal.Username.StartsWithDigit',
+  nicknameCharacters: 'Signal.Username.Characters',
+  discriminatorInvalid: 'Signal.Username.NumberInvalid'
 };
 
-const EditProfileTab = () => {
-  const [tab] = useSuperTab<AppEditProfileTabType>();
-  const promiseCollector = usePromiseCollector();
-  const {appSidebarLeft} = useHotReloadGuard();
+type ProfileData = {
+  firstName: string,
+  lastName: string,
+  about: string,
+  hasPhoto: boolean,
+  username?: string
+};
 
-  const payload = tab.payload;
-  const loadPromise = Promise.all([
-    Promise.resolve(payload.bioMaxLength),
-    Promise.resolve(payload.user),
-    Promise.resolve(payload.userFull)
-  ]);
-  promiseCollector.collect(loadPromise);
+const EditProfile: Component = () => {
+  const [tab] = useSuperTab<typeof AppEditProfileTab>();
+  const {Row, i18n, confirmationPopup, toastNew} = useHotReloadGuard();
 
-  const [data] = createResource(() => loadPromise.then(([bioMaxLength, user, userFull]) => ({bioMaxLength, user, userFull})));
+  const selfPeerId = rootScope.myId;
+  const [data] = createResource(() => loadProfile());
+
+  const [username, setUsername] = createSignal<string>();
+  const [usernameLink, setUsernameLink] = createSignal<string>();
+  // * the profile as the engine stores it, which the fields are compared with
+  const [saved, setSaved] = createSignal<ProfileData>();
+  const [photo, setPhoto] = createSignal<File>();
+  const [isPhotoRemoved, setIsPhotoRemoved] = createSignal(false);
+  const [firstName, setFirstName] = createSignal('');
+  const [lastName, setLastName] = createSignal('');
+  const [about, setAbout] = createSignal('');
+
+  async function loadProfile(): Promise<ProfileData> {
+    const result: {
+      user: {firstName?: string, lastName?: string, avatarPhotoId?: string, usernames?: {username: string, isActive?: boolean}[]},
+      fullInfo: {bio?: string}
+    } = await callSignalApi('fetchFullUser', {id: toSignalPeerId(selfPeerId)});
+    const profile: ProfileData = {
+      firstName: result?.user.firstName || '',
+      lastName: result?.user.lastName || '',
+      about: result?.fullInfo.bio || '',
+      hasPhoto: !!result?.user.avatarPhotoId,
+      username: result?.user.usernames?.find(({isActive}) => isActive)?.username
+    };
+    setSaved(profile);
+    setFirstName(profile.firstName);
+    setLastName(profile.lastName);
+    setAbout(profile.about);
+    setUsername(profile.username);
+    refreshUsernameLink();
+    return profile;
+  }
+
+  const refreshUsernameLink = () => {
+    fetchUsernameLink().then(setUsernameLink, () => {});
+  };
+
+  const isChanged = createMemo(() => {
+    const current = saved();
+    if(!current) return false;
+    return firstName().trim() !== current.firstName ||
+      lastName().trim() !== current.lastName ||
+      about().trim() !== current.about ||
+      photo() !== undefined ||
+      isPhotoRemoved();
+  });
+
+  const onSave = async() => {
+    if(!isChanged() || !firstName().trim()) return;
+
+    const result = await updateProfile({
+      firstName: firstName().trim(),
+      lastName: lastName().trim() || undefined,
+      bio: about().trim() || undefined,
+      photo: photo(),
+      shouldRemovePhoto: isPhotoRemoved() || undefined
+    });
+    if(!result) {
+      toastNew({langPackKey: 'Signal.Profile.SaveFailed'});
+      return;
+    }
+
+    // * the saved profile is read back, which also updates the self user the app shows
+    setPhoto(undefined);
+    setIsPhotoRemoved(false);
+    await loadProfile();
+    toastNew({langPackKey: 'Signal.Profile.Saved'});
+  };
+
+  const saveBtn = ButtonIcon('check', {ariaLabel: 'Save'});
+  attachClickEvent(saveBtn, onSave, {listenerSetter: tab.listenerSetter});
+
+  onMount(() => {
+    tab.header.append(saveBtn);
+  });
+
+  // * the header's button shows only while there is something to save
+  createEffect(on(isChanged, (changed) => saveBtn.classList.toggle('hide', !changed)));
+
+  const onPhotoPick = (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if(!file) return;
+    setPhoto(file);
+    setIsPhotoRemoved(false);
+  };
+
+  let photoInput: HTMLInputElement;
+
+  const hasPhoto = () => (saved()?.hasPhoto && !isPhotoRemoved()) || photo() !== undefined;
+
+  const onRemovePhotoClick = () => {
+    setPhoto(undefined);
+    setIsPhotoRemoved(true);
+  };
+
+  const onUsernameClick = () => {
+    const usernameField = new InputField({
+      label: 'Signal.Username.Nickname',
+      plainText: true,
+      required: true,
+      withLinebreaks: false
+    });
+
+    confirmationPopup({
+      titleLangKey: username() ? 'Signal.Username.Change' : 'Signal.Username.Set',
+      descriptionLangKey: 'Signal.Username.Help',
+      inputField: usernameField,
+      button: {
+        langKey: 'Save',
+        callback: async() => {
+          // * `nickname.12` picks the number, a bare nickname takes a free one
+          const [nickname, discriminator] = usernameField.value.trim().split('.');
+          const reserved = await reserveUsername(nickname, discriminator);
+          if(!reserved?.username) {
+            toastNew({langPackKey: USERNAME_ERROR_KEYS[reserved?.error] || 'Signal.Username.Failed'});
+            return false;
+          }
+
+          const confirmed = await confirmUsername(reserved.username);
+          if(!confirmed?.username) {
+            toastNew({langPackKey: USERNAME_ERROR_KEYS[confirmed?.error] || 'Signal.Username.Failed'});
+            return false;
+          }
+
+          setUsername(confirmed.username);
+          refreshUsernameLink();
+          toastNew({langPackKey: 'Signal.Username.Saved'});
+        }
+      }
+    }).catch(() => {});
+  };
+
+  const onDeleteUsernameClick = () => {
+    const current = username();
+    confirmationPopup({
+      titleLangKey: 'Signal.Username.Delete',
+      descriptionLangKey: 'Signal.Username.DeleteConfirm',
+      descriptionLangArgs: [current],
+      button: {
+        langKey: 'Delete',
+        isDanger: true,
+        callback: async() => {
+          const deleted = await deleteUsername();
+          if(!deleted) {
+            toastNew({langPackKey: 'Signal.Username.Failed'});
+            return false;
+          }
+
+          setUsername(undefined);
+          setUsernameLink(undefined);
+          toastNew({langPackKey: 'Signal.Username.Removed'});
+        }
+      }
+    }).catch(() => {});
+  };
+
+  const onLinkClick = () => {
+    const url = usernameLink();
+    if(!url) return;
+    showLinkQrCodePopup({url, aboutLangKey: 'Signal.Username.LinkAbout'});
+  };
+
+  const onResetLinkClick = () => {
+    confirmationPopup({
+      titleLangKey: 'Signal.Username.LinkReset',
+      descriptionLangKey: 'Signal.Username.LinkResetConfirm',
+      button: {
+        langKey: 'Reset',
+        isDanger: true,
+        callback: async() => {
+          const url = await resetUsernameLink();
+          if(!url) {
+            toastNew({langPackKey: 'Signal.Username.Failed'});
+            return false;
+          }
+
+          setUsernameLink(url);
+          toastNew({langPackKey: 'Signal.Username.LinkResetDone'});
+        }
+      }
+    }).catch(() => {});
+  };
 
   return (
     <Show when={data()}>
-      <EditProfileForm data={data()} connectedBot={payload.connectedBot} />
+      <Section>
+        <div class="edit-profile-photo">
+          <AvatarNewTsx peerId={selfPeerId} size={120} />
+        </div>
+        <Row clickable={() => photoInput.click()}>
+          <Row.Icon icon="camera" />
+          <Row.Title>{i18n('Signal.Profile.SetPhoto')}</Row.Title>
+        </Row>
+        <Show when={hasPhoto()}>
+          <Row clickable={onRemovePhotoClick}>
+            <Row.Icon icon="delete" />
+            <Row.Title>{i18n('Signal.Profile.RemovePhoto')}</Row.Title>
+          </Row>
+        </Show>
+        <input
+          ref={photoInput}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={onPhotoPick}
+        />
+      </Section>
+
+      <Section caption="Signal.Profile.AboutHelp">
+        <div class="input-wrapper">
+          <InputFieldTsx
+            label="FirstName"
+            name="signal-first-name"
+            maxLength={MAX_NAME_LENGTH}
+            value={firstName()}
+            onRawInput={setFirstName}
+          />
+          <InputFieldTsx
+            label="LastName"
+            name="signal-last-name"
+            maxLength={MAX_NAME_LENGTH}
+            value={lastName()}
+            onRawInput={setLastName}
+          />
+          <InputFieldTsx
+            label="Signal.Profile.About"
+            name="signal-about"
+            maxLength={MAX_ABOUT_LENGTH}
+            withLinebreaks
+            value={about()}
+            onRawInput={setAbout}
+          />
+        </div>
+      </Section>
+
+      <Section caption="Signal.Profile.UsernameHelp">
+        <Row clickable={onUsernameClick}>
+          <Row.Icon icon="username" />
+          <Row.Title>{username() ? '@' + username() : i18n('Signal.Username.Set')}</Row.Title>
+          <Row.Subtitle>{i18n('Username')}</Row.Subtitle>
+        </Row>
+        <Show when={username()}>
+          <Row clickable={usernameLink() ? onLinkClick : undefined}>
+            <Row.Icon icon="link" />
+            <Row.Title>{i18n('Signal.Username.Link')}</Row.Title>
+            <Row.Subtitle>{i18n('Signal.Username.LinkAbout')}</Row.Subtitle>
+          </Row>
+          <Row clickable={onResetLinkClick}>
+            <Row.Icon icon="replace" />
+            <Row.Title>{i18n('Signal.Username.LinkReset')}</Row.Title>
+          </Row>
+          <Row color="danger" clickable={onDeleteUsernameClick}>
+            <Row.Icon icon="delete" />
+            <Row.Title class="danger">{i18n('Signal.Username.Delete')}</Row.Title>
+          </Row>
+        </Show>
+      </Section>
     </Show>
   );
 };
 
-export default EditProfileTab;
-
-type FormData = {
-  bioMaxLength: number,
-  user: User.user,
-  userFull: UserFull.userFull
-};
-
-const EditProfileForm = (props: {
-  data: FormData,
-  connectedBot: MaybePromise<ConnectedBot.connectedBot | undefined>
-}) => {
-  const [tab] = useSuperTab<AppEditProfileTabType>();
-  const {user, userFull, bioMaxLength} = props.data;
-
-  tab.container.classList.add('edit-profile-container');
-
-  const inputFields: InputField[] = [];
-
-  const editPeer = new EditPeer({
-    peerId: rootScope.myId,
-    inputFields,
-    listenerSetter: tab.listenerSetter,
-    middleware: tab.middlewareHelper.get()
-  });
-
-  tab.content.append(editPeer.nextBtn);
-
-  let firstNameInputField: InputField;
-  let lastNameInputField: InputField;
-  let bioInputField: InputField;
-  let usernameInputField: UsernameInputField;
-
-  const trackInputField = (field: InputField) => {
-    inputFields.push(field);
-    tab.listenerSetter.add(field.input)('input', editPeer.handleChange);
-  };
-
-  const initialPersonalChannelId: ChatId = userFull.personal_channel_id ?
-    userFull.personal_channel_id.toChatId() :
-    0;
-  const [personalChannelId, setPersonalChannelId] = createSignal<ChatId>(initialPersonalChannelId);
-  const [personalChannelTitle, setPersonalChannelTitle] = createSignal<JSX.Element>(i18n('EditProfile.PersonalChannel.Add'));
-  const [hasBirthday, setHasBirthday] = createSignal(!!userFull.birthday);
-  const premium = usePremium();
-  const [businessWorkHours, setBusinessWorkHours] = createSignal(userFull.business_work_hours);
-  const [businessLocation, setBusinessLocation] = createSignal(userFull.business_location);
-  const [connectedBot, setConnectedBot] = createSignal<ConnectedBot.connectedBot>();
-  const [connectedBotLoaded, setConnectedBotLoaded] = createSignal(false);
-  const [connectedBotLoadFailed, setConnectedBotLoadFailed] = createSignal(false);
-  const [chatAutomationTitle, setChatAutomationTitle] = createSignal<JSX.Element>(i18n('Loading'));
-
-  /** `open 24/7`, or how many days of the week have hours — the row's value. */
-  const businessHoursSummary = () => {
-    const hours = businessWorkHours() as BusinessWorkHours.businessWorkHours;
-    if(OpeningHours.is24x7(hours)) {
-      return i18n('BusinessHoursProfileFullOpen');
-    }
-
-    const openDays = OpeningHours.getDaysHours(hours.weekly_open).filter((periods) => periods.length);
-    return i18n('Days', [openDays.length]);
-  };
-
-  let cleanedUp = false;
-  let connectedBotVersion = 0;
-  onCleanup(() => cleanedUp = true);
-  const setConnectedBotFromUpdate = (bot?: ConnectedBot.connectedBot) => {
-    ++connectedBotVersion;
-    setConnectedBot(bot);
-    setConnectedBotLoadFailed(false);
-    setConnectedBotLoaded(true);
-  };
-
-  const loadConnectedBot = async(promise: MaybePromise<ConnectedBot.connectedBot | undefined>) => {
-    const requestVersion = ++connectedBotVersion;
-    setConnectedBotLoadFailed(false);
-    setConnectedBotLoaded(false);
-
-    try {
-      const bot = await Promise.resolve(promise);
-      if(cleanedUp || requestVersion !== connectedBotVersion) {
-        return false;
-      }
-
-      setConnectedBot(bot);
-      setConnectedBotLoaded(true);
-      return true;
-    } catch{
-      if(!cleanedUp && requestVersion === connectedBotVersion) {
-        setConnectedBotLoadFailed(true);
-      }
-
-      return false;
-    }
-  };
-
-  loadConnectedBot(props.connectedBot);
-
-  const isPersonalChannelChanged = createMemo(() => personalChannelId() !== initialPersonalChannelId);
-  const origIsChanged = editPeer.isChanged;
-  editPeer.isChanged = () => origIsChanged() || isPersonalChannelChanged();
-
-  const {setUsername: setPurchaseUsername, element: purchaseEl} = purchaseUsernameCaption();
-
-  let personalChannelTitleVersion = 0;
-  createEffect(on(personalChannelId, async(channelId) => {
-    const version = ++personalChannelTitleVersion;
-    if(channelId) {
-      const title = await wrapPeerTitle({peerId: channelId.toPeerId(true)});
-      if(!cleanedUp && version === personalChannelTitleVersion) {
-        setPersonalChannelTitle(title);
-      }
-    } else {
-      setPersonalChannelTitle(i18n('EditProfile.PersonalChannel.Add'));
-    }
-  }));
-
-  let chatAutomationTitleVersion = 0;
-  createEffect(() => {
-    const loaded = connectedBotLoaded();
-    const failed = connectedBotLoadFailed();
-    const bot = connectedBot();
-    const version = ++chatAutomationTitleVersion;
-    if(failed) {
-      setChatAutomationTitle(i18n('ChatAutomation.LoadFailed'));
-    } else if(!loaded) {
-      setChatAutomationTitle(i18n('Loading'));
-    } else if(!bot) {
-      setChatAutomationTitle(i18n('ChatAutomation.Off'));
-    } else {
-      wrapPeerTitle({peerId: (bot.bot_id as UserId).toPeerId(false)}).then((title) => {
-        if(version === chatAutomationTitleVersion) setChatAutomationTitle(title);
-      });
-    }
-  });
-
-  tab.listenerSetter.add(rootScope)('chat_automation_update', setConnectedBotFromUpdate);
-
-  // The business sub-tabs write straight into the cached userFull, so the two rows
-  // below follow along without re-opening Edit Profile.
-  tab.listenerSetter.add(rootScope)('user_full_update', async(userId) => {
-    if(userId !== rootScope.myId.toUserId()) return;
-
-    const fresh = await tab.managers.appProfileManager.getCachedFullUser(userId);
-    if(cleanedUp || !fresh) return;
-
-    setBusinessWorkHours(fresh.business_work_hours);
-    setBusinessLocation(fresh.business_location);
-  });
-
-  const openChatAutomation = async() => {
-    if(connectedBotLoadFailed()) {
-      await loadConnectedBot(tab.managers.appBusinessManager.getConnectedBot(true));
-      if(!connectedBotLoaded()) {
-        toastNew({langPackKey: 'Error.AnError'});
-        return;
-      }
-    }
-
-    if(!connectedBotLoaded()) {
-      return;
-    }
-
-    tab.slider.createTab(hotReloadGuard.tabs.AppChatAutomationTab).open({connectedBot: connectedBot()});
-  };
-
-  const openPersonalChannelPicker = async() => {
-    let channelIds: ChatId[];
-    try {
-      channelIds = await tab.managers.appProfileManager.getAdminedPersonalChannels();
-    } catch(err) {
-      console.error('getAdminedPersonalChannels error:', err);
-      toastNew({langPackKey: 'Error.AnError'});
-      return;
-    }
-
-    if(!channelIds.length && !personalChannelId()) {
-      toastNew({langPackKey: 'EditProfile.PersonalChannel.NoChannels'});
-      return;
-    }
-
-    const peerIds = channelIds.map((id) => id.toPeerId(true));
-
-    showPickUserPopup({
-      titleLangKey: 'EditProfile.PersonalChannel.PickerTitle',
-      peerType: ['custom'],
-      getMoreCustom: async() => ({result: peerIds, isEnd: true}),
-      noSearch: true,
-      onSelect: (chosen) => {
-        const newChatId = chosen[0].peerId.toChatId();
-        if(newChatId === personalChannelId()) return;
-        setPersonalChannelId(newChatId);
-        editPeer.handleChange();
-      },
-      footer: () => (
-        <Show when={personalChannelId()}>
-          <PopupElement.FooterButton
-            color="danger"
-            langKey="EditProfile.PersonalChannel.Remove"
-            callback={() => {
-              setPersonalChannelId(0);
-              editPeer.handleChange();
-            }}
-          />
-        </Show>
-      )
-    });
-  };
-
-  const onSave = () => {
-    editPeer.nextBtn.disabled = true;
-
-    const promises: Promise<any>[] = [];
-
-    promises.push(tab.managers.appProfileManager.updateProfile(
-      firstNameInputField.value,
-      lastNameInputField.value,
-      bioInputField.value
-    ).then(() => {
-      tab.close();
-    }, (err: ApiError) => {
-      // * a field the server would not take turns red where it stands, as tdesktop shows it - a bio kept from Premium
-      // * is longer than the limit after it, and every field goes in the one request; any other refusal is said (but
-      // * not for a session the tab has left meanwhile - toastError keeps quiet then)
-      const field = ({
-        FIRSTNAME_INVALID: firstNameInputField,
-        LASTNAME_INVALID: lastNameInputField,
-        ABOUT_TOO_LONG: bioInputField
-      } as {[type: string]: InputField})[err?.type];
-      if(field) {
-        field.setError();
-        if(Modes.a11y) field.input.focus();
-        // * the first edit takes the refusal off, and the field's own checks (its length) run again after that
-        tab.listenerSetter.add(field.input)('input', () => {
-          field.setState(InputState.Neutral);
-          field.simulateInputEvent();
-        }, {once: true});
-      } else {
-        toastError(err, 'updateProfile error:');
-      }
-    }));
-
-    if(editPeer.uploadAvatar) {
-      const {file: fileFn, video: videoFn, videoStartTs} = editPeer.uploadAvatar;
-      const filePromise = fileFn();
-      const videoPromise = videoFn?.();
-      // Surface the upload to the profile's big avatar (progress ring + cancel +
-      // collapse lock) for the duration of the upload.
-      trackAvatarUpload(rootScope.myId, {file: filePromise, video: videoPromise});
-      promises.push(Promise.all([filePromise, videoPromise]).then(([file, video]) => {
-        return tab.managers.appProfileManager.uploadProfilePhoto({file, video, videoStartTs});
-      }, () => {
-        // swallow cancellation/upload errors so Promise.race below doesn't reject the whole save
-      }));
-    }
-
-    if(usernameInputField.isValidToChange()) {
-      promises.push(tab.managers.appUsersManager.updateUsername(usernameInputField.value));
-    }
-
-    if(isPersonalChannelChanged()) {
-      promises.push(tab.managers.appProfileManager.updatePersonalChannel(personalChannelId() || undefined));
-    }
-
-    Promise.race(promises).finally(() => {
-      editPeer.nextBtn.removeAttribute('disabled');
-    });
-  };
-
-  attachClickEvent(editPeer.nextBtn, onSave, {listenerSetter: tab.listenerSetter});
-
-  onMount(() => {
-    firstNameInputField.setOriginalValue(user.first_name, true);
-    lastNameInputField.setOriginalValue(user.last_name, true);
-    bioInputField.setOriginalValue(userFull.about, true);
-    usernameInputField.setOriginalValue(getPeerEditableUsername(user), true);
-    editPeer.handleChange();
-  });
-
-  return (
-    <>
-      {editPeer.avatarEdit.container}
-
-      <Section caption="Bio.Description">
-        <div class="input-wrapper">
-          <InputFieldTsx
-            label="EditProfile.FirstNameLabel"
-            name="first-name"
-            maxLength={70}
-            instanceRef={(ref) => {
-              firstNameInputField = ref;
-              trackInputField(ref);
-            }}
-          />
-          <InputFieldTsx
-            label="Login.Register.LastName.Placeholder"
-            name="last-name"
-            maxLength={64}
-            instanceRef={(ref) => {
-              lastNameInputField = ref;
-              trackInputField(ref);
-            }}
-          />
-          <InputFieldTsx
-            label="EditProfile.BioLabel"
-            name="bio"
-            maxLength={bioMaxLength}
-            instanceRef={(ref) => {
-              bioInputField = ref;
-              trackInputField(ref);
-            }}
-          />
-        </div>
-        <Show when={!hasBirthday()}>
-          <Row clickable={() => {
-            showBirthdayPopup({
-              onSave: async(date) => {
-                if(await saveMyBirthday(date)) {
-                  setHasBirthday(true);
-                  return true;
-                }
-                return false;
-              }
-            });
-          }}>
-            <Row.Icon icon="gift_filled" />
-            <Row.Title>{i18n('EditProfile.AddBirthdayRow')}</Row.Title>
-          </Row>
-        </Show>
-      </Section>
-
-      <UsernameSection
-        user={user}
-        editPeer={editPeer}
-        purchaseEl={purchaseEl}
-        onPurchaseUsernameChange={setPurchaseUsername}
-        usernameInputFieldRef={(ref) => {
-          usernameInputField = ref;
-          trackInputField(ref);
-        }}
-      />
-
-      <UsernamesSection
-        peerId={rootScope.myId}
-        peer={user}
-        usernameInputField={usernameInputField}
-      />
-
-      <Section
-        name="EditProfile.PersonalChannel.Title"
-        caption="EditProfile.PersonalChannel.Description"
-      >
-        <Row clickable={openPersonalChannelPicker}>
-          <Row.Icon icon="newchannel_filled" />
-          <Row.Title titleRight={!personalChannelId() && <span class="primary">{personalChannelTitle()}</span>}>
-            {personalChannelId() ? personalChannelTitle() : i18n('EditProfile.PersonalChannel.Label')}
-          </Row.Title>
-        </Row>
-      </Section>
-
-      <Section
-        name="TelegramBusiness"
-        caption={i18n(premium() ? 'TelegramBusinessSubscribedSubtitle' : 'TelegramBusinessSubtitle')}
-      >
-        <Row clickable={() => hotReloadGuard.tabs.openBusinessEditorTab(tab.slider, hotReloadGuard.tabs.AppBusinessHoursTab)}>
-          <Row.Icon icon="time_filled" />
-          <Row.Title
-            titleRight={businessWorkHours() ? businessHoursSummary() : i18n('Off')}
-            titleRightSecondary
-          >
-            {i18n('BusinessHours')}
-          </Row.Title>
-        </Row>
-        <Row clickable={() => hotReloadGuard.tabs.openBusinessEditorTab(tab.slider, hotReloadGuard.tabs.AppBusinessLocationTab)}>
-          <Row.Icon icon="location_filled" />
-          <Row.Title
-            titleRight={businessLocation()?.address || i18n('Off')}
-            titleRightSecondary
-          >
-            {i18n('BusinessLocation')}
-          </Row.Title>
-        </Row>
-        <Row clickable={() => hotReloadGuard.tabs.openBusinessEditorTab(tab.slider, hotReloadGuard.tabs.AppBusinessChatLinksTab)}>
-          <Row.Icon icon="link_filled" />
-          <Row.Title>{i18n('PremiumBusinessChatLinks')}</Row.Title>
-        </Row>
-        <Row clickable={() => hotReloadGuard.tabs.openBusinessEditorTab(tab.slider, hotReloadGuard.tabs.AppBusinessIntroTab)}>
-          <Row.Icon icon="message_quote" />
-          <Row.Title>{i18n('PremiumBusinessIntro')}</Row.Title>
-        </Row>
-      </Section>
-
-      <Section
-        name="ChatAutomation.Title"
-        caption="ChatAutomation.ProfileDescription"
-      >
-        <Row
-          disabled={!connectedBotLoaded() && !connectedBotLoadFailed()}
-          clickable={openChatAutomation}
-        >
-          <Row.Icon icon="bot_filled" />
-          <Row.Title titleRight={!connectedBot() && <span class="primary">{chatAutomationTitle()}</span>}>
-            {connectedBot() ? chatAutomationTitle() : i18n('ChatAutomation.ProfileLabel')}
-          </Row.Title>
-        </Row>
-      </Section>
-    </>
-  );
-};
-
-const UsernameSection = (props: {
-  user: User.user,
-  editPeer: EditPeer,
-  purchaseEl: HTMLElement,
-  onPurchaseUsernameChange: (username: string) => void,
-  usernameInputFieldRef: (ref: UsernameInputField) => void
-}) => {
-  const [tab] = useSuperTab<AppEditProfileTabType>();
-
-  const onChange = () => {
-    props.editPeer.handleChange();
-    const error = inputField.error;
-    const isPurchase = error?.type === 'USERNAME_PURCHASE_AVAILABLE';
-    props.onPurchaseUsernameChange(isPurchase ? inputField.value : undefined);
-  };
-
-  const inputField = new UsernameInputField({
-    label: 'EditProfile.Username.Label',
-    name: 'username',
-    plainText: true,
-    listenerSetter: tab.listenerSetter,
-    onChange,
-    availableText: 'EditProfile.Username.Available',
-    takenText: 'EditProfile.Username.Taken',
-    invalidText: 'EditProfile.Username.Invalid'
-  }, tab.managers);
-
-  props.usernameInputFieldRef(inputField);
-
-  const captionContent = (() => {
-    const fragment = document.createDocumentFragment();
-    fragment.append(props.purchaseEl, i18n('UsernameHelp'));
-    return fragment;
-  })();
-
-  return (
-    <Section
-      name="EditAccount.Username"
-      caption={captionContent}
-    >
-      <div class="input-wrapper">
-        {inputField.container}
-      </div>
-    </Section>
-  );
-};
+export default EditProfile;
