@@ -1231,15 +1231,6 @@ export class AppSidebarLeft extends SidebarSlider {
         name: 'FilterChats',
         type: 'chats'
       }, {
-        name: 'ChannelsTab',
-        type: 'channels'
-      }, {
-        name: 'MiniApps.AppsSearch',
-        type: 'apps'
-      }, {
-        name: 'PostsSearch.TabName',
-        type: 'posts'
-      }, {
         inputFilter: 'inputMessagesFilterPhotoVideo',
         name: 'SharedMediaTab2',
         type: 'media'
@@ -1274,8 +1265,7 @@ export class AppSidebarLeft extends SidebarSlider {
       this.searchGroups.globalContacts.list,
       this.searchGroups.messages.list,
       this.searchGroups.people.list,
-      this.searchGroups.recent.list,
-      searchSuper.mediaTabs.find((tab) => tab.type === 'channels').contentTab
+      this.searchGroups.recent.list
     ].map((list) => new DialogsContextMenu(this.managers, {
       useDialogFolder: true,
       recentSearch: list === this.searchGroups.recent.list
@@ -1293,8 +1283,6 @@ export class AppSidebarLeft extends SidebarSlider {
         searchSuper.globalPostsSearch?.setQuery(this.inputSearch.value);
       }
     };
-
-    this.watchChannelsTabVisibility(searchListenerSetter);
 
     scrollable.append(searchSuper.container);
 
@@ -1865,38 +1853,6 @@ export class AppSidebarLeft extends SidebarSlider {
         close();
       }
     };
-  }
-
-  private async watchChannelsTabVisibility(listenerSetter: ListenerSetter) {
-    const checkChannelsVisiblity = async() => {
-      const managers = bindManagersToSession(this.managers);
-      if(!this.searchSuper) return;
-      const dialogs = await managers.dialogsStorage.getCachedDialogs();
-
-      if(!this.searchSuper) return;
-      let hasChannels = false;
-      for(const dialog of dialogs) {
-        hasChannels = await managers.appPeersManager.isBroadcast(dialog.peerId);
-        if(hasChannels) break;
-      }
-
-      if(!this.searchSuper) return;
-      const channelsTab = this.searchSuper.mediaTabs.find((tab) => tab.type === 'channels');
-      const {communityId, folderId} = this.searchSuper.searchContext;
-      channelsTab.menuTab?.classList.toggle(
-        'hide',
-        !hasChannels || !!communityId || folderId === FOLDER_ID_ARCHIVE
-      );
-    };
-
-    checkChannelsVisiblity();
-
-    listenerSetter.add(rootScope)('channel_update', () => {
-      pause(200).then(() => checkChannelsVisiblity());
-    });
-    listenerSetter.add(rootScope)('peer_deleted', () => {
-      checkChannelsVisiblity();
-    });
   }
 
   public closeSearch() {

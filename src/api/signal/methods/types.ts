@@ -75,8 +75,6 @@ type UnsupportedMethodName =
   | 'searchCustomEmojiByEmoticons'
   | 'searchEmojiStickerSets'
   | 'searchGifs'
-  | 'searchMessagesGlobal'
-  | 'searchMessagesInChat'
   | 'searchStickersGlobal'
   | 'sendEphemeralMessage'
   | 'sendEphemeralMessageLocal'

@@ -55,6 +55,14 @@ export type SignalMessageAction = {
   [key: string]: unknown
 };
 
+export type SignalReaction = {type: 'emoji', emoticon: string} | {type: 'custom', documentId: string};
+
+export type SignalReactions = {
+  canSeeList?: boolean,
+  results: {chosenOrder?: number, count: number, reaction: SignalReaction}[],
+  recentReactions?: {peerId: string, reaction: SignalReaction, isOwn?: boolean, addedDate: number}[]
+};
+
 export type SignalMessage = {
   id: number,
   chatId: string,
@@ -73,7 +81,14 @@ export type SignalMessage = {
     contact?: unknown,
     pollId?: string
   },
-  replyInfo?: {type: 'message', replyToMsgId?: number, replyToPeerId?: string},
+  replyInfo?: {
+    type: 'message',
+    replyToMsgId?: number,
+    replyFrom?: {date: number, fromId: string},
+    quoteText?: SignalFormattedText,
+    isQuote?: true
+  },
+  reactions?: SignalReactions,
   sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed',
   isDelivered?: true,
   isEdited?: boolean,

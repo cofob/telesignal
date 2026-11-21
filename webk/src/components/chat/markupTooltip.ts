@@ -26,7 +26,6 @@ import openCreateLinkPopupForInput from '@components/popups/createLinkForInput';
 import mountMarkupTooltipScrollable from '@components/chat/markupTooltipScrollable';
 import {CHAT_INPUT_EDITOR_SELECTION_UPDATE_EVENT} from '@components/chat/inputEditor/events';
 import contextMenuController from '@helpers/contextMenuController';
-import createAiEditorIcon from '@components/chat/createAiEditorIcon';
 import tooltipController from '@helpers/tooltipController';
 import captureInputContent from '@components/chat/inputEditor/captureInputContent';
 import {FOCUS_TRAP_ATTACHED_ATTRIBUTE} from '@helpers/dom/focusTrap';
@@ -58,8 +57,6 @@ export default class MarkupTooltip {
   private quoteIcon: Icon = 'quote';
   private dateLinkDelimiter: HTMLElement;
   private extendedDelimiter: HTMLElement;
-  private aiButton: HTMLElement;
-  private aiDelimiter: HTMLElement;
   private hideTimeout: number;
   private addedListener = false;
   private mouseSelectionActive = false;
@@ -215,9 +212,6 @@ export default class MarkupTooltip {
       }
     });
 
-    this.aiButton = ButtonIcon(undefined, {noRipple: true});
-    this.aiButton.classList.add('markup-tooltip-ai');
-    this.aiButton.append(createAiEditorIcon());
     const updateLabels = () => {
       const setLabel = (button: HTMLElement, key: LangPackKey) => {
         const label = I18n.format(key, true);
@@ -225,30 +219,15 @@ export default class MarkupTooltip {
         button.title = label;
       };
       for(const type in labels) setLabel(this.buttons[type as MarkupTooltipTypes], labels[type as MarkupTooltipTypes]);
-      setLabel(this.aiButton, 'Chat.Input.Editor.Toolbar.AI');
     };
     updateLabels();
     rootScope.addEventListener('language_apply', updateLabels);
-    attachClickEvent(this.aiButton, (event) => {
-      cancelEvent(event);
-      const wrapper = findUpClassName(this.input, 'new-message-wrapper');
-      const editorButton = wrapper?.querySelector<HTMLElement>(
-        '.chat-input-ai-editor-button'
-      );
-      if(editorButton) editorButton.click();
-      else this.input?.focus();
-      this.hide();
-    });
 
-    this.aiDelimiter = document.createElement('span');
     this.dateLinkDelimiter = document.createElement('span');
     this.extendedDelimiter = document.createElement('span');
-    this.aiDelimiter.classList.add('markup-tooltip-delimiter');
     this.dateLinkDelimiter.classList.add('markup-tooltip-delimiter');
     this.extendedDelimiter.classList.add('markup-tooltip-delimiter');
     row.append(
-      this.aiButton,
-      this.aiDelimiter,
       this.buttons.bold,
       this.buttons.italic,
       this.buttons.underline,
@@ -564,19 +543,13 @@ export default class MarkupTooltip {
       'superscript'
     ] as const).some((type) => !hiddenTypes.has(type));
 
-    const aiAvailable = this.input.classList.contains('input-message-input');
-    this.aiButton.classList.toggle('hide', !aiAvailable);
-    this.aiDelimiter.classList.toggle(
-      'hide',
-      !aiAvailable || !(hasBasicFormatting || hasDateOrLink || hasExtendedFormatting)
-    );
     this.dateLinkDelimiter.classList.toggle(
       'hide',
       !hasBasicFormatting || !hasDateOrLink
     );
     this.extendedDelimiter.classList.toggle(
       'hide',
-      !hasExtendedFormatting || !(aiAvailable || hasBasicFormatting || hasDateOrLink)
+      !hasExtendedFormatting || !(hasBasicFormatting || hasDateOrLink)
     );
 
     const isFirstShow = this.container.classList.contains('hide');

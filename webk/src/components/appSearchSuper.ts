@@ -509,6 +509,8 @@ class QueryMiddleware {
 }
 
 // * how long a held tab (`changeQuery`) waits for its new results before it shows what it has
+// * a Signal username: letters, digits and `_`, and an optional two-digit suffix such as `alice.01`
+const SIGNAL_USERNAME_PATTERN = /^[a-z_][a-z0-9_]{2,31}(\.\d{2})?$/i;
 const SEARCH_RESULTS_WAIT = 1500;
 // * and how long, after that, a part of them that is late keeps what it showed before
 const SEARCH_RESULTS_WAIT_LATE = 4500;
@@ -2018,6 +2020,8 @@ export default class AppSearchSuper {
         });
       }
 
+      this.renderUsernameResult(query, middleware);
+
       return Promise.all([
         this.managers.appUsersManager.getContactsPeerIds(query, true, undefined, 10)
         .then(onLoad)
@@ -2195,6 +2199,40 @@ export default class AppSearchSuper {
         renderRecentSearch()
       ]);
     } else return Promise.resolve();
+  }
+
+  /**
+   * Offers to find the Signal user of a username typed into the search, as Web A does: the server is asked on the
+   * click only, so typing neither tells it partial usernames nor counts against its rate limit
+   */
+  private renderUsernameResult(query: string, middleware: Middleware) {
+    const username = query.replace(/^@/, '');
+    if(!SIGNAL_USERNAME_PATTERN.test(username)) return;
+
+    const group = this.searchGroups.globalContacts;
+    const row = document.createElement('div');
+    row.classList.add('search-username-result');
+    const usernameEl = document.createElement('span');
+    usernameEl.textContent = `@${username}`;
+    row.append(i18n('SignalUsernameSearch'), usernameEl);
+    attachClickEvent(row, () => {
+      row.replaceChildren(i18n('Loading'));
+      Promise.resolve(this.managers.appUsersManager.resolveUsername(username)).then((peer) => {
+        if(!middleware()) return;
+        if(!peer) {
+          row.replaceChildren(i18n('SignalUsernameSearchNotFound'));
+          return;
+        }
+
+        hotReloadGuard.appImManager.setInnerPeer({peerId: peer.id.toPeerId(false)});
+      }, () => {
+        if(!middleware()) return;
+        row.replaceChildren(i18n('SignalUsernameSearchFailed'));
+      });
+    });
+
+    group.list.append(row);
+    group.toggle();
   }
 
   private async loadMembers({mediaTab}: SearchSuperLoadTypeOptions) {

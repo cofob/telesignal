@@ -29,6 +29,7 @@ import {replaceButtonIcon} from '@components/button';
 import I18n from '@lib/langPack';
 import {toastNew} from '@components/toast';
 import {QUOTE_COLLAPSE_TOGGLE_CLASS} from '@components/chat/inputEditor/extensions/quotes';
+import {SIGNAL_MESSAGE_FORMATTING} from '@lib/signal/formatting';
 import './style.scss';
 
 type Selection = ReturnType<ChatInputEditor['captureSelection']>;
@@ -126,7 +127,13 @@ export class RichMessageInputController {
       this.layout = this.element;
       this.element.append(this.row);
     }
-    this.field = new InputFieldAnimated({placeholder: 'Message', name: 'message', withLinebreaks: true, ...options.field});
+    this.field = new InputFieldAnimated({
+      placeholder: 'Message',
+      name: 'message',
+      withLinebreaks: true,
+      canHaveFormatting: SIGNAL_MESSAGE_FORMATTING,
+      ...options.field
+    });
     this.input = this.field.input;
     this.input.tabIndex = options.tabIndex ?? 0;
     this.input.classList.replace('input-field-input', 'input-message-input');

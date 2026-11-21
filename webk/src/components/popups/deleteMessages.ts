@@ -13,6 +13,7 @@ import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId'
 import namedPromises from '@helpers/namedPromises';
 import isEphemeralMessage from '@appManagers/utils/messages/isEphemeralMessage';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
+import {canDeleteMessageForEveryone} from '@lib/signal/deleteForEveryone';
 
 export default async function showDeleteMessagesPopup(
   peerId: PeerId,
@@ -73,7 +74,8 @@ export default async function showDeleteMessagesPopup(
       managers.appMessagesManager.deleteWelcomeMessages(peerId, mids);
     } else {
       const needRevoke = !!checked.size || revoke;
-      if(peerId.isUser() && needRevoke && canRevoke.length !== mids.length) {
+      // * a batch that holds a message which cannot be deleted for everyone is split, as the engine takes none of it
+      if(needRevoke && canRevoke.length !== mids.length) {
         managers.appMessagesManager.deleteMessages(peerId, canRevoke, true);
         managers.appMessagesManager.deleteMessages(peerId, mids.filter((mid) => !canRevoke.includes(mid)), false);
       } else {
@@ -120,7 +122,7 @@ export default async function showDeleteMessagesPopup(
         return false;
       }
 
-      return true;
+      return canDeleteMessageForEveryone(message, false);
     });
 
     if(canRevoke.length === mids.length) {
@@ -145,10 +147,7 @@ export default async function showDeleteMessagesPopup(
 
     const _hasRights = hasRights(chat, 'delete_messages');
     if(chat._ === 'chat') {
-      canRevoke = _hasRights ? canRevoke : canRevoke.filter((mid, idx) => {
-        const message = messages[idx];
-        return message.fromId === rootScope.myId;
-      });
+      canRevoke = canRevoke.filter((mid, idx) => canDeleteMessageForEveryone(messages[idx], !!_hasRights));
 
       if(canRevoke.length) {
         if(canRevoke.length === mids.length) {

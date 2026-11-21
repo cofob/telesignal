@@ -1369,6 +1369,17 @@
   }
 }
 
+// * a Signal username offered by the global search: found by a click, not by typing
+.search-username-result {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  min-height: 3.5rem;
+  padding: .5rem 1rem;
+  color: var(--primary-color);
+  cursor: pointer;
+}
+
 .my-stories-container {
   .my-stories-placeholder {
     position: absolute;

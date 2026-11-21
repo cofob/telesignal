@@ -122,3 +122,30 @@ provider's `Methods` type reaches Web A's UI code, which fails there. So `webk/s
 the provider calls and the `Api*` fields that `appSignalManager` reads, and Vite resolves `@signal-app/provider` to the
 real module. A change of a provider method or of an `Api*` field that Web K reads type-checks in both trees and breaks
 Web K at run time only. A types-only package of the provider's API, shared by both trees, would close the gap.
+
+## Web K's reactions assume catalog stickers that Signal emoji do not have
+
+Web K draws a reaction with the `static_icon`, `center_icon` and `select_animation` documents of the reaction catalog
+(`webk/src/components/chat/reaction.ts`, `reactionsMenu.ts`), and the catalog comes from `messages.getAvailableReactions`,
+which Signal has no sticker for. Without the documents a reaction bubble fails to render (the message disappears from the
+chat), and the quick-reaction lookup and the picker's sticker id throw. The Signal port draws the emoji as text and guards
+those lookups (`reaction.ts`, `reactionsMenu.ts`, `appReactionsManager.ts`), so the reaction chips, the picker and the
+reactors' popover work. Still open: the flight animation of a Signal emoji and a picker for any emoji beyond Signal's six
+preferred ones, which Web A's picker opens from its "more" button.
+
+## Web K keeps search tabs and dead branches of the channels, apps and posts tabs
+
+The global search of Web K no longer has the channels, apps and posts tabs (`webk/src/components/sidebarLeft/index.ts`),
+but their code remains: the `posts` branches of `onChangeTab` and of the back and forward handling in `sidebarLeft/index.ts`,
+and the loaders `loadChannels`, `loadApps` and `loadPosts`, their entries in `noSectionTypes` and the `PRELOADED_MEDIA_TYPES`
+set in `webk/src/components/appSearchSuper.ts`. Nothing reaches them, so they are dead code that reads as live. Removing them
+needs a check of every `mediaTab.type` comparison, which this change did not make.
+
+## A forward whose copy was stored but not sent fails the whole request in Web K
+
+Web K sends one `messages.forwardMessages` request for several messages, each with a `random_id` of its pending copy. The
+adapter (`webk/src/lib/appManagers/appSignalManager.ts`, `forwardMessages`) answers with the stored ids of the copies, and it
+rejects the request when any copy was not sent, which makes Web K mark every pending copy of the request as failed. A copy
+that the engine stored before its send failed stays in the chat, so the chat can show the copy as stored and failed at once,
+and a retry sends it again. Verified in the demo, where the network is absent, with one message forwarded to Saved Messages;
+with several messages, a partial failure is expected to duplicate the stored ones but was not reproduced.

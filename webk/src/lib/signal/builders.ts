@@ -12,6 +12,9 @@ import type {
   Message,
   MessageAction,
   MessageEntity,
+  MessagePeerReaction,
+  MessageReactions,
+  MessageReplyHeader,
   Peer,
   PeerNotifySettings,
   User,
@@ -23,9 +26,11 @@ import type {
   SignalEntity,
   SignalMessage,
   SignalNotifySettings,
+  SignalReactions,
   SignalReadState,
   SignalUser
 } from '@lib/signal/signalApi';
+import {buildReaction} from '@lib/signal/reactions';
 
 // * Web A's `ARCHIVED_FOLDER_ID`, which Web K's folder of archived chats has too
 const ARCHIVED_FOLDER_ID = 1;
@@ -155,11 +160,8 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
     message: text?.text || '',
     entities: text?.entities?.map(buildEntity).filter(Boolean),
     media: getHasUnsupportedMedia(message) ? {_: 'messageMediaUnsupported'} : undefined,
-    reply_to: message.replyInfo?.replyToMsgId ? {
-      _: 'messageReplyHeader',
-      pFlags: {},
-      reply_to_msg_id: message.replyInfo.replyToMsgId
-    } : undefined,
+    reply_to: buildReplyHeader(message.replyInfo),
+    reactions: message.reactions ? buildMessageReactions(message.reactions) : undefined,
     edit_date: message.isEdited ? message.editDate || message.date : undefined,
     ttl_period: message.ttlPeriod,
     grouped_id: message.groupedId,
@@ -171,6 +173,48 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
 function getHasUnsupportedMedia(message: SignalMessage) {
   const {photo, video, document, sticker, voice, audio, contact, pollId} = message.content;
   return Boolean(photo || video || document || sticker || voice || audio || contact || pollId);
+}
+
+// * a reply to a message of the chat names it; a quote of a message that is not in the chat, or is gone, keeps the
+// * text the quote carries
+function buildReplyHeader(replyInfo: SignalMessage['replyInfo']): MessageReplyHeader.messageReplyHeader | undefined {
+  if(replyInfo?.replyToMsgId) {
+    return {_: 'messageReplyHeader', pFlags: {}, reply_to_msg_id: replyInfo.replyToMsgId};
+  }
+
+  if(!replyInfo?.quoteText) return undefined;
+  const {replyFrom, quoteText} = replyInfo;
+  return {
+    _: 'messageReplyHeader',
+    pFlags: {quote: true},
+    reply_from: replyFrom ? {_: 'messageFwdHeader', pFlags: {}, from_id: buildPeer(replyFrom.fromId), date: replyFrom.date} : undefined,
+    quote_text: quoteText.text,
+    quote_entities: quoteText.entities?.map(buildEntity).filter(Boolean)
+  };
+}
+
+export function buildMessageReactions(reactions: SignalReactions): MessageReactions {
+  return {
+    _: 'messageReactions',
+    pFlags: {can_see_list: reactions.canSeeList || undefined},
+    results: reactions.results.map(({chosenOrder, count, reaction}) => ({
+      _: 'reactionCount',
+      chosen_order: chosenOrder,
+      reaction: buildReaction(reaction),
+      count
+    })),
+    recent_reactions: reactions.recentReactions?.map(buildPeerReaction)
+  };
+}
+
+export function buildPeerReaction({peerId, reaction, isOwn, addedDate}: NonNullable<SignalReactions['recentReactions']>[number]): MessagePeerReaction {
+  return {
+    _: 'messagePeerReaction',
+    pFlags: {my: isOwn || undefined},
+    peer_id: buildPeer(peerId),
+    date: addedDate,
+    reaction: buildReaction(reaction)
+  };
 }
 
 // * Web A's `ApiMessageEntityTypes` are the TL names with an upper-case first letter

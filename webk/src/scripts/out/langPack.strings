@@ -365,6 +365,9 @@
 "Deactivated.Subtitle" = "TeleSignal supports only one active tab with the app.\nClick anywhere to continue using this tab.";
 "Deactivated.Version.Title" = "WebK has updated...";
 "Deactivated.Version.Subtitle" = "Another tab is running a newer version of TeleSignal.\nClick anywhere to reload this tab.";
+"SignalUsernameSearch" = "Find by username";
+"SignalUsernameSearchNotFound" = "No Signal user with this username";
+"SignalUsernameSearchFailed" = "Couldn't look up the username. Try again later.";
 "Signal.Passcode.Title" = "Passcode is on";
 "Signal.Passcode.Subtitle" = "Your account is locked with the passcode of the A version.\nClick anywhere to unlock it there.";
 "Deactivated.OtherClient.Title" = "App is inactive...";

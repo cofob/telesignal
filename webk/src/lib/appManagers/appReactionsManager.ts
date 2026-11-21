@@ -224,7 +224,8 @@ export class AppReactionsManager extends AppManager {
         quickReaction
       ], ([topReactions, quickReaction]) => {
         const p: PeerAvailableReactions = {type: 'chatReactionsAll', reactions: topReactions};
-        if(unshiftQuickReaction) {
+        // * Signal has no quick reaction catalog, so there may be none to put first
+        if(unshiftQuickReaction && quickReaction) {
           this.unshiftQuickReactionInner(p, quickReaction);
         }
         return p;
@@ -277,7 +278,7 @@ export class AppReactionsManager extends AppManager {
         reactionsLimit: chatFull._ === 'communityFull' ? undefined : chatFull.reactions_limit
       };
 
-      if(chatAvailableReactions._ === 'chatReactionsAll' && unshiftQuickReaction) {
+      if(chatAvailableReactions._ === 'chatReactionsAll' && unshiftQuickReaction && quickReaction) {
         this.unshiftQuickReactionInner(p, quickReaction);
       }
 

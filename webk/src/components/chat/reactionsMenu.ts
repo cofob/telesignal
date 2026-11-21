@@ -35,6 +35,7 @@ import {i18n} from '@lib/langPack';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import contextMenuController from '@helpers/contextMenuController';
 import callbackify from '@helpers/callbackify';
+import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import partition from '@helpers/array/partition';
 import getReactionDocId from '@appManagers/utils/reactions/getReactionDocId';
 import docIdToReaction from '@appManagers/utils/reactions/docIdToReaction';
@@ -371,8 +372,9 @@ export class ChatReactionsMenu {
 
   private reactionToDocId = (reaction: Reaction) => {
     return getReactionDocId(reaction, (emoticon) => {
+      // * an emoji outside the catalog, which Signal reactions can be, has no animation
       const availableReaction = this.availableReactions.find((_reaction) => _reaction.reaction === emoticon);
-      return availableReaction.select_animation.id;
+      return availableReaction?.select_animation.id;
     });
   };
 
@@ -655,6 +657,11 @@ export class ChatReactionsMenu {
       });
 
       loadPromises.push(promise);
+    } else if(reaction._ === 'reactionEmoji' && !availableReaction?.static_icon) {
+      // * a Signal emoji has no sticker, so the picker shows it as text
+      const emoji = wrapEmojiText(reaction.emoticon);
+      appearWrapper.classList.add(REACTION_CLASS_NAME + '-emoji');
+      appearWrapper.append(emoji);
     } else if(!canUseAnimations || !availableReaction) {
       delete options.needFadeIn;
       delete options.withThumb;

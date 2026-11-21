@@ -101,6 +101,8 @@ export {
   markMessageListRead,
   markMessagesRead,
   resendMessage,
+  searchMessagesGlobal,
+  searchMessagesInChat,
   sendMessage,
   sendMessageAction,
   sendMessageAnyway,

@@ -810,6 +810,12 @@ export default class ReactionElement extends HTMLElement {
     if(reaction._ === 'reactionEmoji') {
       const availableReaction = apiManagerProxy.getReaction(reaction.emoticon);
       return callbackify(availableReaction, (availableReaction) => {
+        // * a Signal emoji has no sticker of the catalog, so it is drawn as its text
+        if(!availableReaction?.center_icon && !availableReaction?.static_icon) {
+          this.renderEmojiText(reaction.emoticon);
+          return;
+        }
+
         if(!availableReaction.center_icon) {
           this.stickerContainer.classList.add('is-static');
         } else {
@@ -889,6 +895,11 @@ export default class ReactionElement extends HTMLElement {
         container.remove();
       }, 300);
     }
+  }
+
+  private renderEmojiText(emoticon: string) {
+    this.stickerContainer.classList.add(CLASS_NAME + '-sticker-emoji');
+    this.stickerContainer.append(wrapEmojiText(emoticon));
   }
 
   private renderDoc(doc: Document.document) {

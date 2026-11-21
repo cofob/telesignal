@@ -15,12 +15,14 @@ import type {
   ApiMessageEntity,
   ApiMessagePoll,
   ApiMessageRecipient,
+  ApiMessageSearchContext,
   ApiOnProgress,
   ApiPeer,
   ApiReaction,
   ApiReplyInfo,
   ApiSendMessageAction,
   ApiSticker,
+  ApiUserStatus,
   ApiWebPage,
   MediaContent,
 } from '../../types';
@@ -40,6 +42,7 @@ import { bufferFromHex } from '../../../util/encoding/buffer';
 import { buildCollectionByKey, omit, omitUndefined } from '../../../util/iteratees';
 import { getServerTime } from '../../../util/serverTime';
 import { buildBodyRanges } from '../builders/bodyRanges';
+import { getIsChatListed } from '../builders/chats';
 import { parseAttachmentMediaId } from '../builders/media';
 import {
   buildApiMessageWithPoll, createUserResolver, getIsMessageHidden,
@@ -134,6 +137,109 @@ export async function fetchMessagesById({ chat, messageIds }: { chat: ApiChat; m
     record?.conversationId === conversation.id && !getIsMessageHidden(record)
   ));
   return (await buildMessages(shown, conversation)).messages;
+}
+
+type SearchMessagesResult = {
+  messages: ApiMessage[];
+  totalCount: number;
+  nextOffsetId?: number;
+  nextOffsetRate?: number;
+  nextOffsetPeerId?: string;
+  userStatusesById: Record<string, ApiUserStatus>;
+};
+
+const EMPTY_SEARCH_RESULT: SearchMessagesResult = { messages: [], totalCount: 0, userStatusesById: {} };
+
+/**
+ * Messages of a chat whose text contains `query`, newest first, from before `offsetId`. Signal keeps no search index,
+ * so the stored text is read; the shared media of a chat has no search yet and comes back empty.
+ */
+export async function searchMessagesInChat({
+  peer, type, query, limit, offsetId,
+}: {
+  peer: ApiPeer;
+  type: string;
+  query?: string;
+  limit: number;
+  offsetId?: number;
+  addOffset?: number;
+  threadId?: ThreadId;
+  fromPeer?: ApiPeer;
+  minDate?: number;
+  maxDate?: number;
+}): Promise<SearchMessagesResult> {
+  const conversation = await getConversationByPeerId(peer.id);
+  if (!conversation || type !== 'text' || !query) return EMPTY_SEARCH_RESULT;
+
+  const matches = await findTextMatches([conversation], query, limit, offsetId);
+  return buildSearchResult(matches, limit);
+}
+
+/**
+ * Messages of every listed chat whose text contains `query`, newest first, from before `offsetId`; the
+ * `nextOffsetId` of a result continues the search with the next page.
+ */
+export async function searchMessagesGlobal({
+  type, query, limit, offsetId,
+}: {
+  type: string;
+  query?: string;
+  limit: number;
+  offsetId?: number;
+  addOffset?: number;
+  offsetRate?: number;
+  offsetPeer?: ApiPeer;
+  context?: ApiMessageSearchContext;
+  minDate?: number;
+  maxDate?: number;
+}): Promise<SearchMessagesResult> {
+  const selfAci = getCurrentAccount()?.aci;
+  if (!selfAci || type !== 'text' || !query) return EMPTY_SEARCH_RESULT;
+
+  const conversations = (await db.getConversations()).filter((conversation) => (
+    getIsChatListed(conversation, selfAci)
+  ));
+  const matches = await findTextMatches(conversations, query, limit, offsetId);
+  return buildSearchResult(matches, limit);
+}
+
+/** The newest messages of each conversation whose text has `query`, with the newest `limit` of them first */
+async function findTextMatches(
+  conversations: ConversationRecord[], query: string, limit: number, offsetId?: number,
+) {
+  const needle = query.toLowerCase();
+  const before = offsetId || Number.MAX_SAFE_INTEGER;
+  const matches: { record: MessageRecord; conversation: ConversationRecord }[] = [];
+  for (const conversation of conversations) {
+    const records = await db.findLatestMessages(conversation.id, limit, (message) => (
+      message.id < before && !getIsMessageHidden(message) && Boolean(message.body?.toLowerCase().includes(needle))
+    ));
+    matches.push(...records.map((record) => ({ record, conversation })));
+  }
+  return matches.sort((a, b) => b.record.id - a.record.id).slice(0, limit);
+}
+
+/** The matches as messages, with the offset of the next page when a full page may have more behind it */
+async function buildSearchResult(
+  matches: { record: MessageRecord; conversation: ConversationRecord }[], limit: number,
+): Promise<SearchMessagesResult> {
+  const messages: ApiMessage[] = [];
+  const byConversation = new Map<ConversationRecord, MessageRecord[]>();
+  for (const { record, conversation } of matches) {
+    byConversation.set(conversation, [...byConversation.get(conversation) ?? [], record]);
+  }
+  for (const [conversation, records] of byConversation) {
+    messages.push(...(await buildMessages(records, conversation)).messages);
+  }
+  messages.sort((a, b) => b.id - a.id);
+
+  const isPageFull = matches.length >= limit;
+  return {
+    messages,
+    totalCount: messages.length,
+    nextOffsetId: isPageFull ? messages[messages.length - 1].id : undefined,
+    userStatusesById: {},
+  };
 }
 
 /** Shows the message being sent until the stored message replaces it */
@@ -367,6 +473,8 @@ export async function forwardMessages(params: ForwardMessagesParams) {
   }
 
   const conversation = await getConversationByPeerId(toChat.id);
+  // The id of each forwarded message as stored, or `undefined` when it was not sent
+  const storedIds: (number | undefined)[] = localMessages.map(() => undefined);
   for (const [index, localMessage] of localMessages.entries()) {
     const record = await db.getMessage(messages[index].id);
     if (!conversation || !record?.dataMessage) {
@@ -383,7 +491,7 @@ export async function forwardMessages(params: ForwardMessagesParams) {
       continue;
     }
 
-    await sendWithLocalMessage(conversation, {
+    storedIds[index] = await sendWithLocalMessage(conversation, {
       body,
       bodyRanges: isCaptionDropped ? [] : original.bodyRanges,
       attachments: original.attachments,
@@ -391,6 +499,7 @@ export async function forwardMessages(params: ForwardMessagesParams) {
       sticker: original.sticker,
     }, localMessage);
   }
+  return storedIds;
 }
 
 function getIsAlbumItem({ groupedId, attachment }: SendMessageParams) {
@@ -480,7 +589,10 @@ async function sendAlbum(items: AlbumItem[]) {
  * Stores and sends a message in place of a local one; the message updater swaps them once the message is
  * stored, and recipient statuses follow as message updates
  */
-async function sendWithLocalMessage(conversation: ConversationRecord, init: DataMessageInit, localMessage: ApiMessage) {
+/** Sends a stored message; resolves to its id, or to `undefined` when it was not sent */
+async function sendWithLocalMessage(
+  conversation: ConversationRecord, init: DataMessageInit, localMessage: ApiMessage,
+): Promise<number | undefined> {
   let isStored = false;
   try {
     const sent = await processor.sendDataMessage(conversation.id, init, (stored) => {
@@ -488,10 +600,12 @@ async function sendWithLocalMessage(conversation: ConversationRecord, init: Data
       trackLocalMessage(stored.id, localMessage);
     });
     await reportBlockedRecipients(conversation, sent.id);
+    return sent.id;
   } catch (err) {
     if (!isStored) markLocalMessageFailed(localMessage, err);
     else logSendFailure('A message was stored but sending it failed', err);
   }
+  return undefined;
 }
 
 /**

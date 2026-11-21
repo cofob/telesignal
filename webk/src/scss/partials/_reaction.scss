@@ -55,6 +55,18 @@
       }
     }
 
+    // * a Signal emoji has no sticker: it is drawn as its text
+    &-emoji {
+      font-size: calc(var(--reaction-size) * .75);
+      line-height: 1;
+
+      .emoji {
+        width: 1em;
+        height: 1em;
+        margin: 0;
+      }
+    }
+
     &.is-custom {
       border-radius: .3125rem;
 
