@@ -1,0 +1,318 @@
+/*
+ * TeleSignal: the group methods of Web K (creating, members and their admins, the title, description, avatar and
+ * permissions of a group, its invite link and join requests, disappearing messages and leaving), answered by the
+ * Signal provider in Telegram's shapes. The changes come back as the provider's updates of the group.
+ */
+
+import type {Chat, ChatBannedRights, MissingInvitee, Update, Updates, User} from '@layer';
+import type {SignalMethodHandlers, SignalMethodHost} from '@lib/signal/methodHost';
+import {getInputUserPeerId, getUserRef} from '@lib/signal/methodHost';
+import {buildChat, toPeerId, toSignalPeerId} from '@lib/signal/builders';
+import {getSignalChatOf} from '@lib/signal/chatMethods';
+import {unwrapInputPeer} from '@lib/signal/methodHost';
+import makeError from '@helpers/makeError';
+import tsNow from '@helpers/tsNow';
+
+// * the banned rights of Web K that Signal's group settings have (`updateChatDefaultBannedRights` of the provider)
+const BANNED_RIGHTS_BY_FLAG: Record<string, string> = {
+  send_plain: 'sendMessages',
+  change_info: 'changeInfo',
+  invite_users: 'inviteUsers',
+  edit_rank: 'editRank'
+};
+
+/** The file parts of avatar uploads by the upload's id, until the group's photo takes them */
+const uploadedParts = new Map<string, Map<number, Uint8Array>>();
+
+export function buildGroupMethodHandlers(host: SignalMethodHost): SignalMethodHandlers {
+  return {
+    'messages.getFullChat': ({chat_id}) => getFullChat(host, chat_id),
+    'messages.createChat': ({title, users}) => createChat(host, title, users),
+    'messages.addChatUser': ({chat_id, user_id}) => addChatUser(host, chat_id, user_id),
+    'messages.deleteChatUser': ({chat_id, user_id}) => deleteChatUser(host, chat_id, user_id),
+    'messages.editChatAdmin': ({chat_id, user_id, is_admin}) => editChatAdmin(host, chat_id, user_id, is_admin),
+    'messages.editChatTitle': ({chat_id, title}) => editChatTitle(host, chat_id, title),
+    'messages.editChatAbout': ({peer, about}) => editChatAbout(host, peer, about),
+    'messages.editChatPhoto': ({chat_id, photo}) => editChatPhoto(host, chat_id, photo),
+    'messages.editChatDefaultBannedRights': ({peer, banned_rights}) => editChatDefaultBannedRights(host, peer, banned_rights),
+    'messages.editChatParticipantRank': ({peer, participant, rank}) => editChatParticipantRank(host, peer, participant, rank),
+    'messages.exportChatInvite': ({peer, request_needed}) => exportChatInvite(host, peer, request_needed),
+    'messages.getExportedChatInvites': ({peer, revoked}) => getExportedChatInvites(host, peer, revoked),
+    'messages.editExportedChatInvite': ({peer, link, revoked, request_needed}) => (
+      editExportedChatInvite(host, peer, link, revoked, request_needed)
+    ),
+    'messages.getChatInviteImporters': ({peer, requested}) => getChatInviteImporters(host, peer, requested),
+    'messages.hideChatJoinRequest': ({peer, user_id, approved}) => hideChatJoinRequest(host, peer, user_id, approved),
+    'messages.hideAllChatJoinRequests': ({peer, approved}) => hideAllChatJoinRequests(host, peer, approved),
+    'messages.checkChatInvite': ({hash}) => checkChatInvite(host, hash),
+    'messages.importChatInvite': ({hash}) => importChatInvite(host, hash),
+    'messages.setHistoryTTL': ({peer, period}) => setHistoryTtl(host, peer, period),
+    'upload.saveFilePart': ({file_id, file_part, bytes}) => saveFilePart(file_id, file_part, bytes),
+    'upload.saveBigFilePart': ({file_id, file_part, bytes}) => saveFilePart(file_id, file_part, bytes)
+  };
+}
+
+/** The result of a change of a group: the provider's update of the group comes separately */
+function emptyUpdates(): Updates {
+  return {_: 'updates', updates: [] as Update[], users: [] as User[], chats: [] as Chat[], date: tsNow(true), seq: 0};
+}
+
+/** The provider's chat of a group of Web K (`chat_id`, which is the negated peer id of the group) */
+function getGroupOf(host: SignalMethodHost, chatId: number) {
+  return getSignalChatOf(host, {_: 'inputPeerChat', chat_id: chatId});
+}
+
+/**
+ * The members of a group with their admin roles and tags (a basic group's tags live in its full chat), its
+ * description, and its invite link while it is on
+ */
+async function getFullChat(host: SignalMethodHost, chatId: number) {
+  const chat = getGroupOf(host, chatId);
+  const result: {fullInfo: any, users: User[]} | undefined = await host.call('fetchFullChat', chat);
+  const fullInfo = result?.fullInfo;
+  const participants = (fullInfo?.members ?? []).map(({userId, rank, isAdmin}: {userId: string, rank?: string, isAdmin?: boolean}) => ({
+    ...(isAdmin ? {_: 'chatParticipantAdmin', inviter_id: 0, date: 0} : {_: 'chatParticipant', inviter_id: 0, date: 0}),
+    user_id: toPeerId(userId),
+    rank: rank || undefined
+  }));
+  const inviteLink: string | undefined = fullInfo?.inviteLink;
+  return {
+    _: 'messages.chatFull',
+    full_chat: {
+      _: 'chatFull',
+      pFlags: {},
+      id: chatId,
+      about: fullInfo?.about ?? '',
+      participants: {_: 'chatParticipants', chat_id: chatId, participants, version: 0},
+      notify_settings: {_: 'peerNotifySettings'},
+      exported_invite: inviteLink ? {_: 'chatInviteExported', pFlags: {permanent: true}, link: inviteLink, admin_id: 0, date: 0} : undefined,
+      ttl_period: fullInfo?.ttlPeriod || undefined
+    },
+    chats: [] as Chat[],
+    users: result?.users ?? []
+  };
+}
+
+async function createChat(host: SignalMethodHost, title: string, users: any[]) {
+  const peerIds = users.map((user) => getInputUserPeerId(host, user)).filter(Boolean);
+  const result: {chat: any} | undefined = await host.call('createGroupChat', {
+    title,
+    users: peerIds.map((peerId) => ({id: toSignalPeerId(peerId)}))
+  });
+  if(!result?.chat) throw makeError('SIGNAL_GROUP_CHANGE_FAILED' as ErrorType);
+
+  const chat = buildChat(result.chat);
+  return {
+    _: 'messages.invitedUsers',
+    updates: {_: 'updates', updates: [] as Update[], users: [] as User[], chats: [chat], date: tsNow(true), seq: 0},
+    missing_invitees: [] as MissingInvitee[]
+  };
+}
+
+async function addChatUser(host: SignalMethodHost, chatId: number, inputUser: any) {
+  const peerId = getInputUserPeerId(host, inputUser);
+  const chat = getGroupOf(host, chatId);
+  if(peerId !== undefined && chat) {
+    await host.call('addChatMembers', chat, [getUserRef(peerId)]);
+  }
+  return {_: 'messages.invitedUsers', updates: emptyUpdates(), missing_invitees: [] as MissingInvitee[]};
+}
+
+/** Leaving the group is removing ourselves from it; removing someone else bans them, as Signal does */
+async function deleteChatUser(host: SignalMethodHost, chatId: number, inputUser: any) {
+  const peerId = getInputUserPeerId(host, inputUser);
+  const chat = getGroupOf(host, chatId);
+  if(peerId !== undefined && chat) {
+    const isSelf = peerId === host.getManagers().appPeersManager.peerId;
+    await host.call('deleteChatUser', {chat, user: {...getUserRef(peerId), isSelf}});
+  }
+  return emptyUpdates();
+}
+
+async function editChatAdmin(host: SignalMethodHost, chatId: number, inputUser: any, isAdmin: boolean) {
+  const peerId = getInputUserPeerId(host, inputUser);
+  const chat = getGroupOf(host, chatId);
+  if(peerId === undefined || !chat) return false;
+
+  // * Signal's admins have every admin right; a member has none
+  return host.call('updateChatAdmin', {
+    chat, user: getUserRef(peerId), adminRights: isAdmin ? {changeInfo: true} : {}
+  }) ? true : false;
+}
+
+async function editChatTitle(host: SignalMethodHost, chatId: number, title: string) {
+  const chat = getGroupOf(host, chatId);
+  if(chat) await host.call('updateChatTitle', chat, title);
+  return emptyUpdates();
+}
+
+async function editChatAbout(host: SignalMethodHost, peer: any, about: string) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  if(chat) await host.call('updateChatAbout', chat, about);
+  return true;
+}
+
+/** An avatar sent as an upload: its parts are taken from the uploads of this session */
+async function editChatPhoto(host: SignalMethodHost, chatId: number, photo: any) {
+  const chat = getGroupOf(host, chatId);
+  if(!chat) return false;
+
+  const file = photo?._ === 'inputChatUploadedPhoto' ? takeUploadedFile(photo.file) : undefined;
+  await host.call('editChatPhoto', {chat, photo: file ? {file} : undefined});
+  return emptyUpdates();
+}
+
+function takeUploadedFile(inputFile: {id: string, name?: string} | undefined) {
+  const parts = inputFile && uploadedParts.get(inputFile.id);
+  if(!inputFile || !parts) return undefined;
+
+  uploadedParts.delete(inputFile.id);
+  const blobParts = [...parts.entries()].sort(([a], [b]) => a - b).map(([, bytes]) => bytes as Uint8Array<ArrayBuffer>);
+  return new File(blobParts, inputFile.name ?? 'avatar.jpg', {type: 'image/jpeg'});
+}
+
+function saveFilePart(fileId: string, filePart: number, bytes: Uint8Array) {
+  const parts = uploadedParts.get(fileId) ?? new Map<number, Uint8Array>();
+  parts.set(filePart, bytes);
+  uploadedParts.set(fileId, parts);
+  return true;
+}
+
+async function editChatDefaultBannedRights(host: SignalMethodHost, peer: any, bannedRights: ChatBannedRights.chatBannedRights) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  if(!chat) return false;
+
+  const rights: Record<string, boolean> = {};
+  Object.entries(BANNED_RIGHTS_BY_FLAG).forEach(([flag, name]) => {
+    rights[name] = Boolean(bannedRights.pFlags[flag as keyof ChatBannedRights.chatBannedRights['pFlags']]);
+  });
+  return host.call('updateChatDefaultBannedRights', {chat, bannedRights: rights}) ? true : false;
+}
+
+async function editChatParticipantRank(host: SignalMethodHost, peer: any, participant: any, rank: string) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  const peerId = getInputUserPeerId(host, participant);
+  if(chat && peerId !== undefined) {
+    await host.call('editChatParticipantRank', {chat, peer: getUserRef(peerId), rank});
+  }
+  return emptyUpdates();
+}
+
+// The invite link of a Signal group is the one link of the group; its shape follows Telegram's exported invite
+
+function buildExportedInvite(invite: any) {
+  return {
+    _: 'chatInviteExported',
+    pFlags: {
+      permanent: invite.isPermanent || undefined,
+      request_needed: invite.isRequestNeeded || undefined,
+      revoked: invite.isRevoked || undefined
+    },
+    link: invite.link,
+    admin_id: toPeerId(invite.adminId),
+    date: invite.date,
+    requested: invite.requested,
+    usage: invite.usage,
+    title: invite.title
+  };
+}
+
+async function exportChatInvite(host: SignalMethodHost, peer: any, isRequestNeeded?: boolean) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  const invite = chat && await host.call('exportChatInvite', {peer: chat, isRequestNeeded});
+  if(!invite) throw makeError('SIGNAL_GROUP_CHANGE_FAILED' as ErrorType);
+  return buildExportedInvite(invite);
+}
+
+async function getExportedChatInvites(host: SignalMethodHost, peer: any, isRevoked?: boolean) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  const result: {invites: any[]} | undefined = chat && await host.call('fetchExportedChatInvites', {peer: chat, isRevoked});
+  const invites = (result?.invites ?? []).map(buildExportedInvite);
+  return {_: 'messages.exportedChatInvites', count: invites.length, invites, users: [] as User[]};
+}
+
+async function editExportedChatInvite(host: SignalMethodHost, peer: any, link: string, isRevoked?: boolean, isRequestNeeded?: boolean) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  const result: {oldInvite: any, newInvite: any} | undefined = chat && await host.call('editExportedChatInvite', {
+    peer: chat, isRevoked, link, isRequestNeeded
+  });
+  if(!result) throw makeError('INVITE_HASH_EXPIRED' as ErrorType);
+
+  if(isRevoked) {
+    return {
+      _: 'messages.exportedChatInviteReplaced',
+      invite: buildExportedInvite(result.oldInvite),
+      new_invite: buildExportedInvite(result.newInvite),
+      users: [] as User[]
+    };
+  }
+  return buildExportedInvite(result.newInvite);
+}
+
+async function getChatInviteImporters(host: SignalMethodHost, peer: any, isRequested?: boolean) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  const result: {importers: {userId: string, date: number, isRequested?: boolean}[]} | undefined = chat && await host.call(
+    'fetchChatInviteImporters', {peer: chat, isRequested}
+  );
+  const importers = (result?.importers ?? []).map(({userId, date}) => ({
+    _: 'chatInviteImporter',
+    pFlags: {requested: true},
+    user_id: toPeerId(userId),
+    date
+  }));
+  return {_: 'messages.chatInviteImporters', count: importers.length, importers, users: [] as User[]};
+}
+
+async function hideChatJoinRequest(host: SignalMethodHost, peer: any, inputUser: any, isApproved: boolean) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  const peerId = getInputUserPeerId(host, inputUser);
+  if(chat && peerId !== undefined) {
+    await host.call('hideChatJoinRequest', {peer: chat, user: getUserRef(peerId), isApproved});
+  }
+  return emptyUpdates();
+}
+
+async function hideAllChatJoinRequests(host: SignalMethodHost, peer: any, isApproved: boolean) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  if(chat) await host.call('hideAllChatJoinRequests', {peer: chat, isApproved});
+  return emptyUpdates();
+}
+
+/** A link to a group: the group itself when we are in it, or what the link shows before joining */
+async function checkChatInvite(host: SignalMethodHost, hash: string) {
+  const result: {chat?: any, invite?: any} | undefined = await host.call('checkChatInvite', hash);
+  if(result?.chat) {
+    return {_: 'messages.chatInviteAlready', chat: buildChat(result.chat), users: [] as User[]};
+  }
+
+  const invite = result?.invite;
+  if(!invite) throw makeError('INVITE_HASH_EXPIRED' as ErrorType);
+  return {
+    _: 'chatInvite',
+    pFlags: {request_needed: invite.isRequestNeeded || undefined},
+    title: invite.title,
+    about: invite.about,
+    photo: {_: 'photoEmpty', id: '0'},
+    participants_count: invite.participantsCount,
+    color: invite.color ?? 0
+  };
+}
+
+/** Joins through a link; a link that needs approval sends a request, which has no group yet */
+async function importChatInvite(host: SignalMethodHost, hash: string) {
+  const result: {type: 'ok', chat: any} | {type: 'requested'} | undefined = await host.call('importChatInvite', {hash});
+  if(!result) throw makeError('INVITE_HASH_EXPIRED' as ErrorType);
+  if(result.type === 'requested') throw makeError('INVITE_REQUEST_SENT' as ErrorType);
+
+  return {
+    _: 'messages.chatInviteJoinResult',
+    updates: {_: 'updates', updates: [] as Update[], users: [] as User[], chats: [buildChat(result.chat)] as Chat[], date: tsNow(true), seq: 0}
+  };
+}
+
+/** The disappearing messages timer of a chat: a group's is part of its state, a private chat's is sent to them */
+async function setHistoryTtl(host: SignalMethodHost, peer: any, period: number) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  if(chat) await host.call('setHistoryTtl', {peer: chat, period});
+  return emptyUpdates();
+}

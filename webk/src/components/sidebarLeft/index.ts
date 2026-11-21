@@ -12,7 +12,6 @@ import AppSearchSuper, {SearchSuperMediaType} from '@components/appSearchSuper';
 import {DateData, fillTipDates} from '@helpers/date';
 import {MOUNT_CLASS_TO} from '@config/debug';
 import {AppSettingsTab} from '@components/solidJsTabs';
-import {AppNewChannelTab} from '@components/solidJsTabs/tabs';
 import {AppContactsTab} from '@components/solidJsTabs/tabs';
 import {AppCallsTab} from '@components/solidJsTabs/tabs';
 import {AppArchivedTab} from '@components/solidJsTabs/tabs';
@@ -117,7 +116,6 @@ import IS_CONFERENCE_CALL_SUPPORTED from '@environment/conferenceCallSupport';
 import IS_CALL_SUPPORTED from '@environment/callSupport';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import verifyMenuItem from '@helpers/verifyMenuItem';
-import {isWalletAvailable, isWalletReleased} from '@lib/wallet/release';
 
 
 type SearchInitResult = {
@@ -787,14 +785,6 @@ export class AppSidebarLeft extends SidebarSlider {
       text: 'Contacts',
       onClick: onContactsClick
     }, {
-      icon: 'wallet',
-      text: 'WalletAttachMoney',
-      new: true,
-      onClick: () => {
-        import('@components/wallet').then(({default: showWalletPopup}) => showWalletPopup());
-      },
-      verify: async() => isWalletReleased() && isWalletAvailable(await apiManagerProxy.getAppConfig())
-    }, {
       icon: 'phone',
       text: 'Calls',
       onClick: () => {
@@ -995,14 +985,6 @@ export class AppSidebarLeft extends SidebarSlider {
       onClick: switchToWebA,
       separator: true
     }, {
-      icon: 'help',
-      text: 'TelegramFeatures',
-      onClick: () => {
-        const url = I18n.format('TelegramFeaturesUrl', true);
-        appImManager.openUrl(url);
-      },
-      separator: !App.isMainDomain
-    }, {
       icon: 'bug',
       text: 'ReportBug',
       onClick: () => {
@@ -1103,27 +1085,11 @@ export class AppSidebarLeft extends SidebarSlider {
       });
     };
 
+    // * Signal has channels and group calls of its own in neither form, so only groups and private chats start here
     return [{
-      icon: 'newchannel',
-      text: singular ? 'Channel' : 'NewChannel',
-      onClick: () => {
-        closeTabsBefore(() => {
-          this.createTab(AppNewChannelTab).open({});
-        });
-      }
-    }, {
       icon: 'newgroup',
       text: singular ? 'Group' : 'NewGroup',
       onClick: onNewGroupClick
-    }, {
-      icon: 'phone',
-      text: 'ConferenceCall.New',
-      verify: () => IS_CONFERENCE_CALL_SUPPORTED,
-      onClick: () => {
-        closeTabsBefore(() => {
-          void appImManager.createConference().catch(noop);
-        });
-      }
     }, {
       icon: 'newprivate',
       text: singular ? 'PrivateChat' : 'NewPrivateChat',

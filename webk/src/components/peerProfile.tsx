@@ -19,6 +19,7 @@ import pause from '@helpers/schedulers/pause';
 import classNames from '@helpers/string/classNames';
 import Row from '@components/rowTsx';
 import formatUserPhone from '@components/wrappers/formatUserPhone';
+import showSafetyNumberPopup from '@components/popups/safetyNumber';
 import {copyTextToClipboard} from '@helpers/clipboard';
 import {copyPeerId, copyPhoneNumber, copyUsername} from '@helpers/copyContact';
 import safeWindowOpen from '@helpers/dom/safeWindowOpen';
@@ -786,6 +787,21 @@ PeerProfile.Phone = () => {
   );
 };
 
+// * TeleSignal: the safety number of a contact, which opens its popup (`components/popups/safetyNumber.ts`)
+PeerProfile.SafetyNumber = () => {
+  const context = useContext(PeerProfileContext);
+  const {i18n} = useHotReloadGuard();
+
+  return (
+    <Show when={context.peerId.isUser() && context.canBeDetailed() && !(context.peer as User.user).pFlags.self}>
+      <Row clickable={() => void showSafetyNumberPopup(context.peerId)}>
+        <Row.Icon icon="key" />
+        <Row.Title>{i18n('SafetyNumber.Row')}</Row.Title>
+      </Row>
+    </Show>
+  );
+};
+
 PeerProfile.Username = () => {
   const context = useContext(PeerProfileContext);
   const {i18n} = useHotReloadGuard();
@@ -1267,14 +1283,6 @@ PeerProfile.ContactActions = () => {
 
   return (
     <>
-      <Show when={isStranger()}>
-        <Row
-          clickable={() => addContact(context.peerId, context.slider)}
-        >
-          <Row.Icon icon="addmember_filled" />
-          <Row.Title>{i18n('AddContactTitle')}</Row.Title>
-        </Row>
-      </Show>
       <Show
         when={isBlocked()}
         fallback={
@@ -1566,13 +1574,6 @@ PeerProfile.Actions = () => {
     text: 'VideoCall',
     onClick: () => appImManager.callUser(peerId.toUserId(), 'video'),
     verify: () => canCall('video')
-  }, {
-    icon: 'gift',
-    text: 'Chat.Menu.SendGift',
-    onClick: () => showSendGiftPopup({peerId}),
-    verify: async() => isUser ?
-      await rootScope.managers.appUsersManager.isRegularUser(peerId.toUserId()) :
-      isBroadcast() && !context.isTopic
   }, {
     icon: 'forward',
     text: 'ShareContact',
@@ -2067,6 +2068,7 @@ PeerProfile.MainSection = () => {
       <PeerProfile.Username />
       <PeerProfile.Location />
       <PeerProfile.Bio />
+      <PeerProfile.SafetyNumber />
       <PeerProfile.PeerId />
       <PeerProfile.Link />
       <PeerProfile.Birthday />

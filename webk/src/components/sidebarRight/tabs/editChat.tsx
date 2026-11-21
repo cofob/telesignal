@@ -66,14 +66,15 @@ async function loadEditChatData(
   tab: InstanceType<typeof AppEditChatTab>,
   chatId: ChatId
 ) {
-  const [chatFull, chat, appConfig, availableReactions, joinedCommunities] = await Promise.all([
+  const [chatFull, chat, appConfig, availableReactions] = await Promise.all([
     tab.managers.appProfileManager.getChatFull(chatId, true),
     tab.managers.appChatsManager.getChat(chatId) as Promise<EditChat>,
     tab.managers.apiManager.getAppConfig(),
-    tab.managers.appReactionsManager.getAvailableReactions(),
-    tab.managers.appCommunitiesManager.getJoinedCommunities()
+    tab.managers.appReactionsManager.getAvailableReactions()
   ]);
 
+  // * Signal has no communities, so a group is never linked to one; the editor's community section stays hidden
+  const joinedCommunities: Chat.community[] = [];
   return {
     chatId,
     chatFull: chatFull as EditChatFull,

@@ -34,6 +34,9 @@ export type SignalUser = {
   color?: {color?: number}
 };
 
+/** The rights of `ApiChatAdminRights` and `ApiChatBannedRights`: the provider's flag names set to `true` */
+export type SignalRights = Record<string, true | undefined>;
+
 export type SignalChat = {
   id: string,
   folderId?: number,
@@ -46,6 +49,8 @@ export type SignalChat = {
   isNotJoined?: boolean,
   isForbidden?: boolean,
   isOwner?: boolean,
+  adminRights?: SignalRights,
+  defaultBannedRights?: SignalRights,
   ttlPeriod?: number
 };
 

@@ -121,7 +121,7 @@ provider's sources: Web K's `tsconfig.json` has other settings (`strictNullCheck
 provider's `Methods` type reaches Web A's UI code, which fails there. So `webk/src/lib/signal/signalApi.d.ts` describes
 the provider calls and the `Api*` fields that `appSignalManager` reads, and Vite resolves `@signal-app/provider` to the
 real module. A change of a provider method or of an `Api*` field that Web K reads type-checks in both trees and breaks
-Web K at run time only. A types-only package of the provider's API, shared by both trees, would close the gap.
+Web K at run time only. The rights of a chat (`SignalRights`) that `builders.ts` maps to Telegram's flags are typed the same way. A types-only package of the provider's API, shared by both trees, would close the gap.
 
 ## Web K's reactions assume catalog stickers that Signal emoji do not have
 
@@ -149,3 +149,38 @@ rejects the request when any copy was not sent, which makes Web K mark every pen
 that the engine stored before its send failed stays in the chat, so the chat can show the copy as stored and failed at once,
 and a retry sends it again. Verified in the demo, where the network is absent, with one message forwarded to Saved Messages;
 with several messages, a partial failure is expected to duplicate the stored ones but was not reproduced.
+
+## Web K's worker adapter cannot import UI components
+
+The Web K managers, including `webk/src/lib/appManagers/appSignalManager.ts`, run in a SharedWorker, not on the page.
+Importing `@components/toast` into that file (a static import, to show an error toast) left the page with an empty body
+and no error on the page: Solid reported `Unknown error` and the MTProto worker logged `ErrorEvent`. The adapter now
+sends the message as a `signal_error` event from `rootScope`, and `appImManager` shows the toast on the page. The
+likely cause is that the component reads DOM globals when its module loads, which a worker lacks; this is not
+verified. Any new UI call from a manager needs the same event route.
+
+## Web K's invite link screen assumes a permanent Telegram link
+
+A Signal group has a link only while it is on, and Web K's invite links screen (`sidebarRight/tabs/chatInviteLinks.tsx`)
+and group editor read the exported invite as the group's permanent link. In the demo group with the link off, the
+primary link box renders empty and the tab logs `Cannot read properties of undefined (reading 'link')`. Creating a
+link goes through `messages.exportChatInvite`, which needs Signal's group server, so the empty state has not been
+exercised end to end.
+
+## Telegram-only entries still show in Web K
+
+Several Telegram-only entries remain outside the chat list and groups, and were seen while checking them: the
+Privacy and Security rows «Connected websites», «Two-Step Verification» and «Passkeys» (their rows show «Loading…»,
+apparently because the methods they call are unsupported; not checked), the «Previous Tip» and «Next Tip» panel on the empty chat, the
+Telegram paper-plane icon on the send button, the Premium text of the pinned-chats limit
+(`LimitReachedPinDialogs`), and the community section code in the group editor, which never renders for Signal
+groups. The entries that this area hid are listed in `docs/signal/ITERATIONS.md`, section 11; the code behind them is
+still there, to be removed with the Telegram code.
+
+## Group changes cannot be exercised with the demo account
+
+The Signal group server is not reachable from the demo account, so every group change (title, description, avatar,
+members, admins, rights, link, requests, leaving and creating a group) fails inside the provider and shows the
+generic error toast. The adapter calls and the provider calls are checked up to that point, but a change that
+succeeds on the server has not been seen in the app. Testing the success path needs a linked account on a reachable
+server, which a contributor cannot use from the demo seed.

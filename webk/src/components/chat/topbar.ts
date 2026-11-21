@@ -37,12 +37,10 @@ import {modifyAckedPromise} from '@helpers/modifyAckedResult';
 import callbackify from '@helpers/callbackify';
 import confirmationPopup from '@components/confirmationPopup';
 import noop from '@helpers/noop';
-import clearHistoryWithConfirmation from '@components/clearHistory';
 import {isWalletAvailable, isWalletReleased} from '@lib/wallet/release';
 import blockUserWithConfirmation, {unblockUser} from '@components/blockUser';
 import shareContact, {canShareContact} from '@components/shareContact';
 import addContact from '@components/addContact';
-import canClearHistory from '@appManagers/utils/chats/canClearHistory';
 import IS_LIVE_STREAM_SUPPORTED from '@environment/liveStreamSupport';
 import {avatarNew, findUpAvatar} from '@components/avatarNew';
 import {Middleware, MiddlewareHelper, getMiddleware} from '@helpers/middleware';
@@ -428,20 +426,6 @@ export default class ChatTopbar {
     return !!peer && (peer._ === 'chat' || peer._ === 'channel') && !peer.pFlags.creator;
   };
 
-  private verifyIfCanClearHistory = async() => {
-    if(
-      this.chat.type !== ChatType.Chat ||
-      this.chat.threadId ||
-      this.chat.monoforumThreadId ||
-      this.chat.isMonoforum
-    ) {
-      return false;
-    }
-
-    return canClearHistory(this.chat.peer) &&
-      !!(await this.managers.appMessagesManager.getDialogOnly(this.peerId));
-  }
-
   private verifyIfCanDeleteChat = async() => {
     if(this.chat.isMonoforum) {
       const chat = this.chat.peer;
@@ -600,13 +584,6 @@ export default class ChatTopbar {
       verify: () => this.chat.selection.isSelecting
     }, {
       icon: 'adduser',
-      text: 'AddContact',
-      onClick: () => {
-        this.addContact();
-      },
-      verify: async() => !this.chat.isBot && (this.chat.monoforumThreadId || this.peerId).isUser() && !(await this.managers.appPeersManager.isContact(this.chat.monoforumThreadId || this.peerId))
-    }, {
-      icon: 'adduser',
       text: 'AddToGroup',
       onClick: onAddBotToChat,
       verify: verifyAddBotToChat('AddToGroup')
@@ -625,31 +602,6 @@ export default class ChatTopbar {
       text: 'ShareContact',
       onClick: () => shareContact(this.peerId),
       verify: () => canShareContact(this.peerId)
-    }, {
-      icon: 'gift',
-      text: 'Chat.Menu.SendGift',
-      onClick: () => showSendGiftPopup({peerId: this.peerId}),
-      verify: async() => (
-        this.chat.isChannel || (this.chat.peerId.isUser() && !this.chat.isBot && (await this.managers.appUsersManager.isRegularUser(this.peerId)))
-      ) && !(this.chat.type === ChatType.Logs)
-    }, {
-      icon: 'wallet',
-      text: 'WalletSendMoney',
-      onClick: () => {
-        const peerId = this.peerId;
-        import('@components/wallet').then(({default: showWalletPopup}) => {
-          showWalletPopup({send: {userId: peerId.toUserId()}, fromChat: true});
-        });
-      },
-      verify: async() => (
-        isWalletReleased() &&
-        this.chat.peerId.isUser() &&
-        !this.chat.isBot &&
-        rootScope.myId !== this.peerId &&
-        this.chat.type !== ChatType.Logs &&
-        (await this.managers.appUsersManager.isRegularUser(this.peerId)) &&
-        isWalletAvailable(await apiManagerProxy.getAppConfig())
-      )
     }, {
       icon: 'image',
       text: 'SetWallpapers',
@@ -822,13 +774,6 @@ export default class ChatTopbar {
         showPeerReport(this.peerId);
       },
       verify: this.verifyIfCanReportChat
-    }, {
-      icon: 'message_crossed',
-      text: 'ClearHistory',
-      onClick: () => {
-        clearHistoryWithConfirmation({peerId: this.peerId, managers: this.managers});
-      },
-      verify: this.verifyIfCanClearHistory
     }, {
       icon: 'delete',
       danger: true,

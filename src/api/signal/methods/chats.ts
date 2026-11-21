@@ -264,20 +264,22 @@ export async function lookUpPhoneNumber(phoneNumber: string): Promise<ApiPhoneNu
 /**
  * Pins append to the end and bring the chat out of the archive, as in Signal Desktop
  * (`ts/models/conversations.preload.ts`, `pin`). Other devices learn about pins through the storage service. Pins
- * of conversations that only other devices have count toward the limit; at the limit the chat stays unpinned.
+ * of conversations that only other devices have count toward the limit; at the limit the chat stays unpinned and
+ * the result is `undefined`.
  */
 export async function toggleChatPinned({ chat, shouldBePinned }: { chat: ApiChat; shouldBePinned: boolean }) {
   const conversation = await getConversationByPeerId(chat.id);
-  if (!conversation || (conversation.pinIndex !== undefined) === shouldBePinned) return;
+  if (!conversation) return undefined;
+  if ((conversation.pinIndex !== undefined) === shouldBePinned) return true as const;
 
   if (!shouldBePinned) {
     await processor.updateConversationState(conversation.id, { pinIndex: undefined });
-    return;
+    return true as const;
   }
 
   if (await processor.countPinnedConversations() >= LIMITS.dialogFolderPinned) {
     sendApiUpdate({ '@type': 'error', error: { message: PINNED_LIMIT_ERROR, hasErrorKey: true } });
-    return;
+    return undefined;
   }
 
   const pinned = getPinnedConversations(await db.getConversations());
@@ -285,6 +287,7 @@ export async function toggleChatPinned({ chat, shouldBePinned }: { chat: ApiChat
     pinIndex: pinned.length ? pinned[pinned.length - 1].pinIndex! + 1 : 0,
     isArchived: false,
   });
+  return true as const;
 }
 
 /** Archiving unpins the chat, as in Signal Desktop (`ts/models/conversations.preload.ts`, `setArchived`) */

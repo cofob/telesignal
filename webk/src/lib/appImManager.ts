@@ -429,6 +429,7 @@ export class AppImManager extends EventListenerBase<{
 
     this.setSettings();
     rootScope.addEventListener('settings_updated', this.setSettings);
+    rootScope.addEventListener('signal_error', (langPackKey) => toastNew({langPackKey}));
     // * the system's reduce-motion preference moves the animation level too, under the a11y layer
     createRoot(() => createEffect(on(useReducedMotion(), this.setAnimationLevel, {defer: true})));
 

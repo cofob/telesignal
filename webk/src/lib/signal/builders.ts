@@ -8,6 +8,8 @@
 
 import type {
   Chat,
+  ChatAdminRights,
+  ChatBannedRights,
   Dialog,
   Message,
   MessageAction,
@@ -28,6 +30,7 @@ import type {
   SignalNotifySettings,
   SignalReactions,
   SignalReadState,
+  SignalRights,
   SignalUser
 } from '@lib/signal/signalApi';
 import {buildReaction} from '@lib/signal/reactions';
@@ -77,6 +80,57 @@ export function buildUser(user: SignalUser): User.user {
   };
 }
 
+// * the provider's rights of a group (`ApiChatAdminRights`, `ApiChatBannedRights`) under Telegram's flag names
+const ADMIN_RIGHT_FLAGS: Record<string, keyof ChatAdminRights.chatAdminRights['pFlags']> = {
+  changeInfo: 'change_info',
+  postMessages: 'post_messages',
+  editMessages: 'edit_messages',
+  deleteMessages: 'delete_messages',
+  banUsers: 'ban_users',
+  inviteUsers: 'invite_users',
+  pinMessages: 'pin_messages',
+  addAdmins: 'add_admins',
+  manageRanks: 'manage_ranks'
+};
+const BANNED_RIGHT_FLAGS: Record<string, keyof ChatBannedRights.chatBannedRights['pFlags']> = {
+  viewMessages: 'view_messages',
+  // * Web K's "Send Messages" permission is `send_plain`
+  sendMessages: 'send_plain',
+  sendMedia: 'send_media',
+  sendStickers: 'send_stickers',
+  sendGifs: 'send_gifs',
+  sendGames: 'send_games',
+  sendInline: 'send_inline',
+  embedLinks: 'embed_links',
+  sendPolls: 'send_polls',
+  changeInfo: 'change_info',
+  inviteUsers: 'invite_users',
+  pinMessages: 'pin_messages',
+  editRank: 'edit_rank'
+};
+
+/**
+ * The rights of ours in a group, which Web K reads to show the group's members and settings. Telegram's basic
+ * groups always have default banned rights, so an empty set is a set of its own: a group without them hides its
+ * members from Web K.
+ */
+function buildAdminRights(rights?: SignalRights): ChatAdminRights.chatAdminRights | undefined {
+  if(!rights) return undefined;
+  const pFlags: ChatAdminRights.chatAdminRights['pFlags'] = {};
+  Object.entries(ADMIN_RIGHT_FLAGS).forEach(([name, flag]) => {
+    if(rights[name]) pFlags[flag] = true;
+  });
+  return {_: 'chatAdminRights', pFlags};
+}
+
+function buildBannedRights(rights?: SignalRights): ChatBannedRights.chatBannedRights {
+  const pFlags: ChatBannedRights.chatBannedRights['pFlags'] = {};
+  Object.entries(BANNED_RIGHT_FLAGS).forEach(([name, flag]) => {
+    if(rights?.[name]) pFlags[flag] = true;
+  });
+  return {_: 'chatBannedRights', pFlags, until_date: 0};
+}
+
 /** Groups only: a private conversation is its user (`buildUser`) */
 export function buildChat(chat: SignalChat): Chat.chat {
   return {
@@ -90,7 +144,9 @@ export function buildChat(chat: SignalChat): Chat.chat {
     photo: buildChatPhoto(chat.avatarPhotoId),
     participants_count: chat.membersCount || 0,
     date: chat.creationDate || 0,
-    version: 0
+    version: 0,
+    admin_rights: buildAdminRights(chat.adminRights),
+    default_banned_rights: buildBannedRights(chat.defaultBannedRights)
   };
 }
 

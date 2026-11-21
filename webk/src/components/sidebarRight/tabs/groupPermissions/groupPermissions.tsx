@@ -408,19 +408,24 @@ const GroupPermissions: Component = () => {
         <div ref={permissionsContent} />
       </Section>
       {chargeElement()}
-      <Section name="Slowmode" caption={slowmodeCaption()}>
-        <div ref={slowmodeContent} />
-      </Section>
+      {/* * TeleSignal: Signal's groups have no slow mode or exceptions; their containers stay, hidden, for the code that fills them */}
+      <div hidden>
+        <Section name="Slowmode" caption={slowmodeCaption()}>
+          <div ref={slowmodeContent} />
+        </Section>
+      </div>
       {boostersElement()}
       <Show when={convertRow()}>
         <Section name="BroadcastGroup" caption="BroadcastGroupConvertInfo">
           {convertRow()}
         </Section>
       </Show>
-      <Section name="PrivacyExceptions">
-        <div ref={exceptionsAdd} />
-        <div ref={exceptionsList} class="chatlist-container" />
-      </Section>
+      <div hidden>
+        <Section name="PrivacyExceptions">
+          <div ref={exceptionsAdd} />
+          <div ref={exceptionsList} class="chatlist-container" />
+        </Section>
+      </div>
     </>
   );
 };

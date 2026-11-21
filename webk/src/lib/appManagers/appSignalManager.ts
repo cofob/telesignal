@@ -35,6 +35,10 @@ import type {
 import {AppManager} from '@appManagers/manager';
 import {buildChat, buildDialog, buildMessage, buildPeer, buildPeerReaction, buildUser, isGroupPeerId, toPeerId, toSignalPeerId} from '@lib/signal/builders';
 import {DEFAULT_REACTION_EMOJIS, buildReaction, toSignalReaction} from '@lib/signal/reactions';
+import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
+import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
+import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
+import type {SignalMethodHost} from '@lib/signal/methodHost';
 import makeError from '@helpers/makeError';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
 import tsNow from '@helpers/tsNow';
@@ -96,6 +100,15 @@ export default class AppSignalManager extends AppManager {
     return this.linkCode;
   }
 
+  /** The safety number of a user for the popup of Web K (`components/popups/safetyNumber.ts`) */
+  public fetchSafetyNumber(userId: PeerId) {
+    return fetchSafetyNumber(this.createMethodHost(), userId);
+  }
+
+  public updateSafetyNumberVerified(userId: PeerId, isVerified: boolean) {
+    return updateSafetyNumberVerified(this.createMethodHost(), userId, isVerified);
+  }
+
   public invoke<T extends keyof MethodDeclMap>(method: T, params: MethodDeclMap[T]['req']): Promise<MethodDeclMap[T]['res']> {
     const handler = this.handlers[method];
     if(!handler) {
@@ -125,6 +138,7 @@ export default class AppSignalManager extends AppManager {
     const now = () => tsNow(true);
     const emptyMessages = () => ({_: 'messages.messages', messages: [] as Message[], chats: [] as Chat[], users: [] as User[], topics: [] as any[]});
     const emptyUpdates = () => ({_: 'updates', updates: [] as Update[], users: [] as User[], chats: [] as Chat[], date: now(), seq: 0});
+    const host = this.createMethodHost();
     return {
       'help.getConfig': () => this.getConfig(),
       'help.getAppConfig': () => ({_: 'help.appConfig', hash: 1, config: {_: 'jsonObject', value: []}}),
@@ -160,7 +174,6 @@ export default class AppSignalManager extends AppManager {
       'messages.getMessageReactionsList': (params) => this.getMessageReactionsList(params),
       'messages.forwardMessages': (params) => this.forwardMessages(params),
       'messages.editMessage': (params) => this.editMessage(params),
-      'messages.getFullChat': (params) => this.getFullChat(params),
       'messages.getChats': (params) => this.getChats(params),
       'messages.getMessages': emptyMessages,
       'messages.search': (params) => this.searchMessages(params),
@@ -173,7 +186,6 @@ export default class AppSignalManager extends AppManager {
       },
       'messages.receivedMessages': () => [],
       'messages.getAllDrafts': emptyUpdates,
-      'messages.getPeerSettings': () => ({_: 'messages.peerSettings', settings: {_: 'peerSettings', pFlags: {}}, chats: [], users: []}),
       'messages.getAttachMenuBots': () => ({_: 'attachMenuBots', hash: 0, bots: [], users: []}),
       // * Signal's stickers and reactions are not in these lists yet
       'messages.getEmojiStickers': () => ({_: 'messages.allStickers', hash: 0, sets: []}),
@@ -194,14 +206,9 @@ export default class AppSignalManager extends AppManager {
       'messages.getScheduledHistory': () => ({_: 'messages.messages', messages: [], chats: [], users: [], topics: []}),
       'messages.getSavedDialogs': () => ({_: 'messages.savedDialogs', dialogs: [], messages: [], chats: [], users: []}),
       'messages.getStickerSet': () => Promise.reject(makeError('STICKERSET_INVALID' as ErrorType)),
-      'users.getFullUser': (params) => this.getFullUser(params),
-      // * the contacts of the global search are the chats' own (`appUsersManager.getContactsPeerIds`), not a server search
-      'contacts.search': () => ({_: 'contacts.found', my_results: [], results: [], chats: [], users: []}),
-      'contacts.resolveUsername': (params) => this.resolveUsername(params),
       'users.getUsers': (params) => this.getUsers(params),
       'contacts.getContacts': () => this.getContacts(),
       'contacts.getTopPeers': () => ({_: 'contacts.topPeersDisabled'}),
-      'contacts.getBlocked': () => ({_: 'contacts.blocked', blocked: [], chats: [], users: []}),
       'stories.getAllStories': () => ({
         _: 'stories.allStories',
         pFlags: {},
@@ -211,6 +218,25 @@ export default class AppSignalManager extends AppManager {
         chats: [],
         users: [],
         stealth_mode: {_: 'storiesStealthMode', pFlags: {}}
+      }),
+      ...buildChatMethodHandlers(host),
+      ...buildGroupMethodHandlers(host),
+      ...buildUserMethodHandlers(host)
+    };
+  }
+
+  /** What the method handlers of `src/lib/signal` reach: the provider, the updates and the managers of Web K */
+  private createMethodHost(): SignalMethodHost {
+    return {
+      call: (name, ...args) => this.call(name, ...args),
+      getInputPeerId: (inputPeer) => this.getInputPeerId(inputPeer),
+      pushUpdates: (updates, users, chats) => this.pushUpdates(updates, users, chats),
+      getManagers: () => ({
+        appChatsManager: this.appChatsManager,
+        appMessagesManager: this.appMessagesManager,
+        appPeersManager: this.appPeersManager,
+        appUsersManager: this.appUsersManager,
+        apiUpdatesManager: this.apiUpdatesManager
       })
     };
   }
@@ -559,67 +585,11 @@ export default class AppSignalManager extends AppManager {
     } as MethodDeclMap['messages.search']['res'];
   }
 
-  private async getFullChat(params: MethodDeclMap['messages.getFullChat']['req']) {
-    const chat = this.appChatsManager.getChat(params.chat_id);
-    const result: {fullInfo: {about?: string, members?: {userId: string}[]}, users: SignalUser[]} = await this.call('fetchFullChat', {id: toSignalPeerId(-params.chat_id)});
-    const users = (result?.users || []).map(buildUser);
-    return {
-      _: 'messages.chatFull',
-      full_chat: {
-        _: 'chatFull',
-        pFlags: {},
-        id: params.chat_id,
-        about: result?.fullInfo.about || '',
-        participants: {
-          _: 'chatParticipants',
-          chat_id: params.chat_id,
-          participants: (result?.fullInfo.members || []).map(({userId}) => ({
-            _: 'chatParticipant',
-            user_id: toPeerId(userId),
-            inviter_id: 0,
-            date: 0
-          })),
-          version: 0
-        },
-        notify_settings: {_: 'peerNotifySettings'},
-        exported_invite: undefined
-      },
-      chats: chat ? [chat] : [],
-      users
-    } as MethodDeclMap['messages.getFullChat']['res'];
-  }
-
   private async getChats(params: MethodDeclMap['messages.getChats']['req']) {
     return {
       _: 'messages.chats',
       chats: params.id.map((id) => this.appChatsManager.getChat(id)).filter(Boolean)
     } as MethodDeclMap['messages.getChats']['res'];
-  }
-
-  private async getFullUser(params: MethodDeclMap['users.getFullUser']['req']) {
-    const userId = getInputUserId(params.id);
-    const result: {user: SignalUser, fullInfo: {bio?: string, isBlocked?: boolean, ttlPeriod?: number}} = await this.call('fetchFullUser', {id: toSignalPeerId(userId)});
-    if(!result) {
-      throw makeError('USER_ID_INVALID' as ErrorType);
-    }
-
-    return {
-      _: 'users.userFull',
-      full_user: {
-        _: 'userFull',
-        pFlags: {
-          blocked: result.fullInfo.isBlocked || undefined
-        },
-        id: userId,
-        about: result.fullInfo.bio,
-        settings: {_: 'peerSettings', pFlags: {}},
-        notify_settings: {_: 'peerNotifySettings'},
-        common_chats_count: 0,
-        ttl_period: result.fullInfo.ttlPeriod
-      },
-      chats: [],
-      users: [buildUser(result.user)]
-    } as MethodDeclMap['users.getFullUser']['res'];
   }
 
   private async getUsers(params: MethodDeclMap['users.getUsers']['req']) {
@@ -630,16 +600,6 @@ export default class AppSignalManager extends AppManager {
   }
 
   /** Finds the Signal user of a username; Web K asks for it on a click only, as Web A does */
-  private async resolveUsername(params: MethodDeclMap['contacts.resolveUsername']['req']) {
-    const result: {chat: SignalChat, user: SignalUser} | {error: string} | undefined = await this.call('getChatByUsername', params.username);
-    if(!result || 'error' in result) {
-      throw makeError('USERNAME_NOT_OCCUPIED' as ErrorType);
-    }
-
-    const user = buildUser(result.user);
-    this.appUsersManager.saveApiUsers([user]);
-    return {_: 'contacts.resolvedPeer', peer: {_: 'peerUser', user_id: user.id}, chats: [], users: [user]} as MethodDeclMap['contacts.resolveUsername']['res'];
-  }
 
   private async getContacts() {
     const result: {users: SignalUser[]} = await this.call('fetchContactList');
@@ -687,6 +647,10 @@ export default class AppSignalManager extends AppManager {
         break;
       case 'updateConnectionState':
         this.onConnectionState(update.connectionState);
+        break;
+      case 'error':
+        // * a change the provider refused (a group change offline, a pin over the list's limit) says so here
+        this.rootScope.dispatchEvent('signal_error', 'Error.AnError');
         break;
       case 'updateCurrentUser':
         this.onCurrentUser(update.currentUser);

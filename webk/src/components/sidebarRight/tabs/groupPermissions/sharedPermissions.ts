@@ -27,6 +27,9 @@ type PermissionsCheckboxFieldsField = CheckboxFieldsField & {
   exceptionText: LangPackKey
 };
 
+// * the rights of a group's permissions tab that Signal has
+const SIGNAL_GROUP_FLAGS: readonly ChatRights[] = ['send_plain', 'invite_users', 'edit_rank', 'change_info'];
+
 export type AdministratorRightsCheckboxFieldsField = CheckboxFieldsField & {
   flags: ChatRights[]
 };
@@ -86,20 +89,29 @@ export class ChatPermissions extends CheckboxFields<PermissionsCheckboxFieldsFie
       {flags: ['change_info'], text: 'UserRestrictionsChangeInfo', exceptionText: 'UserRestrictionsNoChangeInfo'}
     ];
     v = v.filter(Boolean);
-
+    // * Signal's group settings are who may send messages (announcement-only groups), change the group's info, add
+    // * members and set their own tags; the other restrictions have no counterpart in Signal's groups
+    if(options.forChat) {
+      v = v.filter((info) => SIGNAL_GROUP_FLAGS.includes(info.flags[0]));
+    } else {
+      v.push(...mediaNested);
+    }
 
     const map: {[action in ChatRights]?: PermissionsCheckboxFieldsField} = {};
-    v.push(...mediaNested);
     v.forEach((info) => {
       const mainFlag = info.flags[0];
       map[mainFlag] = info;
       info.checked = hasRights(chat, mainFlag, rights);
     });
 
-    mediaNested.forEach((info) => info.nestedTo = map.send_media);
-    map.send_media.toggleWith = {unchecked: mediaNested, checked: mediaNested};
-    map.embed_links.toggleWith = {checked: [map.send_plain]};
-    map.send_plain.toggleWith = {unchecked: [map.embed_links]};
+    if(map.send_media) {
+      mediaNested.forEach((info) => info.nestedTo = map.send_media);
+      map.send_media.toggleWith = {unchecked: mediaNested, checked: mediaNested};
+    }
+    if(map.embed_links && map.send_plain) {
+      map.embed_links.toggleWith = {checked: [map.send_plain]};
+      map.send_plain.toggleWith = {unchecked: [map.embed_links]};
+    }
 
     this.fields = v;
 

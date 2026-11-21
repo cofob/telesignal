@@ -80,7 +80,11 @@ const lang = {
   'PhoneNumber.Code.Fragment.Info': 'Get the code in the Numbers section on [Fragment]()',
   'PHONE_CODE_INVALID': 'Invalid code',
   'PHONE_CODE_EXPIRED': 'Code expired',
-  'PASSWORD_HASH_INVALID': 'Incorrect password'
+  'PASSWORD_HASH_INVALID': 'Incorrect password',
+  'SafetyNumber.Row': 'Safety number',
+  'SafetyNumber.Title': 'Safety number',
+  'SafetyNumber.MarkVerified': 'Mark as verified',
+  'SafetyNumber.ClearVerification': 'Clear verification'
 };
 
 export default lang;

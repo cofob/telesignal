@@ -27,6 +27,7 @@ import type {StreamedMessageDraft, StreamedMessageDraftRemovalReason} from '@app
 import type {WalletSentTransfer, WalletStatus, WalletTonConnectRequestAction} from '@appManagers/appWalletManager';
 import type {TonConnectSession} from '@layer';
 import type {SignalLinkCode} from '@appManagers/appSignalManager';
+import type {LangPackKey} from '@lib/langPack';
 import {NULL_PEER_ID, UserAuth} from '@appManagers/constants';
 import EventListenerBase, {EventListenerListeners} from '@helpers/eventListenerBase';
 import {MOUNT_CLASS_TO} from '@config/debug';
@@ -36,6 +37,8 @@ export type BroadcastEvents = {
   // * TeleSignal: the link QR code of the Signal engine, and the account it linked (@appManagers/appSignalManager)
   'signal_link_code': SignalLinkCode,
   'signal_authorized': UserId,
+  // * a change the Signal engine refused, by its lang key, which the page shows as a toast
+  'signal_error': LangPackKey,
 
   'chat_full_update': ChatId,
   'chat_update': ChatId,
