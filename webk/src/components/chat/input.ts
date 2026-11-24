@@ -167,7 +167,7 @@ import {setBadgeCount} from '@helpers/setBadgeContent';
 import createBadge from '@helpers/createBadge';
 import deepEqual from '@helpers/object/deepEqual';
 import MarkupTooltip from '@components/chat/markupTooltip';
-import {showReplyPickerPopup} from '@components/popups/pickUser';
+import {showContactPickerPopup, showReplyPickerPopup} from '@components/popups/pickUser';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import {isSavedDialog} from '@appManagers/utils/dialogs/isDialog';
 import getFwdFromName from '@appManagers/utils/messages/getFwdFromName';
@@ -304,7 +304,7 @@ type WatchDownloadProgressArgs<T> = {
 };
 
 // * TeleSignal: the attach menu's items that Signal has: photos and videos, files and polls
-const SIGNAL_ATTACH_ACTIONS: Set<RichMessageAttachMenuAction> = new Set(['visualMedia', 'document', 'poll']);
+const SIGNAL_ATTACH_ACTIONS: Set<RichMessageAttachMenuAction> = new Set(['visualMedia', 'document', 'poll', 'contact']);
 
 export default class ChatInput {
   private richMessageInput: RichMessageInputController;
@@ -1618,6 +1618,17 @@ export default class ChatInput {
         return (!this.chat.isMonoforum && this.chat.peerId.isAnyChat()) || this.chat.isBot || this.chat.peerId === rootScope.myId;
       }
     }, {
+      // * TeleSignal: a contact card, as Web A's attach menu sends it (`ShareContactModal`)
+      icon: 'user',
+      richMessageAction: 'contact',
+      text: 'AttachContact',
+      onClick: async() => {
+        const {peerId, threadId} = this.chat;
+        const contactPeerId = await showContactPickerPopup().catch(noop);
+        if(contactPeerId) this.managers.appMessagesManager.sendContact({peerId, threadId, contactPeerId});
+      },
+      verify: () => !this.editMsgId && !this.ephemeralComposer && !this.isWelcomeComposer
+    }, {
       icon: 'checkround',
       richMessageAction: 'standaloneChecklist',
       text: 'Checklist',
@@ -1647,7 +1658,7 @@ export default class ChatInput {
       },
       verify: () => !this.editMsgId && !this.chat.isMonoforum && !this.ephemeralComposer && !this.isWelcomeComposer
     }];
-    // * TeleSignal: Signal sends photos, videos, files and polls; the other attachments are Telegram's
+    // * TeleSignal: Signal sends photos, videos, files, polls and contacts; the other attachments are Telegram's
     this.attachMenuButtons = this.attachMenuButtons.filter(({richMessageAction}) => SIGNAL_ATTACH_ACTIONS.has(richMessageAction));
 
     const attachMenuButtons = this.attachMenuButtons.slice();

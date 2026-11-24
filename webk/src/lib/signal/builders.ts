@@ -195,7 +195,9 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
     out: message.isOutgoing || undefined,
     pinned: message.isPinned || undefined,
     // * a mention of us, which notifies in a muted chat and through a notification profile that allows mentions
-    mentioned: message.isMentioned || undefined
+    mentioned: message.isMentioned || undefined,
+    // * an unread mention, which the mention button of the chat steps to (`lib/signal/mentions.ts`)
+    media_unread: message.hasUnreadMention || undefined
   };
 
   const {action} = message.content;

@@ -9,6 +9,7 @@ export type RichMessageAttachMenuAction =
   | 'giftPremium'
   | 'sendMoney'
   | 'poll'
+  | 'contact'
   | 'standaloneChecklist'
   | 'article'
   | 'attachBot';

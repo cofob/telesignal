@@ -28,6 +28,7 @@ import type {
   SignalAttachment,
   SignalChat,
   SignalChats,
+  SignalContact,
   SignalInitialArgs,
   SignalMessage,
   SignalReactions,
@@ -45,6 +46,7 @@ import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} 
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import {buildCallLogHandlers, fetchCallLogMessages} from '@lib/signal/callLog';
+import {buildMentionHandlers} from '@lib/signal/mentions';
 import {closeViewOnceMedia, getViewOnceMedia, openViewOnceMedia} from '@lib/signal/viewOnce';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
 import {buildOutgoingPoll, buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
@@ -87,6 +89,8 @@ export default class AppSignalManager extends AppManager {
   private linkCode: SignalLinkCode;
   private isStarted: boolean;
   private isAuthorized: boolean;
+  // * the account's user once the slot holds it, for a page that subscribes to `signal_authorized` after it fired
+  private authorizedUserId: UserId;
   private restarting: Promise<void>;
   private authState: SignalAuthState;
   private pendingSends: Map<number, PendingSend> = new Map();
@@ -182,6 +186,7 @@ export default class AppSignalManager extends AppManager {
     await this.call('destroy');
     this.isStarted = false;
     this.isAuthorized = false;
+    this.authorizedUserId = undefined;
   }
 
   /** A provider method that the settings screens call, run by the engine of this worker (`lib/signal/settingsApi`) */
@@ -286,6 +291,11 @@ export default class AppSignalManager extends AppManager {
       ...buildSharedMediaHandlers(host),
       ...buildPollHandlers(host),
       ...buildCallLogHandlers(host),
+      ...buildMentionHandlers(host, ({messages, users}) => {
+        const builtUsers = users.map(buildUser);
+        this.appUsersManager.saveApiUsers(builtUsers);
+        return {messages: messages.map(this.buildMessage), users: builtUsers};
+      }),
       ...buildAccountMethodHandlers(host),
       ...buildMediaMethodHandlers(host)
     };
@@ -495,6 +505,23 @@ export default class AppSignalManager extends AppManager {
       });
     }
 
+    // * a contact card goes as Web A's attach menu sends it (`DataMessage.contact` with the ACI of a Signal user)
+    if(params.media._ === 'inputMediaContact') {
+      const {first_name, last_name, phone_number, user_id} = params.media;
+      return this.sendLocalMessage({
+        peerId: this.getInputPeerId(params.peer),
+        randomId: params.random_id,
+        replyTo: params.reply_to,
+        contact: {
+          mediaType: 'contact',
+          firstName: first_name,
+          lastName: last_name,
+          phoneNumber: phone_number,
+          userId: toSignalPeerId(user_id.toPeerId())
+        }
+      });
+    }
+
     const {attachment, sticker} = await buildOutgoingMedia(params.media).catch(() => {
       throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
     });
@@ -532,7 +559,7 @@ export default class AppSignalManager extends AppManager {
   }
 
   /** Sends a text, an attachment or a sticker through the provider; the promise is the update of the sent message */
-  private sendLocalMessage({peerId, randomId, text, entities, replyTo, attachment, sticker, groupedId, poll}: {
+  private sendLocalMessage({peerId, randomId, text, entities, replyTo, attachment, sticker, groupedId, poll, contact}: {
     peerId: PeerId,
     randomId: number | string,
     text?: string,
@@ -541,7 +568,8 @@ export default class AppSignalManager extends AppManager {
     attachment?: SignalAttachment,
     sticker?: SignalSticker,
     groupedId?: string,
-    poll?: ReturnType<typeof buildOutgoingPoll>
+    poll?: ReturnType<typeof buildOutgoingPoll>,
+    contact?: SignalContact
   }): Promise<Updates.updates> {
     const replyToMsgId = replyTo?._ === 'inputReplyToMessage' ? replyTo.reply_to_msg_id : undefined;
     const lastMessageId = this.appMessagesManager.getHistoryStorage(peerId.toPeerId()).maxId || 0;
@@ -581,7 +609,8 @@ export default class AppSignalManager extends AppManager {
       attachment,
       sticker,
       groupedId,
-      poll
+      poll,
+      contact
     }).catch((err) => {
       this.pendingSends.delete(localId);
       deferred.reject(err);
@@ -919,6 +948,11 @@ export default class AppSignalManager extends AppManager {
     return this.authState;
   }
 
+  /** The account's user once the slot holds it, as `signal_authorized` tells it; `undefined` before */
+  public getAuthorizedUserId() {
+    return this.authorizedUserId;
+  }
+
   private onAuthorizationState(update: SignalApiUpdate) {
     this.authState = {
       state: update.authorizationState,
@@ -963,7 +997,8 @@ export default class AppSignalManager extends AppManager {
     this.isAuthorized = true;
     // * a page that shows the link screen goes on to the chats once the slot holds the account (`signal_authorized`)
     this.apiManager.setUser(user).then(() => {
-      this.rootScope.dispatchEvent('signal_authorized', user.id.toUserId());
+      this.authorizedUserId = user.id.toUserId();
+      this.rootScope.dispatchEvent('signal_authorized', this.authorizedUserId);
     });
   }
 

@@ -99,6 +99,7 @@ export {
   fetchMessagesById,
   fetchPinnedMessages,
   fetchSharedMediaCounts,
+  fetchUnreadMentions,
   forwardMessages,
   loadPollOptionResults,
   markMessageListRead,
