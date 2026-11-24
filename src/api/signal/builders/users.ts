@@ -55,6 +55,8 @@ export function buildApiUserFullInfo(conversation: ConversationRecord, selfAci: 
     ttlPeriod: conversation.expireTimer,
     settings: buildPeerSettings(conversation, selfAci),
     profilePhoto: buildAvatarPhoto(conversation),
+    // Signal has no stories pinned to a profile; the profile shows its shared media tabs once this is known
+    hasPinnedStories: false,
   };
 }
 

@@ -4,7 +4,6 @@ import Modes from '@config/modes';
 import {attachPickerGrid} from '@helpers/dom/attachListNavigation';
 import IS_TOUCH_SUPPORTED from '@environment/touchSupport';
 import {IS_MOBILE, IS_SAFARI} from '@environment/userAgent';
-import filterUnique from '@helpers/array/filterUnique';
 import assumeType from '@helpers/assumeType';
 import callbackifyAll from '@helpers/callbackifyAll';
 import deferredPromise from '@helpers/cancellablePromise';
@@ -80,7 +79,6 @@ export class ChatReactionsMenu {
   private isTags: boolean;
   private isEffects: boolean;
   private night: boolean;
-  private reactions: Reaction[];
   private availableReactions: AvailableReaction[];
   private noPacks: boolean;
   private noSearch: boolean;
@@ -245,7 +243,8 @@ export class ChatReactionsMenu {
       return this.renderReaction(reaction, availableReaction);
     });
 
-    return this.render(renderPromises, reactions.length > REACTIONS_MAX_LENGTH);
+    // * TeleSignal: a Signal reaction is any emoji, so the strip always opens the whole emoji picker
+    return this.render(renderPromises, reactions.length > REACTIONS_MAX_LENGTH || !this.isTags);
   }
 
   private renderEffects(availableEffects: AvailableEffect[]) {
@@ -278,7 +277,6 @@ export class ChatReactionsMenu {
         return;
       }
 
-      this.reactions = peerAvailableReactions.reactions;
       // At reactions_uniq_max the message can take no new distinct reaction, so hide the
       // custom-emoji search/packs (like tdesktop/iOS/Android) — the grid is already narrowed
       // to the present kinds; only piling onto those stays possible.
@@ -398,48 +396,20 @@ export class ChatReactionsMenu {
     return [reactionsPromise];
   };
 
-  private loadReactions = () => {
-    const topReactionsPromise = Promise.resolve(this.reactions)
-    // const topReactionsPromise = this.managers.appReactionsManager.getTopReactions()
-    .then(this.reactionsToDocIds);
-
-    const allRecentReactionsPromise = this.managers.appReactionsManager.getRecentReactions()
-    .then(this.reactionsToDocIds);
-
-    const topReactionsSlicedPromise = topReactionsPromise.then((docIds) => this.noPacks ? docIds : docIds.slice(0, 16));
-
-    const recentReactionsPromise = this.noPacks ? undefined : Promise.all([
-      topReactionsPromise,
-      allRecentReactionsPromise,
-      topReactionsSlicedPromise
-    ]).then(([topDocIds, recentDocIds, topSlicedDocIds]) => {
-      // filter recent reactions and add left top reactions
-      recentDocIds = recentDocIds.filter((docId) => !topSlicedDocIds.includes(docId));
-      recentDocIds.push(...topDocIds.slice(16));
-      return filterUnique(recentDocIds);
-    });
-
-    return [topReactionsSlicedPromise, recentReactionsPromise].filter(Boolean);
-  };
-
   private onMoreClick = (e: MouseEvent) => {
     cancelEvent(e);
 
-    const canShrink = this.noPacks && this.noSearch;
+    // * TeleSignal: a message reaction is any emoji of the regular picker (Signal Desktop's reaction picker), with no
+    // * Telegram catalog and no custom emoji
+    const isAnyEmoji = !this.isTags && !this.isEffects;
+    const canShrink = !isAnyEmoji && this.noPacks && this.noSearch;
 
     const emojiTab = new EmojiTab({
-      noRegularEmoji: true,
-      noPacks: this.noPacks,
-      noSearch: this.noSearch,
+      noRegularEmoji: !isAnyEmoji,
+      noPacks: isAnyEmoji || this.noPacks,
+      noSearch: !isAnyEmoji && this.noSearch,
       managers: this.managers,
-      mainSets: this.isTags ? this.loadTags : (this.isEffects ? this.loadEffects : this.loadReactions),
-      // * the recent reactions can be cleared from the picker, as in Web A, iOS and Android; the top
-      // * reactions past the first row stay in their place
-      clearRecent: this.isTags || this.isEffects ? undefined : {
-        titleLangKey: 'ClearRecentReactionsAlertTitle',
-        descriptionLangKey: 'ClearRecentReactionsAlertMessage',
-        clear: (managers) => managers.appReactionsManager.clearRecentReactions().then(() => this.loadReactions()[1])
-      },
+      mainSets: isAnyEmoji ? undefined : (this.isTags ? this.loadTags : this.loadEffects),
       additionalLocalStickerSet: this.isEffects ? async() => {
         const availableEffects = await this.managers.appReactionsManager.getAvailableEffects();
         return (await this.splitAvailableEffects(availableEffects)).localStickerSet;
@@ -480,6 +450,10 @@ export class ChatReactionsMenu {
         const emojis = await this.managers.appEmojiManager.prepareAndSearchEmojis({q, limit: Infinity, minChars: 1, addCustom: true});
         return {
           emojis: emojis.filter((emoji) => {
+            if(isAnyEmoji) {
+              return !emoji.docId;
+            }
+
             if(!emoji.docId) {
               if(this.availableReactions) {
                 return this.availableReactions.some((availableReaction) => availableReaction.reaction === emoji.emoji);
