@@ -1162,11 +1162,8 @@
 "Search.Types.MyMessages" = "My Messages";
 "Search.Types.PublicPosts" = "Public Posts";
 "Chat.SearchSelected" = "Search Selected Text";
-"Privacy.VoiceMessagesPremiumCaption" = "Subscribe to TeleSignal Premium to restrict who can send you voice or video messages.\n\n**[What is TeleSignal Premium?]()**";
-"Privacy.MessagesInfo" = "You can restrict messages from users who are not in your contacts and whom you haven't messaged first.\n\n**[What is TeleSignal Premium?]()**";
 "Privacy.BioRow" = "Who can see my bio?";
 "Privacy.ContactsAndPremium" = "Contacts and Premium";
-"Privacy.MessagesCaption" = "Change who can send you messages.";
 "Privacy.BirthdayRow" = "Who can see my birthday?";
 "Privacy.Birthday" = "Who can see my birthday";
 "Birthday" = "Birthday";
@@ -1180,7 +1177,6 @@
 "Privacy.SavedMusicRow" = "Who can see my saved music?";
 "Privacy.SavedMusic" = "Who can see my saved music";
 "Privacy.SavedMusicCaption" = "You can restrict who can see your saved music with granular precision.";
-"PrivacyGifts" = "Gifts";
 "Privacy.GiftsRow" = "Who can send me gifts?";
 "Privacy.Gifts" = "Who can display gifts on my profile";
 "Privacy.GiftsCaption" = "You can restrict who can display gifts on your profile with granular precision.";
@@ -1905,7 +1901,6 @@
 "PinnedMessagesCount_one" = "Pinned Message";
 "PinnedMessagesCount_other" = "%1$d Pinned Messages";
 "PrivacyExceptions" = "Exceptions";
-"PrivacyLastSeen" = "Last Seen & Online";
 "PrivacySettings" = "Privacy and Security";
 "PrivacyTitle" = "Privacy";
 "PrivacyPhone" = "Phone Number";
@@ -2617,9 +2612,6 @@
 "NewChatsFromNonContacts" = "New chats from unknown users";
 "ArchiveAndMute" = "Archive and Mute";
 "ArchiveAndMuteInfo" = "Automatically archive and mute new chats, groups and channels from non-contacts.";
-"PrivacyVoiceMessages" = "Voice Messages";
-"PrivacyVoiceMessagesTitle" = "Who can send me voice or video messages?";
-"PrivacyVoiceMessagesInfo" = "You can restrict who can send you voice or video messages with granular precision.";
 "EmojiCount_other" = "%1$d emoji";
 "AddEmojiNotFound" = "Emoji pack not found.";
 "MessageContainsEmojiPack" = "This message contains emoji from %s pack.";
@@ -3289,15 +3281,7 @@
 "BoostingOnlyRecipientCode" = "Only the recipient can see the link.";
 "Start" = "Start";
 "ChannelNeedBoostsDescriptionForNewFeatures" = "**%1$s** needs %2$s to unlock new features.";
-"HideReadTime" = "Hide Read Time";
-"HideReadTimeInfo" = "Hide the time when you read messages from people who can't see your last seen. If you turn this on, their read time will also be hidden from you (unless you are a Premium user).\n\nThis setting does not affect group chats.";
-"PrivacyLastSeenPremium" = "Subscribe to TeleSignal Premium";
-"PrivacyLastSeenPremiumInfo" = "If you subscribe to Premium, you will see other users’ last seen and read time even if you hid yours from them (unless they specifically restricted it).";
-"PrivacyLastSeenPremiumForPremium" = "Subscribed to TeleSignal Premium";
-"PrivacyLastSeenPremiumInfoForPremium" = "Because you are a TeleSignal Premium subscriber, you will see the last seen and read time of all users who are sharing it with you – even if you are hiding yours.";
 "PrivacyMessagesContactsAndPremium" = "My Contacts and Premium users";
-"PrivacyMessages" = "Messages";
-"PrivacyMessagesTitle" = "Who can send me messages?";
 "PmReadShowWhen" = "show when";
 "PremiumReadHeader1" = "Show Your Read Date";
 "PremiumReadText1" = "To see when **%s** read the message, either start showing your own read time...";
@@ -4609,7 +4593,6 @@
 "PrivacySettings.VoiceCalls" = "Calls";
 "PrivacySettings.Forwards" = "Forwarded Messages";
 "PrivacySettings.Groups" = "Groups and Channels";
-"PrivacySettings.Voice.PremiumError" = "Only subscribers of [TeleSignal Premium]() can restrict receiving Voice and Video Messages.";
 "PrivacySettingsController.AddUsers" = "Add Users";
 "PrivacySettingsController.GroupDescription" = "You can restrict who can add you to groups and channels with granular precision.";
 "PrivacySettingsController.Forwards.CustomHelp" = "You can restrict who can add a link to your account when forwarding your messages.";
@@ -5052,15 +5035,11 @@
 "PasscodeLock.LogoutPopup.Description" = "Are you sure you want to log out?";
 "PasscodeLock.TurnOff.Description" = "Are you sure you want to turn passcode off?";
 "PaidMessages.ChargeForMessages" = "Charge for Messages";
-"PaidMessages.ChargeForMessagesDescription" = "Charge a fee for messages from people outside your contacts or who you haven't messaged first";
 "PaidMessages.ChargeForGroupMessagesDescription" = "If you turn this on, regular members of the group will have to pay Stars to send messages.";
 "PaidMessages.SetPrice" = "Set your price per message";
-"PaidMessages.SetPriceDescription" = "You will receive %d% of the selected fee (~%d$) for each incoming message";
 "PaidMessages.SetPriceGroupDescription" = "Your group will receive %d% of the selected fee (~%d$) for each incoming messages";
-"PaidMessages.SetPriceChannelDescription" = "Your channel will receive %d% of the selected fee (~%d$) for each incoming messages";
 "PaidMessages.RemoveFee" = "Remove Fee";
 "PaidMessages.ChargeFee" = "Charge Fee";
-"PaidMessages.RemoveFeeDescription" = "Add users or entire groups who won't have to pay to send you messages";
 "PaidMessages.NewChatDescription" = "%s charges %d for each message";
 "PaidMessages.MessageForStars" = "Message for %d";
 "PaidMessages.UserChargesForOneMessageWarning" = "**%s** charges **%s** per incoming message. Would you like to pay **%s** to send one message?";
