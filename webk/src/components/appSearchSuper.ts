@@ -1478,7 +1478,7 @@ export default class AppSearchSuper {
       message,
       middleware,
       promises,
-      spoiler: !!(getMessageMediaOrRich(message) as MessageMedia.messageMediaPhoto).pFlags.spoiler,
+      spoiler: !!(getMessageMediaOrRich(message) as MessageMedia.messageMediaPhoto).pFlags?.spoiler, // * TeleSignal: an album (paid media) has no `pFlags`
       sensitive
     });
 
@@ -1544,6 +1544,12 @@ export default class AppSearchSuper {
 
     // * after the spoiler: a reveal button in it is the control till the spoiler goes
     makeGridMediaAccessible(div, media);
+
+    // * TeleSignal: a Signal video may come without a BlurHash, so without a still; its tile shows that it is a video
+    if(media._ !== 'photo' && !media.thumbs?.length) {
+      div.classList.add('grid-item-no-thumb');
+      div.append(Icon('videocamera', 'grid-item-no-thumb-icon'));
+    }
 
     [
       wrapped.images.thumb,

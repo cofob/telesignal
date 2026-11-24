@@ -11886,7 +11886,8 @@ export default class ChatBubbles {
           const isNotPaid = extendedMedia[0]?._ === 'messageExtendedMediaPreview';
 
           if(!isInvoice) {
-            bubble.classList.add('single-media');
+            // * TeleSignal: a Signal album is one of the chat's media, which the viewer steps through with the others
+            if(!getIsSignalAlbum(context.messageMedia as P)) bubble.classList.add('single-media');
             if(canHideNameIfMedia) {
               bubble.classList.add('hide-name');
             }

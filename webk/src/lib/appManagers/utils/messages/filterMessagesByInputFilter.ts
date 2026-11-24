@@ -44,6 +44,8 @@ export default function filterMessagesByInputFilter({
     case 'inputMessagesFilterPhotoVideo':
       neededContents['messageMediaPhoto'] = true;
       neededContents['messageMediaDocument'] = true;
+      // * TeleSignal: a Signal album is paid media without a price (`@lib/signal/media`)
+      neededContents['messageMediaPaidMedia'] = true;
       neededDocTypes.push('video');
       break;
 
