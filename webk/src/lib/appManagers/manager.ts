@@ -44,8 +44,6 @@ import type AppThemesManager from '@appManagers/appThemesManager';
 import type AppUsernamesManager from '@appManagers/appUsernamesManager';
 import type AppChatInvitesManager from '@appManagers/appChatInvitesManager';
 import type AppStoriesManager from '@appManagers/appStoriesManager';
-import type AppBoostsManager from '@appManagers/appBoostsManager';
-import type AppStatisticsManager from '@appManagers/appStatisticsManager';
 import type AppTranslationsManager from '@appManagers/appTranslationsManager';
 import type {AppManagers} from '@lib/managers';
 import type AppGifsManager from '@appManagers/appGifsManager';
@@ -110,8 +108,6 @@ export class AppManager {
   protected appUsernamesManager: AppUsernamesManager;
   protected appChatInvitesManager: AppChatInvitesManager;
   protected appStoriesManager: AppStoriesManager;
-  protected appBoostsManager: AppBoostsManager;
-  protected appStatisticsManager: AppStatisticsManager;
   protected appTranslationsManager: AppTranslationsManager;
   protected appGifsManager: AppGifsManager;
   protected appGiftsManager: AppGiftsManager;

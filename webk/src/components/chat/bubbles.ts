@@ -262,7 +262,6 @@ import {wrapSolidComponent} from '@helpers/solid/wrapSolidComponent';
 import wrapDice from '@components/chat/bubbleParts/dice';
 import animateSomethingWithScroll from '@helpers/animateSomethingWithScroll';
 import onQuoteClick from '@helpers/dom/onQuoteClick';
-import showBoostPopup from '@components/popups/boost';
 import {NoForwardsRequestContent, NoForwardsRequestReplyMarkup} from '@components/chat/bubbles/noForwardsRequest';
 import tsNow from '@helpers/tsNow';
 import wrapMessageForReply from '@components/wrappers/messageForReply';
@@ -4607,15 +4606,6 @@ export default class ChatBubbles {
           monoforumThreadId: this.chat.monoforumThreadId
         });
 
-        return;
-      }
-    }
-
-    if(bubbleFullMid) {
-      const message = this.chat.getMessage(bubbleFullMid);
-      const action = (message as Message.messageService)?.action;
-      if(action?._ === 'messageActionBoostApply') {
-        showBoostPopup(this.peerId);
         return;
       }
     }

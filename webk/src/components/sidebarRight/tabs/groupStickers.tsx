@@ -8,7 +8,6 @@ import getGroupStickerSet from '@appManagers/utils/chats/getGroupStickerSet';
 import {getStickerSetInputByStickerSet} from '@lib/appManagers/utils/stickers/getStickerSetInput';
 import Button from '@components/buttonTsx';
 import LazyLoadQueue from '@components/lazyLoadQueue';
-import openBoosts from '@components/openBoosts';
 import showStickersPopup from '@components/popups/stickers';
 import Section from '@components/section';
 import {SearchEmpty, SearchLoading} from '@components/searchStatus';
@@ -69,7 +68,6 @@ function GroupStickersForm(props: {data: GroupStickersData}) {
     I18n,
     InputFieldTsx,
     appImManager,
-    hideToast,
     i18n,
     toastNew
   } = useHotReloadGuard();
@@ -153,21 +151,7 @@ function GroupStickersForm(props: {data: GroupStickersData}) {
   const showLevelToast = () => {
     toastNew({
       langPackKey: 'GroupEmojiPack.LevelMin',
-      langPackArguments: [
-        requiredLevel(),
-        anchorCallback(() => {
-          hideToast();
-          openBoosts({
-            peerId: chatId.toPeerId(true),
-            slider: tab.slider,
-            reason: {
-              titleLangKey: 'GroupEmojiPack.BoostTitle',
-              descriptionLangKey: 'GroupEmojiPack.BoostDescription',
-              descriptionArgs: [requiredLevel()]
-            }
-          });
-        })
-      ]
+      langPackArguments: [requiredLevel()]
     });
   };
 

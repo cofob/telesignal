@@ -17,7 +17,6 @@ import {toast, toastNew} from '@components/toast';
 import {EmoticonsDropdown} from '@components/emoticonsDropdown';
 import {EMOTICONS_DROPDOWN_HEIGHT} from '@components/emoticonsDropdown/constants';
 import EmojiTab from '@components/emoticonsDropdown/tabs/emoji';
-import openBoosts, {getCustomReactionsBoostReason} from '@components/openBoosts';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import {usePromiseCollector} from '@components/solidJsTabs/promiseCollector';
 import type {AppChatReactionsTab} from '@components/solidJsTabs/tabs';
@@ -31,7 +30,6 @@ import {
   editChannelField,
   isReactionTyping,
   getChannelFieldReactions,
-  getRequiredBoostLevel,
   GroupReactionsDraft,
   GroupReactionsMode,
   hasReaction,
@@ -74,7 +72,6 @@ const ChatReactionsTab: Component = () => {
   });
   const isAlive = () => !closing && middleware();
   const {chatId} = tab.payload;
-  const peerId = chatId.toPeerId(true);
 
   const [loaded, setLoaded] = createSignal(false);
   const [isBroadcast, setIsBroadcast] = createSignal(false);
@@ -177,7 +174,6 @@ const ChatReactionsTab: Component = () => {
   const [channelDraft, setChannelDraft] = createSignal<ChannelReactionsDraft>();
   const [confirmed, setConfirmed] = createSignal<ReactionsSavePayload>();
   const [paidShown, setPaidShown] = createSignal(false);
-  const [boostLevel, setBoostLevel] = createSignal<number>();
   const [pickerOpen, setPickerOpen] = createSignal(false);
 
   const getSelectionCeiling = () => appConfig()?.reactions_in_chat_max || DEFAULT_REACTIONS_IN_CHAT_MAX;
@@ -191,40 +187,6 @@ const ChatReactionsTab: Component = () => {
     const payload = channelPayload();
     return !!payload && !savePayloadsEqual(payload, confirmed());
   };
-  const requiredLevel = () => {
-    const draft = channelDraft();
-    return draft ? getRequiredBoostLevel(draft) : 0;
-  };
-  const needsBoosts = () => boostLevel() !== undefined && requiredLevel() > boostLevel();
-
-  /** The channel's level as the server has it now (it may have been boosted meanwhile); undefined when not known */
-  const refreshBoostLevel = () => {
-    return managers.appBoostsManager.getBoostsStatus(peerId).then((status) => {
-      const level = status.level ?? 0;
-      setBoostLevel(level);
-      return level;
-    }, (err): number => {
-      console.error('chat reactions: boosts status', err);
-      return undefined;
-    });
-  };
-
-  const openReactionsBoosts = (explain?: boolean) => {
-    const reason = getCustomReactionsBoostReason(requiredLevel());
-    // * the Boosts tab says nothing about why it was opened, unlike the popup the others get
-    if(explain) managers.appProfileManager.canViewStatistics(peerId).then((isAdmin) => {
-      if(isAdmin && isAlive()) toastNew({langPackKey: reason.descriptionLangKey, langPackArguments: reason.descriptionArgs});
-    });
-
-    openBoosts({
-      peerId,
-      slider: tab.slider,
-      managers,
-      reason,
-      isAlive
-    });
-  };
-
   const changeChannelDraft = (draft: ChannelReactionsDraft) => {
     setChannelDraft(draft);
   };
@@ -261,18 +223,6 @@ const ChatReactionsTab: Component = () => {
     setSaving(true);
     picker?.dropdown.toggle(false);
     try {
-      // * custom emoji past the channel's level, as it is now: boosting first, nothing is sent
-      const required = requiredLevel();
-      if(required && required > await refreshBoostLevel()) {
-        if(isAlive()) openReactionsBoosts(true);
-        return false;
-      }
-
-      // * the editor was discarded while the level was being read: what it held is not sent
-      if(!isAlive()) {
-        return false;
-      }
-
       await managers.appChatsManager.setChatAvailableReactions(chatId, payload.reactions, payload.options);
       setConfirmed(payload);
       // * the editor was closed (discarded) while the request was in flight: there is no tab to close
@@ -283,12 +233,7 @@ const ChatReactionsTab: Component = () => {
         return false;
       }
 
-      const error = err as ApiError;
-      if(error?.type === 'BOOSTS_REQUIRED') {
-        openReactionsBoosts(true);
-      } else {
-        showSaveError(error);
-      }
+      showSaveError(err as ApiError);
 
       return false;
     } finally {
@@ -310,8 +255,7 @@ const ChatReactionsTab: Component = () => {
     changeChannelDraft(setChannelPaid(channelDraft(), paid));
   };
 
-  // * The emoji picker: the active standard reactions first, then every pack and the search — the
-  // * channel's boosts decide about custom emoji here, not the admin's own Premium
+  // * The emoji picker: the active standard reactions first, then every pack and the search
 
   let fieldElement: HTMLElement;
   let picker: {dropdown: EmoticonsDropdown, emojiTab: EmojiTab, closing?: boolean};
@@ -489,24 +433,8 @@ const ChatReactionsTab: Component = () => {
       setChannelDraft(draft);
       setConfirmed(buildChannelPayload(draft, {activeEmoticons: activeEmoticons(), paidShown: paidShown()}));
       setLoaded(true);
-
-      // * the level is only for the hint and the check before sending (asked again then): the server checks it anyway
-      refreshBoostLevel();
     })());
   });
-
-  const boostHint = () => {
-    const reason = getCustomReactionsBoostReason(requiredLevel());
-    const anchor = anchorCallback(() => openReactionsBoosts());
-    anchor.append(i18n('BoostChannel'));
-    return (
-      <>
-        {i18n(reason.descriptionLangKey, reason.descriptionArgs)}
-        {' '}
-        {anchor}
-      </>
-    );
-  };
 
   const GroupScreen = () => (
     <>
@@ -576,15 +504,7 @@ const ChatReactionsTab: Component = () => {
       <Show when={channelDraft().enabled}>
         <Section
           name="AvailableReactions"
-          caption={(
-            <>
-              {i18n('ReactionCreateOwnEmojiPacks')}
-              <Show when={needsBoosts()}>
-                <br />
-                {boostHint()}
-              </Show>
-            </>
-          )}
+          caption={i18n('ReactionCreateOwnEmojiPacks')}
         >
           <div class="input-wrapper">
             <ChatReactionsField

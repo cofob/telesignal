@@ -352,12 +352,11 @@ export default class Chat extends EventListenerBase<{
 
   /**
    * The room under the history changes by `delta`, `layout` laying it out. With `duration` (full animations) a
-   * history at its end goes up or down with what takes the room, in its time and the keyboard's curve, moved by
+   * history at its end goes up or down with what takes the room, in its time and the `EASING_Y` curve, moved by
    * the compositor alone: it is laid out where it ends (the room, the boxes, and the scroll that keeps it where it
    * was on the screen) once it is up, or before it goes down, and only its messages are moved there, by a
-   * `translate`: nothing is laid out or scrolled on the way, so the main thread being busy cannot hold it back,
-   * and nothing it moves passes under the zone the keyboard hides (`$bubbles-keyboard-zone`). A history scrolled
-   * up stays.
+   * `translate`: nothing is laid out or scrolled on the way, so the main thread being busy cannot hold it back.
+   * A history scrolled up stays.
    */
   private moveBottomRoom(kind: keyof Chat['bottomRoomFinish'], delta: number, layout: () => void, duration?: number) {
     const bubbles = this.bubbles;
@@ -379,7 +378,7 @@ export default class Chat extends EventListenerBase<{
 
     let finish: () => void;
     if(!atEnd) {
-      // * nothing moves: the zone is there while the keyboard is
+      // * nothing moves: growing, the room comes under what is shown
       if(delta > 0) {
         commit();
         return;
@@ -408,7 +407,7 @@ export default class Chat extends EventListenerBase<{
         inner.animate([{translate: `0px ${from}px`}, {translate: `0px ${to}px`}], options),
         ...(moveGradient?.(options) || [])
       ];
-      // * over, or cut short (the keyboard goes again on the way): it is where it was going
+      // * over, or cut short (the panel goes again on the way): it is where it was going
       finish = () => {
         this.bottomRoomFinish[kind] = undefined;
         if(delta > 0) commit();
@@ -422,7 +421,7 @@ export default class Chat extends EventListenerBase<{
     this.bottomRoomFinish[kind] = finish;
   }
 
-  // * `--chat-input-height-surplus`, `--chat-input-keyboard-height` and `--bubbles-padding-height` are not
+  // * `--chat-input-height-surplus` and `--bubbles-padding-height` are not
   // * inherited (_chat.scss): a rule of the chat's own gives them to the few boxes that read them. Set on
   // * the chat, a custom property of its is worked out anew for every element in it - a thousand in a short
   // * chat, on each line the input grows or a reply shown
@@ -1087,7 +1086,7 @@ export default class Chat extends EventListenerBase<{
     // * chat, container and shared-media tabs included, which is how 4 951 detached nodes ended up
     // * charged to rootScope in a day-old tab. Peer changes keep cleaning it as before.
     this.middlewareHelper.destroy();
-    // * a keyboard's or a panel's way that would lay it out later would make the rule again, on a chat that is gone
+    // * a panel's way that would lay it out later would make the rule again, on a chat that is gone
     Object.values(this.bottomRoomFinish).forEach((finish) => finish?.());
     this.chatInputRule?.remove();
 

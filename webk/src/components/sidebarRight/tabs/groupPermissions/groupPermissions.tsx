@@ -17,7 +17,6 @@ import RangeStepsSelector from '@components/rangeStepsSelector';
 import formatDuration from '@helpers/formatDuration';
 import {wrapFormattedDuration} from '@components/wrappers/wrapDuration';
 import {handleChannelsTooMuch} from '@components/popups/channelsTooMuch';
-import createDoNotRestrictBoostersSection from '@components/sidebarRight/tabs/groupPermissions/doNotRestrictBoostersSection';
 import showConvertToGigagroupPopup from '@components/popups/convertToGigagroup';
 import {ChatPermissions, createSolidTabState} from './sharedPermissions';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
@@ -41,7 +40,6 @@ const GroupPermissions: Component = () => {
     rights?: ChatBannedRights.chatBannedRights,
     stars?: number,
     slowModeSeconds?: number,
-    boostsUnrestrict?: number
   }>({
     tab,
     save: async() => {
@@ -59,7 +57,6 @@ const GroupPermissions: Component = () => {
   let exceptionsAdd!: HTMLDivElement;
   let exceptionsList!: HTMLDivElement;
   const [chargeElement, setChargeElement] = createSignal<HTMLElement>();
-  const [boostersElement, setBoostersElement] = createSignal<HTMLElement>();
   const [convertRow, setConvertRow] = createSignal<HTMLElement>();
   const [slowmodeCaption, setSlowmodeCaption] = createSignal<HTMLElement>();
 
@@ -166,32 +163,6 @@ const GroupPermissions: Component = () => {
             return tab.managers.appChatsManager.toggleSlowMode(chatId, value);
           });
         }
-      });
-    }
-
-    if(isChannel) {
-      const initialBoosts = (chatFull as ChatFull.channelFull).boosts_unrestrict;
-      const {element, dispose} = createDoNotRestrictBoostersSection({
-        initialBoosts,
-        onChange: (value) => {
-          solidState.set({boostsUnrestrict: value});
-        },
-        show: () => !!solidState.store.slowModeSeconds
-      });
-      solidState.setInitial({boostsUnrestrict: initialBoosts});
-      tab.middlewareHelper.get().onDestroy(dispose);
-      setBoostersElement(element);
-
-      saveCallbacks.push(() => {
-        const {boostsUnrestrict} = solidState.store;
-        if(initialBoosts === boostsUnrestrict) {
-          return;
-        }
-
-        return tab.managers.appChatsManager.setBoostsToUnblockRestrictions(
-          chatId,
-          boostsUnrestrict
-        );
       });
     }
 
@@ -414,7 +385,6 @@ const GroupPermissions: Component = () => {
           <div ref={slowmodeContent} />
         </Section>
       </div>
-      {boostersElement()}
       <Show when={convertRow()}>
         <Section name="BroadcastGroup" caption="BroadcastGroupConvertInfo">
           {convertRow()}

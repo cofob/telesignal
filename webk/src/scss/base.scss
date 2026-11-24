@@ -2221,20 +2221,6 @@ hr {
   }
 }
 
-.tchart {
-  &--wrapper {
-    --tchart-letter-spacing-small: auto !important;
-    --tchart-letter-spacing-large: auto !important;
-    margin-top: -12px;
-    z-index: 0;
-  }
-
-  &--zoom {
-    inset-block: -8px auto !important;
-    inset-inline: auto 1rem !important;
-  }
-}
-
 .privacy-premium-icon {
   vertical-align: text-top;
   color: var(--primary-color);

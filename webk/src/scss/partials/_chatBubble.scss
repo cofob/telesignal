@@ -178,7 +178,7 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
   &-avatar {
     position: sticky !important;
     top: 0;
-    bottom: calc(var(--chat-padding-bottom) + var(--chat-input-height-surplus, 0px) + var(--chat-input-keyboard-height, 0px) + #{$bubble-overflow-big} + .25rem);
+    bottom: calc(var(--chat-padding-bottom) + var(--chat-input-height-surplus, 0px) + #{$bubble-overflow-big} + .25rem);
     cursor: pointer;
     pointer-events: all;
     overflow: hidden;
@@ -4309,7 +4309,7 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
       pointer-events: none;
     }
 
-    // * a bubble's and the bot keyboard's under the input (`.reply-keyboard`) alike
+    // * a bubble's inline buttons
     &-bg {
       color: #fff !important;
       background-color: rgba(var(--background-color-rgb), .8) !important;

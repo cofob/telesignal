@@ -669,13 +669,6 @@
   initial-value: 0px;
 }
 
-// * how much higher the input stands for the bot keyboard under it (ReplyKeyboard), given the same way
-@property --chat-input-keyboard-height {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
-
 // * the room above and under the history together (`.bubbles-padding`, Chat.recomputePaddings), given the same way
 @property --bubbles-padding-height {
   syntax: '<length>';
@@ -1078,29 +1071,18 @@
     inset-inline-start: unset;
   }
 
-  .chat-input-inline-placeholder:after {
-    content: attr(data-inline-placeholder);
-    color: var(--input-message-placeholder-color);
-    pointer-events: none;
-  }
-
 	.new-message-wrapper {
     --message-input-editor-toolbar-inset: calc(var(--chat-input-height) + var(--padding-vertical));
     --send-as-size: 2.5rem;
     --send-as-margin-left: 0rem;
     --send-as-margin-right: .25rem;
     --send-as-total-size: calc(var(--send-as-size) + var(--send-as-margin-left) + var(--send-as-margin-right));
-    --commands-size: 2.5rem;
-    --commands-margin-left: 0rem;
-    --commands-margin-right: 0rem;
-    --commands-total-size: calc(var(--commands-size) + var(--commands-margin-left) + var(--commands-margin-right));
     --offset-translateX: 0px;
 		align-items: flex-end;
 		min-height: var(--chat-input-height);
 		// * only across: the send price stands above the composer's top edge
 		overflow-x: clip;
 
-    .new-message-bot-commands,
     .new-message-send-as-container {
       position: absolute;
       flex: 0 0 auto;
@@ -1109,54 +1091,6 @@
       transform: scale(0);
       z-index: 2;
       opacity: 0;
-    }
-
-    .new-message-bot-commands {
-      width: var(--commands-size);
-      height: 2.5rem;
-      border-radius: 1.25rem;
-      background-color: var(--primary-color);
-      display: flex;
-      align-items: center;
-      padding: 0 .75rem;
-      // justify-content: center;
-      margin-inline-start: var(--commands-margin-left);
-      cursor: pointer;
-      color: #fff;
-      font-weight: var(--font-weight-bold);
-
-      @include hover() {
-        background-color: var(--dark-primary-color) !important;
-      }
-
-      .animated-menu-close-icon {
-        position: relative;
-      }
-
-      &-view-icon {
-        font-size: 1.25rem;
-        margin-inline: -.125rem .375rem;
-      }
-
-      &:not(.is-view) .new-message-bot-commands-view-icon {
-        display: none;
-      }
-
-      &-view {
-        @include text-overflow();
-      }
-
-      &-icon-scale {
-        transform: scale(1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-inline-start: -1px;
-      }
-
-      .animated-menu-close-icon {
-        --color: #fff;
-      }
     }
 
     .new-message-send-as {
@@ -1220,10 +1154,6 @@
         --offset-translateX: var(--send-as-total-size);
       }
 
-      &[data-offset="commands"] {
-        --offset-translateX: calc(var(--commands-size) + var(--button-horizontal-margin));
-      }
-
       .attach-file,
       .input-message-container {
         transform: translateX(0);
@@ -1240,8 +1170,7 @@
           transform: translate(calc(var(--translateX) * var(--reflect)));
         }
 
-        .new-message-send-as-container,
-        .new-message-bot-commands {
+        .new-message-send-as-container {
           transform: scale(1);
           opacity: 1;
         }
@@ -1257,10 +1186,6 @@
 
         .new-message-send-as-container {
           @include animation-level-transition(transform var(--transition-standard-in), opacity var(--transition-standard-in));
-        }
-
-        .new-message-bot-commands {
-          @include animation-level-transition(transform var(--transition-standard-in), opacity var(--transition-standard-in), width var(--transition-standard-in));
         }
       }
     }
@@ -1348,21 +1273,9 @@
   position: absolute;
   inset-inline: 0;
   top: var(--chat-padding-top);
-  bottom: calc(var(--chat-padding-bottom) + var(--chat-input-height-surplus, 0px) + var(--chat-input-keyboard-height, 0px));
+  bottom: calc(var(--chat-padding-bottom) + var(--chat-input-height-surplus, 0px));
   margin-block: calc(var(--page-chats-padding) * -1);
 }
-
-// * where the bot keyboard under the input stands (`--chat-input-keyboard-height`, Chat), from the
-// * bottom of the history's scroller: nothing of the history shows under it, its buttons let the wallpaper
-// * through and a message passing under them would muddle them. With the page's padding below it, once
-// * there is a keyboard (`min()` is that padding then and nothing without one), which the fade above it gives up:
-// * the fade stands where it would without a keyboard, only higher by it - so the history, which goes up and down
-// * with the input by a transform under the mask of one or the other (Chat.setChatInputKeyboardHeight), is
-// * masked alike on the way and once it is there. Written out where it is used rather than kept in a custom
-// * property: one changing on the scroller is worked out anew for every message in it
-$bubbles-keyboard-padding: "min(var(--chat-input-keyboard-height, 0px) * 1000, var(--page-chats-padding))";
-$bubbles-keyboard-zone: string.unquote("(var(--chat-input-keyboard-height, 0px) + #{$bubbles-keyboard-padding})");
-$bubbles-keyboard-fade: string.unquote("(var(--bubbles-scrollable-fade-bottom) - #{$bubbles-keyboard-padding})");
 
 .bubbles {
 	--translateY: 0;
@@ -1429,14 +1342,12 @@ $bubbles-keyboard-fade: string.unquote("(var(--bubbles-scrollable-fade-bottom) -
       color-mix(in srgb, #000 66.6%, var(--bubbles-scrollable-fade-color)) calc(var(--bubbles-scrollable-fade-top-add) + var(--bubbles-scrollable-fade-top-ramp) * 0.6),
       color-mix(in srgb, #000 91.4%, var(--bubbles-scrollable-fade-color)) calc(var(--bubbles-scrollable-fade-top-add) + var(--bubbles-scrollable-fade-top-ramp) * 0.8),
       #000 var(--bubbles-scrollable-fade-top),
-      #000 calc(100% - #{$bubbles-keyboard-fade} - #{$bubbles-keyboard-zone}),
-      color-mix(in srgb, #000 91.4%, var(--bubbles-scrollable-fade-color)) calc(100% - #{$bubbles-keyboard-fade} * 0.8 - #{$bubbles-keyboard-zone}),
-      color-mix(in srgb, #000 66.6%, var(--bubbles-scrollable-fade-color)) calc(100% - #{$bubbles-keyboard-fade} * 0.6 - #{$bubbles-keyboard-zone}),
-      color-mix(in srgb, #000 33.4%, var(--bubbles-scrollable-fade-color)) calc(100% - #{$bubbles-keyboard-fade} * 0.4 - #{$bubbles-keyboard-zone}),
-      color-mix(in srgb, #000 8.6%, var(--bubbles-scrollable-fade-color)) calc(100% - #{$bubbles-keyboard-fade} * 0.2 - #{$bubbles-keyboard-zone}),
-      var(--bubbles-scrollable-fade-color) calc(100% - #{$bubbles-keyboard-zone}),
-      transparent calc(100% - #{$bubbles-keyboard-zone}),
-      transparent 100%
+      #000 calc(100% - var(--bubbles-scrollable-fade-bottom)),
+      color-mix(in srgb, #000 91.4%, var(--bubbles-scrollable-fade-color)) calc(100% - var(--bubbles-scrollable-fade-bottom) * 0.8),
+      color-mix(in srgb, #000 66.6%, var(--bubbles-scrollable-fade-color)) calc(100% - var(--bubbles-scrollable-fade-bottom) * 0.6),
+      color-mix(in srgb, #000 33.4%, var(--bubbles-scrollable-fade-color)) calc(100% - var(--bubbles-scrollable-fade-bottom) * 0.4),
+      color-mix(in srgb, #000 8.6%, var(--bubbles-scrollable-fade-color)) calc(100% - var(--bubbles-scrollable-fade-bottom) * 0.2),
+      var(--bubbles-scrollable-fade-color) 100%
     );
   }
 
