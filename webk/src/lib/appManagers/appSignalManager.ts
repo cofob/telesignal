@@ -914,15 +914,18 @@ function getPeerIdOfPeer(peer: Peer) {
   }
 }
 
-// * Telegram's entity names with an upper-case first letter are Web A's `ApiMessageEntityTypes`
+// * Telegram's entity names with an upper-case first letter are Web A's `ApiMessageEntityTypes`; a mention that Web K
+// * sends names its user with an input user, and it is Web A's `MessageEntityMentionName`
 function buildSignalEntity(entity: MethodDeclMap['messages.sendMessage']['req']['entities'][number]) {
-  const type = entity._.charAt(0).toUpperCase() + entity._.slice(1);
+  const isInputMention = entity._ === 'inputMessageEntityMentionName';
+  const name = isInputMention ? 'messageEntityMentionName' : entity._;
+  const userId = isInputMention ? getInputUserId(entity.user_id) : (entity as {user_id?: UserId}).user_id;
   return {
-    type,
+    type: name.charAt(0).toUpperCase() + name.slice(1),
     offset: entity.offset,
     length: entity.length,
     url: (entity as {url?: string}).url,
-    userId: (entity as {user_id?: UserId}).user_id ? toSignalPeerId((entity as {user_id?: UserId}).user_id) : undefined,
+    userId: userId ? toSignalPeerId(userId) : undefined,
     language: (entity as {language?: string}).language
   };
 }
