@@ -7,6 +7,7 @@ import type {Chat, InputUser, Peer, User} from '@layer';
 import type {SignalMethodHandlers, SignalMethodHost} from '@lib/signal/methodHost';
 import {buildPeer, buildUser, toPeerId} from '@lib/signal/builders';
 import {getInputUserPeerId, getUserRef} from '@lib/signal/methodHost';
+import {SIGNAL_USERNAME_PATTERN} from '@lib/signal/usernames';
 import makeError from '@helpers/makeError';
 
 /** The safety number with a user and whether it is verified, for the safety number popup of Web K */
@@ -66,7 +67,13 @@ async function searchContacts(host: SignalMethodHost, query: string) {
   };
 }
 
+/**
+ * Finds the Signal user of a username. Web K also resolves Telegram names on its own, such as `gif` or a bot's: they
+ * have no discriminator, so the server is not asked, and only a user's click on a username row or link looks one up.
+ */
 async function resolveUsername(host: SignalMethodHost, username: string) {
+  if(!SIGNAL_USERNAME_PATTERN.test(username)) throw makeError('USERNAME_NOT_OCCUPIED' as ErrorType);
+
   const result: {user?: any, error?: string} | undefined = await host.call('getChatByUsername', username);
   if(!result?.user) {
     throw makeError((result?.error === 'unavailable' ? 'USERNAME_INVALID' : 'USERNAME_NOT_OCCUPIED') as ErrorType);
