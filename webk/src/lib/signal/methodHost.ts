@@ -1,17 +1,12 @@
 /*
  * TeleSignal: what the Signal method handlers of Web K (`chatMethods.ts`, `groupMethods.ts`) need from the adapter
- * (`appSignalManager.ts`): the provider's calls, the updates it pushes and the managers of Web K that hold the
- * chats and users. The adapter builds one host and passes it to every handler set.
+ * (`appSignalManager.ts`): the provider's calls and the managers of Web K that hold the chats and peers. The adapter
+ * builds one host and passes it to every handler set.
  */
 
-import type {
-  AppChatsManager
-} from '@appManagers/appChatsManager';
-import type {AppMessagesManager} from '@appManagers/appMessagesManager';
+import type {AppChatsManager} from '@appManagers/appChatsManager';
 import type {AppPeersManager} from '@appManagers/appPeersManager';
-import type {AppUsersManager} from '@appManagers/appUsersManager';
-import type {ApiUpdatesManager} from '@appManagers/apiUpdatesManager';
-import type {Chat, InputPeer, MethodDeclMap, Update, User} from '@layer';
+import type {InputPeer, MethodDeclMap} from '@layer';
 import {toSignalPeerId} from '@lib/signal/builders';
 
 export type SignalMethodHandler = (params: any) => any;
@@ -19,10 +14,7 @@ export type SignalMethodHandlers = Partial<Record<keyof MethodDeclMap, SignalMet
 
 export type SignalMethodManagers = {
   appChatsManager: AppChatsManager,
-  appMessagesManager: AppMessagesManager,
-  appPeersManager: AppPeersManager,
-  appUsersManager: AppUsersManager,
-  apiUpdatesManager: ApiUpdatesManager
+  appPeersManager: AppPeersManager
 };
 
 export type SignalMethodHost = {
@@ -30,7 +22,6 @@ export type SignalMethodHost = {
   call: <T = any>(name: string, ...args: any[]) => Promise<T>;
   /** The Web K peer id of an input peer, as the adapter reads it */
   getInputPeerId: (inputPeer: InputPeer) => PeerId | undefined;
-  pushUpdates: (updates: Update[], users?: User[], chats?: Chat[]) => void;
   getManagers: () => SignalMethodManagers;
 };
 

@@ -52,6 +52,7 @@ export {
   deleteChatUser,
   deleteExportedChatInvite,
   deleteRevokedExportedChatInvites,
+  disableChatInvite,
   editChatParticipantRank,
   editChatPhoto,
   editExportedChatInvite,

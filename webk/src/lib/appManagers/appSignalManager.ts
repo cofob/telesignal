@@ -38,6 +38,7 @@ import {AppManager} from '@appManagers/manager';
 import {buildChat, buildDialog, buildMessage, buildPeer, buildPeerReaction, buildUser, isGroupPeerId, toPeerId, toSignalPeerId} from '@lib/signal/builders';
 import {DEFAULT_REACTION_EMOJIS, buildReaction, toSignalReaction} from '@lib/signal/reactions';
 import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
+import {getErrorLangKey} from '@lib/signal/errors';
 import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
 import {buildMediaMethodHandlers, getSharedMediaSearchType} from '@lib/signal/mediaMethods';
@@ -235,18 +236,14 @@ export default class AppSignalManager extends AppManager {
     };
   }
 
-  /** What the method handlers of `src/lib/signal` reach: the provider, the updates and the managers of Web K */
+  /** What the method handlers of `src/lib/signal` reach: the provider and the managers of Web K */
   private createMethodHost(): SignalMethodHost {
     return {
       call: (name, ...args) => this.call(name, ...args),
       getInputPeerId: (inputPeer) => this.getInputPeerId(inputPeer),
-      pushUpdates: (updates, users, chats) => this.pushUpdates(updates, users, chats),
       getManagers: () => ({
         appChatsManager: this.appChatsManager,
-        appMessagesManager: this.appMessagesManager,
-        appPeersManager: this.appPeersManager,
-        appUsersManager: this.appUsersManager,
-        apiUpdatesManager: this.apiUpdatesManager
+        appPeersManager: this.appPeersManager
       })
     };
   }
@@ -731,10 +728,12 @@ export default class AppSignalManager extends AppManager {
       case 'updateConnectionState':
         this.onConnectionState(update.connectionState);
         break;
-      case 'error':
+      case 'error': {
         // * a change the provider refused (a group change offline, a pin over the list's limit) says so here
-        this.rootScope.dispatchEvent('signal_error', 'Error.AnError');
+        const langPackKey = getErrorLangKey(update.error?.message);
+        if(langPackKey) this.rootScope.dispatchEvent('signal_error', langPackKey);
         break;
+      }
       case 'updateCurrentUser':
         this.onCurrentUser(update.currentUser);
         break;

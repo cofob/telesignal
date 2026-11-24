@@ -1,5 +1,5 @@
 import tsNow from '@helpers/tsNow';
-import I18n, {LangPackKey} from '@lib/langPack';
+import {LangPackKey} from '@lib/langPack';
 import {MUTE_UNTIL} from '@appManagers/constants';
 import RadioFormTsx from '@components/radioFormTsx';
 import showPeerPopup, {PopupPeerButton} from '@components/popups/peer';
@@ -39,7 +39,8 @@ const times: {value: number, langPackKey: LangPackKey, checked?: boolean}[] = [{
 
 /**
  * Every "Mute" of a chat, a topic or a Community — the chat list, the top bar, the profile — as tdesktop's mute
- * menu (`menu/menu_mute.cpp`): a duration, one of the user's own, and the chat's sound off or back on
+ * menu (`menu/menu_mute.cpp`): a duration or one of the user's own. TeleSignal: Signal keeps no sound setting of a
+ * chat, only its mute, so the menu has no sound button.
  */
 export default function showMutePopup(
   peerId?: PeerId,
@@ -88,25 +89,10 @@ export default function showMutePopup(
     }
   }];
 
-  // * a Community's sound is its chats' own
-  const soundTarget = communityId ? undefined : {peerId, threadId};
-  let soundOff: boolean;
-  const soundLabel = soundTarget && new I18n.IntlElement();
-  if(soundTarget) {
-    buttons.push({
-      text: soundLabel.element,
-      callback: () => {
-        managers.appNotificationsManager.setPeerSoundOff(soundTarget, !soundOff);
-      }
-    });
-  }
-
-  const popup = showPeerPopup('popup-mute', {
+  showPeerPopup('popup-mute', {
     peerId: communityId ? undefined : peerId,
     avatar: communityAvatar?.element,
     titleLangKey: 'Notifications',
-    // * shown once the sound button knows which way it goes
-    deferShow: !!soundTarget,
     buttons,
     content: createComponent(RadioFormTsx<number | string>, {
       values: times,
@@ -116,14 +102,4 @@ export default function showMutePopup(
     }),
     onCloseAfterTimeout: communityAvatar?.dispose
   });
-
-  if(soundTarget) {
-    managers.appNotificationsManager.isPeerSoundOff(soundTarget)
-    .catch(() => false)
-    .then((off) => {
-      soundOff = !!off;
-      soundLabel.update({key: soundOff ? 'SoundOn' : 'SoundOff'});
-      popup.show();
-    });
-  }
 }

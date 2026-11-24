@@ -7,6 +7,10 @@ TeleSignal is based, is in [docs/TELEGRAM_WEB_A_CHANGELOG.md](docs/TELEGRAM_WEB_
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-22
+
+A second frontend based on Telegram Web K, encryption of local data with the passcode, and Signal secure backups.
+
 ### Added
 
 - Find a Signal user by username: typing a username such as `alice.42` in the chat search or the contact list offers
@@ -21,9 +25,10 @@ TeleSignal is based, is in [docs/TELEGRAM_WEB_A_CHANGELOG.md](docs/TELEGRAM_WEB_
 ### Changed
 
 - The web app serves two frontends of the same account: the current one moves to `/a/`, and a second one based on
-  Telegram Web K is at `/k/` (in progress: text chats, groups and the link screen). `/` opens `/a/`, keeping the
-  account slot in the address. The main menu of each switches to the other, which opens the same chats without
-  linking again; only one runs the connection at a time. Installed web apps and bookmarks of `/` keep working.
+  Telegram Web K is at `/k/` (in progress: the link screen, text chats and groups, reactions, quoted replies and
+  forwards, message search, the main settings, linked devices, profile, username, privacy and the passcode lock).
+  `/` opens `/a/`, keeping the account slot in the address. The main menu of each switches to the other, which opens
+  the same chats without linking again; only one runs the connection at a time. Installed web apps and bookmarks of `/` keep working.
 - Telegram's branding is replaced with TeleSignal's: the favicon, app and home screen icons, link preview image, page
   and install names, descriptions, notification sound, no-JavaScript and unsupported browser pages, the logo of the
   sign-up screens, the paper plane of the send button, and the duck, monkey and wallet animations and pictures. Texts
@@ -33,6 +38,10 @@ TeleSignal is based, is in [docs/TELEGRAM_WEB_A_CHANGELOG.md](docs/TELEGRAM_WEB_
 
 - Container image: the shipped scripts no longer point browser developer tools to source maps that the image does
   not contain.
+
+### Security
+
+- Desktop app: the app's Content-Security-Policy applies to every file it serves, the engine's worker included.
 
 ## [0.1.0] - 2026-11-21
 
@@ -106,5 +115,6 @@ The conversion of Telegram Web A into a Signal client; the plan and its status a
 - Desktop app: no shell access for the page, external links limited to web, mail and phone links, new windows blocked,
   and the TLS libraries and the updater's ZIP reader updated to versions that fix published advisories.
 
-[Unreleased]: https://github.com/cofob/telesignal/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/cofob/telesignal/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/cofob/telesignal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cofob/telesignal/releases/tag/v0.1.0

@@ -11,7 +11,7 @@ import makeError from '@helpers/makeError';
 
 /** The safety number with a user and whether it is verified, for the safety number popup of Web K */
 export function fetchSafetyNumber(host: SignalMethodHost, userId: PeerId) {
-  return host.call<{digits: string, isVerified: boolean} | undefined>('fetchSafetyNumber', {user: getUserRef(userId)});
+  return host.call<{digits: string, qrData?: string, isVerified: boolean} | undefined>('fetchSafetyNumber', {user: getUserRef(userId)});
 }
 
 export function updateSafetyNumberVerified(host: SignalMethodHost, userId: PeerId, isVerified: boolean) {

@@ -34,6 +34,8 @@ export type PaintQrOptions = {
    * the canvas filling its container during that window).
    */
   canvasClass?: string;
+  /** TeleSignal: `Byte` encodes each character's code as one byte, for binary data such as a safety number's */
+  mode?: 'Byte';
   /** Already-loaded `qr-code-styling` constructor; loaded lazily by the caller. */
   QRCodeStylingCtor: any;
 };
@@ -48,7 +50,7 @@ export async function paintQrCode(options: PaintQrOptions) {
     dotsOptions: {color: foreground, type: 'rounded'},
     cornersSquareOptions: {type: 'extra-rounded', color: foreground},
     backgroundOptions: {color: background},
-    qrOptions: {errorCorrectionLevel: 'L'}
+    qrOptions: {errorCorrectionLevel: 'L', mode: options.mode}
   });
 
   qrCode.append(host);
