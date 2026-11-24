@@ -10111,10 +10111,12 @@ export default class ChatBubbles {
         s.append(i18n(media._ === 'messageMediaDocument' ? 'Signal.ViewOnce.Video' : 'Signal.ViewOnce.Photo'));
         const button = Button('bubble-service-button', {noRipple: true, text: 'Signal.ViewOnce.Open'});
         attachClickEvent(button, async() => {
-          // * one click opens it: the button goes at once, and the message turns into "Viewed"
+          // * one click opens it: the button goes at once, and the message turns into "Viewed"; a failed load
+          // * brings it back for another try
           button.remove();
           const {appSignalManager} = this.managers;
           if(!(await appSignalManager.openViewOnceMedia(message.peerId, message.mid))) {
+            s.append(button);
             toastNew({langPackKey: 'Error.AnError'});
             return;
           }

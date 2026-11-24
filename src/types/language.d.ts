@@ -1294,6 +1294,7 @@ export interface LangPair {
   'ActionViewOnceVideo': undefined;
   'ViewOnceViewedToast': undefined;
   'ViewOnceOutgoingToast': undefined;
+  'ViewOnceLoadFailed': undefined;
   'ActionUserLeftYou': undefined;
   'ActionUserJoinedYou': undefined;
   'ActionJoinedByRequestYou': undefined;

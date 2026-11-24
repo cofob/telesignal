@@ -2816,7 +2816,14 @@ export default class MessageProcessor {
       case 'viewOnceOpen': {
         const { senderAci, senderAciBinary, timestamp } = content.value;
         const target = await this.db.findMessage(senderAci || uuidToString(senderAciBinary), Number(timestamp));
-        if (target) await this.putMessage({ ...target, isViewOnceOpened: true, dataMessage: undefined });
+        if (!target) break;
+        // Opened on another device: erased as when opened here (Signal Desktop `markViewOnceMessageViewed` with
+        // `fromSync`)
+        const attachments = target.dataMessage ? fromBinary(DataMessageSchema, target.dataMessage).attachments : [];
+        await this.putMessage({
+          ...target, viewedAt: target.viewedAt ?? Date.now(), isViewOnceOpened: true, dataMessage: undefined,
+        });
+        for (const attachment of attachments) await removeAttachmentBlob(attachment);
         break;
       }
       case 'messageRequestResponse':

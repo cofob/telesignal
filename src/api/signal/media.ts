@@ -78,7 +78,11 @@ async function prepareAndUploadAttachment(
     },
   });
 
-  await saveAttachmentBlob(pointer, new Blob([blob], { type: getSafeMimeType(contentType) }));
+  // Sent view-once media keeps no local copy (Signal Desktop `sendNormalMessage` erases it with
+  // `eraseMessageContents`); sending it again reuses the uploaded pointer
+  if (!attachment.ttlSeconds) {
+    await saveAttachmentBlob(pointer, new Blob([blob], { type: getSafeMimeType(contentType) }));
+  }
   return pointer;
 }
 

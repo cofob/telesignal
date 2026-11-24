@@ -165,7 +165,7 @@ const ActionMessage = ({
     const blobUrl = hash ? await fetchMedia(hash, ApiMediaFormat.BlobUrl) : undefined;
     if (!blobUrl) {
       isOpeningViewOnceRef.current = false;
-      showNotification({ message: { key: 'ViewOnceViewedToast' } });
+      showNotification({ message: { key: 'ViewOnceLoadFailed' } });
       return;
     }
 
