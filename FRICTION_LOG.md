@@ -175,20 +175,28 @@ closed may stay hidden the same way.
 ## Telegram-only features remain in Web K's code behind hidden entry points
 
 The TON wallet, the interactive widgets, the empty-column tips, the popup sandbox, channel creation, the channel
-direct-messages settings, the sponsored message explainer, business features and chat automation, and bots and Mini
-Apps are removed. What remains of bots are inline buttons in messages (`keyboardButton.ts`, `replyMarkupLayout`, URL
-authorization) and the bot command cache that ephemeral messages read (`appProfileManager`, `appMessagesManager`);
-`_chat.scss` and other shared stylesheets keep the bot keyboard's and bot commands' rules, and the layout keeps
-`--chat-input-keyboard-height` at 0. Stars, gifts, Premium, payments and boosts (`src/components/stars`, `stargifts`,
-`premium`, `popups/payment*`, `popups/star*`, `popups/*gift*`, `popups/boost*`, `popups/premium.tsx`,
-`popups/limit.ts`) are about 130 files that 44 files outside them import, among them `bubbles.ts`, `input.ts`,
-`reaction.ts`, `appImManager.ts`, `hotReloadGuard.ts`, `internalLinkProcessor.ts` and the stories viewer, which imports
-`openBoosts.ts` and `sidebarRight/tabs/statistics.tsx`. Communities are 60 files that 21 files outside them import,
-among them the chat list's `dialogs.ts`, `sortedDialogList.ts`, `archiveDialog.tsx`, `appDialogsManager.ts` and
-`dialogsContextMenu.ts`. Forums are not a separate cluster: 199 `isForum` checks in 35 files, forum topics in
-`dialogsStorage` and topic thread ids run through the same chat, history and dialog code Signal chats use, so removing
-them means reworking that code rather than deleting importers. About 140 `.invalid` links of these features remain in
-`src`; the strings that Signal chats can show point to Signal on the phone instead.
+direct-messages settings, the sponsored message explainer, business features and chat automation, bots and Mini Apps,
+and boosts and statistics are removed. What remains of bots are inline buttons in messages (`keyboardButton.ts`,
+`replyMarkupLayout`, URL authorization) and the bot command cache that ephemeral messages read (`appProfileManager`,
+`appMessagesManager`).
+
+Stars, gifts, Premium and payments are one knot rather than separable clusters. Every gift and Stars purchase goes
+through `popups/payment.tsx`, the Premium popup applies gift codes through `popups/giftLink.tsx`, and
+`hotReloadGuard` hands the gift, Stars and Premium popups to about 50 files, most of them Premium upsell calls on
+locked features (`input.ts`, `contextMenu.ts`, `peerProfile.tsx`, privacy tabs, folders, translation, stories). Three
+parts run through code Signal chats use: paid messages and the Stars balance (`stores/stars.ts`,
+`paidMessagesInterceptor.ts`, `priceChangedInterceptor`, `pendingUndoableMessage.ts`, `chat.ts`, `appMessagesManager`
+and about ten send popups), collectible chat themes (`appManagers/utils/gifts/getUniqueGiftAttributes.ts` and
+`giftPatternSymbols.ts` in `themeChooser.tsx`, `chatBackground.tsx`, `patternRenderer.ts` and the QR code theme), and
+components that only live in gift files (`DelimiterWithText` in `chat/giveaway.tsx`, which `addChatUsers.ts` and two
+popups use; `PremiumGiftBubble` in `bubbles/premiumGift.tsx`, which wallpaper messages use). `popups/limit.ts` shows
+Signal's limits too; its locked variant needs no Premium. A removal would first move the shared components and theme
+helpers out, make paid sending inert with the send path's price at zero, and replace each upsell call. Communities are
+60 files that 21 files outside them import, among them the chat list's `dialogs.ts`, `sortedDialogList.ts`,
+`archiveDialog.tsx`, `appDialogsManager.ts` and `dialogsContextMenu.ts`. Forums stay: `isForum` is false for Signal
+chats, and topic thread ids run through the same chat, history and dialog code, so they go with MTProto. About 140
+`.invalid` links of these features remain in `src`; the strings that Signal chats can show point to Signal on the
+phone instead.
 
 ## Web A calls Note to Self «Your Cloud Storage»
 
