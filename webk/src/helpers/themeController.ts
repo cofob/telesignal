@@ -218,6 +218,8 @@ const themeNameToBaseTheme: {[name in Exclude<AppTheme['name'], 'system'>]: Base
   tinted: 'baseThemeTinted'
 };
 
+const SIGNAL_NIGHT_LINK_COLOR = '#6191f3';
+
 const NIGHT_THEME_NAMES = new Set<AppTheme['name']>(['night', 'tinted']);
 
 const log = logger('THEME');
@@ -886,10 +888,11 @@ export class ThemeController {
       darkenAlpha: 0.04
     });
 
-    // links are in the accent colour, whichever it is
+    // links are in the accent colour, whichever it is, except Signal's lighter ultramarine on the night's grays
+    // (Web A's `SIGNAL_DARK_LINK_COLOR`)
     applyAppColor({
       name: 'link-color',
-      hex: newAccentHex
+      hex: themeName === 'night' ? SIGNAL_NIGHT_LINK_COLOR : newAccentHex
     });
 
     applyAppColor({

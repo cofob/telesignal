@@ -62,6 +62,8 @@ export type ActiveBackgroundMeta = {
    * folders sidebar shows the full-brightness gradient, e.g. a bright purple bar in `night`).
    */
   isDarkMaskPattern: boolean;
+  /** The theme's own plain colour: no wallpaper of the user's, pattern, picture or gradient (Web A's `withDefaultBg`) */
+  isPlain: boolean;
 };
 
 export type ChatBackgroundProps = {
@@ -138,6 +140,7 @@ type GiftModel = {
 type BuiltContent = {
   resolved: ResolvedBackground;
   isPattern: boolean;
+  isPlain: boolean;
   isDarkPattern: boolean;
   isTinted: boolean;
   patternRenderer?: ChatBackgroundPatternRenderer;
@@ -390,6 +393,7 @@ function buildContent(
   return {
     resolved,
     isPattern,
+    isPlain: !!(wallPaper as WallPaper.wallPaper)?.pFlags?.default && !isPattern && !image && !colors.includes(','),
     isDarkPattern,
     isTinted: useOverlayRender,
     patternRenderer,
@@ -683,7 +687,8 @@ export const ChatBackground: Component<ChatBackgroundProps> = (props) => {
         // the visible chat is darkened by the mask. Tinted (overlay) and light renders show the
         // gradient directly, so their mirror needs no extra darkening.
         props.gradientRendererRef?.(built.gradientRenderer, {
-          isDarkMaskPattern: built.isDarkPattern && !built.isTinted
+          isDarkMaskPattern: built.isDarkPattern && !built.isTinted,
+          isPlain: built.isPlain
         });
       };
       if(props.deferReveal) {
@@ -765,6 +770,8 @@ const appChatBackground = (() => {
         gradientRendererRef={(r, meta) => {
           activeGradientRenderer = r;
           activeGradientMeta = meta;
+          // * service messages are plain text on a plain background and chips on anything else, as in Web A
+          document.body.classList.toggle('has-plain-chat-background', !!meta?.isPlain);
           for(const listener of gradientRendererListeners) listener(r, meta);
         }}
         onHighlightColor={(hsla) => {

@@ -1,4 +1,4 @@
-import {createEffect, createSignal, onCleanup, onMount} from 'solid-js';
+import {createEffect, createSignal, onCleanup, onMount, Show} from 'solid-js';
 
 import Button from '@components/buttonTsx';
 import CountryInputField from '@components/countryInputField';
@@ -26,6 +26,8 @@ import {
 if(import.meta.hot) import.meta.hot.accept();
 
 type Spec = Extract<CardSpec, {name: 'signIn'}>;
+
+const LOGO_SIZE = 160;
 
 /**
  * Card variant of `pageSignIn`: the phone number of a Signal registration, as Web A's `AuthPhoneNumber`. Country
@@ -147,17 +149,14 @@ export default function SignInCard(_props: {spec: Spec}) {
     <AuthCard
       header={
         <MediaHeader>
+          {/* * the app icon, title and help of Web A's `AuthPhoneNumber` */}
           <MediaHeader.Sticker
             class={styles.logoContainer}
-            size={120}
-            element={
-              <svg class={styles.logo} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
-                <use href="#logo"/>
-              </svg>
-            }
+            size={LOGO_SIZE}
+            element={<img class={styles.logo} src="assets/img/telesignal-logo.svg" alt="" />}
           />
-          <MediaHeader.Title tag="h1">{i18n('Login.Title')}</MediaHeader.Title>
-          <MediaHeader.Subtitle class="secondary">{i18n('Login.StartText')}</MediaHeader.Subtitle>
+          <MediaHeader.Title tag="h1">{i18n('SignalRegisterTitle')}</MediaHeader.Title>
+          <MediaHeader.Subtitle class="secondary">{i18n('SignalRegisterHelp')}</MediaHeader.Subtitle>
         </MediaHeader>
       }
       inputWrapper={false}
@@ -169,27 +168,30 @@ export default function SignInCard(_props: {spec: Spec}) {
           {telInputField.container}
           <AuthCardError content={formatSignalAuthError(signalAuthError())} describes={telEl} />
         </div>
-        <Button
-          class="btn-primary btn-color-primary"
-          disabled={!hasValidInput() || submitting()}
-          onClick={onSubmit}
-        >
-          {submitting() ? (
-            <>
-              {i18n('PleaseWait')}
-              <svg xmlns="http://www.w3.org/2000/svg" class="preloader-circular" viewBox="25 25 50 50">
-                <circle class="preloader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>
-              </svg>
-            </>
-          ) : i18n('Login.Next')}
-        </Button>
+        {/* * as Web A's `AuthPhoneNumber`, the button comes once a number is typed */}
+        <Show when={hasValidInput()}>
+          <Button
+            class="btn-primary btn-color-primary"
+            disabled={submitting()}
+            onClick={onSubmit}
+          >
+            {submitting() ? (
+              <>
+                {i18n('PleaseWait')}
+                <svg xmlns="http://www.w3.org/2000/svg" class="preloader-circular" viewBox="25 25 50 50">
+                  <circle class="preloader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>
+                </svg>
+              </>
+            ) : i18n('Login.Next')}
+          </Button>
+        </Show>
         {accountNumber === 1 && <LanguageChangeButton />}
       </div>
       <Button
         class="btn-primary btn-secondary btn-primary-transparent primary"
         disabled={submitting()}
         onClick={() => managers.appSignalManager.callSignal('restartAuthWithQr')}
-        text="Login.QR.Login"
+        text="SignalLinkExisting"
       />
     </AuthCard>
   );

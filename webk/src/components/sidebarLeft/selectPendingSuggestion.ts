@@ -1,6 +1,5 @@
 export const PENDING_SUGGESTION_PRIORITY = [
   'frozen',
-  'notifications',
   'passkey',
   'birthdayContacts',
   'birthdaySetup'

@@ -33,6 +33,7 @@ import type {
   SignalRights,
   SignalUser
 } from '@lib/signal/signalApi';
+import tsNow from '@helpers/tsNow';
 import {buildReaction} from '@lib/signal/reactions';
 import {buildPollMedia} from '@lib/signal/polls';
 import {buildSignalMessageMedia} from '@lib/signal/media';
@@ -394,10 +395,6 @@ function buildMessageAction(message: SignalMessage, getName: SignalNameResolver)
       return {_: 'messageActionChatJoinedByRequest'};
     case 'pinMessage':
       return {_: 'messageActionPinMessage'};
-    case 'signalCall':
-      if(action.callType !== 'group') {
-        return buildPhoneCallAction(action.callType === 'video', action.outcome as string);
-      }
     default:
       // * the notices Signal has and Telegram has not (safety numbers, group access) show as text
       return {_: 'messageActionCustomAction', message: getActionText(message, getName)};
@@ -414,6 +411,31 @@ export function buildPhoneCallAction(isVideo: boolean, outcome: string): Message
       outcome === 'declined' ? {_: 'phoneCallDiscardReasonBusy'} : {_: 'phoneCallDiscardReasonHangup'}
     )
   };
+}
+
+const PAYMENT_KEYS: {[paymentType: string]: string} = {
+  notification: 'Started',
+  activationRequest: 'ActivationAsked'
+};
+
+// * Signal Desktop `getCallingNotificationText` in `ts/util/callingNotification.std.ts`, as Web A's
+// * `getSignalCallLangKey`: a group call started a moment ago shows as started, then like an ended one
+const GROUP_CALL_STARTED_SECONDS = 5 * 60;
+
+function getCallNoticeKey(callType: string, outcome: string, isOut: boolean, date: number) {
+  const kind = callType === 'audio' ? 'Voice' : 'Video';
+  if(callType === 'group' && outcome === 'pending' && tsNow(true) - date < GROUP_CALL_STARTED_SECONDS) {
+    return isOut ? 'Signal.Call.GroupStartedOut' : 'Signal.Call.GroupStarted';
+  }
+
+  switch(outcome) {
+    case 'declined':
+      return isOut ? `Signal.Call.Unanswered${kind}` : `Signal.Call.Declined${kind}`;
+    case 'missed':
+      return isOut ? `Signal.Call.Unanswered${kind}` : `Signal.Call.Missed${kind}`;
+    default:
+      return isOut ? `Signal.Call.Outgoing${kind}` : `Signal.Call.Incoming${kind}`;
+  }
 }
 
 /** The text of a notice that Telegram has no action for, as a lang key and its arguments (`@lib/signal/notices`) */
@@ -441,11 +463,18 @@ function getActionText(message: SignalMessage, getName: SignalNameResolver) {
       return encodeSignalNotice(`Signal.Notice.SafetyNumber${state}${action.isFromOtherDevice ? 'OtherDevice' : ''}`, [from]);
     }
     case 'signalCall':
-      return encodeSignalNotice(action.outcome === 'missed' ? 'Signal.Notice.GroupCallMissed' : 'Signal.Notice.GroupCall');
+      return encodeSignalNotice(getCallNoticeKey(action.callType as string, action.outcome as string, isOut, message.date));
+    // * Signal Desktop `#renderGiftBadge` in `ts/components/conversation/Message.dom.tsx`
     case 'giftBadge':
-      return ofSender('Signal.Notice.Donation');
-    case 'payment':
-      return ofSender('Signal.Notice.Payment');
+      return isOut ?
+        encodeSignalNotice('Signal.Notice.DonationOut', [getName(message.chatId)]) :
+        encodeSignalNotice('Signal.Notice.Donation', [from]);
+    // * Signal Desktop `PaymentEventNotification` in `ts/components/conversation/PaymentEventNotification.dom.tsx`
+    case 'payment': {
+      const name = PAYMENT_KEYS[action.paymentType as string] ?? 'Activated';
+      if(!isOut) return encodeSignalNotice('Signal.Notice.Payment' + name, [from]);
+      return encodeSignalNotice('Signal.Notice.Payment' + name + 'Out', name === 'Activated' ? [] : [getName(message.chatId)]);
+    }
     case 'deleted':
       return ofSender('Signal.Notice.Deleted');
     case 'viewOnce':
