@@ -592,7 +592,8 @@ export namespace MessageRender {
         originalPeerTitle = createPeerTitleElement({
           peerId: titlePeerId,
           dialog: false,
-          onlyFirstName: false,
+          // * a quote names a user by the first name, as Web A's `getPeerTitle`
+          onlyFirstName: true,
           plainText: false
         }, titleLoadPromises);
       }
@@ -604,7 +605,8 @@ export namespace MessageRender {
         originalPeerTitle = createPeerTitleElement({
           peerId: titlePeerId || undefined,
           dialog: false,
-          onlyFirstName: false,
+          // * a quote names a user by the first name, as Web A's `getPeerTitle`
+          onlyFirstName: true,
           plainText: false,
           fromName: getFwdFromName(replyTo.reply_from)
         }, titleLoadPromises);
@@ -628,7 +630,7 @@ export namespace MessageRender {
       originalPeerTitle = createPeerTitleElement({
         peerId: titlePeerId,
         dialog: false,
-        onlyFirstName: false,
+        onlyFirstName: true,
         plainText: false,
         fromName: !titlePeerId ? getFwdFromName((originalMessage as Message.message).fwd_from) : undefined
       }, titleLoadPromises);
@@ -643,7 +645,8 @@ export namespace MessageRender {
         const groupPeerTitle = createPeerTitleElement({
           peerId: getPeerId(replyTo.reply_to_peer_id),
           dialog: false,
-          onlyFirstName: false,
+          // * a quote names a user by the first name, as Web A's `getPeerTitle`
+          onlyFirstName: true,
           plainText: false
         }, titleLoadPromises);
 

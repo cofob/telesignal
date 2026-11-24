@@ -177,7 +177,6 @@ export default function SignQRCard(_props: {spec: Spec}) {
           >
             {i18n('Login.QR.Title')}
           </h1>
-          <MediaHeader.Subtitle class="secondary">{i18n('Login.QR.Subtitle')}</MediaHeader.Subtitle>
         </MediaHeader>
       }
     >

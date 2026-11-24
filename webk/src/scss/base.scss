@@ -366,6 +366,7 @@
 }
 
 .chat {
+  --message-link-color: var(--link-color);
   --message-highlighting-color: hsla(85.5319, 36.9171%, 40.402%, .4);//rgba(77, 142, 80, .4);
   --message-highlighting-hover-color: rgba(var(--message-highlighting-color-rgb), calc(var(--message-highlighting-alpha) + .24));
 
