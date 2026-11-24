@@ -89,7 +89,6 @@ import getPeerId from '@appManagers/utils/peers/getPeerId';
 import getStoryRepostInfo from '@appManagers/utils/stories/repostInfo';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import {ButtonIconTsx} from '@components/buttonIconTsx';
-import {IconTsx} from '@components/iconTsx';
 import {Transition} from 'solid-transition-group';
 import {TransitionGroup} from '@helpers/solid/transitionGroup';
 import openStoriesSearch, {openStoriesSearchByHashtag} from '@components/stories/openStoriesSearch';
@@ -126,7 +125,6 @@ import replaceContent from '@helpers/dom/replaceContent';
 import showStickersPopup from '@components/popups/stickers';
 import {getStoryContainedPacks, storyHasContainedPacks, StoryContainedPacks, StoryContainedPacksKind, wrapStoryContainedPacks} from '@components/stories/containedPacks';
 import {attachContextMenuListener} from '@helpers/dom/attachContextMenuListener';
-import openBoosts from '@components/openBoosts';
 import type {StoryReplyMode} from '@appManagers/appStoriesManager';
 
 const STORY_HEADER_AVATAR_SIZE = 32;
@@ -2587,7 +2585,6 @@ const Stories = (props: {
   const [replyMode, setReplyMode] = createSignal<StoryReplyMode>(
     isMe || isChangelog ? 'none' : (props.state.peerId.isUser() ? 'reply' : undefined)
   );
-  const [boostsNeeded, setBoostsNeeded] = createSignal<number>();
   if(replyMode() === undefined) {
     const managers = bindManagersToSession(rootScope.managers);
     const middleware = createMiddleware().get();
@@ -2597,7 +2594,6 @@ const Stories = (props: {
       managers.appStoriesManager.getReplyMode(peerId).then((result) => {
         if(!middleware()) return;
         // * no answer (the popup sandbox's managers give none) is no field
-        setBoostsNeeded(result?.boostsNeeded);
         setReplyMode(result?.mode || 'none');
       }, () => {
         if(!middleware()) return;
@@ -3225,32 +3221,6 @@ const Stories = (props: {
     });
   }
 
-  // * a group whose own restrictions hold the member back lifts them for enough boosts (iOS, Android)
-  const openBoostToUnrestrict = async() => {
-    // * of the account the story is watched on: a switch while it opens opens nothing on the next one
-    const managers = bindManagersToSession(rootScope.managers);
-    const peerId = props.state.peerId;
-    // * held still while the popup loads, and played on once it closes, as for the story's other popups
-    const onClose = bindOnAnyPopupClose();
-    actions.pause();
-    try {
-      const peerTitle = await wrapPeerTitle({peerId});
-      await openBoosts({
-        peerId,
-        managers,
-        slider: hotReloadGuard.appSidebarRight,
-        reason: {
-          titleLangKey: 'BoostGroup',
-          descriptionLangKey: 'Story.BoostToUnrestrict',
-          descriptionArgs: [i18n('Story.BoostToUnrestrict.Times', [boostsNeeded()]), peerTitle]
-        },
-        onClose
-      });
-    } catch{
-      onClose();
-    }
-  };
-
   // * the footer of a story with no reply field: what stands on its start is the story's own to say, the
   // * heart and the sharing stand on its end
   let footerReactionIcon: HTMLElement, footerShareButton: HTMLElement;
@@ -3306,12 +3276,6 @@ const Stories = (props: {
           <div class={styles.ViewerStoryFooterLeft}>
             {mediaUnsupported() ? (
               <span class={styles.ViewerStoryFooterText}>{i18n('StoryCantReply')}</span>
-            ) : replyMode() === 'boost' ? (
-              <A11yButton class={styles.ViewerStoryFooterLocked} onClick={openBoostToUnrestrict}>
-                <IconTsx icon="lock" class={styles.ViewerStoryFooterLockedIcon} />
-                <span class={styles.ViewerStoryFooterLockedText}>{i18n('Story.CommentsRestricted')}</span>
-                <span class={styles.ViewerStoryFooterLockedButton}>{i18n('Unlock')}</span>
-              </A11yButton>
             ) : canViewInteractions() ? (
               // * the admins who edit the stories open who reacted to them from the views (Android, iOS)
               <A11yButton

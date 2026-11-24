@@ -13,7 +13,6 @@ export enum INTERNAL_LINK_TYPE {
   EMOJI_SET,
   ADD_LIST,
   STORY,
-  BOOST,
   PREMIUM_FEATURES,
   GIFT_CODE,
   STARS_TOPUP,
@@ -42,7 +41,6 @@ export type InternalLink =
   InternalLink.InternalLinkEmojiSet |
   InternalLink.InternalLinkAddList |
   InternalLink.InternalLinkStory |
-  InternalLink.InternalLinkBoost |
   InternalLink.InternalLinkPremiumFeatures |
   InternalLink.InternalLinkGiftCode |
   InternalLink.InternalLinkStarsTopup |
@@ -138,12 +136,6 @@ export namespace InternalLink {
     _: INTERNAL_LINK_TYPE.STORY,
     domain: string,
     story: string
-  }
-
-  export interface InternalLinkBoost {
-    _: INTERNAL_LINK_TYPE.BOOST,
-    domain?: string,
-    channel?: string
   }
 
   export interface InternalLinkPremiumFeatures {
@@ -245,7 +237,6 @@ export type InternalLinkTypeMap = {
   [INTERNAL_LINK_TYPE.EMOJI_SET]: InternalLink.InternalLinkEmojiSet,
   [INTERNAL_LINK_TYPE.ADD_LIST]: InternalLink.InternalLinkAddList,
   [INTERNAL_LINK_TYPE.STORY]: InternalLink.InternalLinkStory,
-  [INTERNAL_LINK_TYPE.BOOST]: InternalLink.InternalLinkBoost,
   [INTERNAL_LINK_TYPE.PREMIUM_FEATURES]: InternalLink.InternalLinkPremiumFeatures,
   [INTERNAL_LINK_TYPE.GIFT_CODE]: InternalLink.InternalLinkGiftCode,
   [INTERNAL_LINK_TYPE.STARS_TOPUP]: InternalLink.InternalLinkStarsTopup,

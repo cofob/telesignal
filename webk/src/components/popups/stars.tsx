@@ -9,7 +9,7 @@ import paymentsWrapCurrencyAmount, {formatNanoton} from '@helpers/paymentsWrapCu
 import {createPaymentPopup} from '@components/popups/payment';
 import useStars, {prefetchStars} from '@stores/stars';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
-import {createLoadableList} from '@components/sidebarRight/tabs/statistics';
+import {createLoadableList} from '@helpers/solid/createLoadableList';
 import Row from '@components/rowTsx';
 import showSendGiftPicker from '@components/popups/sendGiftPicker';
 import {formatFullSentTime} from '@helpers/date';
@@ -33,7 +33,7 @@ import Button from '@components/buttonTsx';
 import {showContactPickerPopup} from '@components/popups/pickUser';
 import rootScope from '@lib/rootScope';
 import {toastNew} from '@components/toast';
-import {MoreButton} from '@components/sidebarRight/tabs/statistics';
+import {MoreButton} from '@components/moreButton';
 import {formatStarsAmountExact} from '@appManagers/utils/payments/formatStarsAmount';
 import {getStarsTransactionPresentation, starsTransactionProviders} from '@appManagers/utils/payments/starsTransaction';
 import wrapSticker from '@components/wrappers/sticker';
