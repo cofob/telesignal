@@ -72,6 +72,7 @@ const READABLE_ERROR_KEYS: Record<string, RegularLangKey> = {
   INPUT_USER_DEACTIVATED: 'ErrorInputUserDeactivated',
   PEERS_LIST_EMPTY: 'ErrorPeersListEmpty',
   SIGNAL_GROUP_CHANGE_FAILED: 'ErrorGroupChangeFailed',
+  SIGNAL_CHAT_CHANGE_FAILED: 'ErrorChatChangeFailed',
   SIGNAL_GROUP_TITLE_TOO_LONG: 'ErrorGroupTitleTooLong',
   SIGNAL_GROUP_DESCRIPTION_TOO_LONG: 'ErrorGroupDescriptionTooLong',
   SIGNAL_GROUP_LAST_ADMIN: 'ErrorGroupLastAdmin',

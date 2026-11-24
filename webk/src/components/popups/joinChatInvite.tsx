@@ -119,8 +119,12 @@ export function importChatInvite(hash: string, chatTitle?: string) {
       openChatFromInvite(result);
     }
   }, (error) => {
-    if((error as ApiError).type === 'INVITE_REQUEST_SENT') {
+    const type = (error as ApiError).type;
+    if(type === 'INVITE_REQUEST_SENT') {
       toastNew({langPackKey: 'RequestToJoinSent'});
+    } else if(type === 'INVITE_HASH_EXPIRED') {
+      // * TeleSignal: a link that stopped working, as the provider's refusal of it says
+      toastNew({langPackKey: 'InviteExpired'});
     }
   });
 }
