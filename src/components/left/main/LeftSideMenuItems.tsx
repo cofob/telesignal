@@ -19,7 +19,7 @@ import {
   selectTabState, selectTheme, selectUser,
 } from '../../../global/selectors';
 import { selectSharedSettings } from '../../../global/selectors/sharedState';
-import { IS_MULTIACCOUNT_SUPPORTED, IS_TAURI } from '../../../util/browser/globalEnvironment';
+import { IS_MULTIACCOUNT_SUPPORTED } from '../../../util/browser/globalEnvironment';
 import { getPromptInstall } from '../../../util/installPrompt';
 import { getSystemTheme } from '../../../util/systemTheme';
 
@@ -101,7 +101,10 @@ const LeftSideMenuItems = ({
   });
 
   const handleSwitchToWebK = useLastCallback(() => {
-    window.location.href = new URL(WEB_K_PATH, window.location.href).href;
+    // The account slot (`?account=N`) stays the same in Web K
+    const url = new URL(WEB_K_PATH, window.location.href);
+    url.search = window.location.search;
+    window.location.href = url.href;
   });
 
   const handleAnimationLevelChange = useLastCallback((e: React.SyntheticEvent<HTMLElement>) => {
@@ -204,15 +207,12 @@ const LeftSideMenuItems = ({
               <span className="menu-item-name capitalize">{lang('MenuUIFeaturesSwitch')}</span>
               <Toggle value={animationLevelValue} />
             </MenuItem>
-            {/* The desktop app has no native transport for Web K's worker yet */}
-            {!IS_TAURI && (
-              <MenuItem
-                icon="device-webk"
-                onClick={handleSwitchToWebK}
-              >
-                {lang('MenuSwitchToK')}
-              </MenuItem>
-            )}
+            <MenuItem
+              icon="device-webk"
+              onClick={handleSwitchToWebK}
+            >
+              {lang('MenuSwitchToK')}
+            </MenuItem>
             {canInstall && (
               <MenuItem
                 icon="install"

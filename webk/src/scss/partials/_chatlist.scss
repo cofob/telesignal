@@ -459,16 +459,13 @@ ul.chatlist {
 
   .unread,
   .dialog-subtitle-badge-pollvote,
-  .dialog-subtitle-badge-gram,
   .is-muted.backwards .unread,
-  .is-muted.backwards .dialog-subtitle-badge-pollvote,
-  .is-muted.backwards .dialog-subtitle-badge-gram {
+  .is-muted.backwards .dialog-subtitle-badge-pollvote {
     background-color: var(--chatlist-status-color);
   }
 
   .is-muted .unread,
   .is-muted .dialog-subtitle-badge-pollvote,
-  .is-muted .dialog-subtitle-badge-gram,
   .no-unmuted-topic .unread,
   .no-unmuted-topic .dialog-subtitle-badge-pollvote {
     background-color: var(--secondary-color);
@@ -672,17 +669,11 @@ ul.chatlist {
          }
       }
 
-      &-reaction, &-pollvote, &-gram {
+      &-reaction, &-pollvote {
         padding: 0;
         display: flex !important;
         align-items: center;
         justify-content: center;
-      }
-
-      // * an unread incoming Gram transfer, where the mention's badge would be
-      &-gram {
-        order: 2;
-        font-size: 1rem;
       }
 
       &-reaction {

@@ -71,6 +71,10 @@
       "@signal-app/clear-local-data": ["./src/lib/signal/clearLocalDataApi.d.ts"],
       "@signal-app/passcode-session": ["./src/lib/signal/passcodeSessionApi.d.ts"],
       "@signal-app/signal-proxy": ["./src/lib/signal/signalProxyApi.d.ts"],
+      "@signal-app/native-transport": ["./src/lib/signal/nativeTransportApi.d.ts"],
+      "@signal-app/serve-native-transport": ["./src/lib/signal/serveNativeTransportApi.d.ts"],
+      "@tauri-apps/*": ["../node_modules/@tauri-apps/*"],
+      "@signal-app/story-backgrounds": ["./src/lib/signal/storyBackgroundsApi.d.ts"],
       "@/*": ["./src/*"]
     },
     // "rootDirs": [],                        /* List of root folders whose combined content represents the structure of the project at runtime. */

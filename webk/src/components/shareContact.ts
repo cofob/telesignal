@@ -6,13 +6,15 @@ import rootScope from '@lib/rootScope';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
-/** A contact of mine with a phone number can be sent on to another chat. */
+/**
+ * A contact of mine can be sent on to another chat. TeleSignal: a Signal contact card carries the ACI, so a contact
+ * without a phone number goes too, as in Web A
+ */
 export async function canShareContact(contactPeerId: PeerId) {
   const managers = bindManagersToSession(rootScope.managers);
   return rootScope.myId !== contactPeerId &&
     contactPeerId.isUser() &&
-    (await managers.appPeersManager.isContact(contactPeerId)) &&
-    !!(await managers.appUsersManager.getUser(contactPeerId.toUserId())).phone;
+    (await managers.appPeersManager.isContact(contactPeerId));
 }
 
 /** Sends the contact to a chat picked for it and opens that chat. */

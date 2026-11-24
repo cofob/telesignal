@@ -4082,17 +4082,6 @@ export default class ChatBubbles {
       return;
     }
 
-    // the network marker of a widget explains itself on a tap, as on hover (its title)
-    const widgetNetwork = findUpClassName(target, 'time-widget-network');
-    if(widgetNetwork) {
-      showTooltip({
-        element: widgetNetwork,
-        container: this.container,
-        vertical: 'top',
-        textElement: i18n('Widget.NetworkMarker')
-      });
-      return;
-    }
 
     const timeEffect = findUpClassName(target, 'time-effect');
     if(timeEffect) {

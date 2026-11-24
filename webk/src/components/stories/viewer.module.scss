@@ -552,6 +552,15 @@ $color-inactive: rgba(255, 255, 255, .5);
             height: 26px;
             position: relative;
           }
+
+          // * a Signal reaction: its emoji, as text
+          .btn-reaction-emoji {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            line-height: 1;
+          }
         }
       }
 

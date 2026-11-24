@@ -63,12 +63,11 @@ const TRANSPORTS: {value: Transport, title: LangPackKey, subtitle?: LangPackKey}
   {value: 'http', title: 'Experimental.Transport.HTTP'}
 ];
 
-type ToolOpener = 'showPopupSandbox' | 'showBubbleSandbox' | 'showIconLibrary';
+type ToolOpener = 'showBubbleSandbox' | 'showIconLibrary';
 type ToolWindow = typeof window & Partial<Record<ToolOpener, () => void>>;
 
 // * the console's openers (src/index.ts): the sandboxes exist in a dev build and in a preview's bundle, never in production
 const TOOLS: {title: LangPackKey, icon: Icon, open: ToolOpener}[] = [
-  {title: 'Experimental.PopupSandbox', icon: 'tools', open: 'showPopupSandbox'},
   {title: 'Experimental.BubbleSandbox', icon: 'message_filled', open: 'showBubbleSandbox'},
   {title: 'Experimental.IconLibrary', icon: 'smile', open: 'showIconLibrary'}
 ];

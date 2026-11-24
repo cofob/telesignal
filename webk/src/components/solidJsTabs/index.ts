@@ -3,7 +3,6 @@ import {SuperTabProvider} from '@components/solidJsTabs/superTabProvider';
 import {
   AppAddMembersTab,
   AppChatBackgroundTab,
-  AppDirectMessagesTab,
   AppEditProfileTab,
   AppGeneralSettingsTab,
   AppKeyboardShortcutsTab,
@@ -24,7 +23,6 @@ export {providedTabs};
 export {
   AppAddMembersTab,
   AppChatBackgroundTab,
-  AppDirectMessagesTab,
   AppEditProfileTab,
   AppGeneralSettingsTab,
   AppKeyboardShortcutsTab,

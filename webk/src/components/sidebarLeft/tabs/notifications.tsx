@@ -8,6 +8,7 @@ import RangeSettingSelector from '@components/rangeSettingSelector';
 import Button from '@components/buttonTsx';
 import {SETTINGS_INIT} from '@config/state';
 import IS_NOTIFICATION_SUPPORTED from '@environment/notificationSupport';
+import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 import {i18n, LangPackKey} from '@lib/langPack';
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {useAppSettings} from '@stores/appSettings';
@@ -81,7 +82,8 @@ const NotificationsSection = () => {
   const {uiNotificationsManager} = useHotReloadGuard();
   const [appSettings, setAppSettings] = useAppSettings();
   const [permission, setPermission] = createSignal<NotificationPermission>(
-    IS_NOTIFICATION_SUPPORTED ? Notification.permission : 'denied'
+    // * TeleSignal: the desktop app shows system notifications, which need no permission of the page
+    IS_DESKTOP_APP ? 'granted' : (IS_NOTIFICATION_SUPPORTED ? Notification.permission : 'denied')
   );
   const isGranted = createMemo(() => permission() === 'granted');
 

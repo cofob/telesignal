@@ -133,7 +133,9 @@ chat), and the quick-reaction lookup and the picker's sticker id throw. The Sign
 those lookups (`reaction.ts`, `reactionsMenu.ts`, `appReactionsManager.ts`), so the reaction chips, the picker and the
 reactors' popover work, and the strip's More button opens the regular emoji panel instead of the catalog. Each new reaction
 feature of Web K meets the same catalog assumption and needs its own guard; Web K's code has no single place where the
-emoji-as-text rendering is chosen.
+emoji-as-text rendering is chosen. The stories port added two more such guards: the reaction on the story viewer's heart
+(`renderStoryReaction` in `webk/src/components/stories/viewer.tsx`) and the reaction of a row in the story viewers list
+(`processDialogElementForReaction` in `webk/src/components/popups/reactedList.tsx`), which threw on `static_icon`.
 
 ## Web K keeps search tabs and dead branches of the channels, apps and posts tabs
 
@@ -172,14 +174,17 @@ closed may stay hidden the same way.
 
 ## Telegram-only features remain in Web K's code behind hidden entry points
 
-The TON wallet, the interactive widgets and the empty-column tips are removed, but most Telegram-only features are
-only unreachable: Stars, gifts and Premium screens (`src/components/stars`, `stargifts`, `premium`, `popups/premium*`),
-bots, Mini Apps and inline bots (`appAttachMenuBotsManager`, `inlineHelper.ts`, `popups/createBot`, `editBot.tsx`),
-payments, sponsored messages, channels, forums, boosts and statistics (`openBoosts.ts`, `sidebarRight/tabs/boosts.tsx`,
-`statistics.tsx`). Each is referenced from shared files that other work edits (`bubbles.ts`, `appMessagesManager.ts`,
-`topbar.ts`, the stories viewer, `internalLinkProcessor.ts`), so deleting one is a cascade through them. About 160
-`.invalid` links of these features remain in `src` (21 in `lang.ts`); the strings that Signal chats can show point to
-Signal on the phone instead. The community section code in the group editor never renders for Signal groups.
+The TON wallet, the interactive widgets, the empty-column tips, the popup sandbox, channel creation, the channel
+direct-messages settings, bot creation and the sponsored message explainer are removed. The rest of the Telegram-only
+features are only unreachable, and form one cluster: Stars, gifts, Premium, payments and boosts
+(`src/components/stars`, `stargifts`, `premium`, `popups/payment*`, `popups/star*`, `popups/*gift*`, `popups/boost*`,
+`popups/premium.tsx`, `popups/limit.ts`) are about 130 files that 44 files outside them import, among them
+`bubbles.ts`, `input.ts`, `reaction.ts`, `appImManager.ts`, `hotReloadGuard.ts`, `internalLinkProcessor.ts` and the
+stories viewer, which imports `openBoosts.ts` and `sidebarRight/tabs/statistics.tsx`. Business (`sidebarLeft/tabs/
+business*`, `chatAutomation`, `appBusinessManager`), bots and Mini Apps (`appAttachMenuBotsManager`, `webApp.tsx`,
+`inlineHelper.ts`, `keyboardButton.ts`, `editBot.tsx`), communities and forums follow the same pattern. Deleting a
+cluster means editing every importer, several of which other work edits at the same time. About 140 `.invalid` links
+of these features remain in `src`; the strings that Signal chats can show point to Signal on the phone instead.
 
 ## Web A calls Note to Self «Your Cloud Storage»
 
@@ -262,7 +267,10 @@ work when one worker serves every account. Removing them means checking each lis
 
 Each load of `/k/` in Chromium logs several `pageerror` events whose error is a plain object, and Solid logs
 `solid error Error: Unknown error` (seen in Playwright on the demo account while checking logout, accounts and
-settings). The app keeps working, and the source is not known: the events carry no stack.
+settings). The app keeps working. Some of them are verified: an `unhandledrejection` listener added before the page
+loads shows `{type: 'SIGNAL_METHOD_UNSUPPORTED'}` rejections of `langpack.getLangPack` and of
+`AppReactionsManager.getSavedReactionTags`, which call methods the adapter (`appSignalManager.ts`) does not answer and
+do not catch the rejection; the stack of the others ends at `invokeApiSingleProcess`, without the method's name.
 
 ## Message search reads the stored messages without an index
 

@@ -41,7 +41,7 @@ import middlewarePromise from '@helpers/middlewarePromise';
 import emoticonsDropdown from '@components/emoticonsDropdown';
 import showStoryViewersPopup from '@components/popups/storyViewers';
 import ButtonMenuToggle from '@components/buttonMenuToggle';
-import {hideToast, toastNew} from '@components/toast';
+import {toastNew} from '@components/toast';
 import debounce from '@helpers/schedulers/debounce';
 import appDownloadManager from '@lib/appDownloadManager';
 import getMediaFromMessage from '@appManagers/utils/messages/getMediaFromMessage';
@@ -86,7 +86,6 @@ import {dispatchHeavyAnimationEvent} from '@hooks/useHeavyAnimationCheck';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import wrapReply from '@components/wrappers/reply';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
-import AppStatisticsTab from '@components/sidebarRight/tabs/statistics';
 import getStoryRepostInfo from '@appManagers/utils/stories/repostInfo';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import {ButtonIconTsx} from '@components/buttonIconTsx';
@@ -100,12 +99,8 @@ import showTooltip from '@components/tooltip';
 import safeWindowOpen from '@helpers/dom/safeWindowOpen';
 import isVideoStalled from '@helpers/dom/isVideoStalled';
 import wrapUrl from '@lib/richTextProcessor/wrapUrl';
-import {showStoryReport} from '@components/popups/reportAd';
 import {useAppSettings} from '@stores/appSettings';
-import showStoriesStealthModePopup from '@components/popups/storiesStealthMode';
 import {showStorySettingsForStory} from '@components/popups/storySettings';
-import {useAppConfig} from '@stores/appState';
-import {wrapStoriesStealthModeDuration} from '@components/wrappers/wrapDuration';
 import {copyStoryLink, handleShareStory, hasStoryLink} from './share';
 import createListenerSetter from '@helpers/solid/createListenerSetter';
 import pillStyles from '@components/stories/storyPill.module.scss';
@@ -121,12 +116,12 @@ import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import createSubmenuTrigger from '@components/createSubmenuTrigger';
 import {ButtonMenuItemOptionsVerifiable, ButtonMenuSync, setButtonMenuItemDisabled} from '@components/buttonMenu';
 import {PLAYBACK_RATES, getPlaybackRateIcon, getPlaybackRateMenuButton, setPlaybackRateMenuState} from '@components/playbackRateButton';
-import {getStoryVideoDocuments, isStoryHighQuality, showStoryQualityUpgradePopup, STORY_QUALITY_ICON} from '@components/stories/quality';
+import {getStoryVideoDocuments, isStoryHighQuality, STORY_QUALITY_ICON} from '@components/stories/quality';
 import {createAddToAlbumSubmenuTrigger, openCreateAlbumPopup} from '@components/stories/albums';
-import {createStoriesNotifyMuteButtons} from '@components/stories/notifyMute';
 import {TranslatableMessageTsx} from '@components/translatableMessage';
 import detectLanguageForTranslation from '@helpers/detectLanguageForTranslation';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
+import type {SignalStoryItem} from '@lib/signal/storiesApi';
 import replaceContent from '@helpers/dom/replaceContent';
 import showStickersPopup from '@components/popups/stickers';
 import {getStoryContainedPacks, storyHasContainedPacks, StoryContainedPacks, StoryContainedPacksKind, wrapStoryContainedPacks} from '@components/stories/containedPacks';
@@ -451,6 +446,8 @@ const StoryInput = (props: {
   input.onMenuToggle = onMenuToggle;
   input.construct();
   input.constructPeerHelpers();
+  // * a Signal story reply is text or an emoji reaction: it has no attachments
+  input.attachMenu?.classList.add('hide');
   // input.setShrinking(true);
   // input.chatInput.classList.add(styles.hideOnSmall);
   // input.rowsWrapper.classList.add('night');
@@ -596,6 +593,14 @@ const renderStoryReaction = async(props: {
     const availableReactions = await availableReactionsResult;
     if(!middleware()) return;
     availableReaction = availableReactions.find((availableReaction) => reactionsEqual(reaction, availableReaction));
+    // * a Signal reaction is any emoji, which Telegram's catalog has no sticker for: it shows as text
+    if(!availableReaction) {
+      div.classList.add('btn-reaction-emoji');
+      div.append(wrapEmojiText((reaction as Reaction.reactionEmoji).emoticon));
+      uReaction(div);
+      return;
+    }
+
     doc = /* availableReaction.center_icon ??  */play ? availableReaction.select_animation : availableReaction.static_icon;
   }
 
@@ -1222,8 +1227,9 @@ const Stories = (props: {
     }
 
     const isNewReaction = !reactionsEqual(sentReaction, reaction);
+    // * a Signal reaction is an emoji reply, which cannot be taken back: the same one again does nothing
     if(!isNewReaction && !params.fireSame) {
-      reaction = undefined;
+      return;
     }
 
     // * only what puts a reaction on asks: taking one off shows nothing
@@ -1370,9 +1376,14 @@ const Stories = (props: {
         return;
       }
 
+      // * a Signal reaction cannot be taken back: the heart on a story reacted to does nothing
       const story = currentStory() as StoryItem.storyItem;
+      if(story.sent_reaction) {
+        return;
+      }
+
       sendReaction({
-        reaction: story.sent_reaction ? undefined : {_: 'reactionEmoji', emoticon: DEFAULT_REACTION_EMOTICON},
+        reaction: {_: 'reactionEmoji', emoticon: DEFAULT_REACTION_EMOTICON},
         target
       });
     },
@@ -2227,7 +2238,8 @@ const Stories = (props: {
     let lastId: number;
     createEffect(() => {
       const story = currentStory();
-      if(props.pinned && untrack(() => isExpired())) viewedStories.add(story.id);
+      // * Signal views exactly the stories shown, each with its own receipt (`stories.incrementStoryViews`)
+      viewedStories.add(story.id);
       readDebounced(lastId = story.id);
     });
 
@@ -2604,7 +2616,9 @@ const Stories = (props: {
     listenerSetter.add(rootScope)('chat_full_update', onChatUpdate);
   }
 
-  const canReply = () => replyMode() === 'reply' && !mediaUnsupported();
+  // * a Signal story whose author turned replies off takes no replies or reactions
+  const canReply = () => replyMode() === 'reply' && !mediaUnsupported() &&
+    !(currentStory() as SignalStoryItem)?.signal_no_replies;
   const [inputReady, setInputReady] = createSignal(replyMode() === 'none');
   // * the story waits for its field only where it has one: not where the footer stands instead
   createEffect(() => {
@@ -2745,17 +2759,6 @@ const Stories = (props: {
     toastNew({
       langPackKey: hidden ? 'StoriesMovedToContacts' : 'StoriesMovedToDialogs',
       langPackArguments: [await wrapPeerTitle({peerId})]
-    });
-  };
-
-  const togglePinned = async(pinned: boolean) => {
-    const peerId = props.state.peerId;
-    rootScope.managers.appStoriesManager.togglePinned(peerId, currentStory().id, pinned).then(() => {
-      toastNew({
-        langPackKey: pinned ?
-          (peerId.isUser() ? 'StoryPinnedToProfile' : 'StoryPinnedToPosts') :
-          (peerId.isUser() ? 'StoryArchivedFromProfile' : 'StoryUnpinnedFromPosts')
-      });
     });
   };
 
@@ -2918,26 +2921,6 @@ const Stories = (props: {
       },
       verify: () => story?._ === 'storyItem' && rootScope.managers.appStoriesManager.canEditStorySettings(peerId, story.id)
     }, {
-      icon: 'plusround',
-      text: 'Story.AddToProfile',
-      onClick: () => togglePinned(true),
-      verify: () => peerId === rootScope.myId && !(story as StoryItem.storyItem).pFlags?.pinned
-    }, {
-      icon: 'crossround',
-      text: 'Story.RemoveFromProfile',
-      onClick: () => togglePinned(false),
-      verify: () => peerId === rootScope.myId && !!(story as StoryItem.storyItem).pFlags?.pinned
-    }, {
-      icon: 'plusround',
-      text: 'SaveToPosts',
-      onClick: () => togglePinned(true),
-      verify: () => !peerId.isUser() && !(story as StoryItem.storyItem).pFlags?.pinned && rootScope.managers.appStoriesManager.hasRights(peerId, story.id, 'pin')
-    }, {
-      icon: 'crossround',
-      text: 'RemoveFromPosts',
-      onClick: () => togglePinned(false),
-      verify: () => !peerId.isUser() && !!(story as StoryItem.storyItem).pFlags?.pinned && rootScope.managers.appStoriesManager.hasRights(peerId, story.id, 'pin')
-    }, {
       icon: 'forward',
       text: 'ShareFile',
       onClick: () => {
@@ -2963,14 +2946,6 @@ const Stories = (props: {
       onClick: () => setHighQuality(true),
       verify: async() => rootScope.premium && !isHighQuality() && await isQualityShown()
     }, {
-      icon: 'premium_lock',
-      text: 'Story.ContextMenuHD',
-      onClick: () => {
-        ignoreOnClose = true;
-        showStoryQualityUpgradePopup(bindOnAnyPopupClose(wasPlaying));
-      },
-      verify: async() => !rootScope.premium && await isQualityShown()
-    }, {
       icon: 'download',
       text: 'MediaViewer.Context.Download',
       onClick: () => {
@@ -2981,72 +2956,10 @@ const Stories = (props: {
         }
         appDownloadManager.downloadToDisc({media: unwrap(media)});
       },
-      verify: () => canSaveFreely() || (canSaveWithPremium() && rootScope.premium)
+      // * a Signal text story has no file to save
+      verify: () => !!getMediaFromMessage(story as StoryItem.storyItem, true) &&
+        (canSaveFreely() || (canSaveWithPremium() && rootScope.premium))
     }, {
-      icon: 'premium_lock',
-      text: 'MediaViewer.Context.Download',
-      onClick: () => {
-        toastNew({
-          langPackKey: 'Story.ToastPremiumSaveToGallery',
-          langPackArguments: [anchorCallback(() => {
-            hideToast();
-            hotReloadGuard.showPremiumPopup({feature: 'stories'});
-          })],
-          // * it has a link to follow: longer than a toast that only tells
-          duration: 5000
-        });
-      },
-      verify: async() => !canSaveFreely() &&
-        canSaveWithPremium() &&
-        !rootScope.premium &&
-        !(await apiManagerProxy.isPremiumFeaturesHidden())
-    }, {
-      icon: 'eyecross',
-      text: 'Stories.StealthMode.View',
-      onClick: async() => {
-        const managers = bindManagersToSession(rootScope.managers);
-        ignoreOnClose = true;
-        const onAnyPopupClose = bindOnAnyPopupClose(wasPlaying);
-        const stealthMode = await managers.appStoriesManager.getStealthMode();
-        // * already on: for how much longer, instead of the window that turns it on
-        const activeFor = (stealthMode?.active_until_date || 0) - tsNow(true);
-        if(activeFor > 0) {
-          setQuizHint({
-            title: i18n('Story.ToastStealthModeActiveTitle'),
-            textElement: i18n('Story.ToastStealthModeActiveText', [wrapStoriesStealthModeDuration(activeFor)]),
-            appendTo: storyDiv,
-            from: 'bottom',
-            duration: 5000,
-            icon: 'eyecross'
-          });
-          onAnyPopupClose();
-          return;
-        }
-
-        const appConfig = useAppConfig();
-        showStoriesStealthModePopup({
-          onActivate: () => {
-            setQuizHint({
-              title: i18n('Stories.StealthMode.Activated.Title'),
-              textElement: i18n('Stories.StealthMode.Activated.Subtitle', [
-                wrapStoriesStealthModeDuration(appConfig.stories_stealth_future_period),
-                wrapStoriesStealthModeDuration(appConfig.stories_stealth_past_period)
-              ]),
-              appendTo: storyDiv,
-              from: 'bottom',
-              duration: 8000,
-              icon: 'checkround_filled'
-            });
-          },
-          onClose: onAnyPopupClose
-        });
-      },
-      // * a channel's stories are watched in the open either way: neither iOS nor Android offers it there
-      verify: () => props.state.peerId.isUser()
-    }, ...createStoriesNotifyMuteButtons(
-      () => props.state.peerId,
-      () => isOthersStory() && props.state.peerId !== CHANGELOG_PEER_ID
-    ), {
       icon: 'archive',
       text: 'ArchivePeerStories',
       onClick: () => togglePeerHidden(true),
@@ -3074,19 +2987,6 @@ const Stories = (props: {
       text: 'Story.HideTranslation',
       onClick: () => toggleCaptionTranslation(story.id, false),
       verify: () => story?._ === 'storyItem' && isCaptionTranslated(story.id)
-    }, {
-      icon: 'statistics_filled',
-      text: 'ViewStatistics',
-      onClick: () => {
-        const storyId = currentStory().id;
-        props.close(() => {
-          setTimeout(() => {
-            hotReloadGuard.appSidebarRight.createTab(AppStatisticsTab).open(peerId.toChatId(), undefined, storyId);
-            hotReloadGuard.appSidebarRight.toggleSidebar(true);
-          }, 0);
-        });
-      },
-      verify: () => rootScope.managers.appProfileManager.canViewStatistics(peerId)
     }, {
       // * a group's story with a reply field has no footer to open who reacted from: its admins open it here,
       // * as the mouse and the keyboard have no swipe up
@@ -3123,17 +3023,6 @@ const Stories = (props: {
         managers.appStoriesManager.deleteStories(peerId, [id]);
       },
       verify: () => rootScope.managers.appStoriesManager.hasRights(peerId, story.id, 'delete')
-    }, {
-      icon: 'flag',
-      className: 'danger',
-      text: 'ReportChat',
-      onClick: () => {
-        ignoreOnClose = true;
-        const onAnyPopupClose = bindOnAnyPopupClose(wasPlaying);
-        showStoryReport(props.state.peerId, [currentStory().id], onAnyPopupClose);
-      },
-      verify: () => !(story as StoryItem.storyItem).pFlags?.out && props.state.peerId !== CHANGELOG_PEER_ID
-      // separator: true
     }, ...containedPacksButtons],
     direction: 'bottom-left',
     positionPadding: {top: STORY_MENU_PADDING, bottom: STORY_MENU_PADDING},

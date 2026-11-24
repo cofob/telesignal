@@ -16,7 +16,6 @@ import toggleStorages from '@helpers/toggleStorages';
 import appTabsManager from '@appManagers/appTabsManager';
 import callbackify from '@helpers/callbackify';
 import Modes from '@config/modes';
-import {IS_SANDBOX_PAGE} from '@config/debug';
 import {IS_WORKER} from '@helpers/context';
 import {ActiveAccountNumber} from '@lib/accounts/types';
 import commonStateStorage from '@lib/commonStateStorage';
@@ -33,6 +32,7 @@ import {MainBroadcastChannelEvents, unversionedMainBroadcastChannelName} from '@
 import objectUrlRegistry from '@lib/mainWorker/objectUrlRegistry';
 import SharedObjectUrlCache, {getSharedObjectURLCacheStats, resetSharedObjectURLCaches} from '@lib/mainWorker/sharedObjectUrlCache';
 import TabIntervals from '@lib/mainWorker/tabIntervals';
+import {offerNativeTransportPort, releaseNativeTransportSource} from '@lib/signal/nativeTransport';
 
 
 const log = logger('MTPROTO');
@@ -69,7 +69,7 @@ port.addMultipleEventsListeners({
     // Probes the base DC every 10 s until a WebSocket opens. A sandbox runs on fixtures with no
     // session (this worker's URL carries the page's `?popups=1` / `?widgets=1`): nothing there may
     // reach Telegram, and nothing needs a transport.
-    if(import.meta.env.VITE_MTPROTO_AUTO && Modes.multipleTransports && !IS_SANDBOX_PAGE) {
+    if(import.meta.env.VITE_MTPROTO_AUTO && Modes.multipleTransports) {
       transportController.waitForWebSocket();
     }
   },
@@ -234,6 +234,10 @@ port.addMultipleEventsListeners({
   serviceWorkerPort: (payload, source, event) => {
     appManagersManager.onServiceWorkerPort(event);
     port.invokeVoid('receivedServiceMessagePort', undefined, source);
+  },
+
+  nativeTransportPort: (payload, source, event) => {
+    offerNativeTransportPort(source, event.ports[0]);
   },
 
   updateObjectURLPins: (updates, source) => {
@@ -456,6 +460,7 @@ const onTabDisconnect = (source: MessageEventSource) => {
   tabIntervals.releaseSource(source);
   appTabsManager.deleteTab(source);
   autoLockControls.removeTab(source);
+  releaseNativeTransportSource(source);
 };
 
 // Auto-listen only when actually running inside a Worker context.

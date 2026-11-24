@@ -83,6 +83,12 @@ export function SignalAuthController() {
   rootScope.addEventListener('signal_authorized', onAuthorized);
 
   onMount(async() => {
+    // * an account that the slot held before this subscribed fired `signal_authorized` already
+    if(await managers.appSignalManager.getAuthorizedUserId()) {
+      onAuthorized();
+      return;
+    }
+
     // * a registration the engine resumed at its start is at its step already
     show(await managers.appSignalManager.getAuthState());
   });

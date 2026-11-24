@@ -35,7 +35,7 @@ import {parseUriParamsLine} from '@helpers/string/parseUriParams';
 import getWebAuthImport from '@lib/accounts/getWebAuthImport';
 import Modes from '@config/modes';
 import {AuthState} from '@types';
-import DEBUG, {IS_BETA, IS_POPUP_SANDBOX} from '@config/debug';
+import DEBUG, {IS_BETA} from '@config/debug';
 import IS_INSTALL_PROMPT_SUPPORTED from '@environment/installPrompt';
 import cacheInstallPrompt from '@helpers/dom/installPrompt';
 import {fillLocalizedDates} from '@helpers/date';
@@ -67,6 +67,7 @@ import useHasFoldersSidebar, {useIsSidebarCollapsed} from '@stores/foldersSideba
 import appNavigationController from '@components/appNavigationController';
 import {preventCrossTabDynamicImportDeadlock} from '@helpers/preventDeadlock';
 import appChatBackground from '@components/chat/bubbles/chatBackground';
+import {IS_DESKTOP_APP, setupDesktopApp} from '@lib/signal/desktopApp';
 
 // import commonStateStorage from '@lib/commonStateStorage';
 // import { STATE_INIT } from '@config/state';
@@ -397,11 +398,6 @@ function mountTestDcBadge() {
 // the bundle it builds for a remote device (`VITE_PREVIEW`, a literal too) keeps both sandboxes for
 // Settings → Experimental; a production build has neither.
 if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
-  (window as any)['showPopupSandbox'] = async() => {
-    const {showPopupSandbox} = await import('@components/popupSandbox');
-    await showPopupSandbox();
-  };
-
   // the bubbles of the open chat, put in any state by click: the module, once loaded, puts its own opener in place of
   // this one (`@components/bubbleSandbox`)
   const loadBubbleSandbox = async() => {
@@ -426,20 +422,7 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
   listenForLinkPress();
   setRootClasses();
   if(Modes.test) mountTestDcBadge();
-
-  // ?popups=1 — the popup sandbox: every popup, opened by click with mock data and no session.
-  // It has to take over here, before the session is restored and the auth flow starts.
-  // The literal `import.meta.env.DEV` is not redundant with `IS_POPUP_SANDBOX` (which already
-  // implies it): only a `false` right at the call site makes rolldown drop the dynamic import
-  // before chunking, and with it the whole sandbox chunk. Behind the imported const alone the
-  // branch still folds away, but a ~150 KB orphan chunk is emitted that nothing ever loads.
-  if(import.meta.env.DEV && IS_POPUP_SANDBOX) {
-    // `bootstrapState` goes first, on its own: see the note at the top of that module.
-    await import('@components/popupSandbox/bootstrapState');
-    const {startPopupSandbox} = await import('@components/popupSandbox');
-    await startPopupSandbox();
-    return;
-  }
+  if(IS_DESKTOP_APP) setupDesktopApp();
 
   // the media editor the sign-up screen opens for the new account's photo mounts the app's top level, which nothing
   // has loaded yet then

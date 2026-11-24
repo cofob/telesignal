@@ -69,7 +69,8 @@ export function buildUser(user: SignalUser): User.user {
     _: 'user',
     pFlags: {
       self: user.isSelf,
-      contact: user.isContact
+      contact: user.isContact,
+      stories_hidden: user.areStoriesHidden
     },
     id: toPeerId(user.id),
     access_hash: '0',
@@ -141,8 +142,10 @@ export function buildChat(chat: SignalChat): Chat.chat {
     _: 'chat',
     pFlags: {
       creator: chat.isOwner || undefined,
-      left: chat.isForbidden || undefined
-    },
+      left: chat.isForbidden || undefined,
+      // * Web K reads it on users and channels; a Signal group's stories are hidden the same way
+      stories_hidden: chat.areStoriesHidden
+    } as Chat.chat['pFlags'],
     id: -toPeerId(chat.id),
     title: chat.title,
     photo: buildChatPhoto(chat.avatarPhotoId),
@@ -198,7 +201,9 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
     out: message.isOutgoing || undefined,
     pinned: message.isPinned || undefined,
     // * a mention of us, which notifies in a muted chat and through a notification profile that allows mentions
-    mentioned: message.isMentioned || undefined
+    mentioned: message.isMentioned || undefined,
+    // * an unread mention, which the mention button of the chat steps to (`lib/signal/mentions.ts`)
+    media_unread: message.hasUnreadMention || undefined
   };
 
   const {action} = message.content;
@@ -313,7 +318,7 @@ export function buildPeerReaction({peerId, reaction, isOwn, addedDate}: NonNulla
 }
 
 // * Web A's `ApiMessageEntityTypes` are the TL names with an upper-case first letter
-function buildEntity(entity: SignalEntity): MessageEntity {
+export function buildEntity(entity: SignalEntity): MessageEntity {
   const {type, offset, length} = entity;
   const name = (type.charAt(0).toLowerCase() + type.slice(1)) as MessageEntity['_'];
   switch(name) {

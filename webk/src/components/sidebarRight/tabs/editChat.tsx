@@ -266,18 +266,6 @@ function EditChatForm(props: {
       case 'fraction': return `${summary.selected}/${summary.total}`;
     }
   });
-  const directMessagesSubtitle = createMemo(() => {
-    const monoforumId = channel()?.linked_monoforum_id;
-    const monoforum = monoforumId ? apiManagerProxy.getChat(monoforumId) : undefined;
-    if(monoforum?._ !== 'channel') {
-      return i18n('ChannelDirectMessages.Settings.Off');
-    }
-
-    const stars = monoforum.send_paid_messages_stars || 0;
-    return stars ?
-      i18n('Stars', [numberThousandSplitterForStars(stars)]) :
-      i18n('ChannelDirectMessages.Settings.Free');
-  });
   const groupStickerSetSubtitle = (isEmoji: boolean) => {
     const set = isEmoji ? channelFull()?.emojiset : channelFull()?.stickerset;
     return set ? wrapEmojiText(set.title) : i18n('Checkbox.Disabled');
@@ -707,18 +695,6 @@ function EditChatForm(props: {
             </Row>
           </Show>
 
-          <Show when={canChangeInfo() && isBroadcast() && isAdmin()}>
-            <Row clickable={() => {
-              const value = channel();
-              if(value) {
-                tab.slider.createTab(hotReloadGuard.tabs.AppDirectMessagesTab).open({chat: value});
-              }
-            }}>
-              <Row.Icon icon="message_filled" />
-              <Row.Title>{i18n('ChannelDirectMessages.Settings.Title')}</Row.Title>
-              <Row.Subtitle>{directMessagesSubtitle()}</Row.Subtitle>
-            </Row>
-          </Show>
 
           <Show when={canChangePermissions() && !isBroadcast() && !isBroadcastGroup()}>
             <Row clickable={() => {

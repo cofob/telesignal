@@ -13,7 +13,11 @@ export type WebASharedSettings = {
   // * the tunnel for connections without the account's credentials; `undefined` uses `signalProxyUrl`
   signalSealedSenderProxyUrl?: string,
   // * the shortcuts changed from their defaults, by Web A's id: a combo, or `false` for none
-  keyboardShortcuts?: Record<string, string | false>
+  keyboardShortcuts?: Record<string, string | false>,
+  // * the desktop app asks where to save each download (`lib/signal/desktopFiles`)
+  shouldAskWhereToSave?: boolean,
+  // * the window title of the desktop app names the open chat (`lib/signal/desktopIm`); on unless set to `false`
+  canDisplayChatInTitle?: boolean
 };
 
 type SharedState = {settings?: WebASharedSettings, isInitial?: boolean};

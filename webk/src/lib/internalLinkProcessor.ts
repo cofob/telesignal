@@ -48,7 +48,6 @@ import SolidJSHotReloadGuardProvider, {registerHotReloadGuard} from '@lib/solidj
 import cancelEvent from '@helpers/dom/cancelEvent';
 import appSidebarLeft from '@components/sidebarLeft';
 import {AppContactsTab} from '@components/solidJsTabs/tabs';
-import {AppNewChannelTab} from '@components/solidJsTabs/tabs';
 import showCreateContactPopup from '@components/popups/createContact';
 import createNewGroupTab from '@components/sidebarLeft/tabs/createNewGroupTab';
 import {AppEditProfileTab, AppSettingsTab} from '@components/solidJsTabs';
@@ -840,8 +839,6 @@ export class InternalLinkProcessor {
         switch(type) {
           case 'contact':
             return showCreateContactPopup();
-          case 'channel':
-            return appSidebarLeft.createTab(AppNewChannelTab).open({});
           case 'group':
             return createNewGroupTab(appSidebarLeft);
           case '':

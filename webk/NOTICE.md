@@ -62,7 +62,7 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
   message shows as unsupported media.
 - Telegram's TON wallet is removed with `@ton/wallet-engine`: `src/components/wallet`, `src/lib/wallet` and
   `appWalletManager`; its service messages show as unsupported.
-- `src/components/popupSandbox/stories/misc.ts`: the two stories that read the unvendored test fixtures are removed.
+- The popup sandbox (`src/components/popupSandbox`, a development tool with Telegram fixtures) is removed.
 - Media: a Signal album shows as paid media without a price (`src/lib/signal/media.ts`); the attach menu keeps photos,
   videos and files; media spoilers, round video recording, voice transcription, the GIF tab and the edit that replaces
   a message's media are off; the voice recorder's worklet is a file of the app instead of a `blob:` URL.

@@ -1174,11 +1174,6 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
       max-height: none;
     }
 
-    // the network marker explains itself on a tap, and on hover (its title): a time icon takes no pointer otherwise
-    .time-widget-network {
-      cursor: pointer;
-      pointer-events: auto;
-    }
   }
 
   img:not(.emoji):not(.custom-emoji-placeholder),

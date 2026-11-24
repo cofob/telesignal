@@ -203,7 +203,9 @@ export default async function wrapMessageActionTextNewUnsafe(options: WrapMessag
   const signalNotice = action._ === 'messageActionCustomAction' && action.message && decodeSignalNotice(action.message);
   if(signalNotice) {
     const args = (signalNotice.args ?? []).map((arg) => typeof(arg) === 'object' ? I18n.format(arg.key as LangPackKey, true) : arg);
-    const text = I18n.format(signalNotice.key as LangPackKey, true, args);
+    // * a key this build does not have (a newer adapter's) reads as an unsupported notice
+    const key = (I18n.strings.has(signalNotice.key as LangPackKey) ? signalNotice.key : 'Signal.Notice.Unsupported') as LangPackKey;
+    const text = I18n.format(key, true, args);
     if(plain) return text;
     element.textContent = text;
     return element;

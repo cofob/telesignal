@@ -53,27 +53,12 @@ export function getSolidMessageBodyStructure(message: Message.message) {
   } = pFlags;
   return copy({
     ...structure,
-    ...(structure.media?._ === 'messageMediaWidget' && {media: getWidgetShellSignature(structure.media)}),
     pFlags: structuralFlags,
     bigEmoji,
     hasBodyContent,
     hasViews: !!views,
     replies: replies && getRepliesShellSignature(replies)
   });
-}
-
-// a widget without its source (`payload`) and its state (`chat_data`, `public_data`, and the bits of `flags` that say
-// which there are): its size, its flags, a shared widget's id
-function getWidgetShellSignature(media: MessageMedia.messageMediaWidget) {
-  const {
-    flags: _flags,
-    payload: _payload,
-    chat_data: _chatData,
-    public_data: _publicData,
-    public_data_hash: _publicDataHash,
-    ...shell
-  } = media;
-  return shell;
 }
 
 // what kind of a thread the message opens, not how much is in it

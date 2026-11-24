@@ -2060,6 +2060,14 @@ hr {
     top: 50%;
     inset-inline-end: 1rem;
     transform: translateY(-50%);
+
+    // * a Signal reaction: its emoji, as text
+    &.is-emoji {
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      line-height: 1;
+    }
   }
 
   &-checks {
