@@ -4,6 +4,7 @@ import type { MessageChanges } from '../messages/MessageProcessor';
 
 import { bufferFromBase64 } from '../../../util/encoding/buffer';
 import { createStyledQrCode } from '../../../util/qrCode/buildStyledQrCode';
+import { callApi } from '../../../api';
 import { linkDevice } from '../account/linkDevice';
 import { startDeviceLink } from '../account/provisioning';
 import { uploadAttachment } from '../attachments/uploadAttachment';
@@ -155,6 +156,7 @@ const signalDev = {
 
   /** Replaces local data with a demo account, contacts, a group and messages; reload the page afterwards */
   async seedDemo() {
+    await waitForEngineStart();
     await initSignalWasm();
     await seedDemo(store, db);
     console.log('[signal] Demo data stored; reload the page');
@@ -203,6 +205,14 @@ function getTitle(conversation: ConversationRecord) {
 function getContext() {
   if (!isConnected) throw new Error('Not connected: call signalDev.listen() first');
   return client.getSenderContext();
+}
+
+/**
+ * Waits until the app's engine has started: one that finds no account clears the stored messages and attachments
+ * (`discardOrphanedData`), which would remove part of a seed written meanwhile. `callApi` answers only after the start.
+ */
+async function waitForEngineStart() {
+  await callApi('fetchNearestCountry');
 }
 
 async function printQrCode(url: string) {

@@ -141,6 +141,7 @@ function buildAttachmentMedia(pointer: AttachmentPointer, {
         date: Math.floor(sentAt / MS_PER_SECOND),
         thumbnail: buildThumbnail(pointer),
         sizes: width && height ? [{ type: 'x', width, height }] : [],
+        size,
         isUnavailable,
       },
     };
@@ -199,6 +200,7 @@ function buildSticker(message: MessageRecord, sticker: DataMessage_Sticker, data
     isVideo: false,
     width: data.width || STICKER_SIZE,
     height: data.height || STICKER_SIZE,
+    size: data.size,
     isFree: true,
     isUnavailable: message.isStickerUnavailable,
   };
@@ -232,6 +234,7 @@ export function buildWebPage(message: MessageRecord, { body, preview }: DataMess
       date: Math.floor(Number(first.date || message.sentAt) / MS_PER_SECOND),
       thumbnail: buildThumbnail(image),
       sizes: image.width && image.height ? [{ type: 'x', width: image.width, height: image.height }] : [],
+      size: image.size,
     } : undefined,
   };
 }

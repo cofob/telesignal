@@ -781,7 +781,7 @@ addActionHandler('downloadMedia', (global, actions, payload): ActionReturnType =
   const hash = getMediaHash(media, 'download');
   if (!hash) return undefined;
 
-  const size = 'size' in media ? media.size : 0;
+  const size = 'size' in media ? media.size ?? 0 : 0;
   const metadata = {
     size,
     format: getMediaFormat(media, 'download'),

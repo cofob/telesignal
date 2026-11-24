@@ -41,6 +41,7 @@ import wrapPeerTitle from '@components/wrappers/peerTitle';
 import IS_TOUCH_SUPPORTED from '@environment/touchSupport';
 
 const RECORD_MIN_TIME = 500;
+const SIGNAL_HAS_ROUND_VIDEOS = false;
 // Max duration of a round video note. Matches the cap official clients enforce
 // (`60s`); the recorder stops automatically when the progress ring fills.
 const VIDEO_RECORD_MAX_MS = 60_000;
@@ -166,7 +167,8 @@ export default class ChatRecording {
       }
     }
 
-    if(isNativeVideoRecorderSupported()) {
+    // * TeleSignal: Signal has no round video messages
+    if(SIGNAL_HAS_ROUND_VIDEOS && isNativeVideoRecorderSupported()) {
       try {
         this.videoRecorder = new NativeVideoRecorder({
           width: 400,
