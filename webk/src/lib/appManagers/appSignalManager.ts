@@ -38,13 +38,16 @@ import {DEFAULT_REACTION_EMOJIS, buildReaction, toSignalReaction} from '@lib/sig
 import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
 import {getErrorLangKey} from '@lib/signal/errors';
 import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
+import {buildAccountMethodHandlers} from '@lib/signal/accountMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
 import {buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
+import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
 import makeError from '@helpers/makeError';
+import noop from '@helpers/noop';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
 import tsNow from '@helpers/tsNow';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
@@ -76,6 +79,7 @@ export default class AppSignalManager extends AppManager {
   private linkCode: SignalLinkCode;
   private isStarted: boolean;
   private isAuthorized: boolean;
+  private restarting: Promise<void>;
   private pendingSends: Map<number, PendingSend> = new Map();
   // * the `random_id` of each forwarded copy by its local id, until the engine stores the copy
   private pendingForwardCopies: Map<number, string> = new Map();
@@ -93,14 +97,30 @@ export default class AppSignalManager extends AppManager {
    * engine lock in `src/lib/signal/engineOwnership.ts`). Called by every tab that opens, after its passcode check.
    */
   public async start(args: Omit<SignalInitialArgs, 'userAgent'>) {
-    // * one engine per worker: the slots of the other accounts are not supported yet
-    if(this.getAccountNumber() !== 1) {
+    // * one engine per worker: the worker of each slot runs that slot's engine (`lib/signal/accountSlot`)
+    if(this.getAccountNumber() !== getSignalWorkerAccountNumber()) {
       return;
     }
 
     const {initApi} = await getProvider();
     this.isStarted = true;
     await initApi(this.onUpdate, {...args, userAgent: navigator.userAgent});
+  }
+
+  /**
+   * Starts the engine again with new arguments, such as other proxy servers, as Web A's `reconnectApi` does. Restarts
+   * run one after another, so the last one asked for is the one the engine ends with.
+   */
+  public restart(args: Omit<SignalInitialArgs, 'userAgent'>) {
+    const restarting = (this.restarting || Promise.resolve()).catch(noop).then(async() => {
+      if(this.isStarted) {
+        await this.call('destroy', true);
+      }
+
+      await this.start(args);
+    });
+    this.restarting = restarting;
+    return restarting;
   }
 
   public getLinkCode() {
@@ -131,12 +151,18 @@ export default class AppSignalManager extends AppManager {
     return Promise.resolve().then(() => handler(params));
   }
 
+  /**
+   * Unlinks this device and forgets the account, its messages and attachments, as Web A's sign-out does; settles once
+   * the unlink request is answered or has failed and the engine's stores are cleared
+   */
   public async logOut() {
     if(!this.isStarted) {
       return;
     }
 
     await this.call('destroy');
+    this.isStarted = false;
+    this.isAuthorized = false;
   }
 
   /** A provider method that the settings screens call, run by the engine of this worker (`lib/signal/settingsApi`) */
@@ -171,7 +197,6 @@ export default class AppSignalManager extends AppManager {
       'account.updateStatus': () => true,
       'account.getContentSettings': () => ({_: 'account.contentSettings', pFlags: {}}),
       'account.getGlobalPrivacySettings': () => ({_: 'globalPrivacySettings', pFlags: {}}),
-      'account.getNotifySettings': () => ({_: 'peerNotifySettings'}),
       'account.registerDevice': () => true,
       'account.unregisterDevice': () => true,
       'langpack.getLangPack': () => Promise.reject(makeError(UNSUPPORTED_ERROR as ErrorType)),
@@ -238,7 +263,8 @@ export default class AppSignalManager extends AppManager {
       ...buildUserMethodHandlers(host),
       ...buildPinnedMessageHandlers(host),
       ...buildSharedMediaHandlers(host),
-      ...buildPollHandlers(host)
+      ...buildPollHandlers(host),
+      ...buildAccountMethodHandlers(host)
     };
   }
 

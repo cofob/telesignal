@@ -3,7 +3,7 @@ import showDatePickerPopup from '@components/popups/datePicker';
 import PopupElement from '@components/popups/indexTsx';
 import Button from '@components/buttonTsx';
 import Row from '@components/rowTsx';
-import InlineSelect from '@components/sidebarLeft/tabs/passcodeLock/inlineSelect';
+import InlineSelect from '@components/inlineSelect';
 import {IconTsx} from '@components/iconTsx';
 import I18n, {i18n} from '@lib/langPack';
 import {hideToast, toastNew} from '@components/toast';

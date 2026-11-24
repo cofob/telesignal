@@ -13,7 +13,6 @@ import I18n, {i18n, LangPackKey} from '@lib/langPack';
 import updateScrollRegionFocusable from '@helpers/dom/scrollRegion';
 import Modes from '@config/modes';
 import {bindActiveWindowListener, getAppWindow, onAppWindowChange} from '@helpers/appWindow';
-import PasscodeLockScreenController from '@components/passcodeLock/passcodeLockScreenController';
 import {useWallet} from '@components/wallet/context';
 import {WalletHeader} from '@components/wallet/parts';
 import {ensureWalletKey, isUserCancel} from '@components/wallet/send';
@@ -22,9 +21,6 @@ import {showWalletAlert, showWalletError} from '@components/wallet/alerts';
 import {isBackupWriteDownTooQuick} from '@lib/wallet/rotation';
 import styles from '@components/wallet/wallet.module.scss';
 import phraseStyles from '@components/wallet/screens/phrase.module.scss';
-
-/** how often the words look whether the app was locked: the lock screen has no event of its own */
-const LOCK_CHECK_INTERVAL = 1000;
 
 /** what iOS's recovery info warns of, each with its own icon */
 const WARNINGS: {icon: Icon, text: LangPackKey}[] = [
@@ -167,19 +163,15 @@ export default function WalletPhraseScreen(props: {params?: {
 
   // * the window the app is in: in Document PiP the tab behind it may be hidden while the words are on screen
   const hidden = () => getAppWindow().document.visibilityState === 'hidden';
-  const onVisibility = () => cover(hidden() || !!PasscodeLockScreenController.getIsLocked());
+  const onVisibility = () => cover(hidden());
   const unbindVisibility = bindActiveWindowListener((win) => win.document, 'visibilitychange', onVisibility);
   const unwatchWindow = onAppWindowChange(onVisibility);
-  const lockCheck = window.setInterval(() => {
-    if(!!PasscodeLockScreenController.getIsLocked() !== covered() && !hidden()) onVisibility();
-  }, LOCK_CHECK_INTERVAL);
 
   onCleanup(() => {
     disposed = true;
     ++revealAttempt;
     unbindVisibility();
     unwatchWindow();
-    clearInterval(lockCheck);
     setWords(undefined);
     if(given) given.fill('');
     if(!handedOver) {

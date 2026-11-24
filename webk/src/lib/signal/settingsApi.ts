@@ -5,6 +5,8 @@
  */
 
 import rootScope from '@lib/rootScope';
+import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
+import {buildNotifySettings} from '@lib/signal/accountMethods';
 
 export type SignalDevice = {
   id: number,
@@ -141,8 +143,24 @@ export function fetchNotifyDefaults(): Promise<SignalNotifyDefaults | undefined>
   return callSignalApi('fetchNotifyDefaultSettings');
 }
 
-export function updateNotifyDefault(peerType: 'users' | 'groups', update: {isMuted?: boolean, shouldShowPreviews?: boolean}): Promise<unknown> {
-  return callSignalApi('updateNotificationSettings', peerType, update);
+/** Saves a default, and hands it to the notifications of Web K (`appNotificationsManager`), which follow it at once */
+export async function updateNotifyDefault(peerType: 'users' | 'groups', update: {isMuted?: boolean, shouldShowPreviews?: boolean}): Promise<unknown> {
+  const managers = bindManagersToSession(rootScope.managers);
+  const saved = await managers.appSignalManager.callSignal('updateNotificationSettings', peerType, update);
+  if(!saved) return saved;
+
+  const defaults: SignalNotifyDefaults = await managers.appSignalManager.callSignal('fetchNotifyDefaultSettings');
+  const settings = buildNotifySettings(defaults?.[peerType]);
+  const inputKeys = peerType === 'users' ? ['inputNotifyUsers' as const] : ['inputNotifyChats' as const, 'inputNotifyBroadcasts' as const];
+  inputKeys.forEach((inputKey) => {
+    managers.appNotificationsManager.generateLocalNotifySettingsUpdate({_: inputKey}, {
+      _: 'inputPeerNotifySettings',
+      show_previews: settings.show_previews,
+      mute_until: settings.mute_until
+    });
+  });
+
+  return saved;
 }
 
 export function fetchUsernameLink(): Promise<string | undefined> {

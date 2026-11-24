@@ -172,8 +172,7 @@ closed may stay hidden the same way.
 ## Telegram-only entries still show in Web K
 
 Several Telegram-only entries remain outside the chat list and groups, and were seen while checking them: the
-Privacy and Security rows «Connected websites», «Two-Step Verification» and «Passkeys» (their rows show «Loading…»,
-apparently because the methods they call are unsupported; not checked), the «Previous Tip» and «Next Tip» panel on the empty chat, the
+«Previous Tip» and «Next Tip» panel on the empty chat, the
 Telegram paper-plane icon on the send button, and the community section code in the group editor, which never renders for Signal
 groups. The entries that this area hid are listed in `docs/signal/ITERATIONS.md`, section 11; the code behind them is
 still there, to be removed with the Telegram code.
@@ -208,14 +207,38 @@ the startup read the slot before the lock screen, the slot held `{}` after unloc
 (`webk/src/index.ts`, before the Telegram lock wait) before any slot read; any new code that reads the slot at startup
 has to stay behind that gate, or the placeholder reaches plain storage.
 
-## Web K's Telegram lock controller still gates the notifications and the wallet
+## Web K keeps Telegram's passcode plumbing behind the Signal lock
 
-`webk/src/components/passcodeLock/passcodeLockScreenController.tsx` is the Telegram lock screen. Its startup wait
-(`PasscodeLockScreenController.waitForUnlock` in `webk/src/index.ts`) only runs its callback when Telegram's passcode is
-on, which Web K no longer sets, but `uiNotificationsManager.ts` (hiding content while locked), `components/wallet/screens/phrase.tsx`,
-`lib/appManagers/utils/useLockScreenShortcut.ts` and the sidebar's `InlineSelect` (in `passcodeLock/inlineSelect.tsx`)
-still import it or its folder. Removing the folder means deciding what those places show while the vault of Web A is
-locked, which is `getSignalLockState()` in `webk/src/lib/signal/passcode.ts`.
+Web K locks with Web A's vault (`webk/src/lib/signal/passcode.ts`), and Telegram's lock screen is gone, but the rest of
+Telegram's passcode stays: the `settings.passcode` state (`webk/src/config/state.ts`), the encrypted storage layer
+and its key handoff (`webk/src/lib/encryptedStorageLayer.ts`, `webk/src/lib/passcode/`), the worker's `isLocked`,
+`toggleLockOthers` and auto-lock (`webk/src/lib/mainWorker/index.worker.ts`), `DeferredIsUsingPasscode` and the
+`PasscodeLock.*` strings. Nothing turns Telegram's passcode on any more, so this code only runs its "off" branches,
+but it reads as live and is checked in places such as `AccountController.updateStorageForLegacy`.
+
+## Web K keeps the in-place account switch of Telegram
+
+Each account slot of Web K now runs in a worker of its own, named after the slot (`webk/src/lib/signal/accountSlot.ts`),
+because the Signal provider takes its slot from the worker's name; switching accounts reloads the tab, as in Web A
+(`webk/src/lib/accounts/switchAccount.ts`). Each worker still creates the managers of all four accounts, and the
+switch in place remains: `apiManagerProxy.switchAccount` and `resetAccountMirrors`, the `account_switched` listeners
+of about twenty modules, and the `notifyAllAccounts` routing of notifications to tabs of other accounts, which only
+work when one worker serves every account. Removing them means checking each listener for work it does at startup too.
+
+## Web K's session writes reach Web A's passcode vault only on a lock and a log out
+
+With a passcode, Web K's page storage writes the account slots into the in-memory session store of Web A's vault
+(`webk/src/lib/localStorage.ts`, `src/util/passcode/sessionStore.ts`), but only a lock (`lockSignalPasscode`) and a log
+out (`webk/src/lib/signal/logOutPage.ts`) write that store into the vault and tell the other tabs, as Web A's
+`updateSessionStorage` does after every write. A slot that Web K links or renames while the vault is open is then lost
+if every tab closes before a lock. Follows from the code; not reproduced. Refreshing the vault after Web K's session
+writes, as Web A does, would close it.
+
+## Every Web K page load reports page errors with no message
+
+Each load of `/k/` in Chromium logs several `pageerror` events whose error is a plain object, and Solid logs
+`solid error Error: Unknown error` (seen in Playwright on the demo account while checking logout, accounts and
+settings). The app keeps working, and the source is not known: the events carry no stack.
 
 ## Message search reads the stored messages without an index
 

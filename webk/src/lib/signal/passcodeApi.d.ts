@@ -43,3 +43,5 @@ export function refreshSessionsVault(): Promise<boolean>;
 export function getEngineKey(): Promise<ArrayBuffer>;
 
 export function requestPasscodeStateLock<T>(callback: () => Promise<T>): Promise<T>;
+
+export function removeGlobalsVaultForSlot(slot: number | undefined): Promise<void>;

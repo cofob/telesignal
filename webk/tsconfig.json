@@ -70,6 +70,7 @@
       "@signal-app/passcode-channel": ["./src/lib/signal/passcodeChannelApi.d.ts"],
       "@signal-app/clear-local-data": ["./src/lib/signal/clearLocalDataApi.d.ts"],
       "@signal-app/passcode-session": ["./src/lib/signal/passcodeSessionApi.d.ts"],
+      "@signal-app/signal-proxy": ["./src/lib/signal/signalProxyApi.d.ts"],
       "@/*": ["./src/*"]
     },
     // "rootDirs": [],                        /* List of root folders whose combined content represents the structure of the project at runtime. */

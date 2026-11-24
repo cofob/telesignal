@@ -48,7 +48,8 @@ import MEDIA_MIME_TYPES_SUPPORTED from '@environment/mediaMimeTypesSupport';
 import {doubleRaf} from '@helpers/schedulers';
 import {getCurrentAccount} from '@lib/accounts/getCurrentAccount';
 import AccountController from '@lib/accounts/accountController';
-import {getSignalLockState, getSignalStorageKey} from '@lib/signal/passcode';
+import {getSignalLockState, listenSignalPasscodeChannel} from '@lib/signal/passcode';
+import {getSignalStartArgs} from '@lib/signal/proxySettings';
 import {showSignalLockScreen} from '@components/signalLockScreen';
 import {changeAccount} from '@lib/accounts/changeAccount';
 import {getValidatedAccount} from '@lib/accounts/getValidatedAccount';
@@ -59,9 +60,7 @@ import listenForWindowPrint from '@helpers/dom/windowPrint';
 import cancelImageEvents from '@helpers/dom/cancelImageEvents';
 import listenForLinkPress from '@helpers/dom/linkPress';
 import {DeactivatedScreen, onStartImportFailed, showDeactivatedScreen} from '@/pages/deactivatedScreen';
-import PasscodeLockScreenController from '@components/passcodeLock/passcodeLockScreenController'; PasscodeLockScreenController;
-import commonStateStorage from '@lib/commonStateStorage';
-import {useAppSettings, setAppSettingsSilent} from '@stores/appSettings';
+import {useAppSettings} from '@stores/appSettings';
 import {isUserCollapsedLeft} from '@helpers/updateColumnWidths';
 import {useMediaSizes} from '@helpers/mediaSizes';
 import useHasFoldersSidebar, {useIsSidebarCollapsed} from '@stores/foldersSidebar';
@@ -339,10 +338,7 @@ function onInstanceDeactivated(reason: InstanceDeactivateReason) {
     if(reason === 'otherClient') {
       singleInstance.onMyClient();
       // * the other frontend took the engine over (`src/lib/signal/engineOwnership.ts`): this one takes it back
-      rootScope.managers.appSignalManager.start({
-        platform: navigator.platform,
-        langCode: I18n.getLastRequestedLangCode()
-      });
+      getSignalStartArgs().then((args) => rootScope.managers.appSignalManager.start(args));
     } else {
       singleInstance.activateInstance();
     }
@@ -482,21 +478,7 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
     await showSignalLockScreen();
   }
 
-  await PasscodeLockScreenController.waitForUnlock(async() => {
-    const settings = await commonStateStorage.get('settings');
-    settings && setAppSettingsSilent(settings);
-    themeController.setThemeListener();
-
-    appChatBackground.attach();
-    appChatBackground.setBackground({transition: 'instant'});
-
-    await I18n.getCacheLangPackAndApply();
-
-    if(IS_BETA) import('./pages/bootstrapIm'); // cache it
-    // const settings = await commonStateStorage.get('settings');
-    // const timeFormat =
-    // I18n.setTimeFormat(settings?.timeFormat || STATE_INIT.settings?.timeFormat);
-  });
+  listenSignalPasscodeChannel();
 
   console.time(TIME_LABEL);
 
@@ -604,11 +586,7 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
     rootScope.managers.appStateManager.pushToState('authState', authState);
   }
 
-  rootScope.managers.appSignalManager.start({
-    platform: navigator.platform,
-    langCode: I18n.getLastRequestedLangCode(),
-    storageKey: await getSignalStorageKey()
-  });
+  rootScope.managers.appSignalManager.start(await getSignalStartArgs());
 
   const hash = location.hash;
   const splitted = hash.split('?');
@@ -650,6 +628,13 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
   if(authState._ !== 'authStateSignedIn'/*  || 1 === 1 */) {
     console.log('Will mount auth page:', authState._, Date.now() / 1000);
 
+    // * the account this tab was opened from to link another one (`AppSidebarLeft.addAccount`), which its back button
+    // * returns to
+    const storedPreviousAccount = await sessionStorage.get('previous_account');
+    const previousAccount = storedPreviousAccount && storedPreviousAccount !== getCurrentAccount() ?
+      getValidatedAccount(storedPreviousAccount) :
+      undefined;
+
     (async() => {
       const [accountNumbers, freeAccountNumber] = await Promise.all([
         AccountController.getAccountNumbers(),
@@ -661,7 +646,8 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
       const currentAccount = getCurrentAccount();
       // * the first slot is left empty when Web A signs its account out, with its other accounts still there:
       // * the tab goes on to them with the link it was opened by, unless that link signs in here
-      const isEmptyFirstSlot = currentAccount === 1 && !!accountNumbers.length && authState._ !== 'authStateSignImport';
+      const isEmptyFirstSlot = currentAccount === 1 && !!accountNumbers.length && authState._ !== 'authStateSignImport' &&
+        !previousAccount;
       const canSignInHere = currentAccount === freeAccountNumber &&
         accountNumbers.length < maxAccountNumber &&
         !isEmptyFirstSlot;
@@ -690,14 +676,16 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
       accountNumber,
       managers: rootScope.managers,
       // * a page opened on a slot of its own to add an account goes back to the account it was added from
-      back: accountNumber !== 1 ? async(host) => {
+      back: previousAccount ? async(host) => {
         await sessionStorage.set({should_animate_main: 1});
-        const previousAccount = getValidatedAccount(await sessionStorage.get('previous_account'));
         await sessionStorage.delete('previous_account');
         await host.leave();
         changeAccount(previousAccount);
       } : undefined,
-      toIm: () => import('./pages/bootstrapIm').catch(onStartImportFailed).then(({bootstrapIm}) => bootstrapIm()),
+      toIm: async() => {
+        await sessionStorage.delete('previous_account');
+        return import('./pages/bootstrapIm').catch(onStartImportFailed).then(({bootstrapIm}) => bootstrapIm());
+      },
       openAccount: (accountNumber) => changeAccount(accountNumber)
     });
   } else {

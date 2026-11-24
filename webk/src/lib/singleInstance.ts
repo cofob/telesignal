@@ -91,6 +91,9 @@ export class SingleInstance extends EventListenerBase<{
 
     const channel = this.interclientBroadcastChannel = new BroadcastChannel(App.interclientBroadcastChannel);
     channel.addEventListener('message', (event) => {
+      // * TeleSignal: the frontends name themselves with a string; an object is a change of Web A's shared settings
+      // * (`lib/signal/webAState`), which is not a frontend starting
+      if(typeof(event.data) !== 'string') return;
       (event.data === App.suffix ? this.onMyClient : this.onOtherClient)();
     });
   }

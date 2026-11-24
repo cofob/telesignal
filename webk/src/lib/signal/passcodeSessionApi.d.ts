@@ -8,3 +8,5 @@ export function readSessionValue(key: string): string | undefined;
 export function writeSessionValue(key: string, value: string): void;
 
 export function removeSessionValue(key: string): void;
+
+export function isSessionStoreLocked(): boolean;

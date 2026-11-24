@@ -8,6 +8,7 @@ import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import rootScope from '@lib/rootScope';
 import {isSignalPasscodeEnabled, switchToWebA} from '@lib/signal/frontend';
+import {findExistingOrCreateCustomOption} from '@components/sidebarLeft/tabs/autoDeleteMessages/options';
 import {
   fetchContactDiscovery,
   fetchMessageSettings,
@@ -37,6 +38,8 @@ const PrivacyAndSecurity: Component = () => {
   const [pinSettings, setPinSettings] = createSignal<SignalPinSettings>();
   const [isDiscoveryEnabled, setIsDiscoveryEnabled] = createSignal<boolean>();
   const [isPasscodeOn, setIsPasscodeOn] = createSignal(isSignalPasscodeEnabled());
+  // * the disappearing messages timer of new chats, as Web A's `SettingsAutoDeleteMessages`; 0 is off
+  const [autoDeletePeriod, setAutoDeletePeriod] = createSignal<number>();
 
   const loadSettings = async() => {
     const [messages, phone, pin, discovery] = await Promise.all([
@@ -51,8 +54,13 @@ const PrivacyAndSecurity: Component = () => {
     setIsDiscoveryEnabled(discovery);
   };
 
+  const loadAutoDeletePeriod = async() => {
+    setAutoDeletePeriod(await tab.managers.appPrivacyManager.getDefaultAutoDeletePeriod().catch((): undefined => undefined));
+  };
+
   onMount(() => {
     loadSettings();
+    loadAutoDeletePeriod();
   });
 
   const onMessageSettingChange = async(update: Partial<SignalMessageSettings>) => {
@@ -154,6 +162,13 @@ const PrivacyAndSecurity: Component = () => {
     switchToWebA();
   };
 
+  const onAutoDeleteClick = () => {
+    tab.slider.createTab(hotReloadGuard.tabs.AppMessagesAutoDeleteTab).open({
+      period: autoDeletePeriod(),
+      onSaved: setAutoDeletePeriod
+    });
+  };
+
   const onBlockedClick = async() => {
     const {peerIds} = await rootScope.managers.appUsersManager.getBlocked();
     tab.slider.createTab(hotReloadGuard.tabs.AppBlockedUsersTab).open({peerIds});
@@ -210,6 +225,18 @@ const PrivacyAndSecurity: Component = () => {
             </Row>
           </Section>
         )}
+      </Show>
+
+      <Show when={autoDeletePeriod() !== undefined}>
+        <Section caption="AutoDeleteMessages.InfoDefault">
+          <Row clickable={onAutoDeleteClick}>
+            <Row.Icon icon="auto_delete_filled" />
+            <Row.Title>{i18n('AutoDeleteMessages')}</Row.Title>
+            <Row.Subtitle>
+              {autoDeletePeriod() ? findExistingOrCreateCustomOption(autoDeletePeriod()).label() : i18n('Off')}
+            </Row.Subtitle>
+          </Row>
+        </Section>
       </Show>
 
       <Show when={phoneNumberPrivacy()}>
