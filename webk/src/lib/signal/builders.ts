@@ -34,6 +34,7 @@ import type {
   SignalUser
 } from '@lib/signal/signalApi';
 import {buildReaction} from '@lib/signal/reactions';
+import {buildPollMedia} from '@lib/signal/polls';
 import {buildSignalMessageMedia} from '@lib/signal/media';
 
 // * Web A's `ARCHIVED_FOLDER_ID`, which Web K's folder of archived chats has too
@@ -220,7 +221,7 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
     message: text?.text || '',
     entities: text?.entities?.map(buildEntity).filter(Boolean),
     media: buildSignalMessageMedia(message.content, message.date) ??
-      (message.content.pollId ? {_: 'messageMediaUnsupported'} : undefined),
+      (message.content.pollId ? buildPollMedia(message.content.pollId) ?? {_: 'messageMediaUnsupported'} : undefined),
     reply_to: buildReplyHeader(message.replyInfo),
     reactions: message.reactions ? buildMessageReactions(message.reactions) : undefined,
     edit_date: message.isEdited ? message.editDate || message.date : undefined,
