@@ -5290,7 +5290,11 @@ export default class ChatBubbles {
       return;
     }
 
-    const history = this.getRenderedHistory('asc', true);
+    // * history is paged by id, while the bubbles stand by date within a day (`bubbleTimelineOrder`): the offsets are
+    // * the lowest and the highest id on screen, not the top and the bottom bubble, as Web A pages its sorted ids
+    const history = this.getRenderedHistory('asc', true).sort((fullMid1, fullMid2) => {
+      return splitFullMid(fullMid1).mid - splitFullMid(fullMid2).mid;
+    });
 
     if(!history.length) {
       history.push(EMPTY_FULL_MID);

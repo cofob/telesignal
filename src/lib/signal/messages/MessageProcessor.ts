@@ -58,7 +58,8 @@ import { fetchProfile, fetchProfileIdentityKey, ProfileNotFoundError } from '../
 import { MAX_SPAM_REPORT_MESSAGES, reportSpam } from '../sender/reportSpam';
 import { getAccessKey, saveProfileKey } from '../sender/sealedSender';
 import {
-  describeSendError, getSendErrorKind, GroupTerminatedError, NotGroupMemberError, UnregisteredUserError,
+  describeSendError, getSendErrorKind, GroupTerminatedError, NotGroupMemberError, SelfNotInGroupError,
+  UnregisteredUserError,
 } from '../sender/sendErrors';
 import {
   sendAttachmentBackfillRequestSync,
@@ -457,7 +458,7 @@ export default class MessageProcessor {
       const existing = await this.db.getConversation(conversationId)
         ?? (ACI_PATTERN.test(conversationId) ? await this.ensurePrivateConversation(conversationId) : undefined);
       if (!existing) throw new Error(`Unknown conversation ${conversationId}`);
-      assertGroupIsOpen(existing);
+      assertGroupIsOpen(existing, account.aci);
       const universalTimer = await this.maybeStartUniversalTimer(existing, account);
       const found = universalTimer?.conversation ?? existing;
       const messageAt = this.allocateTimestamp();
@@ -586,7 +587,7 @@ export default class MessageProcessor {
       if (!target?.dataMessage || !found || target.authorAci !== account.aci || target.deletedAt) {
         throw new Error('The message cannot be edited');
       }
-      assertGroupIsOpen(found);
+      assertGroupIsOpen(found, account.aci);
       const isNoteToSelf = found.id === account.aci;
       const isTooOld = editedAt - target.sentAt > EDIT_MAX_AGE_MS;
       if (!isNoteToSelf && (isTooOld || (target.revisions?.length ?? 0) >= MAX_EDIT_COUNT)) {
@@ -639,7 +640,7 @@ export default class MessageProcessor {
       if (!target || !found || target.kind !== 'message' || !target.dataMessage) {
         throw new Error('The message cannot have reactions');
       }
-      assertGroupIsOpen(found);
+      assertGroupIsOpen(found, account.aci);
       const previous = target.reactions?.find(({ authorAci }) => authorAci === account.aci);
       if (!emoji && !previous) return undefined;
       await this.putReaction(target, account.aci, emoji ? { emoji, authorAci: account.aci, sentAt } : undefined);
@@ -902,7 +903,7 @@ export default class MessageProcessor {
       const message = await this.db.getMessage(messageId);
       const found = message && await this.db.getConversation(message.conversationId);
       if (!message || !found || message.isPollEnded) throw new Error('The poll does not accept votes');
-      assertGroupIsOpen(found);
+      assertGroupIsOpen(found, account.aci);
       const count = (message.pollVotes?.find(({ authorAci }) => authorAci === account.aci)?.voteCount ?? 0) + 1;
       await this.putMessage({
         ...message,
@@ -4369,9 +4370,13 @@ function setOutgoingFields(
     : undefined;
 }
 
-/** Refuses a send to a group that an admin ended */
-function assertGroupIsOpen({ id, groupState }: ConversationRecord) {
+/**
+ * Refuses a send to a group that an admin ended or that we left or were removed from; a group whose members are not
+ * known yet is not refused, as `buildApiChat` does not mark it forbidden
+ */
+function assertGroupIsOpen({ id, groupState, memberAcis }: ConversationRecord, selfAci: string) {
   if (groupState?.isTerminated) throw new GroupTerminatedError(id);
+  if (memberAcis && !memberAcis.includes(selfAci)) throw new SelfNotInGroupError(id);
 }
 
 /** Members who receive our messages in a conversation; Note to Self has only us, which sends a sync alone */

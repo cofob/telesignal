@@ -309,3 +309,14 @@ and the web token import (`AuthCodeCard`, `PasswordCard`, `SignUpCard`, `Email*C
 `index.ts` still maps Telegram's auth states to them. No step of the engine leads there, so they are dead code that
 reads as live; removing them needs the auth states of `AuthState` in `webk/src/types.d.ts` trimmed with them.
 
+
+## Read state and the unread divider assume that ids follow dates
+
+Messages are stored, paged and marked read by id (`MessageDb`, `read_inbox_max_id`), while both clients show a day's
+messages by date (Web A's `compareRenderedMessages`, Web K's `compareBubbleTimelineKeys` in
+`webk/src/components/chat/bubbleTimelineOrder.ts`). A message stored later with an earlier date (a call of the call
+history, a transcript synced late, a sender's skewed clock) therefore stands above messages with lower ids. Web K's read
+cursor takes the highest id seen and the newest rendered bubble (`webk/src/components/chat/bubbles.ts`, `readPromise`), the
+unread divider is the first bubble above the read id (`getFirstUnreadBubble`), and the viewport's bottom is compared by id
+(`isScrolledPast`). With an inversion, a message above the divider can be unread, or one below it read; Web A has the same
+assumption. Observed with the demo's call 66 in Alice's chat, which is read, so it shows no wrong divider there.
