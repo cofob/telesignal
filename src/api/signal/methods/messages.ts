@@ -505,7 +505,8 @@ function getSharedMediaKind(record: MessageRecord): SharedMediaKind {
   return {
     isLink,
     isPhoto: Boolean(photo),
-    isVideo: Boolean(video && !video.isRound),
+    // A GIF is in no tab, as Web K and Telegram leave GIFs out of the media tab
+    isVideo: Boolean(video && !video.isRound && !video.isGif),
     isDocument: Boolean(document),
     isAudio: Boolean(audio),
     isVoice: Boolean(voice || video?.isRound),

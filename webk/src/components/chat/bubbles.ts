@@ -282,6 +282,7 @@ import {RichMessageBubble, RichMessageBubbleLayout, isRichMessageButtonTarget, i
 import {isPagingSlideshowTarget} from '@components/slideshow';
 import {isWidgetHorizontalDragTarget} from '@lib/widgetSandbox/gestures';
 import {keepWidgetHeights} from '@lib/widgetSandbox/heights';
+import {getIsSignalAlbum} from '@lib/signal/media';
 import isEphemeralMessage from '@appManagers/utils/messages/isEphemeralMessage';
 import isAnchoredEphemeralMessage from '@appManagers/utils/messages/isAnchoredEphemeralMessage';
 import canReplyToEphemeralMessage from '@appManagers/utils/messages/canReplyToEphemeralMessage';
@@ -11198,7 +11199,7 @@ export default class ChatBubbles {
                   }
                 },
                 fontSize: this.chat.appSettings.messagesTextSize,
-                canTranscribeVoice: true
+                canTranscribeVoice: false // * TeleSignal: Signal has no voice transcription
               });
               preview.append(docDiv);
               props.media.hasDocument = true;
@@ -11698,7 +11699,7 @@ export default class ChatBubbles {
               fontSize: this.chat.appSettings.messagesTextSize,
               richTextFragment: richText,
               richTextOptions: getRichTextOptions(),
-              canTranscribeVoice: true,
+              canTranscribeVoice: false, // * TeleSignal: Signal has no voice transcription
               translatableParams,
               createMessageText: (element, documentMessage) => {
                 const holder: {entry?: SolidMessageBodyEntry} = {};
@@ -11885,7 +11886,8 @@ export default class ChatBubbles {
           const isNotPaid = extendedMedia[0]?._ === 'messageExtendedMediaPreview';
 
           if(!isInvoice) {
-            bubble.classList.add('single-media');
+            // * TeleSignal: a Signal album is one of the chat's media, which the viewer steps through with the others
+            if(!getIsSignalAlbum(context.messageMedia as P)) bubble.classList.add('single-media');
             if(canHideNameIfMedia) {
               bubble.classList.add('hide-name');
             }
@@ -11906,7 +11908,9 @@ export default class ChatBubbles {
             paymentsWrapCurrencyAmount((context.messageMedia as I).total_amount, (context.messageMedia as I).currency) :
             paymentsWrapCurrencyAmount((context.messageMedia as P).stars_amount, STARS_CURRENCY);
           let priceEl: HTMLElement;
-          if(!extendedMedia.length || (!isInvoice && isAlreadyPaid)) {
+          if(!isInvoice && getIsSignalAlbum(context.messageMedia as P)) {
+            // * a Signal album shows no price
+          } else if(!extendedMedia.length || (!isInvoice && isAlreadyPaid)) {
             priceEl = document.createElement(innerMedia ? 'span' : 'div');
             const f = document.createDocumentFragment();
             const l = i18n((context.messageMedia as I).receipt_msg_id ? 'PaymentReceipt' : (isTest ? 'PaymentTestInvoice' : 'PaymentInvoice'));

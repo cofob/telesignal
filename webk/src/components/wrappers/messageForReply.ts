@@ -28,6 +28,7 @@ import wrapPeerTitle from '@components/wrappers/peerTitle';
 import getMessagePreviewIcon from '@components/wrappers/messagePreviewIcon';
 import getMessageForReplyContent from '@components/wrappers/messageForReplyContent';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
+import {getIsSignalAlbum} from '@lib/signal/media';
 
 export type WrapMessageForReplyOptions = Modify<WrapMessageActionTextOptions, {
   message: MyMessage | MyDraftMessage
@@ -319,7 +320,7 @@ export default async function wrapMessageForReply<T extends WrapMessageForReplyO
             return media.media._ === 'messageMediaPhoto';
           });
 
-          if(!plain) {
+          if(!plain && !getIsSignalAlbum(media)) {
             i += 2;
             addPart(undefined, Icon('star', 'xtr-icon'));
             addPart(undefined, ' ');

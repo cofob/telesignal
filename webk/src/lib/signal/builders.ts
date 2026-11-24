@@ -14,7 +14,6 @@ import type {
   Message,
   MessageAction,
   MessageEntity,
-  MessageMedia,
   MessagePeerReaction,
   MessageReactions,
   MessageReplyHeader,
@@ -36,6 +35,7 @@ import type {
 } from '@lib/signal/signalApi';
 import {buildReaction} from '@lib/signal/reactions';
 import {buildPollMedia} from '@lib/signal/polls';
+import {buildSignalMessageMedia} from '@lib/signal/media';
 
 // * Web A's `ARCHIVED_FOLDER_ID`, which Web K's folder of archived chats has too
 const ARCHIVED_FOLDER_ID = 1;
@@ -220,7 +220,8 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
     date: message.date,
     message: text?.text || '',
     entities: text?.entities?.map(buildEntity).filter(Boolean),
-    media: buildMessageMedia(message),
+    media: buildSignalMessageMedia(message.content, message.date) ??
+      (message.content.pollId ? buildPollMedia(message.content.pollId) ?? {_: 'messageMediaUnsupported'} : undefined),
     reply_to: buildReplyHeader(message.replyInfo),
     reactions: message.reactions ? buildMessageReactions(message.reactions) : undefined,
     edit_date: message.isEdited ? message.editDate || message.date : undefined,
@@ -229,13 +230,6 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
     // * Web K shows a message with an error as failed, as it does a send of its own that failed
     error: message.sendingState === 'messageSendingStateFailed' ? {type: 'SIGNAL_SEND_FAILED' as ErrorType, code: 400} : undefined
   };
-}
-
-function buildMessageMedia(message: SignalMessage): MessageMedia | undefined {
-  const {photo, video, document, sticker, voice, audio, contact, pollId} = message.content;
-  const pollMedia = pollId ? buildPollMedia(pollId) : undefined;
-  if(pollMedia) return pollMedia;
-  return photo || video || document || sticker || voice || audio || contact || pollId ? {_: 'messageMediaUnsupported'} : undefined;
 }
 
 // * a reply to a message of the chat names it; a quote of a message that is not in the chat, or is gone, keeps the
