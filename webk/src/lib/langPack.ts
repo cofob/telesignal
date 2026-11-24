@@ -94,6 +94,7 @@ namespace I18n {
   // * keys a right-to-left pack leaves to the English stand-in: that text reads left to right
   export const untranslatedKeys: Set<LangPackKey> = new Set();
   export const countriesList: HelpCountry[] = [];
+  const DEFAULT_REGION_LANG_CODE = 'en';
   let pluralRules: Intl.PluralRules;
 
   let cacheLangPackPromise: Promise<LangPackDifference>;
@@ -357,7 +358,10 @@ namespace I18n {
       countriesList.length = 0;
       countriesList.push(...langPack.countries.countries);
 
+      // * TeleSignal: countries are named by the browser in the app's language, as in Web A's `fetchCountryList`
+      const regionNames = new Intl.DisplayNames([currentLangCode, DEFAULT_REGION_LANG_CODE], {type: 'region', fallback: 'none'});
       langPack.countries.countries.forEach((country) => {
+        country.name = regionNames.of(country.iso2) ?? country.name;
         if(country.name) {
           const langPackKey: any = country.default_name;
           strings.set(langPackKey, {
