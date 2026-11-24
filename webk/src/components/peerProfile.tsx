@@ -32,7 +32,6 @@ import {useCommunity, useCommunityFull} from '@stores/communities';
 import detectLanguageForTranslation from '@helpers/detectLanguageForTranslation';
 import usePeerTranslation from '@hooks/usePeerTranslation';
 import getWebFileLocation from '@helpers/getWebFileLocation';
-import CheckboxFieldTsx from '@components/checkboxFieldTsx';
 import {subscribeOn} from '@helpers/solid/subscribeOn';
 import {StoriesProvider, useStories} from '@components/stories/store';
 import type SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
@@ -286,10 +285,8 @@ const PeerProfile = (props: {
         <PeerProfile.UnofficialWarning />
         <PeerProfile.PersonalChannel />
         <PeerProfile.MainSection />
-        <PeerProfile.BotMainApp />
         <PeerProfile.LinkedCommunity />
         <PeerProfile.BotVerification />
-        <PeerProfile.BotPermissions />
         {props.searchSuperContainer}
       </div>
     </PeerProfileContext.Provider>
@@ -1716,77 +1713,6 @@ PeerProfile.UnofficialWarning = () => {
   );
 };
 
-PeerProfile.BotPermissions = () => {
-  const context = useContext(PeerProfileContext);
-  const {i18n, rootScope} = useHotReloadGuard();
-  const botInfo = createMemo(() => (context.fullPeer as UserFull)?.bot_info);
-  const canManageEmojiStatus = createMemo(() => botInfo() && (context.fullPeer as UserFull).pFlags.bot_can_manage_emoji_status);
-  const seenEmojiStatusFlag = createMemo<boolean>((prev) => prev || canManageEmojiStatus());
-  const [locationPermission] = createResource(botInfo, (botInfo) => {
-    if(!botInfo) {
-      return null;
-    }
-
-    return rootScope.managers.appBotsManager.readBotInternalStorage(
-      context.peerId,
-      'locationPermission'
-    );
-  });
-  const shouldShow = createMemo(() => {
-    return botInfo() && (
-      seenEmojiStatusFlag() ||
-      locationPermission() != null
-    );
-  });
-
-  return (
-    <Show when={shouldShow()}>
-      <Section
-        name={i18n('BotAllowAccessTo')}
-        noDelimiter
-      >
-        <Show when={seenEmojiStatusFlag()}>
-          <Row>
-            <Row.CheckboxFieldToggle>
-              <CheckboxFieldTsx
-                checked={canManageEmojiStatus()}
-                onChange={(checked) => {
-                  rootScope.managers.appBotsManager.toggleEmojiStatusPermission(
-                    context.peerId,
-                    checked
-                  );
-                }}
-                toggle
-              />
-            </Row.CheckboxFieldToggle>
-            <Row.Icon icon="emoji_filled" />
-            <Row.Title>{i18n('BotAllowAccessToEmojiStatus')}</Row.Title>
-          </Row>
-        </Show>
-        <Show when={locationPermission() != null}>
-          <Row>
-            <Row.CheckboxFieldToggle>
-              <CheckboxFieldTsx
-                checked={locationPermission() === 'true'}
-                onChange={(checked) => {
-                  rootScope.managers.appBotsManager.writeBotInternalStorage(
-                    context.peerId,
-                    'locationPermission',
-                    String(checked)
-                  );
-                }}
-                toggle
-              />
-            </Row.CheckboxFieldToggle>
-            <Row.Icon icon="location_filled" />
-            <Row.Title>{i18n('BotAllowAccessToLocation')}</Row.Title>
-          </Row>
-        </Show>
-      </Section>
-    </Show>
-  );
-};
-
 PeerProfile.StoryPreviews = (props: {
   info: HTMLElement
 }) => {
@@ -1902,40 +1828,6 @@ PeerProfile.StoryPreviews = (props: {
         </StoriesProvider>
       </Show>
     </div>
-  );
-};
-
-// "Open App" main mini-app button + ToS caption, like the other clients
-// (tdesktop info_profile_actions makeMainApp / Android ProfileBotOpenApp /
-// iOS PeerInfo_OpenAppButton). Shown when the bot has a main mini app; the
-// caption is iOS PeerInfo_AppFooter(Admin).
-PeerProfile.BotMainApp = () => {
-  const context = useContext(PeerProfileContext);
-  const {appImManager} = useHotReloadGuard();
-
-  const user = createMemo(() => context.peer as User.user);
-  const hasMainApp = createMemo(() => !!user()?.pFlags?.bot && !!user()?.pFlags?.bot_has_main_app);
-  const footerKey = createMemo(() => user()?.pFlags?.bot_can_edit ? 'PeerInfo.AppFooterAdmin' as const : 'PeerInfo.AppFooter' as const);
-
-  const onClick = () => {
-    appImManager.openWebApp({
-      botId: context.peerId.toUserId(),
-      main: true,
-      peerId: context.peerId
-    });
-  };
-
-  return (
-    <Show when={hasMainApp()}>
-      <Section caption={footerKey()}>
-        <Button
-          class="peer-profile-open-app-button"
-          primaryFilled
-          text="BotProfileOpenApp"
-          onClick={onClick}
-        />
-      </Section>
-    </Show>
   );
 };
 

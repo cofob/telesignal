@@ -198,6 +198,11 @@
   // @include avatar-color("saved", #69BFFA, #3D9DE0);
   @include avatar-color("archive", #B8C2CC, #9EAAB5);
 
+  // * Lightened at the top as Web A's `Avatar.scss` does, with white from -300% of the height
+  @each $name, $color in $signal-avatar-colors {
+    @include avatar-color($name, mix(#fff, $color, 25%), $color);
+  }
+
   --peer-avatar-saved-top: var(--light-filled-saved-color);
   --peer-avatar-saved-bottom: var(--saved-color);
 
@@ -361,6 +366,7 @@
 }
 
 .chat {
+  --message-link-color: var(--link-color);
   --message-highlighting-color: hsla(85.5319, 36.9171%, 40.402%, .4);//rgba(77, 142, 80, .4);
   --message-highlighting-hover-color: rgba(var(--message-highlighting-color-rgb), calc(var(--message-highlighting-alpha) + .24));
 
@@ -378,11 +384,14 @@
   --message-empty-primary-color-rgb: 255,255,255;
   --message-reaction-tag-dot-color: rgba(255, 255, 255, .4);
 
-  --message-out-status-color: var(--message-out-primary-color);
-  --message-out-time-color: var(--message-out-status-color);
-  --message-out-icon-text-color: #fff;
-  --message-out-selection-background-color: var(--selection-background-color);
-  --message-out-reaction-tag-dot-color: var(--message-reaction-tag-dot-color);
+  // * Signal's outgoing bubble is the accent under white text in every theme, its meta at .65 (Web A's Signal theme)
+  --message-out-text-color: #fff;
+  --message-out-secondary-text-color: rgba(255, 255, 255, .65);
+  --message-out-status-color: #fff;
+  --message-out-time-color: var(--message-out-secondary-text-color);
+  --message-out-icon-text-color: var(--message-out-background-color);
+  --message-out-selection-background-color: rgba(var(--surface-color-rgb), .4);
+  --message-out-reaction-tag-dot-color: var(--message-out-background-color);
 }
 
 .night .chat {
@@ -393,13 +402,6 @@
   --message-secondary-color: var(--secondary-color);
   --message-error-color: #fff;
   --message-icon-text-color: #fff;
-
-  --message-out-status-color: #fff;
-  --message-out-time-color: rgba(255, 255, 255, .6);
-  --message-out-icon-text-color: var(--message-out-background-color);
-  --message-out-selection-background-color: rgba(var(--surface-color-rgb), .4);
-  // --message-out-reaction-tag-dot-color: rgba(var(--message-out-background-color-rgb), 1);
-  --message-out-reaction-tag-dot-color: var(--message-out-background-color);
 }
 
 html,
@@ -2216,20 +2218,6 @@ hr {
 
   .night & {
     background-color: rgba(0, 0, 0, .8);
-  }
-}
-
-.tchart {
-  &--wrapper {
-    --tchart-letter-spacing-small: auto !important;
-    --tchart-letter-spacing-large: auto !important;
-    margin-top: -12px;
-    z-index: 0;
-  }
-
-  &--zoom {
-    inset-block: -8px auto !important;
-    inset-inline: auto 1rem !important;
   }
 }
 

@@ -110,12 +110,7 @@ export function openChatFromInvite(chatId: ChatId) {
 export function importChatInvite(hash: string, chatTitle?: string) {
   rootScope.managers.appChatInvitesManager.importChatInvite(hash)
   .then((result) => {
-    if(typeof(result) === 'object') {
-      void hotReloadGuard.appImManager.openJoinChatWebView(result, chatTitle);
-      return;
-    }
-
-    if(result) {
+    if(typeof(result) !== 'object' && result) {
       openChatFromInvite(result);
     }
   }, (error) => {

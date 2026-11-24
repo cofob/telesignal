@@ -28,6 +28,3 @@ export function isUsernameValid(username: string) {
   return true;
 }
 
-export function isWebAppNameValid(name: string) {
-  return name.length >= 3 && isUsernameValid(name);
-}

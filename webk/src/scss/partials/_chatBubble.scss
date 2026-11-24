@@ -178,7 +178,7 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
   &-avatar {
     position: sticky !important;
     top: 0;
-    bottom: calc(var(--chat-padding-bottom) + var(--chat-input-height-surplus, 0px) + var(--chat-input-keyboard-height, 0px) + #{$bubble-overflow-big} + .25rem);
+    bottom: calc(var(--chat-padding-bottom) + var(--chat-input-height-surplus, 0px) + #{$bubble-overflow-big} + .25rem);
     cursor: pointer;
     pointer-events: all;
     overflow: hidden;
@@ -573,7 +573,6 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     border-start-end-radius: var(--border-start-end-radius);
     border-end-start-radius: var(--border-end-start-radius);
     border-end-end-radius: var(--border-end-end-radius);
-    box-shadow: 0 1px 2px 0 rgba(16, 35, 47, .15);
     position: relative;
     // display: flex;
     // flex-direction: column-reverse;
@@ -2145,14 +2144,10 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
 
   // * mini player section end
 
-  // a rich message's link button is drawn as a button
-  .anchor-url:not(.rich-button-link) {
-    text-decoration: underline;
-  }
-
-  // in a dark theme an outgoing message's links are as white as its text: every kind of them is told
-  // apart by its underline, as iOS does it
-  .night &.is-out .message a:not(.peer-title):not(.rich-button-link) {
+  // an outgoing message's links are as white as its text: every kind of them is told apart by its underline,
+  // as iOS does it; an incoming message's are in the link colour without one (Web A's Signal theme). A rich
+  // message's link button is drawn as a button
+  &.is-out .message a:not(.peer-title):not(.rich-button-link) {
     text-decoration: underline;
   }
 
@@ -3757,6 +3752,8 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
 }
 
 .bubble.is-in {
+  // * the app's links, which are lighter than the accent at night (Web A's Signal theme)
+  --link-color: var(--message-link-color);
   --border-start-start-radius: #{$bubble-border-radius-medium};
   --border-start-end-radius: #{$bubble-border-radius-big};
   --border-end-end-radius: #{$bubble-border-radius-big};
@@ -3841,6 +3838,9 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
 
 .bubble.is-out {
   flex-direction: row-reverse;
+  --primary-text-color: var(--message-out-text-color);
+  --secondary-text-color: var(--message-out-secondary-text-color);
+  color: var(--primary-text-color);
   --message-background-color: var(--message-out-background-color);
   --light-message-background-color: var(--light-message-out-background-color);
   --light-filled-message-background-color: var(--light-filled-message-out-background-color);
@@ -4309,7 +4309,7 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
       pointer-events: none;
     }
 
-    // * a bubble's and the bot keyboard's under the input (`.reply-keyboard`) alike
+    // * a bubble's inline buttons
     &-bg {
       color: #fff !important;
       background-color: rgba(var(--background-color-rgb), .8) !important;
@@ -4643,4 +4643,40 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     height: 200px;
     cursor: pointer;
   }
+}
+
+// * Signal's look, as Web A's Signal theme (DESIGN.md "Signal theme", `MessageList.scss`, `Message.scss`):
+// * bubbles have no tail, and a bubble that could have one keeps the rounded corner of one that cannot
+.bubble.can-have-tail {
+  &.is-group-last, &.is-forced-rounded {
+    .bubble-tail {
+      display: none;
+    }
+
+    &.is-in {
+      --border-end-start-radius: #{$bubble-border-radius-big} !important;
+    }
+
+    &.is-out {
+      --border-end-end-radius: #{$bubble-border-radius-big} !important;
+    }
+  }
+}
+
+// * On a plain background service messages and dates are plain secondary text (Signal Desktop `.SystemMessage`); the
+// * date stuck over the messages keeps its chip, and a pattern or a picture keeps them all on chips, as in Web A
+.has-plain-chat-background .bubble.service:not(.is-sticky) .service-msg {
+  color: var(--secondary-text-color);
+  background-color: transparent;
+
+  a {
+    color: inherit;
+  }
+}
+
+// * The unread divider is a rule with its label under it (Signal Desktop `.module-last-seen-indicator`)
+.bubble.is-first-unread:before {
+  color: var(--primary-text-color);
+  background-color: transparent;
+  border-top: 1px solid var(--border-color);
 }

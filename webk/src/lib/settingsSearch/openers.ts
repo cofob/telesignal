@@ -31,9 +31,6 @@ export const NON_NAVIGABLE_SECTIONS = new Set([
   'AppSharedFolderTab',
   'AppAddMembersTab',
   'AppChangeLoginEmailTab',
-  // one weekday of the business-hours schedule, and the zone picker it hands its choice back to
-  'AppBusinessHoursDayTab',
-  'AppTimezoneTab',
   // the debugging tools under the version line, kept out of the way like every client's debug menu
   'AppExperimentalTab'
 ]);
@@ -44,11 +41,6 @@ export const NON_NAVIGABLE_SECTIONS = new Set([
  */
 export const A11Y_ONLY_ENTRIES = new Set([
   'AppGeneralSettingsTab:GeneralSettings.IncreaseContrast'
-]);
-
-/** Rows of the TON wallet, which TeleSignal does not have */
-export const WALLET_ENTRIES = new Set([
-  'AppSettingsTab:WalletAttachMoney'
 ]);
 
 type SectionOpener = (slider: SidebarSlider, middleware?: Middleware) => Promise<SliderSuperTab> | SliderSuperTab;
@@ -97,24 +89,10 @@ const SECTION_OPENERS: {[sectionId: string]: SectionOpener} = {
     const {peerIds} = await rootScope.managers.appUsersManager.getBlocked();
     return openTab(slider, hotReloadGuard.tabs.AppBlockedUsersTab, middleware, {peerIds});
   },
-  AppChatAutomationTab: async(slider, middleware) => {
-    // the bot is optional here too — the tab opens with an empty row without it
-    let connectedBot: ConnectedBot.connectedBot;
-    try {
-      connectedBot = await rootScope.managers.appBusinessManager.getConnectedBot();
-    } catch{}
-
-    return openTab(slider, hotReloadGuard.tabs.AppChatAutomationTab, middleware, {connectedBot});
-  },
   AppPrivacyMessagesTab: (slider, middleware) => {
     // opened on its own, so there is no privacy row waiting for the new value
     return openTab(slider, hotReloadGuard.tabs.AppPrivacyMessagesTab, middleware, {onSaved: () => {}});
   },
-  // a free account gets the Business promo instead, as it does from Edit Profile
-  AppBusinessHoursTab: (slider) => hotReloadGuard.tabs.openBusinessEditorTab(slider, hotReloadGuard.tabs.AppBusinessHoursTab),
-  AppBusinessLocationTab: (slider) => hotReloadGuard.tabs.openBusinessEditorTab(slider, hotReloadGuard.tabs.AppBusinessLocationTab),
-  AppBusinessChatLinksTab: (slider) => hotReloadGuard.tabs.openBusinessEditorTab(slider, hotReloadGuard.tabs.AppBusinessChatLinksTab),
-  AppBusinessIntroTab: (slider) => hotReloadGuard.tabs.openBusinessEditorTab(slider, hotReloadGuard.tabs.AppBusinessIntroTab),
   // and so is the cloud password while one is set
   AppTwoStepVerificationTab: async(slider, middleware) => {
     const state = await rootScope.managers.passwordManager.getState();

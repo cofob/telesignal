@@ -1,5 +1,4 @@
 import type {AdminLog, ChatRights} from '@appManagers/appChatsManager';
-import type {RequestWebViewOptions} from '@appManagers/appAttachMenuBotsManager';
 import type {HistoryStorageKey, MessageSendingParams, MessagesStorageKey, MyMessage, RequestHistoryOptions} from '@appManagers/appMessagesManager';
 import type {AppImManager, ChatSetPeerOptions} from '@lib/appImManager';
 import EventListenerBase from '@helpers/eventListenerBase';
@@ -306,9 +305,8 @@ export default class Chat extends EventListenerBase<{
   }
 
   private chatInputSurplusPx = 0;
-  private chatInputKeyboardPx = 0;
   // * a history on its way with the room under it (`moveBottomRoom`), laid out where it goes by this
-  private bottomRoomFinish: {[kind in 'keyboard' | 'panel']?: () => void} = {};
+  private bottomRoomFinish: {[kind in 'panel']?: () => void} = {};
   private inputSurplusPx = 0;
   private bottomPanelSurplusPx: number;
   private pinnedFloatingHeightPx = 0;
@@ -322,8 +320,7 @@ export default class Chat extends EventListenerBase<{
 
   /**
    * A panel standing in for the composer (the theme picker) takes its room while it is up. With `duration` the
-   * history goes with it as with the bot keyboard (`setChatInputKeyboardHeight`), for the panel to grow or shrink
-   * in that time.
+   * history goes with it (`moveBottomRoom`), for the panel to grow or shrink in that time.
    */
   public setBottomPanelHeight(height: number | undefined, duration?: number) {
     this.bottomRoomFinish.panel?.();
@@ -354,33 +351,12 @@ export default class Chat extends EventListenerBase<{
   }
 
   /**
-   * The bot keyboard under the input (`ReplyKeyboard`), with the gap above it: the history leaves that much room
-   * under itself, and the boxes laid out against the input (`--chat-input-keyboard-height`) stand that much
-   * higher. Kept apart from the surplus, which the corner buttons also read - they stand on the input's container
-   * and go with it by themselves.
-   *
-   * With `duration` (full animations) a history at its end goes up or down with the input, in the keyboard's
-   * time and curve, as the input does (`moveBottomRoom`).
-   */
-  public setChatInputKeyboardHeight(height: number, duration?: number) {
-    this.bottomRoomFinish.keyboard?.();
-    const delta = height - this.chatInputKeyboardPx;
-    if(!delta) return;
-    this.chatInputKeyboardPx = height;
-    this.moveBottomRoom('keyboard', delta, () => {
-      this.recomputePaddings(true);
-      this.setChatInputRuleProperty('--chat-input-keyboard-height', height);
-    }, duration);
-  }
-
-  /**
    * The room under the history changes by `delta`, `layout` laying it out. With `duration` (full animations) a
-   * history at its end goes up or down with what takes the room, in its time and the keyboard's curve, moved by
+   * history at its end goes up or down with what takes the room, in its time and the `EASING_Y` curve, moved by
    * the compositor alone: it is laid out where it ends (the room, the boxes, and the scroll that keeps it where it
    * was on the screen) once it is up, or before it goes down, and only its messages are moved there, by a
-   * `translate`: nothing is laid out or scrolled on the way, so the main thread being busy cannot hold it back,
-   * and nothing it moves passes under the zone the keyboard hides (`$bubbles-keyboard-zone`). A history scrolled
-   * up stays.
+   * `translate`: nothing is laid out or scrolled on the way, so the main thread being busy cannot hold it back.
+   * A history scrolled up stays.
    */
   private moveBottomRoom(kind: keyof Chat['bottomRoomFinish'], delta: number, layout: () => void, duration?: number) {
     const bubbles = this.bubbles;
@@ -402,7 +378,7 @@ export default class Chat extends EventListenerBase<{
 
     let finish: () => void;
     if(!atEnd) {
-      // * nothing moves: the zone is there while the keyboard is
+      // * nothing moves: growing, the room comes under what is shown
       if(delta > 0) {
         commit();
         return;
@@ -431,7 +407,7 @@ export default class Chat extends EventListenerBase<{
         inner.animate([{translate: `0px ${from}px`}, {translate: `0px ${to}px`}], options),
         ...(moveGradient?.(options) || [])
       ];
-      // * over, or cut short (the keyboard goes again on the way): it is where it was going
+      // * over, or cut short (the panel goes again on the way): it is where it was going
       finish = () => {
         this.bottomRoomFinish[kind] = undefined;
         if(delta > 0) commit();
@@ -445,7 +421,7 @@ export default class Chat extends EventListenerBase<{
     this.bottomRoomFinish[kind] = finish;
   }
 
-  // * `--chat-input-height-surplus`, `--chat-input-keyboard-height` and `--bubbles-padding-height` are not
+  // * `--chat-input-height-surplus` and `--bubbles-padding-height` are not
   // * inherited (_chat.scss): a rule of the chat's own gives them to the few boxes that read them. Set on
   // * the chat, a custom property of its is worked out anew for every element in it - a thousand in a short
   // * chat, on each line the input grows or a reply shown
@@ -469,9 +445,7 @@ export default class Chat extends EventListenerBase<{
           '.bubbles-corner-button',
           '.bubbles-scrollable',
           // * the emoji panel stands over the input: when open, it is a child of its `.chat-input`
-          '.emoji-dropdown',
-          // * the bot keyboard under it is as much shorter as the input grows (_replyKeyboard.scss)
-          '.reply-keyboard-scrollable'
+          '.emoji-dropdown'
         ].map((c) => `.${className} ${c}`).join(', ')
       );
     }
@@ -552,7 +526,7 @@ export default class Chat extends EventListenerBase<{
 
   /**
    * @param instant the room under the history changes without its transition: what goes with it moves the list
-   * itself (`setChatInputKeyboardHeight`)
+   * itself (`moveBottomRoom`)
    */
   public recomputePaddings(instant?: boolean) {
     // const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
@@ -570,7 +544,7 @@ export default class Chat extends EventListenerBase<{
     // * the preview's topbar stays where it is under the bars of a call or the player (_chatPreview.scss)
     const bars = this.isPreview ? 0 : this.topbarBarsPx;
     const top = Math.round(topBase * rem + this.pinnedFloatingHeightPx + bars);
-    const bottom = Math.round(bottomBase * rem + this.chatInputSurplusPx + this.chatInputKeyboardPx);
+    const bottom = Math.round(bottomBase * rem + this.chatInputSurplusPx);
     this.chatPaddingTop[1](top);
     this.chatPaddingBottom[1](bottom);
     // * what a short history is to fill: what these two leave of the screen (`.bubbles-inner`)
@@ -1112,7 +1086,7 @@ export default class Chat extends EventListenerBase<{
     // * chat, container and shared-media tabs included, which is how 4 951 detached nodes ended up
     // * charged to rootScope in a day-old tab. Peer changes keep cleaning it as before.
     this.middlewareHelper.destroy();
-    // * a keyboard's or a panel's way that would lay it out later would make the rule again, on a chat that is gone
+    // * a panel's way that would lay it out later would make the rule again, on a chat that is gone
     Object.values(this.bottomRoomFinish).forEach((finish) => finish?.());
     this.chatInputRule?.remove();
 
@@ -1829,12 +1803,6 @@ export default class Chat extends EventListenerBase<{
     ]);
 
     return peerId.isUser() && canGiftPremium && !isPremiumPurchaseBlocked;
-  }
-
-  public async openWebApp(options: Partial<RequestWebViewOptions>) {
-    Object.assign(options, this.getMessageSendingParams());
-    options.peerId ??= this.peerId;
-    return this.appImManager.openWebApp(options);
   }
 
   public async sendReaction(options: SendReactionOptions) {

@@ -34,7 +34,7 @@ import {
   getMediaTypeForProfileTab,
   getProfileTabForMediaType
 } from '@components/sharedMediaProfileTab';
-import type {AppEditBotTab, AppEditChatTab, AppEditContactTab, AppEditTopicTab} from '@components/solidJsTabs/tabs';
+import type {AppEditChatTab, AppEditContactTab, AppEditTopicTab} from '@components/solidJsTabs/tabs';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 type SharedMediaHistoryStorage = Partial<{
@@ -558,7 +558,6 @@ const SharedMedia: Component = () => {
   const c: [SearchSuperMediaTab['type'], LangPackKey][] = [
     ['savedDialogs', 'SavedDialogsTabCount'],
     ['stories', 'StoriesCount'],
-    ['botPreviews', 'BotPreviews.SubtitleCount'],
     ['gifts', 'StarGiftsCount'],
     ['members', 'Members'],
     ['media', 'MediaFiles'],
@@ -671,14 +670,12 @@ const SharedMedia: Component = () => {
   }, {listenerSetter: tab.listenerSetter});
 
   attachClickEvent(editBtn, async() => {
-    let editTab: InstanceType<typeof AppEditChatTab> | InstanceType<typeof AppEditContactTab> | InstanceType<typeof AppEditTopicTab> | InstanceType<typeof AppEditBotTab>;
+    let editTab: InstanceType<typeof AppEditChatTab> | InstanceType<typeof AppEditContactTab> | InstanceType<typeof AppEditTopicTab>;
     const {peerId, threadId} = tab;
     if(threadId && await tab.managers.appPeersManager.isForum(peerId)) {
       editTab = tab.slider.createTab(hotReloadGuard.tabs.AppEditTopicTab)
     } else if(peerId.isAnyChat()) {
       editTab = tab.slider.createTab(hotReloadGuard.tabs.AppEditChatTab);
-    } else if(await tab.managers.appUsersManager.isBot(peerId)) {
-      editTab = tab.slider.createTab(hotReloadGuard.tabs.AppEditBotTab);
     } else {
       editTab = tab.slider.createTab(hotReloadGuard.tabs.AppEditContactTab);
     }
@@ -689,12 +686,10 @@ const SharedMedia: Component = () => {
 
     if(editTab instanceof hotReloadGuard.tabs.AppEditTopicTab) {
       editTab.open({peerId, threadId: tab.threadId});
-    } else if(editTab instanceof hotReloadGuard.tabs.AppEditBotTab) {
-      editTab.open(peerId);
     } else if(editTab instanceof hotReloadGuard.tabs.AppEditContactTab) {
       editTab.open(peerId);
     } else {
-      // all four edit tabs are scaffolds now; their structural types don't
+      // all three edit tabs are scaffolds now; their structural types don't
       // subtract from the instanceof union, so cast to the editChat one.
       (editTab as InstanceType<typeof AppEditChatTab>).open({chatId: peerId.toChatId()});
     }
@@ -727,9 +722,6 @@ const SharedMedia: Component = () => {
     }, {
       name: 'Stories',
       type: 'stories'
-    }, {
-      name: 'ProfileBotPreviewTab',
-      type: 'botPreviews'
     }, {
       name: 'SharedMedia.Gifts',
       type: 'gifts'

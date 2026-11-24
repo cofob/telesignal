@@ -28,9 +28,6 @@ const TLOTTIE_WASM_URL = new URL(
 ).href;
 
 export type LottieAssetName =
-  | 'BusinessHours'
-  | 'BusinessLocation'
-  | 'BusinessLinks'
   | 'EmptyFolder'
   | 'Folders_1'
   | 'Folders_2'
@@ -48,7 +45,7 @@ export type LottieAssetName =
   | 'Gift6'
   | 'Gift12'
   | 'Folders_Shared'
-  | 'UtyanSearch'
+  | 'Search'
   | 'UtyanDiscussion'
   | 'UtyanLinks'
   | 'UtyanStories'
@@ -70,9 +67,8 @@ export type LottieAssetName =
   | 'Cake'
   | 'Mailbox'
   | 'LoveLetter'
-  | 'ChatAutomation'
   | 'key'
-  | 'UtyanDisappear'
+  | 'Flame'
   | 'hand_stop'
   | 'collectible_username'
   | 'collectible_phone'

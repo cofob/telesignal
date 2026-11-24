@@ -1,6 +1,6 @@
 import {createRoot, createSignal} from 'solid-js';
 import generated from './generated';
-import {A11Y_ONLY_ENTRIES, NON_NAVIGABLE_SECTIONS, WALLET_ENTRIES} from './openers';
+import {A11Y_ONLY_ENTRIES, NON_NAVIGABLE_SECTIONS} from './openers';
 import Modes from '@config/modes';
 import type {
   GeneratedSettingsEntry,
@@ -44,8 +44,7 @@ const load = (data: GeneratedSettingsSearchData) => {
   );
   // the flags are fixed for the page's life (the URL, the build), so they can be read here
   entries = data.entries.filter((entry) => sections.has(entry.sectionId) &&
-    (Modes.a11y || !A11Y_ONLY_ENTRIES.has(entry.id)) &&
-    !WALLET_ENTRIES.has(entry.id));
+    (Modes.a11y || !A11Y_ONLY_ENTRIES.has(entry.id)));
   links = data.links.filter((link) => sections.has(link.sectionId));
 };
 

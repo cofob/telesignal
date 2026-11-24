@@ -105,23 +105,20 @@ $corner-button-size: 2.5rem;
 
 // ----- Card scaffold (see AuthCard.tsx) -----------------------------
 
-// Single card surface. Page-specific tweaks live in the `.pageX` classes.
+// Single card. As Web A's auth screens it lies on the page with no surface of its own; page-specific tweaks
+// live in the `.pageX` classes.
 .card {
-  background-color: var(--surface-color);
-  border-radius: 2rem;
   padding: 1rem;
 
   :global(.btn-secondary) {
-    font-weight: var(--font-weight-normal);
     margin-top: .5rem;
   }
 }
 
-// Telegram logo SVG used by SignInCard inside <MediaHeader.Sticker element={...}>.
+// The app icon of SignInCard inside <MediaHeader.Sticker element={...}>, Web A's `telesignal-logo.svg`
 .logo {
   width: 100%;
   height: 100%;
-  fill: var(--primary-color);
 }
 
 .logoContainer {
@@ -248,8 +245,8 @@ $corner-button-size: 2.5rem;
   width: var(--marker-size);
   height: var(--marker-size);
   border-radius: 50%;
-  background-color: var(--light-primary-color);
-  color: var(--primary-color);
+  background-color: var(--primary-color);
+  color: #fff;
   font-weight: var(--font-weight-bold);
   font-size: var(--font-size-14);
 }
@@ -266,7 +263,6 @@ $corner-button-size: 2.5rem;
   // the block adds its own .5rem gap below this slot
   margin-block: 1rem 1rem;
   padding: 1rem;
-  background-color: var(--light-filled-primary-color);
   border-radius: $border-radius-medium;
 }
 

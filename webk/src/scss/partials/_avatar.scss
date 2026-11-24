@@ -1,3 +1,5 @@
+@use "../shared" as *;
+
 .avatar-like {
   --size: 54px;
   --multiplier: 1;
@@ -54,6 +56,13 @@
   &[data-color="archive"] {
     --color-top: var(--peer-avatar-archive-top);
     --color-bottom: var(--peer-avatar-archive-bottom);
+  }
+
+  @each $name, $color in $signal-avatar-colors {
+    &[data-color="#{$name}"] {
+      --color-top: var(--peer-avatar-#{$name}-top);
+      --color-bottom: var(--peer-avatar-#{$name}-bottom);
+    }
   }
 
   &[data-color="premium"] {

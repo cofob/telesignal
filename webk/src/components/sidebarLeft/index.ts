@@ -61,12 +61,10 @@ import Icon from '@components/icon';
 import AppSelectPeers from '@components/appSelectPeers';
 import setBadgeContent, {setBadgeCount} from '@helpers/setBadgeContent';
 import createBadge from '@helpers/createBadge';
-import {MyDocument} from '@appManagers/appDocsManager';
-import getAttachMenuBotIcon from '@appManagers/utils/attachMenuBots/getAttachMenuBotIcon';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import wrapUrl from '@lib/richTextProcessor/wrapUrl';
 import flatten from '@helpers/array/flatten';
-import {AttachMenuBot, EmojiStatus, User} from '@layer';
+import {EmojiStatus, User} from '@layer';
 import {Middleware, MiddlewareHelper} from '@helpers/middleware';
 import wrapEmojiStatus from '@components/wrappers/emojiStatus';
 import {makeMediaSize} from '@helpers/mediaSize';
@@ -840,32 +838,7 @@ export class AppSidebarLeft extends SidebarSlider {
       positionPadding,
       onOpenBefore: async() => {
         const managers = bindManagersToSession(this.managers);
-        const emptyAttachMenuBots: AttachMenuBot[] = [];
-        const attachMenuBots = await Promise.race([
-          pause(30).then(() => emptyAttachMenuBots),
-          managers.appAttachMenuBotsManager.getAttachMenuBots().catch(() => emptyAttachMenuBots)
-        ]);
         const buttons = filteredButtonsSliced.slice();
-        const attachMenuBotsButtons = attachMenuBots.filter((attachMenuBot) => {
-          return attachMenuBot.pFlags.show_in_side_menu;
-        }).map((attachMenuBot) => {
-          const icon = getAttachMenuBotIcon(attachMenuBot);
-          const button: typeof buttons[0] = {
-            regularText: wrapEmojiText(attachMenuBot.short_name),
-            onClick: () => {
-              appImManager.openWebApp({
-                attachMenuBot,
-                botId: attachMenuBot.bot_id,
-                isSimpleWebView: true,
-                fromSideMenu: true
-              });
-            },
-            iconDoc: icon?.icon as MyDocument,
-            new: attachMenuBot.pFlags.side_menu_disclaimer_needed || attachMenuBot.pFlags.inactive
-          };
-
-          return button;
-        });
 
         function wrapUserName(user: User.user | PeerId) {
           if(!isObject(user)) {
@@ -880,8 +853,6 @@ export class AppSidebarLeft extends SidebarSlider {
         }
 
         const targetIdx = buttons.findIndex((btn) => btn.id === 'settings');
-        buttons[targetIdx].separator = !!attachMenuBotsButtons.length;
-        buttons.splice(targetIdx, 0, ...attachMenuBotsButtons);
         buttons[targetIdx].separator = true;
 
         const [accountNumbers, notificationsCount] = await Promise.all([
@@ -1533,7 +1504,6 @@ export class AppSidebarLeft extends SidebarSlider {
     const updateSearchQuery = ({search: value, chatType}: UpdateSearchQueryArgs) => {
       const globalOnlyTabs: SearchSuperMediaType[] = [
         'channels',
-        'apps',
         'posts'
       ];
       const hideGlobalOnlyTabs = !!selectedCommunityId || selectedArchive;

@@ -23,15 +23,15 @@ $menu-search-translateY: -#{$menu-height};
 	flex: 1 1 auto;
   position: absolute;
   inset-inline-end: 0;
-  // * over the input, which a bot keyboard under it lifts (`--chat-input-keyboard-height`, Chat)
-  bottom: calc(var(--chat-input-height) + .5rem + var(--chat-input-keyboard-height, 0px));
+  // * over the input
+  bottom: calc(var(--chat-input-height) + .5rem);
   max-width: calc(100% - 1rem);
   max-height: 26.25rem;
 
-  // * the composer's, over the input: no higher than the room left under the topbar, which a bot keyboard lifting the
-  // * input takes (a picker of its own, `is-standalone`, is placed by its own height)
+  // * the composer's, over the input: no higher than the room left under the topbar (a picker of its own,
+  // * `is-standalone`, is placed by its own height)
   .chat-input & {
-    max-height: min(26.25rem, calc(var(--100vh-inset) - var(--chat-topbar-height, 3rem) - var(--chat-input-height) - 1rem - var(--chat-input-keyboard-height, 0px)));
+    max-height: min(26.25rem, calc(var(--100vh-inset) - var(--chat-topbar-height, 3rem) - var(--chat-input-height) - 1rem));
   }
   box-shadow: 0px 5px 10px 5px rgba(16, 35, 47, .14);
   z-index: 4;

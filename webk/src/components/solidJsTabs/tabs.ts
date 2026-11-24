@@ -1,5 +1,5 @@
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
-import {AccountPasskeys, AccountPassword, ChannelParticipant, Chat, ChatAdminRights, ChatParticipant, ConnectedBot, DialogFilter, ExportedChatlistInvite, GlobalPrivacySettings, MediaArea, Passkey} from '@layer';
+import {AccountPassword, ChannelParticipant, ChatAdminRights, ChatParticipant, ConnectedBot, DialogFilter, ExportedChatlistInvite, GlobalPrivacySettings, MediaArea, Passkey} from '@layer';
 import type SidebarSlider from '@components/slider';
 import type {SliderSuperTab} from '@components/slider';
 import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId';
@@ -10,12 +10,6 @@ import {SetStoreFunction} from 'solid-js/store';
 import {scaffoldSolidJSTab, scaffoldSolidJSTabEventable} from '@components/solidJsTabs/scaffoldSolidJSTab';
 import rootScope from '@lib/rootScope';
 import {appSettings} from '@stores/appSettings';
-import type {BusinessHoursTabPayload} from '@components/sidebarLeft/tabs/businessHours';
-import type {BusinessLocationTabPayload} from '@components/sidebarLeft/tabs/businessLocation';
-import type {BusinessChatLinksTabPayload} from '@components/sidebarLeft/tabs/businessChatLinks';
-import type {BusinessIntroTabPayload} from '@components/sidebarLeft/tabs/businessIntro';
-import type {TimezoneTabPayload} from '@components/sidebarLeft/tabs/timezone';
-import type {BusinessPeriod} from '@components/sidebarLeft/tabs/businessHoursShared';
 import type {StoriesSearch} from '@components/stories/store';
 import lottieLoader, {type PreloadedLottieAsset} from '@lib/lottie/lottieLoader';
 import {deleteFolder as deleteEditFolder, getEditFolderInitArgs} from '@components/sidebarLeft/tabs/editFolderShared';
@@ -51,152 +45,6 @@ export const AppEditProfileTab =
     getComponentModule: () => import('../sidebarLeft/tabs/editProfile')
   });
 (AppEditProfileTab as any).noSame = true;
-
-
-export function getBusinessHoursInitArgs(): BusinessHoursTabPayload {
-  return {
-    animationData: lottieLoader.loadAnimationFromURLManually('BusinessHours'),
-    userFull: rootScope.managers.appProfileManager.getProfile(rootScope.myId.toUserId()),
-    timezones: rootScope.managers.apiManager.getTimezonesList().then((list) => (
-      list._ === 'help.timezonesList' ? list.timezones : []
-    ))
-  };
-}
-
-export const AppBusinessHoursTab = Object.assign(
-  scaffoldSolidJSTab<BusinessHoursTabPayload>({
-    title: 'BusinessHours',
-    getComponentModule: () => import('../sidebarLeft/tabs/businessHours')
-  }),
-  {getInitArgs: getBusinessHoursInitArgs}
-);
-(AppBusinessHoursTab as any).noSame = true;
-
-
-type AppBusinessHoursDayTabPayload = {
-  /** Already-formatted weekday name — the header text, not a lang key. */
-  dayName: string,
-  periods: BusinessPeriod[],
-  /** Earliest minute this day may open at, given how far the previous day runs. */
-  min: number,
-  /** Latest minute this day may close at, given when the next day opens. */
-  max: number,
-  maxPeriodsCount: number,
-  /** Called once, with the day as saved; an unsaved tab reports nothing. */
-  onSave: (periods: BusinessPeriod[]) => void
-};
-
-export const AppBusinessHoursDayTab =
-  scaffoldSolidJSTab<AppBusinessHoursDayTabPayload>({
-    title: 'BusinessHours',
-    getComponentModule: () => import('../sidebarLeft/tabs/businessHoursDay')
-  });
-(AppBusinessHoursDayTab as any).noSame = true;
-
-
-export const AppTimezoneTab =
-  scaffoldSolidJSTab<TimezoneTabPayload>({
-    title: 'TimezoneTitle',
-    getComponentModule: () => import('../sidebarLeft/tabs/timezone')
-  });
-(AppTimezoneTab as any).noSame = true;
-
-
-export function getBusinessLocationInitArgs(): BusinessLocationTabPayload {
-  return {
-    animationData: lottieLoader.loadAnimationFromURLManually('BusinessLocation'),
-    userFull: rootScope.managers.appProfileManager.getProfile(rootScope.myId.toUserId())
-  };
-}
-
-export const AppBusinessLocationTab = Object.assign(
-  scaffoldSolidJSTab<BusinessLocationTabPayload>({
-    title: 'BusinessLocation',
-    getComponentModule: () => import('../sidebarLeft/tabs/businessLocation')
-  }),
-  {getInitArgs: getBusinessLocationInitArgs}
-);
-(AppBusinessLocationTab as any).noSame = true;
-
-
-export function getBusinessChatLinksInitArgs(): BusinessChatLinksTabPayload {
-  return {
-    animationData: lottieLoader.loadAnimationFromURLManually('BusinessLinks'),
-    links: rootScope.managers.appBusinessManager.getBusinessChatLinks()
-  };
-}
-
-export const AppBusinessChatLinksTab = Object.assign(
-  scaffoldSolidJSTab<BusinessChatLinksTabPayload>({
-    title: 'PremiumBusinessChatLinks',
-    getComponentModule: () => import('../sidebarLeft/tabs/businessChatLinks')
-  }),
-  {getInitArgs: getBusinessChatLinksInitArgs}
-);
-(AppBusinessChatLinksTab as any).noSame = true;
-
-
-export function getBusinessIntroInitArgs(): BusinessIntroTabPayload {
-  return {
-    userFull: rootScope.managers.appProfileManager.getProfile(rootScope.myId.toUserId())
-  };
-}
-
-export const AppBusinessIntroTab = Object.assign(
-  scaffoldSolidJSTab<BusinessIntroTabPayload>({
-    title: 'PremiumBusinessIntro',
-    getComponentModule: () => import('../sidebarLeft/tabs/businessIntro')
-  }),
-  {getInitArgs: getBusinessIntroInitArgs}
-);
-(AppBusinessIntroTab as any).noSame = true;
-
-type BusinessEditorTab =
-  | typeof AppBusinessHoursTab
-  | typeof AppBusinessLocationTab
-  | typeof AppBusinessChatLinksTab
-  | typeof AppBusinessIntroTab;
-
-/** The Business promo feature a free account is shown instead of each editor. */
-function getBusinessEditorFeature(Tab: BusinessEditorTab): PremiumPromoFeatureType {
-  if(Tab === AppBusinessHoursTab) return 'business_hours';
-  if(Tab === AppBusinessLocationTab) return 'business_location';
-  if(Tab === AppBusinessChatLinksTab) return 'business_links';
-  return 'business_intro';
-}
-
-/**
- * Opens one of the Business editors. They save through `account.*Business*`, which a free
- * account is refused, so one gets the Business promo instead of a form that could only fail
- * on save — the way Android gates them.
- */
-export async function openBusinessEditorTab(
-  slider: SidebarSlider,
-  Tab: BusinessEditorTab
-) {
-  if(!rootScope.premium) {
-    const {showBusinessPopup} = await import('@components/popups/premium');
-    showBusinessPopup({feature: getBusinessEditorFeature(Tab)});
-    return;
-  }
-
-  // * the editors differ in their payload alone, which each one's own `getInitArgs` makes
-  const tab = slider.createTab(Tab as typeof AppBusinessHoursTab);
-  await tab.open(Tab.getInitArgs() as BusinessHoursTabPayload);
-  return tab;
-}
-
-
-type AppChatAutomationTabPayload = {
-  connectedBot?: ConnectedBot.connectedBot
-};
-
-export const AppChatAutomationTab =
-  scaffoldSolidJSTab<AppChatAutomationTabPayload>({
-    title: 'ChatAutomation.Title',
-    getComponentModule: () => import('../sidebarLeft/tabs/chatAutomation')
-  });
-(AppChatAutomationTab as any).noSame = true;
 
 
 export const AppKeyboardShortcutsTab =
@@ -592,12 +440,6 @@ export const AppChatAdministratorsTab =
   scaffoldSolidJSTabEventable<AppChatAdministratorsTabPayload>({
     title: 'PeerInfo.Administrators',
     getComponentModule: () => import('../sidebarRight/tabs/chatAdministrators')
-  });
-
-export const AppEditBotTab =
-  scaffoldSolidJSTab<PeerId>({
-    title: 'EditBot.Title',
-    getComponentModule: () => import('../sidebarRight/tabs/editBot')
   });
 
 export const AppEditContactTab =

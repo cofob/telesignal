@@ -106,11 +106,6 @@ const createFeatures = async(
  * web keeps its slide.
  */
 const BUSINESS_EDITORS: {[type in PremiumPromoFeatureType]?: string} = {
-  business_hours: 'AppBusinessHoursTab',
-  business_location: 'AppBusinessLocationTab',
-  business_links: 'AppBusinessChatLinksTab',
-  business_intro: 'AppBusinessIntroTab',
-  business_bots: 'AppChatAutomationTab',
   folder_tags: 'AppChatFoldersTab'
 };
 

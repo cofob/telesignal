@@ -66,9 +66,7 @@ port.addMultipleEventsListeners({
   environment: (environment) => {
     setEnvironment(environment);
 
-    // Probes the base DC every 10 s until a WebSocket opens. A sandbox runs on fixtures with no
-    // session (this worker's URL carries the page's `?popups=1` / `?widgets=1`): nothing there may
-    // reach Telegram, and nothing needs a transport.
+    // Probes the base DC every 10 s until a WebSocket opens
     if(import.meta.env.VITE_MTPROTO_AUTO && Modes.multipleTransports) {
       transportController.waitForWebSocket();
     }

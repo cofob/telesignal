@@ -28,7 +28,6 @@
 @use "partials/chatInlineHelper";
 @use "partials/chatSearch";
 @use "partials/chatDrop";
-@use "partials/chatBotCommands";
 @use "partials/voiceRecordingPanel";
 @use "partials/videoRecordingPanel";
 @use "partials/sidebar";
@@ -53,7 +52,6 @@
 @use "partials/transition";
 @use "partials/row";
 @use "partials/colorPicker";
-@use "partials/replyKeyboard";
 @use "partials/spoiler";
 @use "partials/emojiAnimation";
 @use "partials/reactions";
@@ -105,11 +103,8 @@
 @use "partials/popups/paymentMethods";
 @use "partials/popups/limit";
 @use "partials/popups/giftPremium";
-@use "partials/popups/webApp";
 @use "partials/popups/chatlistInvite";
-@use "partials/popups/boostsViaGifts";
 @use "partials/popups/premium";
-@use "partials/popups/boost";
 @use "partials/popups/giftLink";
 @use "partials/popups/toggleReadDate";
 @use "partials/popups/confirmation";

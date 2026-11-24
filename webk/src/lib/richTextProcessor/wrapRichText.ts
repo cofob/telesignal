@@ -513,7 +513,6 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
         break;
       }
 
-
       case 'messageEntityBotCommand': {
         // if(!(options.noLinks || options.noCommands || contextExternal)/*  && !entity.unsafe */) {
         // * a press sends the command in the user's name: never one that is not the text it shows

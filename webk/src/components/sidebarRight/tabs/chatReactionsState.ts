@@ -212,15 +212,6 @@ export function setChannelLimit(draft: ChannelReactionsDraft, limit: number): Ch
   return draft.limit === limit ? draft : {...draft, limit};
 }
 
-export function countCustomReactions(reactions: Reaction[]) {
-  return reactions.reduce((count, reaction) => count + +(reaction._ === 'reactionCustomEmoji'), 0);
-}
-
-/** The level a channel needs for the draft: one per custom emoji, while reactions are on */
-export function getRequiredBoostLevel(draft: ChannelReactionsDraft) {
-  return draft.enabled ? countCustomReactions(draft.reactions) : 0;
-}
-
 function isExactlyCatalog(reactions: Reaction[], activeEmoticons: string[]) {
   if(reactions.length !== activeEmoticons.length) {
     return false;

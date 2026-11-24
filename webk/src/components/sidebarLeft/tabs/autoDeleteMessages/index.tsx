@@ -97,7 +97,7 @@ const AutoDeleteMessages = () => {
 
 
       <Space amount='1rem' />
-      <SettingsTabLottieAnimation name="UtyanDisappear" />
+      <SettingsTabLottieAnimation name="Flame" />
       <Space amount='2rem' />
 
       <Section name='AutoDeleteMessages.SectionTitle' caption={i18n('GlobalAutoDeleteInfo', [applyToExistingLink])}>

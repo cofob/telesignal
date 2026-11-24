@@ -2438,15 +2438,6 @@ export class AppCommunitiesManager extends AppManager {
     return [...candidates.values()];
   }
 
-  public async getBotsToAdd() {
-    const users = await this.appBotsManager.getAdminedBots();
-    return users.filter((user) => {
-      return user._ === 'user' &&
-        !!user.pFlags.bot &&
-        !user.linked_community_id;
-    });
-  }
-
   public async getPeersLimit(isBot = false) {
     const appConfig = await this.apiManager.getAppConfig();
     return (isBot ?

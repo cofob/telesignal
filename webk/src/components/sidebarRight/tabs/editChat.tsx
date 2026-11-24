@@ -21,7 +21,6 @@ import CheckboxFieldTsx from '@components/checkboxFieldTsx';
 import {InputFieldTsx} from '@components/inputFieldTsx';
 import Badge from '@components/badge';
 import {IconTsx} from '@components/iconTsx';
-import openBoosts from '@components/openBoosts';
 import {handleChannelsTooMuch} from '@components/popups/channelsTooMuch';
 import Row from '@components/rowTsx';
 import Section from '@components/section';
@@ -30,10 +29,7 @@ import {usePromiseCollector} from '@components/solidJsTabs/promiseCollector';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import wrapMessageForReply from '@components/wrappers/messageForReply';
-import anchorCallback from '@helpers/dom/anchorCallback';
-import numberThousandSplitter, {
-  numberThousandSplitterForStars
-} from '@helpers/number/numberThousandSplitter';
+import numberThousandSplitter from '@helpers/number/numberThousandSplitter';
 import {subscribeOn} from '@helpers/solid/subscribeOn';
 import {Chat, ChatFull, ChatParticipants} from '@layer';
 import type {LangPackKey} from '@lib/langPack';
@@ -131,11 +127,9 @@ function EditChatForm(props: {
     CommunityLinkSection,
     I18n,
     PeerTitleTsx,
-    apiManagerProxy,
     appDialogsManager,
     appImManager,
     confirmationPopup,
-    hideToast,
     i18n,
     join,
     toastNew,
@@ -439,21 +433,7 @@ function EditChatForm(props: {
   const showAutotranslationLevelToast = () => {
     toastNew({
       langPackKey: 'ChannelAutotranslationLevelMin',
-      langPackArguments: [
-        props.data.appConfig.channel_autotranslation_level_min,
-        anchorCallback(() => {
-          hideToast();
-          openBoosts({
-            peerId: peerId(),
-            slider: tab.slider,
-            reason: {
-              titleLangKey: 'ChannelAutotranslation.BoostTitle',
-              descriptionLangKey: 'ChannelAutotranslation.BoostDescription',
-              descriptionArgs: [props.data.appConfig.channel_autotranslation_level_min]
-            }
-          });
-        })
-      ]
+      langPackArguments: [props.data.appConfig.channel_autotranslation_level_min]
     });
   };
   const canToggleAutotranslation = () => {
@@ -694,7 +674,6 @@ function EditChatForm(props: {
               <Row.Subtitle>{reactionsSubtitle()}</Row.Subtitle>
             </Row>
           </Show>
-
 
           <Show when={canChangePermissions() && !isBroadcast() && !isBroadcastGroup()}>
             <Row clickable={() => {

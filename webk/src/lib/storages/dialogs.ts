@@ -1853,9 +1853,6 @@ export default class DialogsStorage extends AppManager {
     } else if(!slice.length || !slice.isEnd(SliceEnd.Bottom)) {  // * second condition will probably never happen, however, if it does, then it will fix slice with top_message
       historyStorage.history.unshift(mid);
       historyStorage.count ||= historyStorage.history.length;
-      if(this.appMessagesManager.mergeReplyKeyboard(historyStorage, message)) {
-        this.rootScope.dispatchEvent('history_reply_markup', {peerId});
-      }
 
       if(historyStorage.originalInsertSlice) {
         this.appMessagesManager.insertChannelJoinedService(peerId, historyStorage, historyStorage.history.slice);

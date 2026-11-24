@@ -205,8 +205,6 @@ export class AppProfileManager extends AppManager {
         botInfo.description_photo = this.appPhotosManager.savePhoto(botInfo.description_photo, referenceContext);
       }
 
-      userFull.business_intro = this.appBusinessManager.saveBusinessIntro(peerId.toUserId(), userFull.business_intro);
-
       if(userFull.personal_channel_message) {
         userFull.personal_channel_message = this.appMessagesIdsManager.generateMessageId(
           userFull.personal_channel_message,
@@ -1437,20 +1435,6 @@ export class AppProfileManager extends AppManager {
         const user = this.appUsersManager.getUser(userId);
         return premiumGiftCodeOptions.some((p) => p.users === 1) && !user?.pFlags?.premium;
       }
-    );
-  }
-
-  public canViewStatistics(peerId: PeerId) {
-    if(peerId.isUser()) return false;
-
-    const chatId = peerId.toChatId();
-    const chatFull = this.getCachedFullChat(chatId);
-    if(!chatFull) return false;
-
-    return !!(
-      (chatFull as ChatFull.channelFull).stats_dc &&
-      (chatFull as ChatFull.channelFull).pFlags.can_view_stats
-      /*  && this.appChatsManager.hasRights(chatId, 'view_statistics') */
     );
   }
 
