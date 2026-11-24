@@ -2771,6 +2771,12 @@ export interface LangPairWithVariables<V = LangVariable> {
   'RankEditText': {
     'user': V;
   };
+  'ForwardMessagesLimit': {
+    'count': V;
+  };
+  'ForwardChatsLimit': {
+    'count': V;
+  };
   'UnofficialSecurityRisk': {
     'peer': V;
   };
@@ -3521,7 +3527,9 @@ export interface LangKeyGroups {
       | 'LimitReachedFavoriteStickers'
       | 'MessageTimerShortHours'
       | 'MessageTimerShortDays'
-      | 'MediaViewDownloading';
+      | 'MediaViewDownloading'
+      | 'ForwardMessagesLimit'
+      | 'ForwardChatsLimit';
     variables: 'count';
   };
   'bot': {

@@ -468,6 +468,11 @@ async function handleUnauthorized() {
   await handleDeauthorized(account);
 }
 
+/** Why the server stopped accepting this device, while the link screen has not told it yet */
+export function getPendingDeauthorization() {
+  return pendingDeauthorization;
+}
+
 /**
  * The server no longer accepts this device: the phone unlinked it, another device removed it, or the number was
  * registered elsewhere. The account, keys, messages and attachments go at once, and the app logs out like the user's

@@ -371,6 +371,10 @@
 "Signal.ViewOnce.Open" = "View";
 "Signal.ViewOnce.Photo" = "View-once photo";
 "Signal.ViewOnce.Video" = "View-once video";
+"ForwardMessagesLimit" = "You can only forward up to %s messages";
+"ForwardChatsLimit" = "You can only forward to up to %s chats";
+"SignalDeviceUnlinked" = "This device was unlinked from your Signal account. Its data was removed.";
+"SignalDeviceDeregistered" = "Your number was registered on another device. This device's data was removed.";
 "Signal.Notice.SafetyNumberChanged" = "Your safety number with %1$@ has changed";
 "Signal.Notice.SafetyNumberVerified" = "You marked your safety number with %1$@ as verified";
 "Signal.Notice.SafetyNumberUnverified" = "You marked your safety number with %1$@ as unverified";

@@ -1949,6 +1949,8 @@
 "RankEditTextOwn" = "Use a member label to describe yourself or your role in this group. Member labels are only visible within this group.";
 "RankEditText" = "Add a short label next to {user}'s name.";
 "MenuAddCaption" = "Add Caption";
+"ForwardMessagesLimit" = "You can only forward up to {count} messages";
+"ForwardChatsLimit" = "You can only forward to up to {count} chats";
 "FwdMessagesToChats_one" = "Message forwarded to {count} chat";
 "FwdMessagesToChats_other" = "Message forwarded to {count} chats";
 "FwdMessagesToNoteToSelf_one" = "Message forwarded to **Note to Self**";

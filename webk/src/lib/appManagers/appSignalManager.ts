@@ -286,10 +286,16 @@ export default class AppSignalManager extends AppManager {
       ...buildSharedMediaHandlers(host),
       ...buildPollHandlers(host),
       ...buildCallLogHandlers(host),
-      ...buildMentionHandlers(host, ({messages, users}) => {
-        const builtUsers = users.map(buildUser);
-        this.appUsersManager.saveApiUsers(builtUsers);
-        return {messages: messages.map(this.buildMessage), users: builtUsers};
+      ...buildMentionHandlers(host, {
+        buildMessages: ({messages, users}) => {
+          const builtUsers = users.map(buildUser);
+          this.appUsersManager.saveApiUsers(builtUsers);
+          return {messages: messages.map(this.buildMessage), users: builtUsers};
+        },
+        getIsReadHere: (peerId, mid) => {
+          const message = this.appMessagesManager.getMessageByPeer(peerId, mid);
+          return !!message && !message.pFlags.media_unread;
+        }
       }),
       ...buildAccountMethodHandlers(host),
       ...buildMediaMethodHandlers(host),
@@ -862,6 +868,10 @@ export default class AppSignalManager extends AppManager {
       case 'updateConnectionState':
         this.onConnectionState(update.connectionState);
         break;
+      case 'updateDeviceDeauthorized':
+        // * the link screen of a start that follows the removal in this worker tells why
+        this.rootScope.dispatchEvent('signal_deauthorized', update.reason);
+        break;
       case 'updateServerTimeOffset':
         // * the managers compare server dates (story expiry) by the clock of Signal's servers, as Web A's `getServerTime`
         this.timeManager.timeOffset = update.serverTimeOffset;
@@ -973,6 +983,11 @@ export default class AppSignalManager extends AppManager {
       backupRestore: update.backupRestore
     };
     this.rootScope.dispatchEvent('signal_auth_state', this.authState);
+    // * a slot at a sign-in step holds no account
+    if(update.authorizationState !== 'authorizationStateReady') {
+      this.isAuthorized = false;
+      this.authorizedUserId = undefined;
+    }
 
     if(update.authorizationState === 'authorizationStateWaitQrCode' && update.qrCode) {
       this.linkCode = {url: update.qrCode.token, expires: update.qrCode.expires};
@@ -984,6 +999,11 @@ export default class AppSignalManager extends AppManager {
 
   /** The chat connection of the engine, which Web K shows as the connection of its main data center */
   private onConnectionState(state: string) {
+    // * the engine breaks the connection only once the server stopped accepting this device (`handleDeauthorized`)
+    if(state === 'connectionStateBroken' && this.isAuthorized) {
+      this.onDeauthorized();
+    }
+
     const status = state === 'connectionStateReady' ? ConnectionStatus.Connected : (
       state === 'connectionStateBroken' ? ConnectionStatus.Closed : ConnectionStatus.Connecting
     );
@@ -996,6 +1016,18 @@ export default class AppSignalManager extends AppManager {
       isFileDownload: false,
       isFileUpload: false
     });
+  }
+
+  /**
+   * The server stopped accepting this device and the engine removed the account: the slot logs out, as Web A's
+   * `signOut` on `connectionStateBroken` does, and the link screen tells why
+   */
+  private async onDeauthorized() {
+    this.isAuthorized = false;
+    this.authorizedUserId = undefined;
+    const reason = await this.call('fetchDeauthorizationReason').catch(noop);
+    if(reason) this.rootScope.dispatchEvent('signal_deauthorized', reason);
+    await this.apiManager.logOut();
   }
 
   /** The account is linked and its session runs: the user it shows from now on is ours */

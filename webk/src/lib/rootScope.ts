@@ -26,6 +26,7 @@ import type {NotifyException} from '@appManagers/appNotificationsManager';
 import type {StreamedMessageDraft, StreamedMessageDraftRemovalReason} from '@appManagers/utils/messages/streamedMessageDrafts';
 import type {TonConnectSession} from '@layer';
 import type {SignalLinkCode} from '@appManagers/appSignalManager';
+import type {SignalDeauthorizationReason} from '@lib/signal/deauthorization';
 import type {LangPackKey} from '@lib/langPack';
 import type {SignalAuthError, SignalAuthState} from '@lib/signal/registrationTypes';
 import type {SignalBackupSettings} from '@lib/signal/settingsApi';
@@ -39,6 +40,8 @@ export type BroadcastEvents = {
   // * TeleSignal: the link QR code of the Signal engine, and the account it linked (@appManagers/appSignalManager)
   'signal_link_code': SignalLinkCode,
   'signal_authorized': UserId,
+  // * the server stopped accepting this device, and the engine removed the account (@lib/signal/deauthorization)
+  'signal_deauthorized': SignalDeauthorizationReason,
   // * the sign-in step of the Signal engine, and a step it refused (@lib/signal/registrationTypes)
   'signal_auth_state': SignalAuthState,
   'signal_auth_error': SignalAuthError,

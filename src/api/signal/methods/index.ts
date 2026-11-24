@@ -39,7 +39,8 @@ export {
 } from './backups';
 export { clearCallLog, fetchCallLog, markCallLogSeen } from './calls';
 export {
-  destroy, disableStorageEncryption, disconnect, enableStorageEncryption, eraseUnreadableStorageRecords, reconnectNow,
+  destroy, disableStorageEncryption, disconnect, enableStorageEncryption, eraseUnreadableStorageRecords,
+  fetchDeauthorizationReason, reconnectNow,
 } from './client';
 export { fetchCountryList, fetchNearestCountry } from './countries';
 export {

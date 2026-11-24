@@ -7,6 +7,7 @@ import { type ActiveDownloads, FocusDirection } from '../../../types';
 
 import {
   ANIMATION_END_DELAY,
+  FORWARD_MESSAGES_MAX,
   SCROLL_MAX_DURATION,
 } from '../../../config';
 import { cancelScrollBlockingAnimation, isAnimatingScroll } from '../../../util/animateScroll';
@@ -733,6 +734,14 @@ addActionHandler('openForwardMenuForSelectedMessages', (global, actions, payload
   });
 
   if (!forwardableMessageIds.length) {
+    return;
+  }
+
+  if (forwardableMessageIds.length > FORWARD_MESSAGES_MAX) {
+    actions.showNotification({
+      message: { key: 'ForwardMessagesLimit', variables: { count: FORWARD_MESSAGES_MAX } },
+      tabId,
+    });
     return;
   }
 
