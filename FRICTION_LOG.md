@@ -172,14 +172,17 @@ closed may stay hidden the same way.
 
 ## Telegram-only features remain in Web K's code behind hidden entry points
 
-The TON wallet, the interactive widgets and the empty-column tips are removed, but most Telegram-only features are
-only unreachable: Stars, gifts and Premium screens (`src/components/stars`, `stargifts`, `premium`, `popups/premium*`),
-bots, Mini Apps and inline bots (`appAttachMenuBotsManager`, `inlineHelper.ts`, `popups/createBot`, `editBot.tsx`),
-payments, sponsored messages, channels, forums, boosts and statistics (`openBoosts.ts`, `sidebarRight/tabs/boosts.tsx`,
-`statistics.tsx`). Each is referenced from shared files that other work edits (`bubbles.ts`, `appMessagesManager.ts`,
-`topbar.ts`, the stories viewer, `internalLinkProcessor.ts`), so deleting one is a cascade through them. About 160
-`.invalid` links of these features remain in `src` (21 in `lang.ts`); the strings that Signal chats can show point to
-Signal on the phone instead. The community section code in the group editor never renders for Signal groups.
+The TON wallet, the interactive widgets, the empty-column tips, the popup sandbox, channel creation, the channel
+direct-messages settings, bot creation and the sponsored message explainer are removed. The rest of the Telegram-only
+features are only unreachable, and form one cluster: Stars, gifts, Premium, payments and boosts
+(`src/components/stars`, `stargifts`, `premium`, `popups/payment*`, `popups/star*`, `popups/*gift*`, `popups/boost*`,
+`popups/premium.tsx`, `popups/limit.ts`) are about 130 files that 44 files outside them import, among them
+`bubbles.ts`, `input.ts`, `reaction.ts`, `appImManager.ts`, `hotReloadGuard.ts`, `internalLinkProcessor.ts` and the
+stories viewer, which imports `openBoosts.ts` and `sidebarRight/tabs/statistics.tsx`. Business (`sidebarLeft/tabs/
+business*`, `chatAutomation`, `appBusinessManager`), bots and Mini Apps (`appAttachMenuBotsManager`, `webApp.tsx`,
+`inlineHelper.ts`, `keyboardButton.ts`, `editBot.tsx`), communities and forums follow the same pattern. Deleting a
+cluster means editing every importer, several of which other work edits at the same time. About 140 `.invalid` links
+of these features remain in `src`; the strings that Signal chats can show point to Signal on the phone instead.
 
 ## Web A calls Note to Self «Your Cloud Storage»
 
