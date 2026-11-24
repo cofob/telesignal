@@ -49,11 +49,9 @@ import AppStatisticsTab from '@components/sidebarRight/tabs/statistics';
 import {ChatType} from './chatType';
 import {showRtmpStartStreamPopup} from '@components/rtmp/adminPopup';
 import showSendGiftPopup from '@components/popups/sendGift';
-import {openRemoveFeePopup} from '@components/chat/removeFee';
 import {createTopbarPlates, TopbarPlates} from '@components/chat/topbarPlates';
 import pause from '@helpers/schedulers/pause';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
-import namedPromises from '@helpers/namedPromises';
 import {createEffect, createRoot, on, untrack} from 'solid-js';
 import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {setAppSettings} from '@stores/appSettings';
@@ -65,7 +63,6 @@ import {getCachedFullPeer} from '@stores/fullPeers';
 import Icon from '@components/icon';
 import {getDefaultOptions} from '@components/sidebarLeft/tabs/autoDeleteMessages/options';
 import {createAutoDeleteIcon} from '@components/autoDeleteIcon';
-import showNoForwardsPopup from '@components/popups/noForwards';
 import showAddBotToChat from '@components/popups/addBotToChat';
 import openBoosts from '@components/openBoosts';
 import getAddBotToChatAction from '@appManagers/utils/bots/getAddBotToChatAction';
@@ -685,67 +682,6 @@ export default class ChatTopbar {
         return !!userFull?.pFlags?.blocked;
       }
     }, {
-      icon: 'sharingoff',
-      text: 'DisableSharing',
-      onClick: () => {
-        if(!rootScope.premium) {
-          hotReloadGuard.showPremiumPopup({feature: 'pm_noforwards'});
-          return;
-        }
-
-        const cb = () => this.managers.appProfileManager.toggleNoForwards(this.peerId, true);
-        if(this.chat.appSettings.seenTooltips.noForwards) {
-          cb();
-        } else {
-          showNoForwardsPopup(() => {
-            setAppSettings('seenTooltips', 'noForwards', true);
-            cb();
-          });
-        }
-      },
-      verify: async() => {
-        if(!this.peerId.isUser() || this.peerId === rootScope.myId || this.chat.isBot) return false;
-        const userFull = this.chat.fullPeer() as UserFull.userFull;
-        if(!userFull) return false;
-        return !userFull.pFlags.noforwards_my_enabled && !userFull.pFlags.noforwards_peer_enabled;
-      }
-    }, {
-      icon: 'sharingon',
-      text: 'EnableSharing',
-      onClick: async() => {
-        const userFull = this.chat.fullPeer() as UserFull.userFull;
-        const {peerId} = this;
-
-        if(userFull.pFlags.noforwards_peer_enabled) {
-          await confirmationPopup({
-            titleLangKey: 'EnableSharing',
-            descriptionLangKey: 'EnableSharingCaption',
-            descriptionLangArgs: [new PeerTitle({peerId}).element],
-            button: {
-              langKey: 'SendRequest'
-            }
-          });
-        }
-
-        this.managers.appProfileManager.toggleNoForwards(peerId, false);
-      },
-      verify: async() => {
-        if(!this.peerId.isUser() || this.peerId === rootScope.myId || this.chat.isBot) return false;
-        const userFull = this.chat.fullPeer() as UserFull.userFull;
-        if(!userFull) return false;
-        return !!(userFull?.pFlags?.noforwards_my_enabled || userFull?.pFlags?.noforwards_peer_enabled);
-      }
-    }, {
-      icon: 'dollar_circle',
-      text: 'PaidMessages.ChargeFee',
-      onClick: () => this.onToggleFeeClick(true),
-      verify: () => this.verifyToggleFee(true)
-    }, {
-      icon: 'dollar_circle_x',
-      text: 'PaidMessages.RemoveFee',
-      onClick: () => this.onToggleFeeClick(false),
-      verify: () => this.verifyToggleFee(false)
-    }, {
       icon: 'clipboard',
       text: 'CompactDiffView',
       onClick: wrapAsyncClickHandler(async() => {
@@ -850,29 +786,6 @@ export default class ChatTopbar {
 
   private onCallClick(type: CallType) {
     this.chat.appImManager.callUser(this.peerId.toUserId(), type);
-  }
-
-  private verifyToggleFee = async(requirePayment: boolean) => {
-    if(!this.chat.monoforumThreadId) return;
-
-    const {chat, dialog} = await namedPromises({
-      chat: this.chat.peer,
-      dialog: this.managers.monoforumDialogsStorage.getDialogByParent(this.peerId, this.chat.monoforumThreadId)
-    });
-
-    if(chat?._ !== 'channel' || !chat?.send_paid_messages_stars) return false;
-
-    return requirePayment ? !!dialog?.pFlags?.nopaid_messages_exception : !dialog?.pFlags?.nopaid_messages_exception;
-  };
-
-  private onToggleFeeClick = async(requirePayment: boolean) => {
-    const peerId = this.chat.monoforumThreadId;
-    const parentPeerId = this.chat.peerId;
-    if(!peerId || !parentPeerId) return;
-
-    try {
-      await openRemoveFeePopup({peerId, parentPeerId, requirePayment, managers: this.managers})
-    } catch{}
   }
 
   private onJoinGroupCallClick = () => {
