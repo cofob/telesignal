@@ -213,7 +213,6 @@ function getRequesterAcis({ groupState }: ConversationRecord) {
   return groupState?.requestingMembers.map(({ aci }) => aci).join() ?? '';
 }
 
-/** Tells the app when a mute ends, so the chat list stops showing it as muted */
 /**
  * Unpins the pins of a conversation as they expire, while the app runs (Signal Desktop
  * `ts/services/expiring/pinnedMessagesCleanupService.preload.ts`); later reads leave expired pins out
@@ -241,6 +240,7 @@ function schedulePinExpiry(conversation: ConversationRecord) {
   }, delay));
 }
 
+/** Tells the app when a mute ends, so the chat list stops showing it as muted */
 function scheduleUnmute(conversation: ConversationRecord) {
   const chatId = getPeerId(conversation);
   clearTimeout(unmuteTimers.get(chatId));

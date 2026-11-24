@@ -155,10 +155,11 @@ const EMPTY_SEARCH_RESULT: SearchMessagesResult = { messages: [], totalCount: 0,
 
 /**
  * Messages of a chat of the search type whose text contains `query`, newest first, around `offsetId`, and only those
- * of `fromPeer` when it is set. The page holds the matches older than `offsetId` and, for a negative `addOffset`, that
- * many matches from `offsetId` on, as the media viewer asks for the items around the open one. The shared media types
+ * of `fromPeer` when it is set. As in Telegram's search, the page is the window of `limit` matches that starts
+ * `addOffset` matches from `offsetId`: a negative `addOffset` reaches past it to newer matches, the match at `offsetId`
+ * itself being the last of them, as the media viewer asks for the items around the open one. The shared media types
  * (`SHARED_MEDIA_SEARCH_TYPES`) and a sender search take an empty query. Signal keeps no search index, so the stored
- * messages are read.
+ * messages are read; a search that a newer one of the same chat and type replaced resolves to `undefined`.
  */
 export async function searchMessagesInChat({
   peer, type, query = '', limit, offsetId, addOffset = 0, fromPeer,
@@ -173,7 +174,7 @@ export async function searchMessagesInChat({
   fromPeer?: ApiPeer;
   minDate?: number;
   maxDate?: number;
-}): Promise<SearchMessagesResult> {
+}): Promise<SearchMessagesResult | undefined> {
   if (!getIsSearchSupported(type, query, Boolean(fromPeer))) return EMPTY_SEARCH_RESULT;
 
   const conversation = await getConversationByPeerId(peer.id);
@@ -182,16 +183,29 @@ export async function searchMessagesInChat({
   if (!conversation || (fromPeer && !senderConversation)) return EMPTY_SEARCH_RESULT;
 
   const filter: SearchFilter = { type, needle: query.toLowerCase(), senderAci: senderConversation?.id };
-  const newerCount = offsetId ? Math.max(-addOffset, 0) : 0;
-  const newer = newerCount ? await scanNewerMatches(conversation, filter, offsetId!, newerCount) : [];
-  const older: SearchScan = limit > newerCount
+  const generation = startSearch(conversation.id, type);
+  // The window's positions run from `addOffset` on: below -1 the matches newer than `offsetId`, -1 the match at
+  // `offsetId`, and from 0 the older ones
+  const start = offsetId ? Math.min(addOffset, 0) : 0;
+  const end = start + limit;
+  const newerCount = Math.min(-start - 1, limit);
+  const newer = newerCount > 0
+    ? await scanNewerMatches(conversation, filter, offsetId! + 1, newerCount, generation)
+    : [];
+  if (!newer) return undefined;
+  const offsetRecord = start <= -1 && end > -1 ? await db.getMessage(offsetId!) : undefined;
+  const offsetMatch = offsetRecord?.conversationId === conversation.id && getIsFilterMatch(offsetRecord, filter)
+    ? [offsetRecord]
+    : [];
+  const older = end > 0
     ? await scanMessages({
-      scope: conversation.id, conversations: [conversation], filter, limit: limit - newerCount, offsetId,
+      scope: conversation.id, conversations: [conversation], filter, limit: end, offsetId, generation,
     })
     : { matches: [], matchCount: 0 };
+  if (!older) return undefined;
   return buildSearchResult({
-    matches: [...newer.map((record) => ({ record, conversation })), ...older.matches],
-    matchCount: older.matchCount + newer.length,
+    matches: [...newer, ...offsetMatch].map((record) => ({ record, conversation })).concat(older.matches),
+    matchCount: older.matchCount + newer.length + offsetMatch.length,
     cursor: older.cursor,
   });
 }
@@ -213,16 +227,22 @@ export async function searchMessagesGlobal({
   context?: ApiMessageSearchContext;
   minDate?: number;
   maxDate?: number;
-}): Promise<SearchMessagesResult> {
+}): Promise<SearchMessagesResult | undefined> {
   const selfAci = getCurrentAccount()?.aci;
   if (!selfAci || !getIsSearchSupported(type, query)) return EMPTY_SEARCH_RESULT;
 
   const conversations = (await db.getConversations()).filter((conversation) => (
     getIsChatListed(conversation, selfAci)
   ));
-  return buildSearchResult(await scanMessages({
-    scope: GLOBAL_SEARCH_SCOPE, conversations, filter: { type, needle: query.toLowerCase() }, limit, offsetId,
-  }));
+  const scan = await scanMessages({
+    scope: GLOBAL_SEARCH_SCOPE,
+    conversations,
+    filter: { type, needle: query.toLowerCase() },
+    limit,
+    offsetId,
+    generation: startSearch(GLOBAL_SEARCH_SCOPE, type),
+  });
+  return scan && buildSearchResult(scan);
 }
 
 const MIN_SEARCH_QUERY_LENGTH = 2;
@@ -241,6 +261,11 @@ const SEARCH_CHUNK_SIZE = 1000;
 /** Records read from a chat at a time; a chat is read only when its newest unread record is the newest of all */
 const SEARCH_BATCH_SIZE = 32;
 const GLOBAL_SEARCH_SCOPE = 'global';
+/**
+ * The latest search of each chat or of all chats, by scope and type: a search that a newer one replaced stops at its
+ * next chunk instead of reading on for a page nobody waits for
+ */
+const searchGenerationsByScope = new Map<string, number>();
 /** Recent search cursors that are remembered with the count of the matches up to them */
 const SEARCH_COUNTS_LIMIT = 32;
 
@@ -281,27 +306,46 @@ function getIsSearchSupported(type: string, query: string, isSenderSearch?: bool
   return SHARED_MEDIA_SEARCH_TYPES.has(type) && (!query || query.length >= MIN_SEARCH_QUERY_LENGTH);
 }
 
+/** Starts a search of a scope and type, which replaces the one before it; returns its generation */
+function startSearch(scope: string, type: string) {
+  const key = `${scope}\n${type}`;
+  const generation = (searchGenerationsByScope.get(key) ?? 0) + 1;
+  searchGenerationsByScope.set(key, generation);
+  return { key, generation };
+}
+
+type SearchGeneration = ReturnType<typeof startSearch>;
+
+function getIsSearchReplaced({ key, generation }: SearchGeneration) {
+  return searchGenerationsByScope.get(key) !== generation;
+}
+
 /**
  * The matches of `filter`, newest first, from before `offsetId`. The chats are walked together, the newest record of
  * any of them next, so every record newer than the cursor has been looked at when the walk stops; a chat is read only
  * when its turn comes. The walk ends after `limit` matches, or at the end of a chunk of `SEARCH_CHUNK_SIZE` records
- * with at least one match. `cursor` is the id to continue from, and it is `undefined` once no record is left.
+ * with at least one match, and it gives up with `undefined` at the end of a chunk when a newer search replaced it.
+ * `cursor` is the id to continue from, and it is `undefined` once no record is left.
  */
 async function scanMessages({
-  scope, conversations, filter, limit, offsetId,
+  scope, conversations, filter, limit, offsetId, generation,
 }: {
   scope: string;
   conversations: ConversationRecord[];
   filter: SearchFilter;
   limit: number;
   offsetId?: number;
-}): Promise<SearchScan> {
+  generation: SearchGeneration;
+}): Promise<SearchScan | undefined> {
   const searchKey = [scope, filter.type, filter.senderAci ?? '', filter.needle].join('\n');
+  const nextIds = await db.getNewestMessageIds(
+    conversations.map(({ id }) => id), offsetId || Number.MAX_SAFE_INTEGER,
+  );
   const chats: SearchChat[] = [];
-  for (const conversation of conversations) {
-    const nextId = await db.getNewestMessageId(conversation.id, offsetId || Number.MAX_SAFE_INTEGER);
+  conversations.forEach((conversation, index) => {
+    const nextId = nextIds[index];
     if (nextId !== undefined) chats.push({ conversation, buffer: [], nextId });
-  }
+  });
 
   const matches: SearchScan['matches'] = [];
   let lookedAt = 0;
@@ -317,6 +361,7 @@ async function scanMessages({
       if (matches.length) break;
       lookedAt = 0;
       await pause(0);
+      if (getIsSearchReplaced(generation)) return undefined;
     }
 
     const record = chat.buffer.shift()!;
@@ -338,8 +383,13 @@ async function scanMessages({
   return { matches, matchCount, cursor };
 }
 
-/** Up to `count` matches of a chat from `fromId` on, oldest first, yielding after each chunk of records */
-async function scanNewerMatches(conversation: ConversationRecord, filter: SearchFilter, fromId: number, count: number) {
+/**
+ * Up to `count` matches of a chat from `fromId` on, newest first, yielding after each chunk of records; `undefined`
+ * when a newer search replaced this one
+ */
+async function scanNewerMatches(
+  conversation: ConversationRecord, filter: SearchFilter, fromId: number, count: number, generation: SearchGeneration,
+) {
   const matches: MessageRecord[] = [];
   let cursorId = fromId;
   let lookedAt = 0;
@@ -356,9 +406,10 @@ async function scanNewerMatches(conversation: ConversationRecord, filter: Search
     if (lookedAt >= SEARCH_CHUNK_SIZE) {
       lookedAt = 0;
       await pause(0);
+      if (getIsSearchReplaced(generation)) return undefined;
     }
   }
-  return matches;
+  return matches.reverse();
 }
 
 /** The chat whose next record is the newest, by the record read or the bound of the one not read yet */

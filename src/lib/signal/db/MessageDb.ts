@@ -430,16 +430,19 @@ export default class MessageDb {
     return decodeRecords<MessageRecord>(MESSAGES, stored);
   }
 
-  /** The id of a conversation's newest message older than `beforeId`, read from the index without decrypting */
-  async getNewestMessageId(conversationId: string, beforeId: number) {
-    const range = IDBKeyRange.bound([conversationId, 0], [conversationId, beforeId], false, true);
-    let id: number | undefined;
-    const openCursor = (store: IDBObjectStore) => store.index(BY_CONVERSATION).openKeyCursor(range, 'prev');
-    await this.iterate(MESSAGES, 'readonly', openCursor, (cursor) => {
-      id = cursor.primaryKey as number;
-      return false;
-    });
-    return id;
+  /**
+   * The id of each conversation's newest message older than `beforeId`, or `undefined` for one without such messages,
+   * read from the index in one transaction without decrypting
+   */
+  async getNewestMessageIds(conversationIds: string[], beforeId: number) {
+    const db = await this.open();
+    const index = db.transaction(MESSAGES, 'readonly').objectStore(MESSAGES).index(BY_CONVERSATION);
+    return Promise.all(conversationIds.map((conversationId) => new Promise<number | undefined>((resolve, reject) => {
+      const range = IDBKeyRange.bound([conversationId, 0], [conversationId, beforeId], false, true);
+      const request = index.openKeyCursor(range, 'prev');
+      request.onsuccess = () => resolve(request.result?.primaryKey as number | undefined);
+      request.onerror = () => reject(request.error);
+    })));
   }
 
   countMessages(conversationId: string) {
