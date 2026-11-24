@@ -43,6 +43,7 @@ type InternalLinkAnchorType =
   | 'transfer'
   | 'ton-connect'
   | 'tonconnect'
+  | 'signal_link'
 ;
 
 export const UNSAFE_ANCHOR_LINK_TYPES: Set<InternalLinkAnchorType> = new Set([
@@ -144,6 +145,36 @@ function onMaskedAnchorAuxClick(e: MouseEvent) {
   cancelEvent(e);
   showMaskedAlert(anchor, e);
   return true;
+}
+
+/**
+ * TeleSignal: the app's content security policy (`buildCsp`) allows no inline scripts, so the browser never runs an
+ * anchor's inline `onclick`: a click on such a link calls the handler it names from here. An inline handler that a
+ * policy did allow cancels the click first, and this one then leaves it alone.
+ */
+function onAnchorClick(e: MouseEvent) {
+  if(e.defaultPrevented || e.button !== 0) {
+    return;
+  }
+
+  const anchor = (e.target as Element)?.closest?.('a[onclick]') as HTMLAnchorElement;
+  const name = anchor && getAnchorCallbackName(anchor);
+  const handler = name && isAnchorHandlerName(name) && Object.prototype.hasOwnProperty.call(window, name) ?
+    (window as any)[name] :
+    undefined;
+  if(typeof(handler) === 'function') {
+    handler(anchor, e);
+  }
+}
+
+let listeningForAnchorClicks = false;
+export function listenForAnchorClicks() {
+  if(listeningForAnchorClicks) {
+    return;
+  }
+
+  listeningForAnchorClicks = true;
+  document.addEventListener('click', onAnchorClick);
 }
 
 let listeningForMaskedAnchorAuxClicks = false;

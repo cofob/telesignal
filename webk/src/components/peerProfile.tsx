@@ -1585,12 +1585,8 @@ PeerProfile.Actions = () => {
     text: 'BlockUser',
     onClick: () => blockUserWithConfirmation({peerId}),
     verify: () => isContact() && !!userFull() && !userFull().pFlags.blocked
-  }, {
-    icon: 'flag',
-    text: 'ReportChat',
-    onClick: () => showPeerReport(peerId),
-    verify: () => !isUser && !context.isTopic && !(context.peer as Chat.channel).pFlags.creator
   }];
+  // * TeleSignal: Signal reports a chat only from its message request bar, so the menu has no Report, as in Web A
 
   const [hasMenuButtons] = createResource(
     () => [context.fullPeer, isContact()],

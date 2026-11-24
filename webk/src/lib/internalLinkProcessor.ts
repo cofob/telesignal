@@ -9,7 +9,7 @@ import {toastNew, hideToast} from '@components/toast';
 import {MOUNT_CLASS_TO} from '@config/debug';
 import IS_GROUP_CALL_SUPPORTED from '@environment/groupCallSupport';
 import {CONFERENCE_CALL_SLUG_REGEXP} from '@lib/calls/constants';
-import addAnchorListener, {listenForMaskedAnchorAuxClicks} from '@helpers/addAnchorListener';
+import addAnchorListener, {listenForAnchorClicks, listenForMaskedAnchorAuxClicks} from '@helpers/addAnchorListener';
 import {PROXY_LINK_TYPES} from '@lib/richTextProcessor/wrapUrl';
 import assumeType from '@helpers/assumeType';
 import findUpAttribute from '@helpers/dom/findUpAttribute';
@@ -21,6 +21,8 @@ import {isWebAppNameValid} from '@lib/richTextProcessor/validators';
 import appImManager, {JoinConferenceOptions} from '@lib/appImManager';
 import {makeFullMid} from '@appManagers/utils/messages/fullMid';
 import {INTERNAL_LINK_TYPE, InternalLinkTypeMap, InternalLink} from '@lib/internalLink';
+import {parseSignalLink} from '@signal-app/signal-links';
+import {openSignalLink} from '@lib/signal/signalLinks';
 import {TabManagers} from '@lib/managers';
 import {createStoriesViewerWithPeer} from '@components/stories/viewer';
 import {simulateClickEvent} from '@helpers/dom/clickEvent';
@@ -125,6 +127,7 @@ export class InternalLinkProcessor {
     // a middle click never reaches an anchor's inline `onclick`, so the alert below is wired to it
     // separately — otherwise the masked link opens in a new tab with nothing asked
     listenForMaskedAnchorAuxClicks();
+    listenForAnchorClicks();
 
     addAnchorListener<{}>({
       name: 'showMaskedAlert',
@@ -230,6 +233,17 @@ export class InternalLinkProcessor {
           const appMediaViewer = (window as any).appMediaViewer as AppMediaViewerBase<any, any, any>;
           return appMediaViewer.setMediaTimestamp(timestamp);
         }
+      }
+    });
+
+    // * TeleSignal: a Signal link in a message opens in the app (`lib/signal/signalLinks.ts`)
+    addAnchorListener({
+      name: 'signal_link',
+      noPathnameParams: true,
+      noUriParams: true,
+      callback: ({element}) => {
+        const link = parseSignalLink(element.href);
+        if(link) return openSignalLink(link);
       }
     });
 

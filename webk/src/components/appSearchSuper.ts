@@ -121,6 +121,8 @@ import {supportsSharedMediaScrollDate} from '@components/sharedMediaScrollDate';
 import createSharedMediaScrollDateBadge from '@components/sharedMediaScrollDateBadge';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {SIGNAL_USERNAME_PATTERN} from '@lib/signal/usernames';
+import {parseSignalLink} from '@signal-app/signal-links';
+import {openSignalLink} from '@lib/signal/signalLinks';
 import type appSidebarRight from '@components/sidebarRight';
 import type AppMediaViewer from '@components/mediaViewer';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
@@ -2025,7 +2027,7 @@ export default class AppSearchSuper {
         });
       }
 
-      this.renderUsernameResult(query, middleware);
+      if(!this.renderSignalLinkResult(query)) this.renderUsernameResult(query, middleware);
 
       return Promise.all([
         this.managers.appUsersManager.getContactsPeerIds(query, true, undefined, 10)
@@ -2206,6 +2208,25 @@ export default class AppSearchSuper {
     } else return Promise.resolve();
   }
 
+  /** Offers to open a Signal link typed or pasted into the search, as Web A's `SignalLinkResult` does */
+  private renderSignalLinkResult(query: string) {
+    const link = parseSignalLink(query);
+    if(!link) return false;
+
+    const group = this.searchGroups.globalContacts;
+    const row = document.createElement('div');
+    row.classList.add('search-username-result');
+    // * the list cancels clicks on what is not a chat row, unless it is an action of its own
+    row.dataset.dialogListAction = '';
+    const linkEl = document.createElement('span');
+    linkEl.textContent = query.trim();
+    row.append(i18n('SignalLinkSearchOpen'), linkEl);
+    attachClickEvent(row, () => openSignalLink(link));
+    group.list.append(row);
+    group.toggle();
+    return true;
+  }
+
   /**
    * Offers to find the Signal user of a username typed into the search, as Web A does: the server is asked on the
    * click only, so typing neither tells it partial usernames nor counts against its rate limit
@@ -2217,6 +2238,8 @@ export default class AppSearchSuper {
     const group = this.searchGroups.globalContacts;
     const row = document.createElement('div');
     row.classList.add('search-username-result');
+    // * the list cancels clicks on what is not a chat row, unless it is an action of its own
+    row.dataset.dialogListAction = '';
     const usernameEl = document.createElement('span');
     usernameEl.textContent = `@${username}`;
     row.append(i18n('SignalUsernameSearch'), usernameEl);

@@ -229,6 +229,8 @@ const ADDITIONAL_ALIASES = {
   '@signal-app/passcode-session': path.join(signalAppDir, 'util/passcode/sessionStore.ts'),
   // * the check of a proxy server's URL that Web A's settings make
   '@signal-app/signal-proxy': path.join(signalAppDir, 'util/signalProxy.ts'),
+  // * the parser of Signal links that Web A's search and message links open
+  '@signal-app/signal-links': path.join(signalAppDir, 'util/signalLinks.ts'),
   // * the desktop app's native transport: the engine's side in the worker, and the page's side that calls the app
   '@signal-app/native-transport': path.join(signalAppDir, 'lib/signal/net/NativeTransport.ts'),
   '@signal-app/serve-native-transport': path.join(signalAppDir, 'util/tauri/serveNativeTransport.ts'),
