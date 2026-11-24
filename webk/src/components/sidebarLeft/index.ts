@@ -47,7 +47,7 @@ import contextMenuController from '@helpers/contextMenuController';
 import appDialogsManager from '@lib/appDialogsManager';
 import {DIALOG_LIST_ELEMENT_TAG} from '@components/dialogElement';
 import apiManagerProxy from '@lib/apiManagerProxy';
-import {FOLDER_ID_ARCHIVE, TEST_NO_STORIES} from '@appManagers/constants';
+import {FOLDER_ID_ARCHIVE} from '@appManagers/constants';
 import mediaSizes from '@helpers/mediaSizes';
 import updateColumnWidths, {setOpenTabsLeftSidebar} from '@helpers/updateColumnWidths';
 import installColumnResize from '@helpers/installColumnResize';
@@ -776,8 +776,7 @@ export class AppSidebarLeft extends SidebarSlider {
         import('@components/popups/signalStoryComposer').then(({default: showSignalStoryComposerPopup}) => {
           showSignalStoryComposerPopup();
         });
-      },
-      verify: () => !TEST_NO_STORIES
+      }
     }, {
       icon: 'user',
       text: 'Contacts',

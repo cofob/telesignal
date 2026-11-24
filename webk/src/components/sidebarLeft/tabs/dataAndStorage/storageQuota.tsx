@@ -322,11 +322,7 @@ export const StorageQuota = (props: Props) => {
     cachedFilesSizesActions.mutate(getZeroedCollectedCachedFilesSizes());
     cachedVideoStreamChunksSizeActions.mutate(0);
 
-    await Promise.all([
-      apiManagerProxy.clearCacheStoragesByNames(watchedCachedStorageNames),
-      // what widgets keep for their messages goes with the cache (docs/sdk-v1.md §5.4)
-      managers.appWidgetsManager.clearWidgetStorage()
-    ]);
+    await apiManagerProxy.clearCacheStoragesByNames(watchedCachedStorageNames);
 
     const {newCachedFilesSizes, newCachedVideoStreamChunksSize} = await namedPromises({
       newCachedFilesSizes: collectCachedFilesSizes(),

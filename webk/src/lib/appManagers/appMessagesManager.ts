@@ -122,7 +122,6 @@ import forgetSettledRequest from '@helpers/forgetSettledRequest';
 import {createBotforumTopicFromAction} from '@appManagers/utils/dialogs/createBotforumTopicFromAction';
 import {AttachedMedia, CreatePollPayload} from '@components/popups/createPoll/storeContext';
 import StreamedMessageDrafts, {StreamedMessageDraft, StreamedMessageDraftContent, StreamedMessageDraftRemovalReason, StreamedMessageDraftScope, StreamedMessageStopScope, getStreamedMessageContentMatchText} from '@appManagers/utils/messages/streamedMessageDrafts';
-import GramTransferDrafts, {GramTransferDraftContent, WALLET_FIRST_GRAMS_SUGGESTION} from '@lib/wallet/transferMessages';
 import getFolderPinLimitType from '@appManagers/utils/dialogs/getFolderPinLimitType';
 
 // console.trace('include');
@@ -862,7 +861,6 @@ export class AppMessagesManager extends AppManager {
   private streamedMessageDraftTtl = STREAMED_MESSAGE_DRAFT_TTL;
   private streamedMessageDraftTimeout: number;
 
-  private gramTransferDrafts = new GramTransferDrafts();
 
   private pendingEditingMessages: Map<number, {
     canceled?: boolean;
@@ -1109,7 +1107,6 @@ export class AppMessagesManager extends AppManager {
 
   public clear = (init?: boolean) => {
     this.clearStreamedMessageDrafts(init);
-    this.gramTransferDrafts.clear();
 
     if(this.middleware) {
       this.middleware.clean();
@@ -5788,107 +5785,6 @@ export class AppMessagesManager extends AppManager {
     return false;
   }
 
-  // MARK: Gram transfer drafts
-
-  /**
-   * Shows a Gram transfer in the recipient's chat while it is out (tdesktop: TransferMessages::create): a local
-   * service message made the moment `wallet.sendTransfer` is invoked with `randomId`, which the served message
-   * replaces like any sent one (`message_sent`). Nothing here sends it — the wallet does. Returns its temporary id.
-   */
-  public createGramTransferDraft(options: GramTransferDraftContent & {peerId: PeerId, randomId: string}) {
-    const {peerId, randomId} = options;
-    if(this.pendingByRandomId[randomId]) {
-      return;
-    }
-
-    // * the newest server id the chat holds; a temporary id is the server id it follows plus a fraction
-    const floor = Math.floor(Math.max(this.getDialogOnly(peerId)?.top_message || 0, this.historiesStorage[peerId]?.maxId || 0));
-    const comment = options.comment || undefined;
-    const commentEncrypted = !!comment && !!options.commentEncrypted;
-    const message: Message.messageService = {
-      _: 'messageService',
-      id: this.generateTempMessageId(peerId),
-      pFlags: {...this.generateFlags(peerId), out: true},
-      from_id: this.generateFromId(peerId),
-      peer_id: this.appPeersManager.getOutputPeer(peerId),
-      saved_peer_id: peerId === this.appPeersManager.peerId ? this.appPeersManager.getOutputPeer(peerId) : undefined,
-      date: this.timeManager.getServerTime(),
-      action: {
-        _: 'messageActionGramTransfer',
-        pFlags: commentEncrypted ? {comment_encrypted: true} : {},
-        amount: options.amount,
-        peer_address: options.address,
-        // * only the server assigns it
-        transaction_id: '',
-        comment
-      },
-      random_id: randomId,
-      pending: true
-    };
-
-    this.gramTransferDrafts.add({
-      randomId,
-      peerId,
-      floor,
-      amount: options.amount,
-      address: options.address,
-      comment,
-      commentEncrypted
-    });
-    // * the history path reads nothing a service message lacks, and with no `send` nothing is sent
-    this.beforeMessageSending(message as MyMessage as Message.message);
-    return message.mid;
-  }
-
-  /**
-   * The transfer did not go out: the draft shows as failed, `error.type` saying why. Its random id stays, so a
-   * served message that comes after all still replaces it.
-   */
-  public failGramTransferDraft(randomId: string, reason: ErrorType) {
-    const message = this.gramTransferDrafts.forget(randomId) && this.getSendingGramTransferDraft(randomId);
-    if(!message) {
-      return false;
-    }
-
-    this.onMessagesSendError([message as MyMessage as Message.message], makeError(reason));
-    this.rootScope.dispatchEvent('messages_pending');
-    return true;
-  }
-
-  /** The transfer was called off before anyone could tell how it went: the draft leaves the chat. */
-  public dropGramTransferDraft(randomId: string) {
-    const message = this.gramTransferDrafts.forget(randomId) && this.getSendingGramTransferDraft(randomId);
-    return !!message && this.cancelPendingMessage(randomId);
-  }
-
-  /** the draft's message while it is still sending: not failed, not replaced, not deleted */
-  private getSendingGramTransferDraft(randomId: string) {
-    const pending = this.pendingByRandomId[randomId];
-    const message = pending && this.getMessageFromStorage(pending.storage, pending.tempId);
-    if(message?.pFlags.is_outgoing && !message.error) {
-      return message;
-    }
-  }
-
-  /** A served transfer no `updateMessageID` claimed takes a draft by content: the random id to finalize it with. */
-  private adoptGramTransferDraft(message: MyMessage) {
-    if(message._ !== 'messageService' || !this.gramTransferDrafts.size) {
-      return;
-    }
-
-    const peerId = message.peerId;
-    const draft = this.gramTransferDrafts.adopt({
-      peerId,
-      mid: message.mid,
-      out: !!message.pFlags.out,
-      action: message.action,
-      held: !!this.getHistoryStorage(peerId).history.findSlice(message.mid),
-      isSending: (draft) => !!this.getSendingGramTransferDraft(draft.randomId)
-    });
-
-    return draft?.randomId;
-  }
-
   /* public async refreshConversations() {
     const limit = 200, outDialogs: Dialog[] = [];
     for(let folderId = 0; folderId < 2; ++folderId) {
@@ -6484,7 +6380,7 @@ export class AppMessagesManager extends AppManager {
         }
       }
 
-      // a widget forwarded is a copy (widget-sandbox docs/tgw-format.md): never the original's chat state, and whether it
+      // a widget forwarded is a copy (Telegram's widget format): never the original's chat state, and whether it
       // may ask the bot is the server's to say (fwd_allow_queries, which the original does not show)
       if(message.media?._ === 'messageMediaWidget') {
         message.media.pFlags = {is_copy: true};
@@ -7422,8 +7318,6 @@ export class AppMessagesManager extends AppManager {
       }
 
       if(filterMessage) {
-        // a widget's storage goes with its message, also one that is not loaded here
-        this.appWidgetsManager.deleteWidgetStorageOf(peerId, filterMessage);
         const messagesStorage = this.getHistoryMessagesStorage(peerId);
         const ephemeralIds: number[] = [];
         for(const [mid, message] of messagesStorage) {
@@ -7566,9 +7460,6 @@ export class AppMessagesManager extends AppManager {
         // and a history too big to enumerate comes back as `updateChannelTooLong`, which
         // `processUpdateMessage` turns into a difference fetch.
         this.apiUpdatesManager.processUpdateMessage(updates);
-        // a widget's storage goes with the history up to `max_id`, including messages that were never loaded here
-        this.appWidgetsManager.deletePeerWidgetStorage(peerId, maxId);
-
         // ephemeral messages live on the client alone, so no update can mention them
         this.forgetAnchoredEphemeralsForPeer(peerId);
         const ephemeralIds = [...(this.ephemeralMidsByPeerId.get(peerId)?.keys() || [])];
@@ -7601,9 +7492,6 @@ export class AppMessagesManager extends AppManager {
 
       if(!threadOrSavedId) {
         this.flushStoragesByPeerId(peerId);
-        // here, not in flushStoragesByPeerId: that one also runs when a channel only reloads (a deleted chat's go with
-        // its dialog, dropDialogOnDeletion)
-        if(justClear) this.appWidgetsManager.deletePeerWidgetStorage(peerId);
       }
 
       if(justClear) {
@@ -11326,16 +11214,6 @@ export class AppMessagesManager extends AppManager {
     const {peerId} = pendingData;
     const channelId = this.appPeersManager.isChannel(peerId) ? peerId.toChatId() : undefined;
     const mid = this.appMessagesIdsManager.generateMessageId(update.id, channelId);
-    // * a Gram transfer draft is never promoted over a served message already in the chat
-    const pairing = this.gramTransferDrafts.getPairing(randomId, mid, !!this.getMessageFromStorage(pendingData.storage, mid));
-    if(pairing !== 'pair') {
-      if(pairing === 'drop') {
-        this.dropGramTransferDraft(String(randomId));
-      }
-
-      return;
-    }
-
     this.pendingByMessageId[mid] = randomId;
     // const {storage} = pendingData;
     // const message = this.getMessageFromStorage(storage, mid);
@@ -11442,13 +11320,7 @@ export class AppMessagesManager extends AppManager {
         });
       }
 
-      // * the server adds the "first Grams" suggestion with the first transfer and pushes nothing
-      if(action._ === 'messageActionGramTransfer' && !isLocalThreadUpdate) {
-        this.appPromoManager.invalidateSuggestion(WALLET_FIRST_GRAMS_SUGGESTION);
-      }
-
       if(!isLocalThreadUpdate) {
-        this.dispatchTonConnectRequest(message);
       }
 
       if(action._ === 'messageActionTopicEdit' && !isLocalThreadUpdate && !this.applyForumTopicEdit(peerId, threadId, action)) {
@@ -11762,30 +11634,9 @@ export class AppMessagesManager extends AppManager {
     }
   };
 
-  /**
-   * A dApp's request in the service chat (TON Connect): the wallet hears of a new one, and of one the server marked
-   * answered — by an edit, which comes whether or not the chat is loaded
-   */
-  private dispatchTonConnectRequest(message: MyMessage) {
-    const action = message?._ === 'messageService' ? message.action : undefined;
-    if(action?._ !== 'messageActionWalletTonConnectRequest' || message.pFlags.out || this.getMessagePeer(message) !== SERVICE_PEER_ID) {
-      return;
-    }
-
-    this.rootScope.dispatchEvent('wallet_tonconnect_request', {
-      sessionId: String(action.session_id),
-      msgId: message.id,
-      expires: action.expires,
-      topic: action.topic,
-      accepted: !!action.pFlags.accepted,
-      declined: !!action.pFlags.declined
-    });
-  }
-
   private onUpdateEditMessage = (update: Update.updateEditMessage | Update.updateEditChannelMessage) => {
     const message = update.message as MyMessage;
     const peerId = this.getMessagePeer(message);
-    this.dispatchTonConnectRequest(message);
     const channelId = this.appPeersManager.isChannel(peerId) ? peerId.toChatId() : undefined;
     const mid = this.appMessagesIdsManager.generateMessageId(message.id, channelId);
     this.invalidateRichMessage(peerId, mid);
@@ -12535,7 +12386,6 @@ export class AppMessagesManager extends AppManager {
     this.markChannelCutoffHistoryCountsUnknown(peerId);
     addDeleted(this.invalidateRichMessagesAtOrBefore(peerId, availableMinId));
     addDeleted(this.appTranslationsManager.resetPeerTranslationsByChannelCutoff(peerId));
-    this.appWidgetsManager.deleteWidgetStorageByChannelCutoff(peerId, availableMinId);
 
     const pendingSingles = this.needSingleMessages.get(peerId);
     const singleMessageMaps = [
@@ -12582,14 +12432,6 @@ export class AppMessagesManager extends AppManager {
     const channelId = (update as Update.updateDeleteChannelMessages).channel_id;
     let mids = (update as any as Update.updateDeleteChannelMessages).messages.map((id) => this.appMessagesIdsManager.generateMessageId(id, channelId));
     const peerId: PeerId = channelId ? channelId.toPeerId(true) : (update as LocalUpdateDeleteMessages).peerId ?? this.findPeerIdByMids(mids);
-
-    // a widget's storage goes with its message, loaded or not, once for the batch: private chats' and basic groups'
-    // server ids are the account's, so a batch may name messages of several chats (a temporary id is only its chat's)
-    if(channelId) {
-      this.appWidgetsManager.deleteWidgetStorage(peerId, mids);
-    } else {
-      this.appWidgetsManager.deleteWidgetStorageByLegacyMids(mids, peerId);
-    }
 
     if(!peerId) {
       return new Set<number>();
@@ -13176,7 +13018,7 @@ export class AppMessagesManager extends AppManager {
   }
 
   private checkPendingMessage(message: MyMessage) {
-    const randomId = this.pendingByMessageId[message.mid] ?? this.adoptGramTransferDraft(message);
+    const randomId = this.pendingByMessageId[message.mid];
 
     let pendingMessage: ReturnType<AppMessagesManager['finalizePendingMessage']>;
     if(randomId) {
@@ -13190,7 +13032,6 @@ export class AppMessagesManager extends AppManager {
         });
       }
 
-      this.gramTransferDrafts.settle(randomId, message.mid);
       delete this.pendingByMessageId[message.mid];
     }
 
@@ -13299,11 +13140,6 @@ export class AppMessagesManager extends AppManager {
 
     delete this.pendingByRandomId[randomId];
     this.deletePendingTopMsg(peerId, tempId);
-
-    // what its widget kept goes under the server's id, also with no temporary copy left (a flush) to tell a bubble
-    if((finalMessage as Message.message).media?._ === 'messageMediaWidget') {
-      this.appWidgetsManager.onWidgetMessageSent(peerId, tempId, finalMessage.mid);
-    }
 
     this.finalizePendingMessageCallbacks(storage, tempId, finalMessage);
 

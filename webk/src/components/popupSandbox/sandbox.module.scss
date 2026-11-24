@@ -2,7 +2,7 @@
 // the panel's edge, so it belongs to this box: the panel's `overflow: hidden` (which `resize` needs)
 // would clip it, and did — it was neither visible nor clickable. The left edge in either direction: the
 // panel's border and the toggle's gap are on its right, physically, and a stage kept clear of it keeps
-// its room on the left (widgetSandbox/sandbox.module.scss).
+// its room on the left.
 .Dock {
   position: fixed;
   top: 0;

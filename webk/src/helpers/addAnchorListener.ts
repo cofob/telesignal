@@ -40,9 +40,7 @@ type InternalLinkAnchorType =
   | 'proxy'
   | 'socks'
   | 'unknownDeepLink'
-  | 'sendgrams'
   | 'transfer'
-  | 'openTonAddress'
   | 'ton-connect'
   | 'tonconnect'
 ;

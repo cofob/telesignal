@@ -20,7 +20,6 @@ RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 # Web K (`webk/`, the frontend at `/k/`) has dependencies of its own, locked by pnpm
 COPY webk/package.json webk/pnpm-lock.yaml webk/pnpm-workspace.yaml ./webk/
 COPY webk/patches ./webk/patches
-COPY webk/src/vendor/widget-sandbox-quickjs ./webk/src/vendor/widget-sandbox-quickjs
 RUN --mount=type=cache,target=/root/.npm npm run install:webk -- --ignore-scripts
 COPY index.html vite.config.ts tsconfig.json tsconfig.base.json postcss.config.ts ./
 COPY dev ./dev

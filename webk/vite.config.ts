@@ -15,7 +15,6 @@ import devChecks from './scripts/dev-checks.mjs';
 import settingsSearchPlugin from './scripts/settings-search-plugin.mjs';
 import watchTransformCache from './scripts/watch-transform-cache.mjs';
 import hotReloadPlugin from './scripts/hot-reload-plugin.mjs';
-import widgetSandboxPlugin, {widgetSandboxQuickjsPlugin} from './scripts/widget-sandbox-plugin.mjs';
 import path from 'path';
 import {createRequire} from 'module';
 import {fileURLToPath} from 'url';
@@ -222,9 +221,6 @@ const ADDITIONAL_ALIASES = {
   '@vendor': resolve(rootDir, 'src/vendor'),
   '@layer': resolve(rootDir, 'src/layer'),
   '@types': resolve(rootDir, 'src/types'),
-  // Vite-only on purpose: tsc does not follow it into the vendored sources (written for strictNullChecks),
-  // and sees the API through src/lib/widgetSandbox/vendor.d.ts instead.
-  'widget-sandbox': resolve(rootDir, 'src/vendor/widget-sandbox/src'),
   '@signal-app/provider': path.join(signalAppDir, 'api/signal/methods/init.ts'),
   // * the page's side of the vault: the passcode the page unlocks with and the sign-out that erases unreadable data
   '@signal-app/passcode': path.join(signalAppDir, 'util/passcode/index.ts'),
@@ -363,7 +359,6 @@ export default defineConfig({
     signalAppVersionPlugin(),
     signalStaticAssetsPlugin(),
     solidPlugin(),
-    widgetSandboxPlugin(rootDir),
     handlebarsPlugin as any,
     compileHintsPlugin(),
     preloadHelperCssWaitPlugin(),
@@ -446,11 +441,7 @@ export default defineConfig({
     // page survives that with a full reload — a worker just fails to load with
     // an empty error event, which is what killed every conference call with
     // "An error occurred".
-    // The widget sandbox's are named otherwise: its engine worker's parse5, first seen as the first widget started, reloaded
-    // the page.
-    entries: ['index.html', 'src/**/*.worker.{ts,js}', 'src/vendor/widget-sandbox/src/host/{engine-worker,snapshot-worker,worker}.ts'],
-    // the widget sandbox's worker imports its QuickJS build's wasm with `?url`, which pre-bundling would break
-    exclude: ['@telegram/widget-sandbox-quickjs']
+    entries: ['index.html', 'src/**/*.worker.{ts,js}']
   },
   build: {
     target: 'es2020',
@@ -480,9 +471,7 @@ export default defineConfig({
     // cssCodeSplit: true
   },
   worker: {
-    format: 'es',
-    // a build makes the workers with these alone: the engine worker's QuickJS is this checkout's, as the page's is
-    plugins: () => [widgetSandboxQuickjsPlugin(rootDir)]
+    format: 'es'
   },
   css: {
     devSourcemap: true,
