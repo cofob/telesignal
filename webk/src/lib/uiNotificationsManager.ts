@@ -41,6 +41,7 @@ import {createEffect, createRoot, on} from 'solid-js';
 import appNavigationController from '@components/appNavigationController';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
+import {IS_DESKTOP_APP, setDesktopUnreadCount, showDesktopNotification} from '@lib/signal/desktopApp';
 
 type MyNotification = Notification & {
   hidden?: boolean,
@@ -277,7 +278,8 @@ export class UiNotificationsManager {
 
     this.topMessagesDeferred = deferredPromise<void>();
 
-    this.setAppBadge = (navigator as any).setAppBadge?.bind(navigator);
+    // * TeleSignal: the desktop app shows the count on its tray icon and the Dock, taskbar or launcher
+    this.setAppBadge = IS_DESKTOP_APP ? setDesktopUnreadCount : (navigator as any).setAppBadge?.bind(navigator);
     this.setAppBadge?.(0);
 
     this.log = logger('NOTIFICATIONS');
@@ -966,6 +968,19 @@ export class UiNotificationsManager {
     if(this.settings.volume > 0 && this.settings.sound && !data.noIncrement && !data.noSound) {
       this.testSound(this.settings.volume);
       this.soundsPlayed[data.tag] = now;
+    }
+
+    // * TeleSignal: the desktop app shows system notifications, which need no permission of the page
+    if(IS_DESKTOP_APP) {
+      if(!this.settings.desktop) {
+        return;
+      }
+
+      showDesktopNotification(key, data.title, data.message || '', () => {
+        this.clear(pushData.accountNumber);
+        data.onclick?.();
+      });
+      return true;
     }
 
     if(!this.notificationsUiSupport ||

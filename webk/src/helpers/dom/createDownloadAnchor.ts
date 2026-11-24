@@ -1,4 +1,12 @@
+import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
+
 export default function createDownloadAnchor(url: string, fileName: string, onRemove?: () => void) {
+  // * TeleSignal: the desktop app refuses the webview's downloads and saves the file itself
+  if(IS_DESKTOP_APP) {
+    import('@lib/signal/desktopFiles').then(({saveDesktopFile}) => saveDesktopFile(url, fileName)).finally(onRemove);
+    return;
+  }
+
   const a = document.createElement('a');
   a.href = url;
   a.download = fileName;

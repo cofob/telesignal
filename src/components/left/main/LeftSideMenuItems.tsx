@@ -19,7 +19,7 @@ import {
   selectTabState, selectTheme, selectUser,
 } from '../../../global/selectors';
 import { selectSharedSettings } from '../../../global/selectors/sharedState';
-import { IS_MULTIACCOUNT_SUPPORTED, IS_TAURI } from '../../../util/browser/globalEnvironment';
+import { IS_MULTIACCOUNT_SUPPORTED } from '../../../util/browser/globalEnvironment';
 import { getPromptInstall } from '../../../util/installPrompt';
 import { getSystemTheme } from '../../../util/systemTheme';
 
@@ -204,15 +204,12 @@ const LeftSideMenuItems = ({
               <span className="menu-item-name capitalize">{lang('MenuUIFeaturesSwitch')}</span>
               <Toggle value={animationLevelValue} />
             </MenuItem>
-            {/* The desktop app has no native transport for Web K's worker yet */}
-            {!IS_TAURI && (
-              <MenuItem
-                icon="device-webk"
-                onClick={handleSwitchToWebK}
-              >
-                {lang('MenuSwitchToK')}
-              </MenuItem>
-            )}
+            <MenuItem
+              icon="device-webk"
+              onClick={handleSwitchToWebK}
+            >
+              {lang('MenuSwitchToK')}
+            </MenuItem>
             {canInstall && (
               <MenuItem
                 icon="install"

@@ -151,6 +151,10 @@ failed mark (verified in the demo, where the network is absent, with one message
 rejects the whole request when any copy was not sent. With several messages and a partial failure, Web K's failure handling
 of the request runs over copies that are already stored; what it shows then was not reproduced.
 
+## A production build of Web K evaluates its worker's entry chunk twice
+
+Web K's page opens its main worker with a query (`?__tweb_threaded_worker_protocol=4`, `registerWorker` in `webk/src/lib/apiManagerProxy.ts`). In a production build, the chunk of the Signal provider that `appSignalManager` imports dynamically (`init-*.js`) imports shared modules from the worker's entry chunk by the plain URL `./index.worker-*.js`, which is a different module URL, so the worker fetches and evaluates the entry a second time once the provider loads (verified in Chromium on `tauri/dist/k`: the worker's resource entries list `index.worker-*.js` without the query; a port that the first copy set on a module of the entry never reached the engine). The second copy runs the entry's top level again, including `listenMessagePort`, so pages that connect after that are attached to both copies' managers, and module state of the entry exists twice. The desktop transport relay keeps its state on the worker's global scope to work around it (`webk/src/lib/signal/nativeTransport.ts`). The dev server is not affected, since it serves modules unbundled. Possible directions: keep the entry chunk free of modules that other chunks import (a manual chunk for shared code), or open the worker without a query.
+
 ## Web K's worker adapter cannot import UI components
 
 The Web K managers, including `webk/src/lib/appManagers/appSignalManager.ts`, run in a SharedWorker, not on the page.

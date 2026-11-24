@@ -46,6 +46,8 @@ export default class MTProtoMessagePort<Master extends boolean = true> extends S
   mirrorAll: (payload: {accountNumber: ActiveAccountNumber}, source: MessageEventSource) => MaybePromise<void>,
   serviceWorkerOnline: (online: boolean) => void,
   serviceWorkerPort: (payload: void, source: MessageEventSource, event: MessageEvent) => void,
+  // * TeleSignal: a page's end of the desktop app's native transport (`lib/signal/nativeTransport`)
+  nativeTransportPort: (payload: void, source: MessageEventSource, event: MessageEvent) => void,
   threadedPort: (payload: ThreadedWorkerType, source: MessageEventSource, event: MessageEvent) => void,
   updateObjectURLPins: (
     updates: ObjectURLPinUpdate[],

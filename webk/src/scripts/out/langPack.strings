@@ -2330,6 +2330,14 @@
 "TelegramFeatures" = "TeleSignal Features";
 "SetColor" = "Set a color";
 "Open" = "Open";
+"Signal.Desktop.FileSaved" = "Saved %1$s to %2$s";
+"Signal.Desktop.SaveFailed" = "Failed to save the file";
+"Signal.Desktop.SaveDialogTitle" = "Save file";
+"Signal.Desktop.ShowInFinder" = "Show in Finder";
+"Signal.Desktop.ShowInExplorer" = "Show in Explorer";
+"Signal.Desktop.ShowInFolder" = "Show in Folder";
+"Signal.Desktop.FileNotFound" = "This file was moved or deleted";
+"Signal.Desktop.OpenFailed" = "Failed to open the file";
 "OpenUrlTitle" = "Open Link";
 "OpenUrlAlert2" = "Do you want to open %1$s?";
 "FilterNoChatsToDisplay" = "Folder is empty";

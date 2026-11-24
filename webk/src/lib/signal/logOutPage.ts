@@ -15,6 +15,8 @@ import {
 } from '@signal-app/passcode';
 import {broadcastPasscodeSessionsChanged} from '@signal-app/passcode-channel';
 import {isSessionStoreLocked} from '@signal-app/passcode-session';
+import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
+import noop from '@helpers/noop';
 
 export async function clearLoggedOutSlotOnPage(accountNumber: ActiveAccountNumber) {
   // * the slot in this page's session values, which with a passcode are kept in memory: removed and written into the
@@ -32,4 +34,8 @@ export async function clearLoggedOutSlotOnPage(accountNumber: ActiveAccountNumbe
   });
 
   await removeWebAGlobalState(accountNumber);
+  // * as Web A's log out: the desktop app's records of saved files hold their paths and attachment keys
+  if(IS_DESKTOP_APP) {
+    await import('@lib/signal/desktopFiles').then(({forgetDesktopSavedFiles}) => forgetDesktopSavedFiles()).catch(noop);
+  }
 }
