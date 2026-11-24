@@ -18,7 +18,8 @@ Checked against GPL-3.0-only (the build's license):
 
 - `src/vendor`: `solid`, `tlottie`, `opus`, `widget-sandbox-quickjs` (QuickJS, quickjs-emscripten), `StackBlur.js`,
   `fastBlur.js`, `bezierEasing.ts`, `cleanHTML.js`, `createListTransition.ts`, `dateFormat.ts`, `simple-yenc.js` are
-  MIT; `recorder.min.js` is ISC; `prism.ts` is Apache-2.0; `rnnoise` is BSD-3-Clause; `libwebp-0.2.0.js` is under
+  MIT; `recorder.min.js` is ISC; the `opus-recorder` workers in `public/` are MIT, with libopus and the Speex
+  resampler (BSD-3-Clause) inside; `prism.ts` is Apache-2.0; `rnnoise` is BSD-3-Clause; `libwebp-0.2.0.js` is under
   the WebM BSD-style license. `leemon.ts`, `convertPunycode.js` and `smoothscroll*` name their authors but no license.
 - `src/vendor/widget-sandbox` (Telegram's interactive widgets, a Telegram-only feature) states no license in the
   vendored files, only those of its third-party parts (MIT, ISC, Apache-2.0); it is to be removed with the feature.
@@ -34,7 +35,7 @@ Every file tracked at the commit above, except:
 
 - the deployed build in `public/` (hashed `*.js`, `*.css`, `*.map`, `*.wasm`, `*.png`, `*.html`, `changelogs/`,
   `version`); `public/assets`, `site.webmanifest`, `site_apple.webmanifest`, `browserconfig.xml` and the
-  `opus-recorder` WebAssembly files are vendored;
+  `opus-recorder` workers (`decoderWorker`, `encoderWorker`, `waveWorker`) with their WebAssembly files are vendored;
 - `public/assets/img/emoji` (Apple emoji images), which the build copies from `emoji-data-ios` instead, as Web A does;
 - the Playwright suites and their configs (`e2e/`, `playwright.*.ts`, `vite.*e2e*.config.ts`, `vite.preview.config.ts`,
   `snapshot-server/`), the unit tests (`src/tests/`), the deploy and preview scripts (`build.js`, `git-serve*.js`,
@@ -60,6 +61,9 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
 - Frontend switch: the main menu's "Switch to A version" opens `../a/`.
 - `src/vendor/telegram-3d-star` is removed (GPL-2.0-only), and `src/components/star3D` draws nothing.
 - `src/components/popupSandbox/stories/misc.ts`: the two stories that read the unvendored test fixtures are removed.
+- Media: a Signal album shows as paid media without a price (`src/lib/signal/media.ts`); the attach menu keeps photos,
+  videos and files; media spoilers, round video recording, voice transcription, the GIF tab and the edit that replaces
+  a message's media are off; the voice recorder's worklet is a file of the app instead of a `blob:` URL.
 
 ## Updating
 

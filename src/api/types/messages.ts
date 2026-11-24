@@ -48,6 +48,8 @@ export interface ApiPhoto {
   videoSizes?: ApiVideoSize[];
   blobUrl?: string;
   isSpoiler?: boolean;
+  // Signal: the size of the image in bytes, which a download needs
+  size?: number;
   // Signal: the CDN no longer has the file
   isUnavailable?: true;
 }
@@ -67,6 +69,8 @@ export interface ApiSticker {
   hasEffect?: boolean;
   isFree?: boolean;
   shouldUseTextColor?: boolean;
+  // Signal: the size of the sticker in bytes, which a download needs
+  size?: number;
   // Signal: the CDN no longer has the file
   isUnavailable?: true;
 }

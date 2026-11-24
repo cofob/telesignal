@@ -4,13 +4,14 @@
  * Signal provider in Telegram's shapes. The changes come back as the provider's updates of the group.
  */
 
-import type {Chat, ChatBannedRights, MissingInvitee, Update, Updates, User} from '@layer';
+import type {Chat, ChatBannedRights, InputFile, MissingInvitee, Update, Updates, User} from '@layer';
 import type {SignalMethodHandlers, SignalMethodHost} from '@lib/signal/methodHost';
 import {getInputUserPeerId, getUserRef} from '@lib/signal/methodHost';
 import {buildChat, toPeerId, toSignalPeerId} from '@lib/signal/builders';
 import {getSignalChatOf} from '@lib/signal/chatMethods';
 import {unwrapInputPeer} from '@lib/signal/methodHost';
 import {makeReportedError} from '@lib/signal/errors';
+import {takeUpload} from '@lib/signal/outgoingMedia';
 import makeError from '@helpers/makeError';
 import tsNow from '@helpers/tsNow';
 
@@ -31,9 +32,7 @@ const GROUP_CHANGE_ERROR = 'SIGNAL_GROUP_CHANGE_FAILED';
 const GROUP_AVATAR_MAX_SIZE = 3 * 1024 * 1024;
 const AVATAR_TOO_BIG_ERROR = 'PHOTO_FILE_TOO_BIG';
 const AVATAR_PARTS_ERROR = 'FILE_PARTS_INVALID';
-
-/** The file parts of avatar uploads by the upload's id, until the group's photo takes them */
-const uploadedParts = new Map<string, {parts: Map<number, Uint8Array>, size: number}>();
+const AVATAR_MIME_TYPE = 'image/jpeg';
 
 export function buildGroupMethodHandlers(host: SignalMethodHost): SignalMethodHandlers {
   return {
@@ -58,9 +57,7 @@ export function buildGroupMethodHandlers(host: SignalMethodHost): SignalMethodHa
     'messages.hideAllChatJoinRequests': ({peer, approved}) => hideAllChatJoinRequests(host, peer, approved),
     'messages.checkChatInvite': ({hash}) => checkChatInvite(host, hash),
     'messages.importChatInvite': ({hash}) => importChatInvite(host, hash),
-    'messages.setHistoryTTL': ({peer, period}) => setHistoryTtl(host, peer, period),
-    'upload.saveFilePart': ({file_id, file_part, bytes}) => saveFilePart(file_id, file_part, bytes),
-    'upload.saveBigFilePart': ({file_id, file_part, bytes}) => saveFilePart(file_id, file_part, bytes)
+    'messages.setHistoryTTL': ({peer, period}) => setHistoryTtl(host, peer, period)
   };
 }
 
@@ -199,38 +196,20 @@ async function editChatPhoto(host: SignalMethodHost, chatId: number, photo: any)
   return emptyUpdates();
 }
 
-/** The uploaded file, whose parts are dropped once taken; an upload with missing parts is refused */
-function takeUploadedFile(inputFile: {id: string, parts: number, name?: string}) {
-  const upload = uploadedParts.get(inputFile.id);
-  uploadedParts.delete(inputFile.id);
-  if(!upload || upload.parts.size !== inputFile.parts) throw makeError(AVATAR_PARTS_ERROR as ErrorType);
-
-  const blobParts: Uint8Array<ArrayBuffer>[] = [];
-  for(let i = 0; i < inputFile.parts; ++i) {
-    const bytes = upload.parts.get(i);
-    if(!bytes) throw makeError(AVATAR_PARTS_ERROR as ErrorType);
-    blobParts.push(bytes as Uint8Array<ArrayBuffer>);
-  }
-  return new File(blobParts, inputFile.name ?? 'avatar.jpg', {type: 'image/jpeg'});
-}
-
 /**
- * Keeps a part of an avatar upload; an upload over the group server's limit is dropped and refused. The first part of
- * a new upload drops the uploads that no avatar took, which Web K left: it sends one avatar at a time.
+ * The uploaded avatar from the uploads of media (`outgoingMedia.ts`); an upload with missing parts, or over the group
+ * server's limit, is refused
  */
-function saveFilePart(fileId: string, filePart: number, bytes: Uint8Array) {
-  if(filePart === 0 && !uploadedParts.has(fileId)) uploadedParts.clear();
-
-  const upload = uploadedParts.get(fileId) ?? {parts: new Map<number, Uint8Array>(), size: 0};
-  upload.size += bytes.length - (upload.parts.get(filePart)?.length ?? 0);
-  if(upload.size > GROUP_AVATAR_MAX_SIZE) {
-    uploadedParts.delete(fileId);
-    throw makeError(AVATAR_TOO_BIG_ERROR as ErrorType);
+function takeUploadedFile(inputFile: InputFile) {
+  let blob: Blob, name: string;
+  try {
+    ({blob, name} = takeUpload(inputFile, AVATAR_MIME_TYPE));
+  } catch(err) {
+    throw makeError(AVATAR_PARTS_ERROR as ErrorType);
   }
 
-  upload.parts.set(filePart, bytes);
-  uploadedParts.set(fileId, upload);
-  return true;
+  if(blob.size > GROUP_AVATAR_MAX_SIZE) throw makeError(AVATAR_TOO_BIG_ERROR as ErrorType);
+  return new File([blob], name ?? 'avatar.jpg', {type: AVATAR_MIME_TYPE});
 }
 
 async function editChatDefaultBannedRights(host: SignalMethodHost, peer: any, bannedRights: ChatBannedRights.chatBannedRights) {

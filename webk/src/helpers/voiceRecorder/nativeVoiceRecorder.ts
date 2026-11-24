@@ -8,39 +8,10 @@
 import OggOpusWriter from './oggOpusWriter';
 import isNativeVoiceRecorderSupported from './isNativeSupported';
 import getStream from '@lib/calls/helpers/getStream';
+// * TeleSignal: a file of the app, as the page's policy loads no scripts from `blob:` URLs
+import voiceCaptureWorkletUrl from '@helpers/voiceRecorder/voiceCapture.worklet.ts?worker&url';
 
 export {isNativeVoiceRecorderSupported};
-
-const WORKLET_SOURCE = `
-class VoiceCaptureProcessor extends AudioWorkletProcessor {
-  constructor(options) {
-    super();
-    const opts = (options && options.processorOptions) || {};
-    this.bufferSize = opts.bufferSize || 2048;
-    this.buffer = new Float32Array(this.bufferSize);
-    this.bufferIndex = 0;
-  }
-  process(inputs) {
-    const input = inputs[0];
-    if(!input || !input[0] || input[0].length === 0) return true;
-    const channel = input[0];
-    let i = 0;
-    while(i < channel.length) {
-      const remaining = this.bufferSize - this.bufferIndex;
-      const toCopy = remaining < (channel.length - i) ? remaining : (channel.length - i);
-      this.buffer.set(channel.subarray(i, i + toCopy), this.bufferIndex);
-      this.bufferIndex += toCopy;
-      i += toCopy;
-      if(this.bufferIndex === this.bufferSize) {
-        this.port.postMessage(this.buffer.slice(0));
-        this.bufferIndex = 0;
-      }
-    }
-    return true;
-  }
-}
-registerProcessor('voice-capture-processor', VoiceCaptureProcessor);
-`;
 
 const WORKLET_PROCESSOR_NAME = 'voice-capture-processor';
 const WORKLET_BUFFER_SIZE = 2048;
@@ -111,13 +82,7 @@ export default class NativeVoiceRecorder {
     this.audioContext = new AudioContext({sampleRate: this.config.encoderSampleRate});
     this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
 
-    const blob = new Blob([WORKLET_SOURCE], {type: 'application/javascript'});
-    const workletUrl = URL.createObjectURL(blob);
-    try {
-      await this.audioContext.audioWorklet.addModule(workletUrl);
-    } finally {
-      URL.revokeObjectURL(workletUrl);
-    }
+    await this.audioContext.audioWorklet.addModule(voiceCaptureWorkletUrl);
 
     this.workletNode = new AudioWorkletNode(this.audioContext, WORKLET_PROCESSOR_NAME, {
       numberOfInputs: 1,
