@@ -554,7 +554,7 @@ export class AppUsersManager extends AppManager {
       user.phone,
       ...getPeerActiveUsernames(user),
       // user.pFlags.self ? I18n.format('SavedMessages', true) : '',
-      user.pFlags.self ? 'Saved Messages' : ''
+      user.pFlags.self ? 'Note to Self' : ''
     ];
 
     return arr.filter(Boolean).join(' ');

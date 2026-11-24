@@ -7,6 +7,7 @@ import paymentsWrapCurrencyAmount from '@helpers/paymentsWrapCurrencyAmount';
 import {ForumTopic, Message, MessageAction, MessageEntity, MessageMedia, MessageReplyHeader, StarGift, TextWithEntities} from '@layer';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import I18n, {FormatterArgument, FormatterArguments, i18n, join, langPack, LangPackKey, UNSUPPORTED_LANG_PACK_KEY, _i18n} from '@lib/langPack';
+import {decodeSignalNotice} from '@lib/signal/notices';
 import {GENERAL_TOPIC_ID, SERVICE_PEER_ID} from '@appManagers/constants';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import tsNow from '@helpers/tsNow';
@@ -197,6 +198,16 @@ export default async function wrapMessageActionTextNewUnsafe(options: WrapMessag
   const action = 'action' in message && message.action;
 
   // this.log('message action:', action);
+
+  // * TeleSignal: a notice of Signal, as a lang key and its arguments (`@lib/signal/notices`)
+  const signalNotice = action._ === 'messageActionCustomAction' && action.message && decodeSignalNotice(action.message);
+  if(signalNotice) {
+    const args = (signalNotice.args ?? []).map((arg) => typeof(arg) === 'object' ? I18n.format(arg.key as LangPackKey, true) : arg);
+    const text = I18n.format(signalNotice.key as LangPackKey, true, args);
+    if(plain) return text;
+    element.textContent = text;
+    return element;
+  }
 
   if(action._ === 'messageActionCustomAction' && action.message) {
     const unsafeMessage = action.message;

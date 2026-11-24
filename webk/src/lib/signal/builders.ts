@@ -35,6 +35,7 @@ import type {
 } from '@lib/signal/signalApi';
 import {buildReaction} from '@lib/signal/reactions';
 import {buildSignalMessageMedia} from '@lib/signal/media';
+import {encodeSignalNotice, type SignalNoticeArgument} from '@lib/signal/notices';
 
 // * Web A's `ARCHIVED_FOLDER_ID`, which Web K's folder of archived chats has too
 const ARCHIVED_FOLDER_ID = 1;
@@ -305,28 +306,31 @@ function buildEntity(entity: SignalEntity): MessageEntity {
 export type SignalNameResolver = (signalUserId: string) => string;
 
 // * Web A's texts of the notices Telegram has not (`ActionMessageText.tsx` and `fallback.strings` there)
-const GROUP_UPDATE_TEXTS: Record<string, [string, string]> = {
-  description: ['{from} changed the group description', 'You changed the group description'],
-  descriptionRemoved: ['{from} removed the group description', 'You removed the group description'],
-  adminAdded: ['{from} made {user} an admin', 'You made {user} an admin'],
-  adminRemoved: ['{from} revoked admin privileges from {user}', 'You revoked admin privileges from {user}'],
-  inviteDeclined: ['{from} declined the invitation to the group', 'You declined the invitation to the group'],
-  joinRequested: ['{from} requested to join via the group link', 'You sent a request to join the group'],
-  joinDenied: ['{from} denied a request to join from {user}', 'You denied a request to join from {user}'],
-  joinCanceled: ['{from} canceled the request to join', 'You canceled your request to join the group'],
-  linkOn: ['{from} turned on the group link', 'You turned on the group link'],
-  linkOnWithApproval: ['{from} turned on the group link with admin approval', 'You turned on the group link with admin approval'],
-  linkOff: ['{from} turned off the group link', 'You turned off the group link'],
-  linkReset: ['{from} reset the group link', 'You reset the group link'],
-  infoAccess: ['{from} changed who can edit group info to «{access}»', 'You changed who can edit group info to «{access}»'],
-  membersAccess: ['{from} changed who can add members to «{access}»', 'You changed who can add members to «{access}»'],
-  labelAccess: ['{from} changed who can add member labels to «{access}»', 'You changed who can add member labels to «{access}»'],
-  announcementsOn: ['{from} allowed only admins to send messages', 'You allowed only admins to send messages'],
-  announcementsOff: ['{from} allowed all members to send messages', 'You allowed all members to send messages'],
-  terminated: ['{from} ended the group', 'You ended the group'],
-  invited: ['{from} invited {count} {people} to the group', 'You invited {count} {people} to the group'],
-  inviteRevoked: ['{from} revoked {count} {invitations} to the group', 'You revoked {count} {invitations} to the group']
+// * the lang keys of Signal's group changes (`Signal.Group.*`), `You` appended for our own; those with a count are
+// * plural
+const GROUP_UPDATE_KEYS: Record<string, string> = {
+  description: 'Description',
+  descriptionRemoved: 'DescriptionRemoved',
+  adminAdded: 'AdminAdded',
+  adminRemoved: 'AdminRemoved',
+  inviteDeclined: 'InviteDeclined',
+  joinRequested: 'JoinRequested',
+  joinDenied: 'JoinDenied',
+  joinCanceled: 'JoinCanceled',
+  linkOn: 'LinkOn',
+  linkOnWithApproval: 'LinkOnWithApproval',
+  linkOff: 'LinkOff',
+  linkReset: 'LinkReset',
+  infoAccess: 'InfoAccess',
+  membersAccess: 'MembersAccess',
+  labelAccess: 'LabelAccess',
+  announcementsOn: 'AnnouncementsOn',
+  announcementsOff: 'AnnouncementsOff',
+  terminated: 'Terminated',
+  invited: 'Invited',
+  inviteRevoked: 'InviteRevoked'
 };
+const GROUP_UPDATES_WITH_COUNT = new Set(['invited', 'inviteRevoked']);
 
 function buildMessageAction(message: SignalMessage, getName: SignalNameResolver): MessageAction {
   const action = message.content.action;
@@ -369,43 +373,42 @@ function buildPhoneCallAction(isVideo: boolean, outcome: string): MessageAction.
   };
 }
 
+/** The text of a notice that Telegram has no action for, as a lang key and its arguments (`@lib/signal/notices`) */
 function getActionText(message: SignalMessage, getName: SignalNameResolver) {
   const {action} = message.content;
   const from = message.senderId ? getName(message.senderId) : '';
   const isOut = message.isOutgoing;
+  const ofSender = (key: string) => isOut ? encodeSignalNotice(key + 'Out') : encodeSignalNotice(key, [from]);
   switch(action.type) {
     case 'groupUpdate': {
-      const texts = GROUP_UPDATE_TEXTS[action.update as string];
-      if(!texts) return 'Group updated';
-      const count = (action.count as number) || 0;
-      return (isOut ? texts[1] : texts[0])
-      .replace('{from}', from)
-      .replace('{user}', action.userId ? getName(action.userId as string) : '')
-      .replace('{access}', action.isAdminOnly ? 'Only admins' : 'All members')
-      .replace('{count}', '' + count)
-      .replace('{people}', count === 1 ? 'person' : 'people')
-      .replace('{invitations}', count === 1 ? 'invitation' : 'invitations');
+      const update = action.update as string;
+      const name = GROUP_UPDATE_KEYS[update];
+      if(!name) return encodeSignalNotice('Signal.Group.Updated');
+      const key = 'Signal.Group.' + name + (isOut ? 'You' : '');
+      if(GROUP_UPDATES_WITH_COUNT.has(update)) return encodeSignalNotice(key, [(action.count as number) || 0, from]);
+      const second: SignalNoticeArgument = update.endsWith('Access') ?
+        {key: action.isAdminOnly ? 'Signal.Group.AccessAdmins' : 'Signal.Group.AccessAll'} :
+        (action.userId ? getName(action.userId as string) : '');
+      return encodeSignalNotice(key, [from, second]);
     }
     case 'safetyNumberChange':
-      return `Your safety number with ${from} has changed`;
+      return encodeSignalNotice('Signal.Notice.SafetyNumberChanged', [from]);
     case 'safetyNumberVerified': {
-      const state = action.isVerified ? 'verified' : 'unverified';
-      return `You marked your safety number with ${from} as ${state}${action.isFromOtherDevice ? ' from another device' : ''}`;
+      const state = action.isVerified ? 'Verified' : 'Unverified';
+      return encodeSignalNotice(`Signal.Notice.SafetyNumber${state}${action.isFromOtherDevice ? 'OtherDevice' : ''}`, [from]);
     }
     case 'signalCall':
-      return action.outcome === 'missed' ? 'Missed group call' : 'Group call';
+      return encodeSignalNotice(action.outcome === 'missed' ? 'Signal.Notice.GroupCallMissed' : 'Signal.Notice.GroupCall');
     case 'giftBadge':
-      return isOut ?
-        'You donated to Signal on behalf of this person. Tap this message on mobile to view your donation' :
-        `${from} donated to Signal on your behalf. View this message on mobile to open it`;
+      return ofSender('Signal.Notice.Donation');
     case 'payment':
-      return isOut ? 'You sent a payment' : `${from} sent you a payment`;
+      return ofSender('Signal.Notice.Payment');
     case 'deleted':
-      return isOut ? 'You deleted this message' : `${from} deleted this message`;
+      return ofSender('Signal.Notice.Deleted');
     case 'viewOnce':
-      return action.isViewed ? 'Viewed' : 'View-once media';
+      return encodeSignalNotice(action.isViewed ? 'Signal.Notice.ViewOnceViewed' : 'Signal.Notice.ViewOnce');
     default:
-      return 'Unsupported message';
+      return encodeSignalNotice('Signal.Notice.Unsupported');
   }
 }
 
