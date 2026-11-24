@@ -44,7 +44,7 @@ import { bufferFromHex } from '../../../util/encoding/buffer';
 import { buildCollectionByKey, omit, omitUndefined } from '../../../util/iteratees';
 import { pause } from '../../../util/schedulers';
 import { getServerTime } from '../../../util/serverTime';
-import { buildBodyRanges } from '../builders/bodyRanges';
+import { buildBodyRanges, getMentionAci } from '../builders/bodyRanges';
 import { getIsChatListed } from '../builders/chats';
 import { buildMessageMedia, parseAttachmentMediaId } from '../builders/media';
 import {
@@ -122,6 +122,20 @@ export async function fetchMessages({
     chats: [],
     count: await db.countMessages(conversation.id),
   };
+}
+
+/** The unread messages of a chat that mention someone, built, of which those that mention us count */
+export async function fetchUnreadMentions({ chat }: { chat: ApiChat }) {
+  const conversation = await getConversationByPeerId(chat.id);
+  if (!conversation) return undefined;
+
+  // Only messages with a mention are built
+  const records = (await db.getUnreadMessages(conversation.id)).filter((record) => (
+    record.dataMessage && !getIsMessageHidden(record)
+    && fromBinary(DataMessageSchema, record.dataMessage).bodyRanges.some((range) => getMentionAci(range))
+  ));
+  const { messages, users } = await buildMessages(records, conversation);
+  return { messages: messages.filter(({ hasUnreadMention }) => hasUnreadMention), users };
 }
 
 export async function fetchMessage({ chat, messageId }: { chat: ApiChat; messageId: number }) {
