@@ -120,6 +120,12 @@ addActionHandler('performMiddleSearch', async (global, actions, payload): Promis
   }
 
   if (!result) {
+    // A search the provider dropped for a newer query ends here; that query clears its own state
+    global = getGlobal();
+    if (selectCurrentMiddleSearch(global, tabId)?.fetchingQuery === query) {
+      global = updateMiddleSearch(global, peer.id, threadId, { fetchingQuery: undefined }, tabId);
+      setGlobal(global);
+    }
     return;
   }
 

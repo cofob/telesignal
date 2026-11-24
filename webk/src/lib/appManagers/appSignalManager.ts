@@ -45,6 +45,7 @@ import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} 
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
+import {buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
 import {buildMediaMethodHandlers} from '@lib/signal/mediaMethods';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
@@ -269,6 +270,7 @@ export default class AppSignalManager extends AppManager {
       ...buildUserMethodHandlers(host),
       ...buildPinnedMessageHandlers(host),
       ...buildSharedMediaHandlers(host),
+      ...buildPollHandlers(host),
       ...buildAccountMethodHandlers(host),
       ...buildMediaMethodHandlers(host)
     };
@@ -590,6 +592,10 @@ export default class AppSignalManager extends AppManager {
   }
 
   private async editMessage(params: MethodDeclMap['messages.editMessage']['req']) {
+    if(await closePollByEdit(this.createMethodHost(), params)) {
+      return {_: 'updates', updates: [], users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
+    }
+
     // * an edit of a Signal message changes only its text
     if(params.media) throw makeError('MEDIA_EDIT_UNSUPPORTED' as ErrorType);
     const peerId = this.getInputPeerId(params.peer);
@@ -705,7 +711,8 @@ export default class AppSignalManager extends AppManager {
   }
 
   private buildSearchResult(result: SignalSearchResult | undefined) {
-    if(!result) return emptySearchResult();
+    // * the provider drops a search whose query a newer one replaced: an empty answer would end Web K's list
+    if(!result) throw makeError('SIGNAL_SEARCH_REPLACED' as ErrorType);
 
     const chatIds = new Set(result.messages.map(({chatId}) => chatId).filter(isGroupPeerId));
     return {
@@ -774,6 +781,8 @@ export default class AppSignalManager extends AppManager {
   };
 
   private handleUpdate(update: SignalApiUpdate) {
+    // * the polls of messages come with them or as entities, before the messages are built
+    rememberPolls(update.polls ?? (update.poll ? [update.poll] : undefined));
     switch(update['@type']) {
       case 'updateAuthorizationState':
         this.onAuthorizationState(update);
@@ -821,6 +830,7 @@ export default class AppSignalManager extends AppManager {
         if(update.message?.content && update.message.chatId) {
           this.pushUpdates([{_: 'updateEditMessage', message: this.buildMessage(update.message as SignalMessage), pts: 0, pts_count: 0}]);
         }
+        if(update.poll) this.pushUpdates([buildPollUpdate(update.poll)]);
         break;
       case 'updateMessageSendSucceeded':
         this.onMessageSent(update.localId, update.message);
