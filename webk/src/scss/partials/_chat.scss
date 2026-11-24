@@ -482,6 +482,12 @@
 }
 
 .chat-input-main {
+  // * a chat that takes nothing (a Signal group we are no longer in) has no composer, as in Web A; selecting messages
+  // * there still shows its bar
+  .bubbles:not(.is-selecting) ~ &.is-hidden {
+    visibility: hidden;
+  }
+
   &-container {
     &.is-centering {
       .new-message-wrapper {

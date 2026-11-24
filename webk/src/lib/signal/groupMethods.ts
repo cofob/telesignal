@@ -106,7 +106,9 @@ async function getFullChat(host: SignalMethodHost, chatId: number) {
       ttl_period: fullInfo?.ttlPeriod || undefined,
       // * the join requests of the group link, which only admins get
       requests_pending: fullInfo?.requestsPending,
-      recent_requesters: fullInfo?.recentRequesterIds?.map((id: string) => toPeerId(id))
+      recent_requesters: fullInfo?.recentRequesterIds?.map((id: string) => toPeerId(id)),
+      // * not a field of Telegram's: the profile shows it (`PeerProfile.ChatStyle`)
+      signal_chat_style: fullInfo?.signalChatStyle
     },
     chats: [] as Chat[],
     users: result?.users ?? []

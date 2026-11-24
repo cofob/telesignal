@@ -1,0 +1,12 @@
+// The swatches of a chat's Signal colours, as Web A's `ChatExtra`
+.swatches {
+  display: flex;
+  gap: .5rem;
+}
+
+.swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+}

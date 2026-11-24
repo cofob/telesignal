@@ -78,6 +78,7 @@ const lang = {
   'PHONE_CODE_EXPIRED': 'Code expired',
   'PASSWORD_HASH_INVALID': 'Incorrect password',
   'SafetyNumber.Row': 'Safety number',
+  'Signal.ChatColor': 'Chat color',
   'SafetyNumber.Title': 'Safety number',
   'SafetyNumber.MarkVerified': 'Mark as verified',
   'SafetyNumber.ClearVerification': 'Clear verification'

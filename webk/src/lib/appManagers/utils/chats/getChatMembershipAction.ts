@@ -14,6 +14,12 @@ export default function getChatMembershipAction(
     return 'leave';
   }
 
+  // * TeleSignal: a Signal group (a basic chat here) that we are not in (left, removed or ended) is joined only by
+  // * its group link or an invite, as in Web A, which shows no Join button for it
+  if(chat._ === 'chat') {
+    return;
+  }
+
   return chat._ === 'channel' &&
     chat.pFlags.join_request &&
     !chat.pFlags.creator ?

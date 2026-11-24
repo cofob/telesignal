@@ -38,6 +38,9 @@ export type SignalUser = {
 /** The rights of `ApiChatAdminRights` and `ApiChatBannedRights`: the provider's flag names set to `true` */
 export type SignalRights = Record<string, true | undefined>;
 
+/** The chat colour and wallpaper of a chat, as CSS backgrounds (`ApiSignalChatStyle`) */
+export type SignalChatStyle = {bubbleColor?: string, wallpaper?: string};
+
 export type SignalChat = {
   id: string,
   folderId?: number,

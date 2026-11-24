@@ -1599,14 +1599,9 @@ export default class DialogsStorage extends AppManager {
   public canSaveDialog(peerId: PeerId, dialog: Dialog) {
     if(peerId.isAnyChat()) {
       const chat: Chat = this.appChatsManager.getChat(peerId.toChatId());
-      // ! chatForbidden stays for chat where you're kicked
-      if(
-        chat._ === 'channelForbidden' ||
-        // (chat as Chat.chat).pFlags.deactivated || // ! deactivated means migrated, must save them
-        // || chat._ === 'chatForbidden'
-        (chat as Chat.chat).pFlags.left
-        // || (chat as any).pFlags.kicked
-      ) {
+      // ! chatForbidden stays for chat where you're kicked. TeleSignal: a group we are no longer in (left, removed or
+      // ended) stays in the list with its history, as in Web A and Signal Desktop
+      if(chat._ === 'channelForbidden') {
         return false;
       }
     } else if(this.appUsersManager.isDeleted(peerId.toUserId()) && !getServerMessageId(dialog.top_message)) {
