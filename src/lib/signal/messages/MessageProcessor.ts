@@ -107,6 +107,7 @@ import {
 import { parseContactSync } from '../sync/contactSync';
 import { wasm } from '../wasm';
 import { getIsConversationAccepted } from './messageRequests';
+import { addPinnedMessage, getCanPinMessages, getIsMessagePinnable } from './pinnedMessages';
 import { getNextSendRetry, getRetryRecipients, SEND_RETRY_MAX_AGE_MS } from './sendRetry';
 import { getFailedRecipients } from './sendState';
 
@@ -657,6 +658,59 @@ export default class MessageProcessor {
         if (current) await this.putReaction(current, account.aci, previous);
       });
       throw new Error('The reaction was not sent');
+    }
+  }
+
+  /**
+   * Pins a message for everyone in the chat, for `durationSeconds` or until it is unpinned, or unpins it (Signal
+   * Desktop `onPinnedMessageAdd` and `onPinnedMessageRemove` in `ts/state/ducks/conversations.preload.ts`,
+   * `ts/jobs/helpers/sendPinMessage.preload.ts`). The change is shown at once and taken back when no recipient gets it.
+   */
+  async sendPin(messageId: number, isPinned: boolean, durationSeconds?: number) {
+    const account = await this.getAccount();
+    const sentAt = this.allocateTimestamp();
+
+    const prepared = await this.runSerial(async () => {
+      const target = await this.db.getMessage(messageId);
+      const found = target && await this.db.getConversation(target.conversationId);
+      if (!target || !found || !getIsMessagePinnable(target) || !getCanPinMessages(found, account.aci)) {
+        throw new Error('The message cannot be pinned');
+      }
+      const isChanged = isPinned || Boolean(found.pinnedMessages?.some((pin) => pin.messageId === target.id));
+      if (!isChanged) return undefined;
+      await this.putConversation({
+        ...found,
+        pinnedMessages: isPinned
+          ? addPinnedMessage(found.pinnedMessages, {
+            messageId: target.id,
+            pinnedAt: sentAt,
+            expiresAt: durationSeconds ? sentAt + durationSeconds * 1000 : undefined,
+          })
+          : found.pinnedMessages?.filter((pin) => pin.messageId !== target.id),
+      });
+      return { conversation: found, target };
+    });
+    if (!prepared) return;
+
+    const { conversation, target } = prepared;
+    const targetFields = {
+      targetAuthorAciBinary: uuidToBytes(target.authorAci),
+      targetSentTimestamp: BigInt(target.sentAt),
+    };
+    const isSent = await this.sendToConversation(conversation, isPinned ? {
+      pinMessage: {
+        ...targetFields,
+        pinDuration: durationSeconds
+          ? { case: 'pinDurationSeconds', value: durationSeconds }
+          : { case: 'pinDurationForever', value: true },
+      },
+    } : { unpinMessage: targetFields }, sentAt);
+    if (!isSent) {
+      await this.runSerial(async () => {
+        const current = await this.db.getConversation(conversation.id);
+        if (current) await this.putConversation({ ...current, pinnedMessages: conversation.pinnedMessages });
+      });
+      throw new Error('The pin was not sent');
     }
   }
 
@@ -2635,7 +2689,7 @@ export default class MessageProcessor {
       return;
     }
     if (message.pinMessage || message.unpinMessage) {
-      await this.applyPin(conversation, message);
+      await this.applyPin(conversation, source.authorAci, message);
       return;
     }
 
@@ -3835,23 +3889,31 @@ export default class MessageProcessor {
     });
   }
 
-  private async applyPin(conversation: ConversationRecord, message: DataMessage) {
+  /**
+   * Pins or unpins a message of the conversation when the sender may edit the group (Signal Desktop
+   * `ts/messageModifiers/PinnedMessages.preload.ts`)
+   */
+  private async applyPin(conversation: ConversationRecord, senderAci: string, message: DataMessage) {
     const target = message.pinMessage ?? message.unpinMessage!;
     const targetMessage = await this.db.findMessage(
       uuidToString(target.targetAuthorAciBinary), Number(target.targetSentTimestamp),
     );
-    if (!targetMessage) return;
+    if (!targetMessage || targetMessage.conversationId !== conversation.id || !getIsMessagePinnable(targetMessage)
+      || !getCanPinMessages(conversation, senderAci)) {
+      return;
+    }
 
-    const others = (conversation.pinnedMessages ?? []).filter(({ messageId }) => messageId !== targetMessage.id);
     const pin = message.pinMessage;
     const now = Date.now();
     await this.putConversation({
       ...conversation,
-      pinnedMessages: pin ? [...others, {
-        messageId: targetMessage.id,
-        pinnedAt: now,
-        expiresAt: pin.pinDuration.case === 'pinDurationSeconds' ? now + pin.pinDuration.value * 1000 : undefined,
-      }] : others,
+      pinnedMessages: pin
+        ? addPinnedMessage(conversation.pinnedMessages, {
+          messageId: targetMessage.id,
+          pinnedAt: now,
+          expiresAt: pin.pinDuration.case === 'pinDurationSeconds' ? now + pin.pinDuration.value * 1000 : undefined,
+        })
+        : conversation.pinnedMessages?.filter(({ messageId }) => messageId !== targetMessage.id),
     });
   }
 

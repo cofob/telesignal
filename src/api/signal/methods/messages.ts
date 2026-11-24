@@ -30,6 +30,7 @@ import { ApiMessageEntityTypes, MESSAGE_DELETED } from '../../types';
 
 import { LOCAL_MESSAGES_LIMIT, SEND_MESSAGE_ACTION_INTERVAL } from '../../../config';
 import { LONG_TEXT_CONTENT_TYPE } from '../../../lib/signal/messages/MessageProcessor';
+import { getActivePinnedMessages } from '../../../lib/signal/messages/pinnedMessages';
 import {
   DataMessage_Contact_Phone_Type, DataMessage_Quote_Type, DataMessageSchema,
 } from '../../../lib/signal/proto/generated/SignalService_pb';
@@ -451,6 +452,48 @@ export async function sendReaction({
   if (!conversation) return undefined;
   const reaction = reactions?.[reactions.length - 1];
   await processor.sendReaction(messageId, reaction?.type === 'emoji' ? reaction.emoticon : undefined);
+  return true;
+}
+
+/** The pinned messages of a chat that have not expired, newest pin first; Signal has no threads */
+export async function fetchPinnedMessages({ chat }: { chat: ApiChat; threadId: ThreadId }) {
+  const conversation = await getConversationByPeerId(chat.id);
+  if (!conversation) return undefined;
+  const records = await Promise.all(
+    getActivePinnedMessages(conversation, Date.now()).map(({ messageId }) => db.getMessage(messageId)),
+  );
+  const shown = records.filter((record): record is MessageRecord => Boolean(record) && !getIsMessageHidden(record));
+  return { messages: (await buildMessages(shown, conversation)).messages };
+}
+
+/**
+ * Pins a message for everyone in the chat, or unpins it. Signal pins have no silent or one-sided form, so
+ * `isSilent` and `isOneSide` are ignored; resolves to `undefined` when the change was not sent.
+ */
+export async function pinMessage({ messageId, isUnpin }: {
+  chat: ApiChat;
+  messageId: number;
+  isUnpin: boolean;
+  isOneSide?: boolean;
+  isSilent?: boolean;
+}) {
+  try {
+    await processor.sendPin(messageId, !isUnpin);
+    return true;
+  } catch (err) {
+    logError(err);
+    return undefined;
+  }
+}
+
+/** Unpins every pinned message of a chat with one unpin message each; Signal has no message that unpins all */
+export async function unpinAllMessages({ chat }: { chat: ApiChat; threadId?: ThreadId }) {
+  const conversation = await getConversationByPeerId(chat.id);
+  if (!conversation) return undefined;
+  for (const { messageId } of getActivePinnedMessages(conversation, Date.now())) {
+    const result = await pinMessage({ chat, messageId, isUnpin: true });
+    if (!result) return undefined;
+  }
   return true;
 }
 

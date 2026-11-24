@@ -189,7 +189,8 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
   const peerId = buildPeer(message.chatId);
   const fromId = message.senderId ? buildPeer(message.senderId) : undefined;
   const pFlags: Message.message['pFlags'] = {
-    out: message.isOutgoing || undefined
+    out: message.isOutgoing || undefined,
+    pinned: message.isPinned || undefined
   };
 
   const {action} = message.content;

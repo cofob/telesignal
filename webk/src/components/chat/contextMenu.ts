@@ -1000,6 +1000,22 @@ export default class ChatContextMenu {
       verify: () => this.target.classList.contains('anchor-hashtag'),
       withSelection: true
     }, {
+      icon: 'pin',
+      text: 'Message.Context.Pin',
+      onClick: this.onPinClick,
+      verify: async() => !this.isLegacy &&
+        !this.message.pFlags.is_outgoing &&
+        this.message._ !== 'messageService' &&
+        !this.message.pFlags.pinned &&
+        await this.managers.appPeersManager.canPinMessage(this.message.peerId) &&
+        this.chat.type === ChatType.Chat
+    }, {
+      icon: 'unpin',
+      text: 'Message.Context.Unpin',
+      onClick: this.onUnpinClick,
+      verify: async() => (this.message as Message.message).pFlags.pinned &&
+        await this.managers.appPeersManager.canPinMessage(this.message.peerId)
+    }, {
       icon: 'download',
       text: 'MediaViewer.Context.Download',
       welcome: true,

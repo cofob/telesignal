@@ -38,6 +38,7 @@ import {DEFAULT_REACTION_EMOJIS, buildReaction, toSignalReaction} from '@lib/sig
 import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
 import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
+import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import makeError from '@helpers/makeError';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
@@ -228,7 +229,8 @@ export default class AppSignalManager extends AppManager {
       }),
       ...buildChatMethodHandlers(host),
       ...buildGroupMethodHandlers(host),
-      ...buildUserMethodHandlers(host)
+      ...buildUserMethodHandlers(host),
+      ...buildPinnedMessageHandlers(host)
     };
   }
 
@@ -551,9 +553,14 @@ export default class AppSignalManager extends AppManager {
     }
   }
 
-  /** The text search of a chat, which the other filters (media, pinned messages) do not have yet */
+  /** The text search of a chat and its pinned messages, which the other filters (media) do not have yet */
   private async searchMessages(params: MethodDeclMap['messages.search']['req']) {
     const peerId = this.getInputPeerId(params.peer);
+    if(peerId && params.filter?._ === 'inputMessagesFilterPinned') {
+      const messages = await fetchPinnedMessages(this.createMethodHost(), peerId);
+      return this.buildSearchResult({messages, totalCount: messages.length});
+    }
+
     const fromPeerId = params.from_id ? this.getInputPeerId(params.from_id) : undefined;
     if(!peerId || params.filter?._ !== 'inputMessagesFilterEmpty' || (!params.q && !fromPeerId)) return emptySearchResult();
 
@@ -702,6 +709,9 @@ export default class AppSignalManager extends AppManager {
         break;
       case 'deleteMessages':
         this.pushUpdates([{_: 'updateDeleteMessages', messages: update.ids, pts: 0, pts_count: 0}]);
+        break;
+      case 'updatePinnedIds':
+        this.pushUpdates([buildPinnedMessagesUpdate(update.chatId, update.messageIds, update.isPinned)]);
         break;
       case 'updateThreadReadState':
         this.onReadState(update.chatId, update.readState);

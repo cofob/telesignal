@@ -3,6 +3,7 @@ import type { MessageChanges } from '../../../lib/signal/messages/MessageProcess
 import { MAIN_THREAD_ID } from '../../types';
 
 import { ALL_FOLDER_ID, ARCHIVED_FOLDER_ID } from '../../../config';
+import { getActivePinnedMessages } from '../../../lib/signal/messages/pinnedMessages';
 import { areDeepEqual } from '../../../util/areDeepEqual';
 import { buildCollectionByKey, pick } from '../../../util/iteratees';
 import { getServerTime } from '../../../util/serverTime';
@@ -103,6 +104,8 @@ async function sendConversationChanges(
     sendApiUpdate({ '@type': 'updateChatListType', id, folderId: chat.folderId ?? ALL_FOLDER_ID });
   }
 
+  sendPinnedMessageChanges(id, previous, conversation);
+
   if (previous.mutedUntil !== conversation.mutedUntil) {
     sendApiUpdate({ '@type': 'updateChatNotifySettings', chatId: id, settings: buildNotifySettings(conversation) });
   }
@@ -146,6 +149,23 @@ async function sendConversationChanges(
 
   if (Boolean(previous.isBlocked) !== Boolean(conversation.isBlocked)) {
     sendApiUpdate({ '@type': 'updatePeerBlocked', id, isBlocked: Boolean(conversation.isBlocked) });
+  }
+}
+
+/** Messages pinned and unpinned since the app last received the conversation */
+function sendPinnedMessageChanges(chatId: string, previous: ConversationRecord, conversation: ConversationRecord) {
+  const now = Date.now();
+  const previousIds = getActivePinnedMessages(previous, now).map(({ messageId }) => messageId);
+  const currentIds = getActivePinnedMessages(conversation, now).map(({ messageId }) => messageId);
+  const pinnedIds = currentIds.filter((id) => !previousIds.includes(id));
+  const unpinnedIds = previousIds.filter((id) => !currentIds.includes(id));
+  if (pinnedIds.length) {
+    sendApiUpdate({
+      '@type': 'updatePinnedIds', chatId, isPinned: true, messageIds: pinnedIds,
+    });
+  }
+  if (unpinnedIds.length) {
+    sendApiUpdate({ '@type': 'updatePinnedIds', chatId, messageIds: unpinnedIds });
   }
 }
 
