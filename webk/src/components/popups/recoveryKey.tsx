@@ -6,10 +6,12 @@ import noop from '@helpers/noop';
 import {i18n} from '@lib/langPack';
 import {confirmRecoveryKeySaved, fetchRecoveryKey} from '@lib/signal/settingsApi';
 
+import styles from '@components/popups/recoveryKey.module.scss';
+
 /**
- * The recovery key of the account, as Web A's `RecoveryKeyModal`: with copying, and with the confirmation that it is
- * saved, which a new account asks for once (`shouldSkipConfirmed`: shown only then, as at the start after a
- * registration). A linked device has no key to show.
+ * The recovery key of the account, as Web A's `RecoveryKeyModal`: with copying, and, for a new account that has not
+ * confirmed it yet, the request to save it and the confirmation (`shouldSkipConfirmed`: shown only then, as at the
+ * start after a registration). A linked device has no key to show.
  */
 export default async function showRecoveryKeyPopup(shouldSkipConfirmed?: boolean) {
   const result = await fetchRecoveryKey();
@@ -19,32 +21,33 @@ export default async function showRecoveryKeyPopup(shouldSkipConfirmed?: boolean
     return;
   }
 
-  const savedButton: PopupPeerButton = {
-    langKey: 'RecoveryKeySaved',
+  const copyButton: PopupPeerButton = {
+    langKey: 'RecoveryKeyCopy',
     callback: () => {
-      if(result.isUnconfirmed) confirmRecoveryKeySaved();
+      copyTextToClipboard(result.key);
+      toastNew({langPackKey: 'RecoveryKeyCopied'});
+      return false;
     }
   };
 
+  // * the key saved: one the user has to confirm still is confirmed with it, one confirmed already is only closed
+  const doneButton: PopupPeerButton = result.isUnconfirmed ? {
+    langKey: 'RecoveryKeySaved',
+    callback: () => {
+      confirmRecoveryKeySaved();
+    }
+  } : {langKey: 'Close'};
+
   confirmationPopup({
-    titleLangKey: 'RecoveryKeyRecord',
+    titleLangKey: result.isUnconfirmed ? 'RecoveryKeyRecord' : 'RecoveryKey',
     descriptionLangKey: 'RecoveryKeyText',
     content: (
       <>
-        <p class="popup-description" style={{'font-family': 'var(--font-monospace)', 'user-select': 'all'}}>
-          {result.key}
-        </p>
+        <p class={`popup-description ${styles.key}`}>{result.key}</p>
         <p class="popup-description">{i18n('RecoveryKeyWarning')}</p>
       </>
     ),
-    button: savedButton,
-    buttons: [{
-      langKey: 'RecoveryKeyCopy',
-      callback: () => {
-        copyTextToClipboard(result.key);
-        toastNew({langPackKey: 'RecoveryKeyCopied'});
-        return false;
-      }
-    }, savedButton]
+    button: doneButton,
+    buttons: [copyButton, doneButton]
   }).catch(noop);
 }

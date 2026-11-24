@@ -6,7 +6,7 @@
 
 import {createRoot, createSignal, JSX, onCleanup, onMount} from 'solid-js';
 
-import {FormatterArguments, i18n, LangPackKey} from '@lib/langPack';
+import I18n, {FormatterArguments, i18n, LangPackKey} from '@lib/langPack';
 import rootScope from '@lib/rootScope';
 import type {SignalAuthError, SignalAuthState} from '@lib/signal/registrationTypes';
 
@@ -40,9 +40,13 @@ export function clearSignalAuthError() {
   store.setAuthError(undefined);
 }
 
-/** A refused step in Web K's words: Web A's key, with its variables in their order */
+/**
+ * A refused step in Web K's words: Web A's key, with its variables in their order. A key that Web K's language pack
+ * lacks shows as an unexpected error, not as the key itself
+ */
 export function formatSignalAuthError(error: SignalAuthError | undefined): JSX.Element {
   if(!error) return undefined;
+  if(!I18n.strings.has(error.key as LangPackKey)) return i18n('ErrorUnexpected');
   const args = Object.values(error.variables || {}) as FormatterArguments;
   return i18n(error.key as LangPackKey, args);
 }
@@ -58,6 +62,8 @@ export function SignalAuthController() {
   const show = (authState: SignalAuthState | undefined) => {
     if(!authState || isDone) return;
     store.setAuthState(authState);
+    // * the engine's number of the registration, for a page that reloaded during it
+    if(authState.phoneNumber && !store.phoneNumber()) store.setPhoneNumber(authState.phoneNumber);
     const name = CARD_BY_STATE[authState.state];
     if(name && currentCard()?.name !== name) {
       store.setAuthError(undefined);

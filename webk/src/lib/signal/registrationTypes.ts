@@ -30,6 +30,8 @@ export type SignalBackupRestore = {
 
 export type SignalAuthState = {
   state: SignalAuthStateName,
+  // * the number being registered, with its `+`
+  phoneNumber?: string,
   codeInfo?: SignalAuthCodeInfo,
   backupRestore?: SignalBackupRestore
 };

@@ -36,12 +36,14 @@ import {
 // * Signal's PIN is at least four characters (Signal Android `PinEditText`)
 const PIN_MIN_LENGTH = 4;
 // * the result of the check of our own account (Web A's `KEY_TRANSPARENCY_SELF_TEXTS`)
-const KEY_TRANSPARENCY_SELF_KEYS: Record<SignalKeyTransparencySelfStatus, LangPackKey> = {
+const KEY_TRANSPARENCY_SELF_KEYS: Record<SignalKeyTransparencySelfStatus | 'error', LangPackKey> = {
   idle: 'KeyTransSelfIdle',
   running: 'KeyTransRunning',
   ok: 'KeyTransOk',
   fail: 'KeyTransFail',
-  intermittent: 'KeyTransSelfRetry'
+  intermittent: 'KeyTransSelfRetry',
+  // * a check that gave no result, which the row offers to run again
+  error: 'KeyTransError'
 };
 
 const PrivacyAndSecurity: Component = () => {
@@ -57,7 +59,7 @@ const PrivacyAndSecurity: Component = () => {
   // * the disappearing messages timer of new chats, as Web A's `SettingsAutoDeleteMessages`; 0 is off
   const [autoDeletePeriod, setAutoDeletePeriod] = createSignal<number>();
   // * none where Web A shows none: a check that is not available, and an account without stories settings
-  const [keyTransparencyStatus, setKeyTransparencyStatus] = createSignal<SignalKeyTransparencySelfStatus>();
+  const [keyTransparencyStatus, setKeyTransparencyStatus] = createSignal<SignalKeyTransparencySelfStatus | 'error'>();
   const [storySettings, setStorySettings] = createSignal<SignalStorySettings>();
 
   const loadSettings = async() => {
@@ -88,7 +90,7 @@ const PrivacyAndSecurity: Component = () => {
   const onKeyTransparencyClick = async() => {
     if(keyTransparencyStatus() === 'running') return;
     setKeyTransparencyStatus('running');
-    setKeyTransparencyStatus(await checkKeyTransparencySelf());
+    setKeyTransparencyStatus(await checkKeyTransparencySelf() ?? 'error');
   };
 
   // * the change shows at once and goes back when it fails, as in Web A

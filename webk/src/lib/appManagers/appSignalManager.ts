@@ -893,6 +893,7 @@ export default class AppSignalManager extends AppManager {
   private onAuthorizationState(update: SignalApiUpdate) {
     this.authState = {
       state: update.authorizationState,
+      phoneNumber: update.phoneNumber,
       codeInfo: update.codeInfo,
       backupRestore: update.backupRestore
     };

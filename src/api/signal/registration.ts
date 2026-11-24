@@ -482,6 +482,7 @@ function sendCodeState() {
   sendApiUpdate({
     '@type': 'updateAuthorizationState',
     authorizationState: 'authorizationStateWaitCode',
+    phoneNumber: state.number,
     codeInfo: {
       transport: codeTransport,
       nextSmsAt: session?.nextSms !== undefined ? now + session.nextSms * MS_IN_SECOND : undefined,
@@ -491,7 +492,7 @@ function sendCodeState() {
 }
 
 function sendAuthState(authorizationState: ApiUpdateAuthorizationStateType) {
-  sendApiUpdate({ '@type': 'updateAuthorizationState', authorizationState });
+  sendApiUpdate({ '@type': 'updateAuthorizationState', authorizationState, phoneNumber: state.number });
 }
 
 function sendAuthError(errorKey: RegularLangFnParameters) {

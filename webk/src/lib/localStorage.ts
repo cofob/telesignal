@@ -22,7 +22,14 @@ import DeferredIsUsingPasscode from '@lib/passcode/deferredIsUsingPasscode';
 import {readSessionValue, removeSessionValue, writeSessionValue} from '@signal-app/passcode-session';
 
 
-// * TeleSignal: a write reaches Web A's passcode vault at once (`@lib/signal/sessionsVault`), loaded on the page only
+// * TeleSignal: a write of an account slot reaches Web A's passcode vault at once (`@lib/signal/sessionsVault`), loaded
+// * on the page only; the other keys are Web K's own, which Web A's vault does not keep for it
+const SLOT_KEY_RE = /^account\d+$/;
+
+function isSlotKey(key: string) {
+  return SLOT_KEY_RE.test(key);
+}
+
 function flushSessionsVault() {
   if(IS_WORKER) return;
   import('@lib/signal/sessionsVault').then((module) => module.flushSessionsVault()).catch(noop);
@@ -93,7 +100,7 @@ export class LocalStorage<Storage extends Record<string, any>> {
       }
     }
 
-    if(!onlyLocal) flushSessionsVault();
+    if(!onlyLocal && Object.keys(obj).some(isSlotKey)) flushSessionsVault();
 
     if(lastError) {
       throw lastError;
@@ -116,7 +123,7 @@ export class LocalStorage<Storage extends Record<string, any>> {
     }
     // }
 
-    flushSessionsVault();
+    if(isSlotKey(key as string)) flushSessionsVault();
   }
 
   /**

@@ -98,6 +98,11 @@ export class SingleInstance extends EventListenerBase<{
     });
   }
 
+  /** Whether this tab is the one of the origin that runs the app, as Web A's master tab */
+  public get isMasterInstance() {
+    return this.masterInstance && !this.deactivated;
+  }
+
   public onMyClient = () => {
     this.activateInstance();
     rootScope.managers.all.networkerFactory.startAll();

@@ -11,6 +11,7 @@ import {
 } from '@signal-app/passcode';
 import {broadcastPasscodeSessionsChanged} from '@signal-app/passcode-channel';
 import {isSessionStoreLocked} from '@signal-app/passcode-session';
+import noop from '@helpers/noop';
 
 let flushing: Promise<void>;
 let isFlushPending = false;
@@ -33,7 +34,7 @@ export function flushSessionsVault(): Promise<void> {
     flushing = undefined;
     if(isFlushPending) {
       isFlushPending = false;
-      flushSessionsVault();
+      flushSessionsVault().catch(noop);
     }
   });
 

@@ -15,6 +15,7 @@ import Row from '@components/rowTsx';
 import safeWindowOpen from '@helpers/dom/safeWindowOpen';
 import formatBytes from '@helpers/formatBytes';
 import {i18n, LangPackKey} from '@lib/langPack';
+import rootScope from '@lib/rootScope';
 
 import AuthCard from '@/pages/AuthCard';
 import AuthCardError from '@/pages/AuthCardError';
@@ -44,17 +45,25 @@ const RESTORE_STEP_KEYS: Record<string, LangPackKey> = {
   importing: 'AuthRestoreStepImporting'
 };
 
-/** Sends what a step asks for; the button stays busy until the engine answers with a step or an error */
+/**
+ * Sends what a step asks for. The button stays busy until the engine answers with a step (a resent code comes back as
+ * the same step) or an error, as Web A's `isLoading`; `submitted` names the method sent while it is out
+ */
 function useSubmit() {
   const {managers} = useAuthFlow();
-  const [isSubmitting, setIsSubmitting] = createSignal(false);
+  const [submitted, setSubmitted] = createSignal<string>();
   const submit = (name: string, ...args: any[]) => {
     clearSignalAuthError();
-    setIsSubmitting(true);
+    setSubmitted(name);
     managers.appSignalManager.callSignal(name, ...args);
   };
 
-  return {isSubmitting: () => isSubmitting() && !signalAuthError(), submit};
+  const onAuthState = () => setSubmitted(undefined);
+  rootScope.addEventListener('signal_auth_state', onAuthState);
+  onCleanup(() => rootScope.removeEventListener('signal_auth_state', onAuthState));
+
+  const isSubmitting = () => !!submitted() && !signalAuthError();
+  return {isSubmitting, submitted: () => isSubmitting() && submitted(), submit};
 }
 
 function SubmitButton(props: {text: LangPackKey, isSubmitting: boolean, disabled?: boolean, onClick: () => void}) {
@@ -153,7 +162,7 @@ export function SignalCodeCard() {
   const field = createField('Code', () => {
     const code = field.value.replace(/\D+/g, '').slice(0, CODE_LENGTH);
     if(code !== field.value) field.setValueSilently(code);
-    if(code.length === CODE_LENGTH) submit('provideAuthCode', code);
+    if(code.length === CODE_LENGTH && !isSubmitting()) submit('provideAuthCode', code);
   });
   field.input.setAttribute('inputmode', 'numeric');
 
@@ -198,7 +207,7 @@ export function SignalPinCard() {
   const field = createField('SignalPinPlaceholder');
   (field.input as HTMLInputElement).type = 'password';
   onMount(() => field.input.focus());
-  const onSubmit = () => field.value && submit('provideAuthPassword', field.value);
+  const onSubmit = () => field.value && !isSubmitting() && submit('provideAuthPassword', field.value);
   field.input.addEventListener('keydown', (e) => e.key === 'Enter' && onSubmit());
 
   return (
@@ -219,7 +228,9 @@ export function SignalPinCard() {
 
 export function SignalProfileCard() {
   const {isSubmitting, submit} = useSubmit();
-  const firstNameField = createField('FirstName');
+  // * a first name is required, as in Web A's `AuthRegister`
+  const [hasFirstName, setHasFirstName] = createSignal(false);
+  const firstNameField = createField('FirstName', () => setHasFirstName(!!firstNameField.value.trim()));
   const lastNameField = createField('LastName');
   const [isDiscoverable, setIsDiscoverable] = createSignal(true);
 
@@ -247,19 +258,19 @@ export function SignalProfileCard() {
         </Row.CheckboxFieldToggle>
         <Row.Title>{i18n('SignalRegisterDiscoverable')}</Row.Title>
       </Row>
-      <SubmitButton text="LoginNext" isSubmitting={isSubmitting()} onClick={onSubmit} />
+      <SubmitButton text="LoginNext" isSubmitting={isSubmitting()} disabled={!hasFirstName()} onClick={onSubmit} />
     </AuthCard>
   );
 }
 
 export function SignalRestoreCard() {
-  const {isSubmitting, submit} = useSubmit();
+  const {submitted, submit} = useSubmit();
   const [hasKey, setHasKey] = createSignal(false);
   const field = createField('AuthRestoreKey', () => setHasKey(!!field.value.trim()));
   const restore = () => signalAuthState()?.backupRestore;
   // * the step of a restore under way, from the moment the key is sent, as Web A shows it: none while the key is asked
   // * for, and again after a refused key
-  const step = () => !signalAuthError() && (restore()?.step || (isSubmitting() && 'verifying'));
+  const step = () => !signalAuthError() && (restore()?.step || (submitted() === 'provideAuthRestore' && 'verifying'));
   const percent = () => `${Math.floor((restore()?.progress ?? 0) * PERCENT)}%`;
 
   const fileInput = document.createElement('input');

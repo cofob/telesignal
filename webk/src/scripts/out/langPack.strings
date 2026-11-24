@@ -443,6 +443,7 @@
 "KeyTransOk" = "Encryption verified";
 "KeyTransFail" = "Verification failed";
 "KeyTransSelfRetry" = "Checking failed, will retry";
+"KeyTransError" = "Could not check, tap to retry";
 "StoriesSettingTitle" = "Stories";
 "StoriesSettingEnable" = "Share and view stories";
 "StoriesSettingEnableInfo" = "If you turn stories off, you can no longer share or view stories.";
@@ -509,6 +510,8 @@
 "BackupsUnavailableNoMediaKey" = "Backups need a key that your phone sends when it links this app. Link the app again to get it.";
 "BackupsUnavailableNoRecoveryKey" = "Backups need the recovery key of your account. This account has none, because it was registered with the PIN of an earlier account.";
 "ErrorCodeInvalid" = "Invalid code, please try again";
+"SignalCodeErrorNoCode" = "Signal cannot send a code to this number";
+"SignalCodeErrorUndeliverable" = "Cannot send a code now, try again later";
 "ErrorFloodTime" = "Too many attempts, please try again in %s";
 "ErrorPhoneNumberInvalid" = "Invalid phone number, please try again";
 "ErrorUnexpected" = "Unexpected error";

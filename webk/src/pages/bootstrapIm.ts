@@ -1,3 +1,5 @@
+import noop from '@helpers/noop';
+import singleInstance from '@lib/singleInstance';
 import blurActiveElement from '@helpers/dom/blurActiveElement';
 import loadFonts from '@helpers/dom/loadFonts';
 import {doubleRaf} from '@helpers/schedulers';
@@ -65,8 +67,13 @@ export async function bootstrapIm(): Promise<void> {
   // `pageIm.onFirstMount` used so the cross-fade looks right.
   disposeActiveAuthFlow(1000);
 
-  // * TeleSignal: the recovery key of an account registered here, until the user confirms it is saved (Web A's `Main`)
-  import('@components/popups/recoveryKey').then(({default: showRecoveryKeyPopup}) => showRecoveryKeyPopup(true));
+  // * TeleSignal: the recovery key of an account registered here, until the user confirms it is saved: once per start,
+  // * on the tab that runs the app (Web A's `Main`)
+  if(singleInstance.isMasterInstance) {
+    import('@components/popups/recoveryKey')
+    .then(({default: showRecoveryKeyPopup}) => showRecoveryKeyPopup(true))
+    .catch(noop);
+  }
 }
 
 let topLevel: Promise<typeof import('@lib/appDialogsManager')['default']>;
