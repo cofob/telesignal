@@ -20,6 +20,7 @@ import type {
 import type { ApiMessageAction, ApiMessageActionGroupUpdate } from '../../types/messageActions';
 import type { MentionedUser } from './bodyRanges';
 
+import { getActivePinnedMessages } from '../../../lib/signal/messages/pinnedMessages';
 import { getMessageSendState } from '../../../lib/signal/messages/sendState';
 import {
   DataMessage_Payment_Activation_Type, DataMessageSchema,
@@ -126,6 +127,18 @@ export async function buildApiMessageWithPoll(
       },
     };
   }
+  if (message.kind === 'pinnedMessage') {
+    return {
+      message: {
+        ...base,
+        isOutgoing: message.actorAci === selfAci,
+        content: { action: { mediaType: 'action', type: 'pinMessage' } },
+        replyInfo: message.pinnedMessageId
+          ? { type: 'message', replyToMsgId: message.pinnedMessageId }
+          : undefined,
+      },
+    };
+  }
   if (message.kind !== 'message') {
     return { message: { ...base, content: { action: { mediaType: 'action', type: 'unsupported' } } } };
   }
@@ -188,6 +201,8 @@ export async function buildApiMessageWithPoll(
       isMentioned: isMentioned || undefined,
       hasUnreadMention: isMentioned && !message.readAt ? true : undefined,
       isMediaUnread: !message.isOutgoing && !message.viewedAt && hasViewableMedia ? true : undefined,
+      isPinned: getActivePinnedMessages(conversation, Date.now()).some(({ messageId }) => messageId === message.id)
+        || undefined,
       isForwardingAllowed: true,
     },
     poll,

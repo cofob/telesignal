@@ -2,6 +2,7 @@ import type { MessageInitShape } from '@bufbuild/protobuf';
 import { fromBinary } from '@bufbuild/protobuf';
 
 import type { ConversationRecord, MessageRecord } from '../../../lib/signal/db/MessageDb';
+import type { MessageChanges } from '../../../lib/signal/messages/MessageProcessor';
 import type { DataMessage_QuoteSchema } from '../../../lib/signal/proto/generated/SignalService_pb';
 import type { ForwardMessagesParams, SendMessageParams, ThreadId } from '../../../types';
 import type {
@@ -28,8 +29,9 @@ import type {
 } from '../../types';
 import { ApiMessageEntityTypes, MESSAGE_DELETED } from '../../types';
 
-import { LOCAL_MESSAGES_LIMIT, SEND_MESSAGE_ACTION_INTERVAL } from '../../../config';
+import { LOCAL_MESSAGES_LIMIT, RE_LINK_TEMPLATE, SEND_MESSAGE_ACTION_INTERVAL } from '../../../config';
 import { LONG_TEXT_CONTENT_TYPE } from '../../../lib/signal/messages/MessageProcessor';
+import { getActivePinnedMessages } from '../../../lib/signal/messages/pinnedMessages';
 import {
   DataMessage_Contact_Phone_Type, DataMessage_Quote_Type, DataMessageSchema,
 } from '../../../lib/signal/proto/generated/SignalService_pb';
@@ -40,10 +42,11 @@ import { getEmojiOnlyCountForMessage } from '../../../global/helpers/getEmojiOnl
 import buildUploadingMedia from '../../../util/buildUploadingMedia';
 import { bufferFromHex } from '../../../util/encoding/buffer';
 import { buildCollectionByKey, omit, omitUndefined } from '../../../util/iteratees';
+import { pause } from '../../../util/schedulers';
 import { getServerTime } from '../../../util/serverTime';
 import { buildBodyRanges } from '../builders/bodyRanges';
 import { getIsChatListed } from '../builders/chats';
-import { parseAttachmentMediaId } from '../builders/media';
+import { buildMessageMedia, parseAttachmentMediaId } from '../builders/media';
 import {
   buildApiMessageWithPoll, createUserResolver, getIsMessageHidden,
 } from '../builders/messages';
@@ -151,11 +154,14 @@ type SearchMessagesResult = {
 const EMPTY_SEARCH_RESULT: SearchMessagesResult = { messages: [], totalCount: 0, userStatusesById: {} };
 
 /**
- * Messages of a chat whose text contains `query`, newest first, from before `offsetId`. Signal keeps no search index,
- * so the stored text is read; the shared media of a chat has no search yet and comes back empty.
+ * Messages of a chat of the search type whose text contains `query`, newest first, around `offsetId`, and only those
+ * of `fromPeer` when it is set. The page holds the matches older than `offsetId` and, for a negative `addOffset`, that
+ * many matches from `offsetId` on, as the media viewer asks for the items around the open one. The shared media types
+ * (`SHARED_MEDIA_SEARCH_TYPES`) and a sender search take an empty query. Signal keeps no search index, so the stored
+ * messages are read.
  */
 export async function searchMessagesInChat({
-  peer, type, query, limit, offsetId,
+  peer, type, query = '', limit, offsetId, addOffset = 0, fromPeer,
 }: {
   peer: ApiPeer;
   type: string;
@@ -168,19 +174,34 @@ export async function searchMessagesInChat({
   minDate?: number;
   maxDate?: number;
 }): Promise<SearchMessagesResult> {
-  const conversation = await getConversationByPeerId(peer.id);
-  if (!conversation || type !== 'text' || !query) return EMPTY_SEARCH_RESULT;
+  if (!getIsSearchSupported(type, query, Boolean(fromPeer))) return EMPTY_SEARCH_RESULT;
 
-  const matches = await findTextMatches([conversation], query, limit, offsetId);
-  return buildSearchResult(matches, limit);
+  const conversation = await getConversationByPeerId(peer.id);
+  // A sender filter names a user, whose conversation id is the ACI of the user's messages
+  const senderConversation = fromPeer ? await getConversationByPeerId(fromPeer.id) : undefined;
+  if (!conversation || (fromPeer && !senderConversation)) return EMPTY_SEARCH_RESULT;
+
+  const filter: SearchFilter = { type, needle: query.toLowerCase(), senderAci: senderConversation?.id };
+  const newerCount = offsetId ? Math.max(-addOffset, 0) : 0;
+  const newer = newerCount ? await scanNewerMatches(conversation, filter, offsetId!, newerCount) : [];
+  const older: SearchScan = limit > newerCount
+    ? await scanMessages({
+      scope: conversation.id, conversations: [conversation], filter, limit: limit - newerCount, offsetId,
+    })
+    : { matches: [], matchCount: 0 };
+  return buildSearchResult({
+    matches: [...newer.map((record) => ({ record, conversation })), ...older.matches],
+    matchCount: older.matchCount + newer.length,
+    cursor: older.cursor,
+  });
 }
 
 /**
- * Messages of every listed chat whose text contains `query`, newest first, from before `offsetId`; the
- * `nextOffsetId` of a result continues the search with the next page.
+ * Messages of every listed chat of the search type whose text contains `query`, newest first, from before `offsetId`;
+ * the `nextOffsetId` of a result continues the search with the next page.
  */
 export async function searchMessagesGlobal({
-  type, query, limit, offsetId,
+  type, query = '', limit, offsetId,
 }: {
   type: string;
   query?: string;
@@ -194,35 +215,292 @@ export async function searchMessagesGlobal({
   maxDate?: number;
 }): Promise<SearchMessagesResult> {
   const selfAci = getCurrentAccount()?.aci;
-  if (!selfAci || type !== 'text' || !query) return EMPTY_SEARCH_RESULT;
+  if (!selfAci || !getIsSearchSupported(type, query)) return EMPTY_SEARCH_RESULT;
 
   const conversations = (await db.getConversations()).filter((conversation) => (
     getIsChatListed(conversation, selfAci)
   ));
-  const matches = await findTextMatches(conversations, query, limit, offsetId);
-  return buildSearchResult(matches, limit);
+  return buildSearchResult(await scanMessages({
+    scope: GLOBAL_SEARCH_SCOPE, conversations, filter: { type, needle: query.toLowerCase() }, limit, offsetId,
+  }));
 }
 
-/** The newest messages of each conversation whose text has `query`, with the newest `limit` of them first */
-async function findTextMatches(
-  conversations: ConversationRecord[], query: string, limit: number, offsetId?: number,
-) {
-  const needle = query.toLowerCase();
-  const before = offsetId || Number.MAX_SAFE_INTEGER;
-  const matches: { record: MessageRecord; conversation: ConversationRecord }[] = [];
+const MIN_SEARCH_QUERY_LENGTH = 2;
+// The shared media of a chat: photos and videos, files, links, music and voice messages with round videos
+const SHARED_MEDIA_SEARCH_TYPES = new Set<string>(['media', 'documents', 'links', 'audio', 'voice']);
+const LINK_REGEX = new RegExp(RE_LINK_TEMPLATE, 'i');
+const SHARED_MEDIA_COUNT_BATCH_SIZE = 200;
+
+/** The shared media counts of each conversation, counted or being counted, until its messages change */
+const sharedMediaCountsByConversationId = new Map<string, Promise<SharedMediaCounts>>();
+/**
+ * Records looked at before a search yields to the other work of the worker. A search with matches returns them at
+ * that point with its cursor; one without goes on after the yield until it finds a match or reads every record.
+ */
+const SEARCH_CHUNK_SIZE = 1000;
+/** Records read from a chat at a time; a chat is read only when its newest unread record is the newest of all */
+const SEARCH_BATCH_SIZE = 32;
+const GLOBAL_SEARCH_SCOPE = 'global';
+/** Recent search cursors that are remembered with the count of the matches up to them */
+const SEARCH_COUNTS_LIMIT = 32;
+
+/**
+ * The count of the matches up to the cursor of each recent page, by search and cursor. Clients take the count of the
+ * last page for the count of all matches, so each page counts the matches of the pages before it.
+ */
+const searchCountsByCursorKey = new Map<string, number>();
+
+/** What a search looks for: the type, the lower-case text and, when set, the sender */
+type SearchFilter = {
+  type: string;
+  needle: string;
+  senderAci?: string;
+};
+
+/** A chat walked by a search: the records read from it and not looked at yet, newest first */
+type SearchChat = {
+  conversation: ConversationRecord;
+  buffer: MessageRecord[];
+  // At least the id of the newest record not read yet, `undefined` once every record is read
+  nextId?: number;
+};
+
+type SearchScan = {
+  matches: { record: MessageRecord; conversation: ConversationRecord }[];
+  // The matches of this page and the pages before it
+  matchCount: number;
+  cursor?: number;
+};
+
+/**
+ * Whether a search has an answer: text needs a query of `MIN_SEARCH_QUERY_LENGTH`, except when it lists a sender's
+ * messages, and shared media takes an empty query or one of that length
+ */
+function getIsSearchSupported(type: string, query: string, isSenderSearch?: boolean) {
+  if (type === 'text') return query.length >= MIN_SEARCH_QUERY_LENGTH || (isSenderSearch && !query);
+  return SHARED_MEDIA_SEARCH_TYPES.has(type) && (!query || query.length >= MIN_SEARCH_QUERY_LENGTH);
+}
+
+/**
+ * The matches of `filter`, newest first, from before `offsetId`. The chats are walked together, the newest record of
+ * any of them next, so every record newer than the cursor has been looked at when the walk stops; a chat is read only
+ * when its turn comes. The walk ends after `limit` matches, or at the end of a chunk of `SEARCH_CHUNK_SIZE` records
+ * with at least one match. `cursor` is the id to continue from, and it is `undefined` once no record is left.
+ */
+async function scanMessages({
+  scope, conversations, filter, limit, offsetId,
+}: {
+  scope: string;
+  conversations: ConversationRecord[];
+  filter: SearchFilter;
+  limit: number;
+  offsetId?: number;
+}): Promise<SearchScan> {
+  const searchKey = [scope, filter.type, filter.senderAci ?? '', filter.needle].join('\n');
+  const chats: SearchChat[] = [];
   for (const conversation of conversations) {
-    const records = await db.findLatestMessages(conversation.id, limit, (message) => (
-      message.id < before && !getIsMessageHidden(message) && Boolean(message.body?.toLowerCase().includes(needle))
-    ));
-    matches.push(...records.map((record) => ({ record, conversation })));
+    const nextId = await db.getNewestMessageId(conversation.id, offsetId || Number.MAX_SAFE_INTEGER);
+    if (nextId !== undefined) chats.push({ conversation, buffer: [], nextId });
   }
-  return matches.sort((a, b) => b.record.id - a.record.id).slice(0, limit);
+
+  const matches: SearchScan['matches'] = [];
+  let lookedAt = 0;
+  let lastRead: number | undefined;
+  while (matches.length < limit) {
+    const chat = getNewestSearchChat(chats);
+    if (!chat) break;
+    if (!chat.buffer.length) {
+      await fillSearchBuffer(chat);
+      continue;
+    }
+    if (lookedAt >= SEARCH_CHUNK_SIZE) {
+      if (matches.length) break;
+      lookedAt = 0;
+      await pause(0);
+    }
+
+    const record = chat.buffer.shift()!;
+    lookedAt++;
+    lastRead = record.id;
+    if (getIsFilterMatch(record, filter)) matches.push({ record, conversation: chat.conversation });
+  }
+
+  const isComplete = !getNewestSearchChat(chats);
+  const cursor = isComplete ? undefined : lastRead;
+  const previousCount = (offsetId && searchCountsByCursorKey.get(`${searchKey}\n${offsetId}`)) || 0;
+  const matchCount = previousCount + matches.length;
+  if (cursor) {
+    // Web K goes on from its last match, which counts the same matches as the cursor after it
+    const lastMatchId = matches.length ? matches[matches.length - 1].record.id : undefined;
+    rememberSearchCount(`${searchKey}\n${cursor}`, matchCount);
+    if (lastMatchId) rememberSearchCount(`${searchKey}\n${lastMatchId}`, matchCount);
+  }
+  return { matches, matchCount, cursor };
 }
 
-/** The matches as messages, with the offset of the next page when a full page may have more behind it */
-async function buildSearchResult(
-  matches: { record: MessageRecord; conversation: ConversationRecord }[], limit: number,
-): Promise<SearchMessagesResult> {
+/** Up to `count` matches of a chat from `fromId` on, oldest first, yielding after each chunk of records */
+async function scanNewerMatches(conversation: ConversationRecord, filter: SearchFilter, fromId: number, count: number) {
+  const matches: MessageRecord[] = [];
+  let cursorId = fromId;
+  let lookedAt = 0;
+  while (matches.length < count) {
+    const records = await db.getMessagesFrom(conversation.id, SEARCH_BATCH_SIZE, cursorId);
+    for (const record of records) {
+      if (getIsFilterMatch(record, filter)) matches.push(record);
+      if (matches.length >= count) break;
+    }
+    if (records.length < SEARCH_BATCH_SIZE) break;
+    // `getMessagesFrom` includes its bound
+    cursorId = records[records.length - 1].id + 1;
+    lookedAt += records.length;
+    if (lookedAt >= SEARCH_CHUNK_SIZE) {
+      lookedAt = 0;
+      await pause(0);
+    }
+  }
+  return matches;
+}
+
+/** The chat whose next record is the newest, by the record read or the bound of the one not read yet */
+function getNewestSearchChat(chats: SearchChat[]) {
+  let newest: SearchChat | undefined;
+  let newestId = -1;
+  for (const chat of chats) {
+    const id = chat.buffer.length ? chat.buffer[0].id : chat.nextId;
+    if (id !== undefined && id > newestId) {
+      newest = chat;
+      newestId = id;
+    }
+  }
+  return newest;
+}
+
+function getIsFilterMatch(record: MessageRecord, { type, needle, senderAci }: SearchFilter) {
+  return !getIsMessageHidden(record) && (!senderAci || record.authorAci === senderAci)
+    && getIsSearchMatch(record, type, needle);
+}
+
+/** Whether a message has the text of the search and, for shared media, is of its type */
+function getIsSearchMatch(record: MessageRecord, type: string, needle: string) {
+  if (needle && !record.body?.toLowerCase().includes(needle)) return false;
+  if (type === 'text') return true;
+
+  const kind = getSharedMediaKind(record);
+  return type === 'media' ? kind.isPhoto || kind.isVideo : Boolean(kind[SHARED_MEDIA_KIND_KEYS[type]]);
+}
+
+const SHARED_MEDIA_KIND_KEYS: Record<string, keyof SharedMediaKind> = {
+  documents: 'isDocument',
+  links: 'isLink',
+  audio: 'isAudio',
+  voice: 'isVoice',
+};
+
+type SharedMediaCounts = Record<'photos' | 'videos' | 'documents' | 'links' | 'audio' | 'voice', number>;
+
+type SharedMediaKind = {
+  isPhoto?: boolean;
+  isVideo?: boolean;
+  isDocument?: boolean;
+  isLink?: boolean;
+  isAudio?: boolean;
+  isVoice?: boolean;
+};
+
+/**
+ * What shared media a message is: a link in its text, and its photo, video, file, music or voice; view-once media is
+ * none of them
+ */
+function getSharedMediaKind(record: MessageRecord): SharedMediaKind {
+  const isLink = Boolean(record.body && LINK_REGEX.test(record.body));
+  if (!record.dataMessage) return { isLink };
+
+  const dataMessage = fromBinary(DataMessageSchema, record.dataMessage);
+  if (dataMessage.isViewOnce) return { isLink };
+  const {
+    photo, video, document, audio, voice,
+  } = buildMessageMedia(record, dataMessage);
+  return {
+    isLink,
+    isPhoto: Boolean(photo),
+    isVideo: Boolean(video && !video.isRound),
+    isDocument: Boolean(document),
+    isAudio: Boolean(audio),
+    isVoice: Boolean(voice || video?.isRound),
+  };
+}
+
+/**
+ * How many messages of a chat are each kind of shared media, for clients that show the counts on their tabs. Signal
+ * keeps no index, so the whole chat is read.
+ */
+export async function fetchSharedMediaCounts({ chat }: { chat: ApiChat }) {
+  const conversation = await getConversationByPeerId(chat.id);
+  if (!conversation) return undefined;
+
+  let counts = sharedMediaCountsByConversationId.get(conversation.id);
+  if (!counts) {
+    counts = countSharedMedia(conversation.id);
+    sharedMediaCountsByConversationId.set(conversation.id, counts);
+    counts.catch(() => sharedMediaCountsByConversationId.delete(conversation.id));
+  }
+  return counts;
+}
+
+/** Forgets the shared media counts of the conversations whose messages changed */
+export function forgetSharedMediaCounts({ messages, deletedMessages }: MessageChanges) {
+  for (const { conversationId } of [...messages, ...deletedMessages]) {
+    sharedMediaCountsByConversationId.delete(conversationId);
+  }
+}
+
+async function countSharedMedia(conversationId: string) {
+  const counts: Record<keyof SharedMediaKind, number> = {
+    isPhoto: 0, isVideo: 0, isDocument: 0, isLink: 0, isAudio: 0, isVoice: 0,
+  };
+  let before = Number.MAX_SAFE_INTEGER;
+  for (;;) {
+    const records = await db.getMessages(conversationId, SHARED_MEDIA_COUNT_BATCH_SIZE, before);
+    for (const record of records) {
+      if (getIsMessageHidden(record)) continue;
+      const kind = getSharedMediaKind(record);
+      for (const key of Object.keys(counts) as (keyof SharedMediaKind)[]) {
+        if (kind[key]) counts[key]++;
+      }
+    }
+    if (records.length < SHARED_MEDIA_COUNT_BATCH_SIZE) break;
+    before = records[records.length - 1].id;
+  }
+  return {
+    photos: counts.isPhoto,
+    videos: counts.isVideo,
+    documents: counts.isDocument,
+    links: counts.isLink,
+    audio: counts.isAudio,
+    voice: counts.isVoice,
+  };
+}
+
+/** Reads the next batch of a chat's records into its empty buffer */
+async function fillSearchBuffer(chat: SearchChat) {
+  // `getMessages` excludes its bound
+  const records = await db.getMessages(chat.conversation.id, SEARCH_BATCH_SIZE, chat.nextId! + 1);
+  chat.buffer = records;
+  chat.nextId = records.length === SEARCH_BATCH_SIZE ? records[records.length - 1].id - 1 : undefined;
+}
+
+function rememberSearchCount(cursorKey: string, matchCount: number) {
+  searchCountsByCursorKey.set(cursorKey, matchCount);
+  if (searchCountsByCursorKey.size > SEARCH_COUNTS_LIMIT) {
+    searchCountsByCursorKey.delete(searchCountsByCursorKey.keys().next().value!);
+  }
+}
+
+/**
+ * The matches as messages. While records remain, the result names the next page and counts one match beyond the
+ * loaded ones, so a client does not take the loaded matches for all of them.
+ */
+async function buildSearchResult({ matches, matchCount, cursor }: SearchScan): Promise<SearchMessagesResult> {
   const messages: ApiMessage[] = [];
   const byConversation = new Map<ConversationRecord, MessageRecord[]>();
   for (const { record, conversation } of matches) {
@@ -233,11 +511,10 @@ async function buildSearchResult(
   }
   messages.sort((a, b) => b.id - a.id);
 
-  const isPageFull = matches.length >= limit;
   return {
     messages,
-    totalCount: messages.length,
-    nextOffsetId: isPageFull ? messages[messages.length - 1].id : undefined,
+    totalCount: cursor ? matchCount + 1 : matchCount,
+    nextOffsetId: cursor,
     userStatusesById: {},
   };
 }
@@ -362,6 +639,48 @@ export async function sendReaction({
   return true;
 }
 
+/** The pinned messages of a chat that have not expired, newest pin first; Signal has no threads */
+export async function fetchPinnedMessages({ chat }: { chat: ApiChat; threadId: ThreadId }) {
+  const conversation = await getConversationByPeerId(chat.id);
+  if (!conversation) return undefined;
+  const records = await Promise.all(
+    getActivePinnedMessages(conversation, Date.now()).map(({ messageId }) => db.getMessage(messageId)),
+  );
+  const shown = records.filter((record): record is MessageRecord => Boolean(record) && !getIsMessageHidden(record));
+  return { messages: (await buildMessages(shown, conversation)).messages };
+}
+
+/**
+ * Pins a message for everyone in the chat, or unpins it. Signal pins have no silent or one-sided form, so
+ * `isSilent` and `isOneSide` are ignored; resolves to `undefined` when the change was not sent.
+ */
+export async function pinMessage({ messageId, isUnpin }: {
+  chat: ApiChat;
+  messageId: number;
+  isUnpin: boolean;
+  isOneSide?: boolean;
+  isSilent?: boolean;
+}) {
+  try {
+    await processor.sendPin(messageId, !isUnpin);
+    return true;
+  } catch (err) {
+    logError(err);
+    return undefined;
+  }
+}
+
+/** Unpins every pinned message of a chat with one unpin message each; Signal has no message that unpins all */
+export async function unpinAllMessages({ chat }: { chat: ApiChat; threadId?: ThreadId }) {
+  const conversation = await getConversationByPeerId(chat.id);
+  if (!conversation) return undefined;
+  for (const { messageId } of getActivePinnedMessages(conversation, Date.now())) {
+    const result = await pinMessage({ chat, messageId, isUnpin: true });
+    if (!result) return undefined;
+  }
+  return true;
+}
+
 /** Everyone who reacted to a message, or with `reaction` only; Signal sends the full list with the message */
 export async function fetchMessageReactionsList({
   chat, messageId, reaction,
@@ -462,14 +781,15 @@ export async function closePoll({ messageId }: { chat: ApiChat; messageId: numbe
  */
 export async function forwardMessages(params: ForwardMessagesParams) {
   const {
-    toChat, messages, noCaptions, lastMessageId, wasDrafted,
+    toChat, messages, noCaptions, lastMessageId, localIds, wasDrafted,
   } = params;
 
   const localMessages: ApiMessage[] = [];
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
     const hasMedia = Object.keys(omit(message.content, ['text'])).length > 0;
     const content = noCaptions && hasMedia ? omit(message.content, ['text']) : message.content;
-    localMessages.push(await showLocalMessage(toChat, lastMessageId, content, { wasDrafted }));
+    const localId = localIds?.[index];
+    localMessages.push(await showLocalMessage(toChat, lastMessageId, content, { wasDrafted, localId }));
   }
 
   const conversation = await getConversationByPeerId(toChat.id);
@@ -586,10 +906,9 @@ async function sendAlbum(items: AlbumItem[]) {
 }
 
 /**
- * Stores and sends a message in place of a local one; the message updater swaps them once the message is
- * stored, and recipient statuses follow as message updates
+ * Stores and sends a message in place of a local one; the message updater swaps them once the message is stored, and
+ * recipient statuses follow as message updates. Resolves to the stored id, or to `undefined` when it was not sent.
  */
-/** Sends a stored message; resolves to its id, or to `undefined` when it was not sent */
 async function sendWithLocalMessage(
   conversation: ConversationRecord, init: DataMessageInit, localMessage: ApiMessage,
 ): Promise<number | undefined> {
@@ -892,12 +1211,14 @@ async function showLocalMessage(
   chat: ApiChat,
   lastMessageId: number | undefined,
   content: MediaContent,
-  options: { replyInfo?: ApiReplyInfo; poll?: ApiMessagePoll; groupedId?: string; wasDrafted?: boolean },
+  options: {
+    replyInfo?: ApiReplyInfo; poll?: ApiMessagePoll; groupedId?: string; wasDrafted?: boolean; localId?: number;
+  },
 ) {
   const cleanContent = omitUndefined(content);
   if (cleanContent.text) cleanContent.text.emojiOnlyCount = getEmojiOnlyCountForMessage(cleanContent);
   const localMessage: ApiMessage = {
-    id: (lastMessageId ?? 0) + ++localMessageCounter / LOCAL_MESSAGES_LIMIT,
+    id: options.localId ?? (lastMessageId ?? 0) + ++localMessageCounter / LOCAL_MESSAGES_LIMIT,
     chatId: chat.id,
     content: cleanContent,
     date: getServerTime(),

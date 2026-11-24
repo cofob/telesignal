@@ -726,5 +726,7 @@ export type ForwardMessagesParams = {
   privateForwardName?: string;
   wasDrafted?: boolean;
   lastMessageId?: number;
+  // The local ids of the forwarded messages, when the caller follows their copies before they are stored
+  localIds?: number[];
   forwardedLocalMessagesSlice?: ForwardedLocalMessagesSlice;
 };

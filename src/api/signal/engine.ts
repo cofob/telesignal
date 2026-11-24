@@ -8,6 +8,7 @@ import { isPniServiceId } from '../../lib/signal/serviceId';
 import SignalClient from '../../lib/signal/SignalClient';
 import SignalStore from '../../lib/signal/store/SignalStore';
 import { getLoggableError } from '../../util/maskSensitiveText';
+import { forgetSharedMediaCounts } from './methods/messages';
 import { handleBackupChange } from './updaters/backups';
 import { handleCallChanges } from './updaters/calls';
 import { handleChatChanges } from './updaters/chats';
@@ -30,6 +31,7 @@ let updateChain = Promise.resolve();
 
 export const processor = new MessageProcessor(db, client, {
   onChanges: (changes) => {
+    forgetSharedMediaCounts(changes);
     updateChain = updateChain
       .then(() => handleMessageChanges(changes))
       .then(() => handleChatChanges(changes))

@@ -72,7 +72,8 @@ export type ConversationRecord = {
 };
 
 // Safety number notices name the contact in `actorAci`; call notices stand for the call `callId`
-export type MessageKind = 'message' | 'timerUpdate' | 'groupUpdate' | 'safetyNumberChange' | 'verifiedChange' | 'call';
+export type MessageKind = 'message' | 'timerUpdate' | 'groupUpdate' | 'safetyNumberChange' | 'verifiedChange' | 'call'
+  | 'pinnedMessage';
 
 export type SendStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'viewed' | 'failed';
 
@@ -100,6 +101,8 @@ export type MessageRecord = {
   authorAci: string;
   // Who caused a notice, such as a timer change
   actorAci?: string;
+  // The message a `pinnedMessage` notice is about
+  pinnedMessageId?: number;
   // What a `groupUpdate` notice says
   groupUpdate?: GroupUpdate;
   authorDeviceId?: number;
@@ -425,6 +428,18 @@ export default class MessageDb {
       return stored.length < limit;
     });
     return decodeRecords<MessageRecord>(MESSAGES, stored);
+  }
+
+  /** The id of a conversation's newest message older than `beforeId`, read from the index without decrypting */
+  async getNewestMessageId(conversationId: string, beforeId: number) {
+    const range = IDBKeyRange.bound([conversationId, 0], [conversationId, beforeId], false, true);
+    let id: number | undefined;
+    const openCursor = (store: IDBObjectStore) => store.index(BY_CONVERSATION).openKeyCursor(range, 'prev');
+    await this.iterate(MESSAGES, 'readonly', openCursor, (cursor) => {
+      id = cursor.primaryKey as number;
+      return false;
+    });
+    return id;
   }
 
   countMessages(conversationId: string) {

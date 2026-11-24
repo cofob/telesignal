@@ -97,10 +97,13 @@ export {
   fetchMessageSendDetails,
   fetchMessages,
   fetchMessagesById,
+  fetchPinnedMessages,
+  fetchSharedMediaCounts,
   forwardMessages,
   loadPollOptionResults,
   markMessageListRead,
   markMessagesRead,
+  pinMessage,
   resendMessage,
   searchMessagesGlobal,
   searchMessagesInChat,
@@ -110,6 +113,7 @@ export {
   sendMessageLocal,
   sendPollVote,
   sendReaction,
+  unpinAllMessages,
 } from './messages';
 export {
   cancelKeyTransparencyCheck, checkKeyTransparency, checkKeyTransparencySelf, fetchKeyTransparencySelfStatus,

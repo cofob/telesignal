@@ -3,6 +3,7 @@ import type { MessageChanges } from '../../../lib/signal/messages/MessageProcess
 import { MAIN_THREAD_ID } from '../../types';
 
 import { ALL_FOLDER_ID, ARCHIVED_FOLDER_ID } from '../../../config';
+import { getActivePinnedMessages } from '../../../lib/signal/messages/pinnedMessages';
 import { areDeepEqual } from '../../../util/areDeepEqual';
 import { buildCollectionByKey, pick } from '../../../util/iteratees';
 import { getServerTime } from '../../../util/serverTime';
@@ -31,6 +32,7 @@ const reportedConversations = new Map<string, ConversationRecord>();
 // The newest outgoing message a recipient read, by chat id
 const lastReadOutboxIds = new Map<string, number>();
 const unmuteTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const pinExpiryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let queue = Promise.resolve();
 
 /**
@@ -49,6 +51,7 @@ export function handleChatChanges(changes: MessageChanges) {
 export function rememberConversation(conversation: ConversationRecord) {
   reportedConversations.set(conversation.id, conversation);
   scheduleUnmute(conversation);
+  schedulePinExpiry(conversation);
 }
 
 export function rememberReadOutbox(chatId: string, lastReadOutboxMessageId?: number) {
@@ -103,6 +106,8 @@ async function sendConversationChanges(
     sendApiUpdate({ '@type': 'updateChatListType', id, folderId: chat.folderId ?? ALL_FOLDER_ID });
   }
 
+  sendPinnedMessageChanges(id, previous, conversation);
+
   if (previous.mutedUntil !== conversation.mutedUntil) {
     sendApiUpdate({ '@type': 'updateChatNotifySettings', chatId: id, settings: buildNotifySettings(conversation) });
   }
@@ -149,6 +154,23 @@ async function sendConversationChanges(
   }
 }
 
+/** Messages pinned and unpinned since the app last received the conversation */
+function sendPinnedMessageChanges(chatId: string, previous: ConversationRecord, conversation: ConversationRecord) {
+  const now = Date.now();
+  const previousIds = getActivePinnedMessages(previous, now).map(({ messageId }) => messageId);
+  const currentIds = getActivePinnedMessages(conversation, now).map(({ messageId }) => messageId);
+  const pinnedIds = currentIds.filter((id) => !previousIds.includes(id));
+  const unpinnedIds = previousIds.filter((id) => !currentIds.includes(id));
+  if (pinnedIds.length) {
+    sendApiUpdate({
+      '@type': 'updatePinnedIds', chatId, isPinned: true, messageIds: pinnedIds,
+    });
+  }
+  if (unpinnedIds.length) {
+    sendApiUpdate({ '@type': 'updatePinnedIds', chatId, messageIds: unpinnedIds });
+  }
+}
+
 async function sendPinnedChatIds() {
   const pinned = getPinnedConversations(await db.getConversations());
   sendApiUpdate({
@@ -192,6 +214,33 @@ function getRequesterAcis({ groupState }: ConversationRecord) {
 }
 
 /** Tells the app when a mute ends, so the chat list stops showing it as muted */
+/**
+ * Unpins the pins of a conversation as they expire, while the app runs (Signal Desktop
+ * `ts/services/expiring/pinnedMessagesCleanupService.preload.ts`); later reads leave expired pins out
+ */
+function schedulePinExpiry(conversation: ConversationRecord) {
+  const chatId = getPeerId(conversation);
+  clearTimeout(pinExpiryTimers.get(chatId));
+  pinExpiryTimers.delete(chatId);
+
+  const now = Date.now();
+  const expiries = getActivePinnedMessages(conversation, now)
+    .map(({ expiresAt }) => expiresAt)
+    .filter((expiresAt): expiresAt is number => expiresAt !== undefined);
+  if (!expiries.length) return;
+  const nextExpiresAt = Math.min(...expiries);
+  const delay = nextExpiresAt - now;
+  if (delay > MAX_TIMEOUT_MS) return;
+  pinExpiryTimers.set(chatId, setTimeout(() => {
+    pinExpiryTimers.delete(chatId);
+    const messageIds = conversation.pinnedMessages!
+      .filter(({ expiresAt }) => expiresAt === nextExpiresAt)
+      .map(({ messageId }) => messageId);
+    sendApiUpdate({ '@type': 'updatePinnedIds', chatId, messageIds });
+    schedulePinExpiry(conversation);
+  }, delay));
+}
+
 function scheduleUnmute(conversation: ConversationRecord) {
   const chatId = getPeerId(conversation);
   clearTimeout(unmuteTimers.get(chatId));

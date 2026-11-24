@@ -100,8 +100,8 @@ export function getIsInvitedToGroup(conversation: ConversationRecord, selfAci: s
 }
 
 /**
- * What members other than admins may not do: send messages in announcement-only groups, and edit the group
- * or add members when only admins may
+ * What members other than admins may not do: send messages in announcement-only groups, and edit the group, pin
+ * messages (Signal Desktop `canPinMessages`) or add members when only admins may
  */
 function buildGroupBannedRights({ isAnnouncementsOnly, groupState }: ConversationRecord) {
   const isInfoAdminOnly = groupState?.accessControl.attributes === AccessControl_AccessRequired.ADMINISTRATOR;
@@ -111,6 +111,7 @@ function buildGroupBannedRights({ isAnnouncementsOnly, groupState }: Conversatio
   return {
     sendMessages: isAnnouncementsOnly || undefined,
     changeInfo: isInfoAdminOnly || undefined,
+    pinMessages: isInfoAdminOnly || undefined,
     inviteUsers: isMembersAdminOnly || undefined,
     editRank: isLabelAdminOnly || undefined,
   } satisfies ApiChatBannedRights;

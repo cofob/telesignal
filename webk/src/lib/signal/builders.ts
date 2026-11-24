@@ -189,7 +189,8 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
   const peerId = buildPeer(message.chatId);
   const fromId = message.senderId ? buildPeer(message.senderId) : undefined;
   const pFlags: Message.message['pFlags'] = {
-    out: message.isOutgoing || undefined
+    out: message.isOutgoing || undefined,
+    pinned: message.isPinned || undefined
   };
 
   const {action} = message.content;
@@ -201,7 +202,9 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
       peer_id: peerId,
       from_id: fromId,
       date: message.date,
-      action: buildMessageAction(message, getName)
+      action: buildMessageAction(message, getName),
+      // * a pin notice names the pinned message as Telegram's does
+      reply_to: buildReplyHeader(message.replyInfo)
     };
   }
 
@@ -345,6 +348,8 @@ function buildMessageAction(message: SignalMessage, getName: SignalNameResolver)
       return {_: 'messageActionChatJoinedByLink', inviter_id: toPeerId(action.inviterId as string)};
     case 'chatJoinedByRequest':
       return {_: 'messageActionChatJoinedByRequest'};
+    case 'pinMessage':
+      return {_: 'messageActionPinMessage'};
     case 'signalCall':
       if(action.callType !== 'group') {
         return buildPhoneCallAction(action.callType === 'video', action.outcome as string);

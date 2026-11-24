@@ -2,7 +2,7 @@
 
 ## UI actions still call removed Telegram API methods
 
-`src/api/signal/methods/types.ts` lists the names of Telegram methods that `callApi` accepts but the engine does not implement. Each call resolves to `undefined`, so the code after it is dead; their results are typed `any`, which made some callbacks need explicit parameter types after GramJS was removed (verified with `tsc`). 101 names remain (212 at the start of the dead UI sweep). Some wait for the engine and have a working Signal feature behind them: folders, pins, scheduled-style sends, local search (`searchMessagesInChat`, `searchMessagesGlobal`), drafts, default timer, contacts and profile photo. The rest are Telegram-only and still have UI and actions, which removing the name exposes through `tsc`: ephemeral messages and bots (`sendEphemeralMessage`, `deleteEphemeralMessage`; about 340 mentions of `isEphemeral` and `ephemeralBotId`, message views and forwards counters, `forwardInfo.isChannelPost`), account and privacy screens (`fetchPrivacySettings`, `fetchGlobalPrivacySettings`, `fetchContentSettings`, `fetchAccountTTL`, birthdays, `toggleNoForwards` with `NoForwardsRequest`, profile and saved music), emoji, sticker and GIF server features (custom emoji, status emoji, favorite and saved GIFs, dice, emoji groups), Telegram stories extras (albums, archive, profile pins, story links) and wallpapers and chat themes. Delete each group with its action handlers, payload types, components and cache cleanup, and drop the names with `tsc` as the guide.
+`src/api/signal/methods/types.ts` lists the names of Telegram methods that `callApi` accepts but the engine does not implement. Each call resolves to `undefined`, so the code after it is dead; their results are typed `any`, which made some callbacks need explicit parameter types after GramJS was removed (verified with `tsc`). 96 names remain (212 at the start of the dead UI sweep). Some wait for the engine and have a working Signal feature behind them: folders, scheduled-style sends, local search (`searchMessagesInChat`, `searchMessagesGlobal`), drafts, default timer, contacts and profile photo. The rest are Telegram-only and still have UI and actions, which removing the name exposes through `tsc`: ephemeral messages and bots (`sendEphemeralMessage`, `deleteEphemeralMessage`; about 340 mentions of `isEphemeral` and `ephemeralBotId`, message views and forwards counters, `forwardInfo.isChannelPost`), account and privacy screens (`fetchPrivacySettings`, `fetchGlobalPrivacySettings`, `fetchContentSettings`, `fetchAccountTTL`, birthdays, `toggleNoForwards` with `NoForwardsRequest`, profile and saved music), emoji, sticker and GIF server features (custom emoji, status emoji, favorite and saved GIFs, dice, emoji groups), Telegram stories extras (albums, archive, profile pins, story links) and wallpapers and chat themes. Delete each group with its action handlers, payload types, components and cache cleanup, and drop the names with `tsc` as the guide.
 
 ## Upstream helper scripts that nothing calls remain in `dev/` and `deploy/`
 
@@ -130,8 +130,9 @@ Web K draws a reaction with the `static_icon`, `center_icon` and `select_animati
 which Signal has no sticker for. Without the documents a reaction bubble fails to render (the message disappears from the
 chat), and the quick-reaction lookup and the picker's sticker id throw. The Signal port draws the emoji as text and guards
 those lookups (`reaction.ts`, `reactionsMenu.ts`, `appReactionsManager.ts`), so the reaction chips, the picker and the
-reactors' popover work. Still open: the flight animation of a Signal emoji and a picker for any emoji beyond Signal's six
-preferred ones, which Web A's picker opens from its "more" button.
+reactors' popover work, and the strip's More button opens the regular emoji panel instead of the catalog. Each new reaction
+feature of Web K meets the same catalog assumption and needs its own guard; Web K's code has no single place where the
+emoji-as-text rendering is chosen.
 
 ## Web K keeps search tabs and dead branches of the channels, apps and posts tabs
 
@@ -144,11 +145,11 @@ needs a check of every `mediaTab.type` comparison, which this change did not mak
 ## A forward whose copy was stored but not sent fails the whole request in Web K
 
 Web K sends one `messages.forwardMessages` request for several messages, each with a `random_id` of its pending copy. The
-adapter (`webk/src/lib/appManagers/appSignalManager.ts`, `forwardMessages`) answers with the stored ids of the copies, and it
-rejects the request when any copy was not sent, which makes Web K mark every pending copy of the request as failed. A copy
-that the engine stored before its send failed stays in the chat, so the chat can show the copy as stored and failed at once,
-and a retry sends it again. Verified in the demo, where the network is absent, with one message forwarded to Saved Messages;
-with several messages, a partial failure is expected to duplicate the stored ones but was not reproduced.
+adapter (`webk/src/lib/appManagers/appSignalManager.ts`, `forwardMessages`) registers each copy's `random_id` under a local id
+before the engine stores it, so the stored copy replaces Web K's pending one; a copy whose send failed shows once, with the
+failed mark (verified in the demo, where the network is absent, with one message forwarded to Linda). The adapter still
+rejects the whole request when any copy was not sent. With several messages and a partial failure, Web K's failure handling
+of the request runs over copies that are already stored; what it shows then was not reproduced.
 
 ## Web K's worker adapter cannot import UI components
 
@@ -238,3 +239,14 @@ writes, as Web A does, would close it.
 Each load of `/k/` in Chromium logs several `pageerror` events whose error is a plain object, and Solid logs
 `solid error Error: Unknown error` (seen in Playwright on the demo account while checking logout, accounts and
 settings). The app keeps working, and the source is not known: the events carry no stack.
+
+## Message search reads the stored messages without an index
+
+Signal keeps no search index, so `searchMessagesInChat` and `searchMessagesGlobal` (`src/api/signal/methods/messages.ts`)
+decrypt and read the stored messages. A call yields to the worker after each chunk of `SEARCH_CHUNK_SIZE` (1000) records and
+goes on until it has a match or has read every record, so a rare query reads the whole history before it answers, and a
+query without matches reads all of it on each keystroke past the minimum length. The count of a page counts the earlier
+pages through a small cache of recent cursors, so a client that jumps to an offset it did not get from the provider sees a
+count of that page alone. Web K's shared media tab counters come from `fetchSharedMediaCounts`, which reads a whole chat once
+and keeps the counts until a message of the chat changes. An index of message text and attachment kinds in `MessageDb`,
+kept by `MessageProcessor`, would make all three exact and bounded.
