@@ -36,11 +36,3 @@
   }
 }
 
-@include respond-to(not-handhelds) {
-  // A descendant ::highlight selector keyed by the shared `active` class makes Chromium
-  // invalidate every descendant when any active chat changes. Keep that change on the row.
-  .chatlist-chat.active {
-    --chatlist-search-highlight-background: rgba(255, 255, 255, .24);
-    --chatlist-search-highlight-color: #fff;
-  }
-}

@@ -683,7 +683,8 @@
   --chat-padding-top: calc(var(--chat-topbar-height) + var(--page-chats-padding) + var(--pinned-floating-height));
   // * without the input's surplus, which whatever reads this adds of its own
   --chat-padding-bottom: calc(var(--chat-input-height) + var(--page-chats-padding));
-  --chat-input-background: var(--surface-color);
+  // * Filled with the incoming bubble colour, without a shadow, as Web A's Signal theme (`Composer.scss`)
+  --chat-input-background: var(--message-background-color);
 	display: flex !important;
 	width: 100%;
 	align-items: center;
@@ -771,7 +772,6 @@
 	flex: 0 0 auto;
 	position: relative;
 	z-index: 3;
-  box-shadow: $chat-input-box-shadow;
 }
 
 

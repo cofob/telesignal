@@ -1,4 +1,4 @@
-import {channelsLuminance, ColorRgb, darkenToMaxLuminance, getHexColorFromTelegramColor, hexToRgb, LIGHT_LUMINANCE, mixColors, relativeLuminance, rgbaToHexa} from '@helpers/color';
+import {channelsLuminance, ColorRgb, getHexColorFromTelegramColor, hexToRgb, LIGHT_LUMINANCE, mixColors, relativeLuminance, rgbaToHexa} from '@helpers/color';
 import {getGradientPixels, GRADIENT_PHASES, GRADIENT_SIZE} from '@helpers/freeformGradient';
 import clamp from '@helpers/number/clamp';
 import bytesToDataURL from '@helpers/bytes/bytesToDataURL';
@@ -98,9 +98,8 @@ const isLight = (textColor: ColorRgb) => relativeLuminance(textColor) > LIGHT_LU
 
 /**
  * Whether the outgoing text reads on a colour of the gradient, and on a tint of the text over it: a reaction's counter
- * is of the bubbles' own colour, which is the text's under light text (the night's) and under dark text no lighter than
- * it takes to read (`keepReadableOnOutgoingMessageGradient`), and it stands on a tint of itself. Read on the side of the
- * text the colour is moved to (`moveFromText`), of channels past their ends too
+ * is of the bubbles' own colour, which is the text's, and it stands on a tint of itself. Read on the side of the text the
+ * colour is moved to (`moveFromText`), of channels past their ends too
  */
 function readsUnder(color: ColorRgb, textColor: ColorRgb, ratio = READABLE_CONTRAST) {
   const textLuminance = relativeLuminance(textColor);
@@ -417,39 +416,6 @@ function makeFreeformImage(gradient: OutgoingMessageGradient, phase: number) {
   return makeImage(`${getFreeformKey(gradient)}@${phase}`, GRADIENT_SIZE, GRADIENT_SIZE, SMOOTH, () => {
     return [getOutgoingMessageFreeformPixels(gradient, phase)];
   });
-}
-
-/**
- * A colour of the bubbles' own under dark text (the time, the ticks, the links, a reaction's counter), darkened to be read
- * all over their gradient, the freeform one's moves included, and on its own tint over it (a reaction)
- */
-export function keepReadableOnOutgoingMessageGradient(hex: string, gradient: Pick<OutgoingMessageGradient, 'colors' | 'freeform'>) {
-  const painted = gradient.freeform ? getMixes(gradient.colors) : getPainted(gradient.colors);
-  const luminances = painted.map(relativeLuminance);
-  const contrast = (a: number, b: number) => (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
-  const reads = (accent: string) => {
-    const rgb = hexToRgb(accent);
-    const luminance = relativeLuminance(rgb);
-    return painted.every((color, index) => {
-      return contrast(luminance, luminances[index]) >= READABLE_CONTRAST &&
-        contrast(luminance, relativeLuminance(tintOver(color, rgb))) >= READABLE_CONTRAST;
-    });
-  };
-
-  // * read on the darkest colour, where its own tint does not take it under
-  const darkest = Math.min(...luminances);
-  let [low, high] = [0, (darkest + .05) / READABLE_CONTRAST - .05];
-  if(reads(darkenToMaxLuminance(hex, high))) {
-    return darkenToMaxLuminance(hex, high);
-  }
-
-  for(let i = 0; i < 16; ++i) {
-    const luminance = (low + high) / 2;
-    if(reads(darkenToMaxLuminance(hex, luminance))) low = luminance;
-    else high = luminance;
-  }
-
-  return darkenToMaxLuminance(hex, low);
 }
 
 type FrameMove = {phase: number, advancing?: number};
