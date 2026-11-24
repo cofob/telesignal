@@ -68,6 +68,8 @@ export type ApiUpdateAuthorizationState = {
   historySync?: ApiHistorySyncProgress;
   // Signal registration: the step that offers to restore a backup with the recovery key
   backupRestore?: ApiBackupRestoreState;
+  // Signal registration: the number being registered, for a page that reloaded during the registration
+  phoneNumber?: string;
 };
 
 /** A restore of a backup at registration: waiting for the recovery key while `step` is not set */

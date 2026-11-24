@@ -1078,13 +1078,18 @@ export default class MessageProcessor {
         const message = await this.db.getMessage(id);
         const conversation = message && await this.db.getConversation(message.conversationId);
         if (!message?.dataMessage || !conversation || message.isOutgoing || message.viewedAt) continue;
-        const { isViewOnce } = fromBinary(DataMessageSchema, message.dataMessage);
+        const { isViewOnce, attachments } = fromBinary(DataMessageSchema, message.dataMessage);
         await this.putMessage({
           ...message,
           viewedAt,
           isViewOnceOpened: isViewOnce || undefined,
           dataMessage: isViewOnce ? undefined : message.dataMessage,
         });
+        // An opened view-once message keeps no copy of its media (`eraseMessageContents` in Signal Desktop
+        // `markViewOnceMessageViewed`)
+        if (isViewOnce) {
+          for (const attachment of attachments) await removeAttachmentBlob(attachment);
+        }
         result.push({ message, conversation, isViewOnce });
       }
       return result;
@@ -2813,7 +2818,14 @@ export default class MessageProcessor {
       case 'viewOnceOpen': {
         const { senderAci, senderAciBinary, timestamp } = content.value;
         const target = await this.db.findMessage(senderAci || uuidToString(senderAciBinary), Number(timestamp));
-        if (target) await this.putMessage({ ...target, isViewOnceOpened: true, dataMessage: undefined });
+        if (!target) break;
+        // Opened on another device: erased as when opened here (Signal Desktop `markViewOnceMessageViewed` with
+        // `fromSync`)
+        const attachments = target.dataMessage ? fromBinary(DataMessageSchema, target.dataMessage).attachments : [];
+        await this.putMessage({
+          ...target, viewedAt: target.viewedAt ?? Date.now(), isViewOnceOpened: true, dataMessage: undefined,
+        });
+        for (const attachment of attachments) await removeAttachmentBlob(attachment);
         break;
       }
       case 'messageRequestResponse':

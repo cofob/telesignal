@@ -260,15 +260,6 @@ switch in place remains: `apiManagerProxy.switchAccount` and `resetAccountMirror
 of about twenty modules, and the `notifyAllAccounts` routing of notifications to tabs of other accounts, which only
 work when one worker serves every account. Removing them means checking each listener for work it does at startup too.
 
-## Web K's session writes reach Web A's passcode vault only on a lock and a log out
-
-With a passcode, Web K's page storage writes the account slots into the in-memory session store of Web A's vault
-(`webk/src/lib/localStorage.ts`, `src/util/passcode/sessionStore.ts`), but only a lock (`lockSignalPasscode`) and a log
-out (`webk/src/lib/signal/logOutPage.ts`) write that store into the vault and tell the other tabs, as Web A's
-`updateSessionStorage` does after every write. A slot that Web K links or renames while the vault is open is then lost
-if every tab closes before a lock. Follows from the code; not reproduced. Refreshing the vault after Web K's session
-writes, as Web A does, would close it.
-
 ## Every Web K page load reports page errors with no message
 
 Each load of `/k/` in Chromium logs several `pageerror` events whose error is a plain object, and Solid logs
@@ -288,3 +279,14 @@ pages through a small cache of recent cursors, so a client that jumps to an offs
 count of that page alone. Web K's shared media tab counters come from `fetchSharedMediaCounts`, which reads a whole chat once
 and keeps the counts until a message of the chat changes. An index of message text and attachment kinds in `MessageDb`,
 kept by `MessageProcessor`, would make all three exact and bounded.
+
+## Web K keeps Telegram's sign-in cards that nothing opens
+
+Web K's sign-in now links with the QR code or registers a phone number through the Signal engine
+(`webk/src/pages/signalRegistration.tsx`), and the number card (`webk/src/pages/cards/SignInCard.tsx`) sends the
+number to the engine. Telegram's cards for the code, the cloud password, the sign-up, the e-mail setup and recovery
+and the web token import (`AuthCodeCard`, `PasswordCard`, `SignUpCard`, `Email*Card`, `SignImportCard`), the
+`continueLogin` and `sentCode` helpers and the passkey button stay in `webk/src/pages/` and `authFlow.tsx`, and
+`index.ts` still maps Telegram's auth states to them. No step of the engine leads there, so they are dead code that
+reads as live; removing them needs the auth states of `AuthState` in `webk/src/types.d.ts` trimmed with them.
+

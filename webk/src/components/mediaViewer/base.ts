@@ -1061,6 +1061,11 @@ export default class AppMediaViewerBase<
     return this.close();
   }
 
+  /** TeleSignal: runs `callback` once the viewer has closed and let go of its media */
+  public onClosed(callback: VoidFunction) {
+    this.middlewareHelper.onDestroy(callback);
+  }
+
   public close(e?: MouseEvent) {
     this.disposeSolid?.();
 

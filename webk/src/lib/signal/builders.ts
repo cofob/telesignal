@@ -196,10 +196,28 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
   const fromId = message.senderId ? buildPeer(message.senderId) : undefined;
   const pFlags: Message.message['pFlags'] = {
     out: message.isOutgoing || undefined,
-    pinned: message.isPinned || undefined
+    pinned: message.isPinned || undefined,
+    // * a mention of us, which notifies in a muted chat and through a notification profile that allows mentions
+    mentioned: message.isMentioned || undefined
   };
 
   const {action} = message.content;
+  const viewOnceMedia = action?.type === 'viewOnce' ? buildViewOnceMedia(action.media, message.date) : undefined;
+  if(viewOnceMedia) {
+    // * view-once media that is not opened yet: Web K's self-destructing media, which it shows as a service line
+    // * with a button that opens it once, and which cannot be forwarded, saved or copied
+    return {
+      _: 'message',
+      pFlags: {...pFlags, noforwards: true},
+      id: message.id,
+      peer_id: peerId,
+      from_id: fromId,
+      date: message.date,
+      message: '',
+      media: viewOnceMedia
+    };
+  }
+
   if(action) {
     return {
       _: 'messageService',
@@ -234,6 +252,22 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
     // * Web K shows a message with an error as failed, as it does a send of its own that failed
     error: message.sendingState === 'messageSendingStateFailed' ? {type: 'SIGNAL_SEND_FAILED' as ErrorType, code: 400} : undefined
   };
+}
+
+// * Telegram's view-once media keeps its `ttl_seconds` at this value
+const VIEW_ONCE_TTL_SECONDS = 0x7FFFFFFF;
+
+/** The media of an unopened view-once message, as Web K's self-destructing photo or video */
+function buildViewOnceMedia(media: any, date: number) {
+  const built = media && buildSignalMessageMedia({[media.mediaType]: media} as SignalMessage['content'], date);
+  if(built?._ !== 'messageMediaPhoto' && built?._ !== 'messageMediaDocument') return undefined;
+  if(built._ === 'messageMediaDocument' && built.document?._ === 'document') {
+    // * a view-once video plays from the copy loaded for it, not streamed: the file is erased once it is opened
+    built.document.attributes = built.document.attributes.map((attribute) => attribute._ === 'documentAttributeVideo' ?
+      {...attribute, pFlags: {...attribute.pFlags, supports_streaming: undefined as true}} :
+      attribute);
+  }
+  return {...built, ttl_seconds: VIEW_ONCE_TTL_SECONDS};
 }
 
 // * a reply to a message of the chat names it; a quote of a message that is not in the chat, or is gone, keeps the
@@ -366,7 +400,7 @@ function buildMessageAction(message: SignalMessage, getName: SignalNameResolver)
 }
 
 // * Web K tells incoming from outgoing calls by the message, and missed or declined ones by the reason
-function buildPhoneCallAction(isVideo: boolean, outcome: string): MessageAction.messageActionPhoneCall {
+export function buildPhoneCallAction(isVideo: boolean, outcome: string): MessageAction.messageActionPhoneCall {
   return {
     _: 'messageActionPhoneCall',
     pFlags: {video: isVideo || undefined},

@@ -1,11 +1,11 @@
 /*
- * TeleSignal: the page's side of Signal stories: the story settings, the distribution lists and sending a story, which
- * the story composer and the stories settings call on the engine in the worker (`appSignalManager`), as Web A's
+ * TeleSignal: the page's side of Signal stories: the distribution lists and sending a story, which the story composer
+ * and the stories settings call on the engine in the worker (`appSignalManager`), as Web A's
  * `SettingsStories` and `StoryComposerModal` do.
  */
 
 import type {SignalChats} from '@lib/signal/signalApi';
-import type {SignalStoryDistributionList, SignalStorySettings, SignalTextStoryStyle} from '@lib/signal/storiesApi';
+import type {SignalStoryDistributionList, SignalTextStoryStyle} from '@lib/signal/storiesApi';
 import rootScope from '@lib/rootScope';
 import {callSignalApi} from '@lib/signal/settingsApi';
 
@@ -25,14 +25,6 @@ export type SignalStoryGroup = {id: string, title: string};
 
 // * the chats a story can go to are those of the chat list, as Web A's composer lists them
 const CHATS_LIMIT = 1000;
-
-export function fetchStorySettings(): Promise<SignalStorySettings | undefined> {
-  return callSignalApi('fetchStorySettings');
-}
-
-export function updateStorySettings(update: Partial<SignalStorySettings>): Promise<SignalStorySettings | undefined> {
-  return callSignalApi('updateStorySettings', update);
-}
 
 export function fetchStoryDistributionLists(): Promise<SignalStoryDistributionList[] | undefined> {
   return callSignalApi('fetchStoryDistributionLists');

@@ -508,6 +508,32 @@ export const AppLinkedDevicesTab =
     getComponentModule: () => import('../sidebarLeft/tabs/linkedDevices')
   });
 
+/** TeleSignal: Signal's notification profiles, as Web A's `SettingsNotificationProfiles` */
+export const AppNotificationProfilesTab =
+  scaffoldSolidJSTab({
+    title: 'NotificationProfiles',
+    getComponentModule: () => import('../sidebarLeft/tabs/notificationProfiles')
+  });
+
+type AppNotificationProfileEditTabPayload = {
+  // * `undefined` while a new profile is made
+  profile?: import('@lib/signal/notificationProfiles').SignalNotificationProfile
+};
+
+/** TeleSignal: makes and changes a notification profile, as Web A's `NotificationProfileEditorModal` */
+export const AppNotificationProfileEditTab =
+  scaffoldSolidJSTab<AppNotificationProfileEditTabPayload>({
+    title: 'NotificationProfileEdit',
+    getComponentModule: () => import('../sidebarLeft/tabs/notificationProfileEdit')
+  });
+
+/** TeleSignal: Signal Secure Backups and backup files, as Web A's `SettingsBackups` */
+export const AppBackupsTab =
+  scaffoldSolidJSTab({
+    title: 'SettingsBackups',
+    getComponentModule: () => import('../sidebarLeft/tabs/backups')
+  });
+
 // ─── Data and storage + its auto-download sub-tabs (all eventable) ───
 
 export const AppAutoDownloadPhotoTab =
@@ -749,7 +775,7 @@ export const AppPrivacyAndSecurityTab =
 /** TeleSignal: the stories settings of Signal, which the privacy settings open from their own row */
 export const AppSignalStoriesTab =
   scaffoldSolidJSTab({
-    title: 'SignalStories.Title',
+    title: 'StoriesSettingTitle',
     getComponentModule: () => import('../sidebarLeft/tabs/signalStories')
   });
 

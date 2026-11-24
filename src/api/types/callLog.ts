@@ -15,4 +15,6 @@ export interface ApiCallLogEntry {
   date: number;
   // A missed incoming call that the call log did not mark as read
   isUnseen?: true;
+  // The call's notice in its chat, when it has one
+  messageId?: number;
 }

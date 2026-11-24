@@ -14,13 +14,12 @@ import Section from '@components/section';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import {type AppSignalStoriesTab} from '@components/solidJsTabs/tabs';
 import I18n, {LangPackKey} from '@lib/langPack';
-import type {SignalStoryDistributionList, SignalStorySettings} from '@lib/signal/storiesApi';
+import type {SignalStoryDistributionList} from '@lib/signal/storiesApi';
+import {fetchStorySettings, SignalStorySettings, updateStorySettings} from '@lib/signal/settingsApi';
 import {
   deleteStoryDistributionList,
   fetchStoryDistributionLists,
-  fetchStorySettings,
-  saveStoryDistributionList,
-  updateStorySettings
+  saveStoryDistributionList
 } from '@lib/signal/storySettingsApi';
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 
@@ -47,10 +46,14 @@ const SignalStories: Component = () => {
     setLists(fetchedLists ?? []);
   });
 
-  const onSettingsChange = async(update: Partial<SignalStorySettings>) => {
-    const updated = await updateStorySettings(update).catch((): undefined => undefined);
+  // * the change shows at once and goes back when it fails, as in Web A
+  const onSettingsChange = async(update: SignalStorySettings) => {
+    const previous = settings();
+    setSettings({...previous, ...update});
+    const updated = await updateStorySettings(update);
     if(!updated) {
       toastNew({langPackKey: 'Signal.Privacy.SaveFailed'});
+      setSettings({...previous});
       return;
     }
 
@@ -154,8 +157,8 @@ const SignalStories: Component = () => {
                   toggle
                 />
               </Row.CheckboxFieldToggle>
-              <Row.Title>{i18n('SignalStories.Enable')}</Row.Title>
-              <Row.Subtitle>{i18n('SignalStories.EnableInfo')}</Row.Subtitle>
+              <Row.Title>{i18n('StoriesSettingEnable')}</Row.Title>
+              <Row.Subtitle>{i18n('StoriesSettingEnableInfo')}</Row.Subtitle>
             </Row>
             <Show when={!settings().areStoriesDisabled}>
               <Row>
@@ -166,8 +169,8 @@ const SignalStories: Component = () => {
                     toggle
                   />
                 </Row.CheckboxFieldToggle>
-                <Row.Title>{i18n('SignalStories.ViewReceipts')}</Row.Title>
-                <Row.Subtitle>{i18n('SignalStories.ViewReceiptsInfo')}</Row.Subtitle>
+                <Row.Title>{i18n('StoriesSettingViewReceipts')}</Row.Title>
+                <Row.Subtitle>{i18n('StoriesSettingViewReceiptsInfo')}</Row.Subtitle>
               </Row>
             </Show>
           </Section>

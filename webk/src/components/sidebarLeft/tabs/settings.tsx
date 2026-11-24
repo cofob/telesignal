@@ -327,6 +327,10 @@ const Settings = () => {
               {i18n('Signal.Devices.Title')}
             </Row.Title>
           </Row>
+          <Row clickable={() => tab.slider.createTab(hotReloadGuard.tabs.AppBackupsTab).open()}>
+            <Row.Icon icon="archive" />
+            <Row.Title>{i18n('SettingsBackups')}</Row.Title>
+          </Row>
           <Row clickable={() => tab.slider.createTab(hotReloadGuard.tabs.AppKeyboardShortcutsTab).open()}>
             <Row.Icon icon="keyboard_filled" />
             <Row.Title>{i18n('KeyboardShortcuts.Title')}</Row.Title>

@@ -44,13 +44,16 @@ import {buildAccountMethodHandlers} from '@lib/signal/accountMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
+import {buildCallLogHandlers, fetchCallLogMessages} from '@lib/signal/callLog';
+import {closeViewOnceMedia, getViewOnceMedia, openViewOnceMedia} from '@lib/signal/viewOnce';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
 import {buildStoryMethodHandlers, buildStoryUpdates, sendStory, sendStoryReply} from '@lib/signal/stories';
 import type {SignalNewStory} from '@lib/signal/storySettingsApi';
-import {buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
+import {buildOutgoingPoll, buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
 import {buildMediaMethodHandlers} from '@lib/signal/mediaMethods';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
+import type {SignalAuthState} from '@lib/signal/registrationTypes';
 import makeError from '@helpers/makeError';
 import {storeSignalWebPages} from '@lib/signal/media';
 import {buildOutgoingMedia} from '@lib/signal/outgoingMedia';
@@ -87,6 +90,7 @@ export default class AppSignalManager extends AppManager {
   private isStarted: boolean;
   private isAuthorized: boolean;
   private restarting: Promise<void>;
+  private authState: SignalAuthState;
   private pendingSends: Map<number, PendingSend> = new Map();
   // * the `random_id` of each forwarded copy by its local id, until the engine stores the copy
   private pendingForwardCopies: Map<number, string> = new Map();
@@ -146,6 +150,16 @@ export default class AppSignalManager extends AppManager {
   /** The recipients of an outgoing message for the message info popup (`components/popups/messageInfo.tsx`) */
   public fetchMessageRecipients(peerId: PeerId, mid: number) {
     return fetchMessageRecipients(this.createMethodHost(), peerId, mid);
+  }
+
+  /** Loads unopened view-once media for its viewer and marks it viewed (`lib/signal/viewOnce.ts`) */
+  public openViewOnceMedia(peerId: PeerId, mid: number) {
+    const media = getViewOnceMedia(this.appMessagesManager.getMessageByPeer(peerId, mid));
+    return media ? openViewOnceMedia(this.createMethodHost(), this.thumbsStorage, peerId, mid, media) : Promise.resolve(false);
+  }
+
+  public closeViewOnceMedia(media: Parameters<typeof closeViewOnceMedia>[1]) {
+    closeViewOnceMedia(this.thumbsStorage, media);
   }
 
   public invoke<T extends keyof MethodDeclMap>(method: T, params: MethodDeclMap[T]['req']): Promise<MethodDeclMap[T]['res']> {
@@ -266,6 +280,7 @@ export default class AppSignalManager extends AppManager {
       ...buildPinnedMessageHandlers(host),
       ...buildSharedMediaHandlers(host),
       ...buildPollHandlers(host),
+      ...buildCallLogHandlers(host),
       ...buildAccountMethodHandlers(host),
       ...buildMediaMethodHandlers(host),
       ...buildStoryMethodHandlers(host)
@@ -476,6 +491,15 @@ export default class AppSignalManager extends AppManager {
   }
 
   private async sendMedia(params: MethodDeclMap['messages.sendMedia']['req']): Promise<Updates.updates> {
+    if(params.media._ === 'inputMediaPoll') {
+      return this.sendLocalMessage({
+        peerId: this.getInputPeerId(params.peer),
+        randomId: params.random_id,
+        replyTo: params.reply_to,
+        poll: buildOutgoingPoll(params.media)
+      });
+    }
+
     const {attachment, sticker} = await buildOutgoingMedia(params.media).catch(() => {
       throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
     });
@@ -513,7 +537,7 @@ export default class AppSignalManager extends AppManager {
   }
 
   /** Sends a text, an attachment or a sticker through the provider; the promise is the update of the sent message */
-  private sendLocalMessage({peerId, randomId, text, entities, replyTo, attachment, sticker, groupedId}: {
+  private sendLocalMessage({peerId, randomId, text, entities, replyTo, attachment, sticker, groupedId, poll}: {
     peerId: PeerId,
     randomId: number | string,
     text?: string,
@@ -521,7 +545,8 @@ export default class AppSignalManager extends AppManager {
     replyTo?: MethodDeclMap['messages.sendMessage']['req']['reply_to'],
     attachment?: SignalAttachment,
     sticker?: SignalSticker,
-    groupedId?: string
+    groupedId?: string,
+    poll?: ReturnType<typeof buildOutgoingPoll>
   }): Promise<Updates.updates> {
     const replyToMsgId = replyTo?._ === 'inputReplyToMessage' ? replyTo.reply_to_msg_id : undefined;
     const lastMessageId = this.appMessagesManager.getHistoryStorage(peerId.toPeerId()).maxId || 0;
@@ -560,7 +585,8 @@ export default class AppSignalManager extends AppManager {
       localMessage,
       attachment,
       sticker,
-      groupedId
+      groupedId,
+      poll
     }).catch((err) => {
       this.pendingSends.delete(localId);
       deferred.reject(err);
@@ -679,6 +705,7 @@ export default class AppSignalManager extends AppManager {
   /** The text and shared media search of a chat, and its pinned messages */
   private async searchMessages(params: MethodDeclMap['messages.search']['req']) {
     const peerId = this.getInputPeerId(params.peer);
+    if(params.filter?._ === 'inputMessagesFilterPhoneCalls') return fetchCallLogMessages(this.createMethodHost(), params);
     if(peerId && params.filter?._ === 'inputMessagesFilterPinned') {
       const messages = await fetchPinnedMessages(this.createMethodHost(), peerId);
       return this.buildSearchResult({messages, totalCount: messages.length});
@@ -789,6 +816,17 @@ export default class AppSignalManager extends AppManager {
     // * the polls of messages come with them or as entities, before the messages are built
     rememberPolls(update.polls ?? (update.poll ? [update.poll] : undefined));
     switch(update['@type']) {
+      case 'updateNotificationProfiles':
+        // * the profile that is on changes by its schedule too (`lib/signal/notificationProfiles`)
+        this.rootScope.dispatchEvent('signal_notification_profiles', update.state);
+        break;
+      case 'updateBackupSettings':
+        // * a backup under way reports its steps, which the backup settings show (`tabs/backups`)
+        this.rootScope.dispatchEvent('signal_backup_settings', update.settings);
+        break;
+      case 'updateAuthorizationError':
+        this.rootScope.dispatchEvent('signal_auth_error', update.errorKey);
+        break;
       case 'updateAuthorizationState':
         this.onAuthorizationState(update);
         break;
@@ -888,7 +926,20 @@ export default class AppSignalManager extends AppManager {
     }
   }
 
+  /** The sign-in step the engine is at, for the link and registration screens (`pages/signalRegistration`) */
+  public getAuthState() {
+    return this.authState;
+  }
+
   private onAuthorizationState(update: SignalApiUpdate) {
+    this.authState = {
+      state: update.authorizationState,
+      phoneNumber: update.phoneNumber,
+      codeInfo: update.codeInfo,
+      backupRestore: update.backupRestore
+    };
+    this.rootScope.dispatchEvent('signal_auth_state', this.authState);
+
     if(update.authorizationState === 'authorizationStateWaitQrCode' && update.qrCode) {
       this.linkCode = {url: update.qrCode.token, expires: update.qrCode.expires};
       this.rootScope.dispatchEvent('signal_link_code', this.linkCode);

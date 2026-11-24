@@ -8,6 +8,8 @@ import type {
   ApiKeyboardButton,
   ApiMessage,
   ApiPeer,
+  ApiPhoto,
+  ApiVideo,
   KeyboardButtonNoForwardsRequest,
 } from '../../../api/types';
 import type { ApiMessageAction } from '../../../api/types/messageActions';
@@ -17,10 +19,11 @@ import type {
   ThreadId,
 } from '../../../types';
 import type { Signal } from '../../../util/signals';
+import { ApiMediaFormat } from '../../../api/types';
 import { MediaViewerOrigin } from '../../../types';
 
 import { MESSAGE_APPEARANCE_DELAY } from '../../../config';
-import { getMessageHtmlId } from '../../../global/helpers';
+import { getMediaHash, getMessageHtmlId } from '../../../global/helpers';
 import { getMessageReplyInfo } from '../../../global/helpers/replies';
 import {
   selectActionMessageBg,
@@ -34,6 +37,7 @@ import {
 import { IS_TAURI } from '../../../util/browser/globalEnvironment';
 import { IS_ANDROID, IS_FLUID_BACKGROUND_SUPPORTED } from '../../../util/browser/windowEnvironment';
 import buildClassName from '../../../util/buildClassName';
+import { fetch as fetchMedia } from '../../../util/mediaLoader';
 import { getServerTime } from '../../../util/serverTime';
 import { isElementInViewport } from '../../../util/visibility/isElementInViewport';
 import { preventMessageInputBlur } from '../helpers/preventMessageInputBlur';
@@ -137,6 +141,7 @@ const ActionMessage = ({
   const {
     openMediaViewer,
     showNotification,
+    markMessagesRead,
     markMentionsRead,
     toggleNoForwards,
   } = getActions();
@@ -144,6 +149,33 @@ const ActionMessage = ({
   const ref = useRef<HTMLDivElement>();
 
   const { id, chatId } = message;
+
+  const isOpeningViewOnceRef = useRef(false);
+
+  /**
+   * Opens view-once media once, as Signal Desktop's `showLightboxForViewOnceMedia` (`ts/state/ducks/lightbox.preload.ts`)
+   * does: the media is loaded, the message is marked viewed, which erases the media in the engine, and only then the
+   * viewer shows the loaded copy, so closing the tab with the viewer open leaves nothing to open again
+   */
+  async function openViewOnceMedia(media: ApiPhoto | ApiVideo) {
+    if (isOpeningViewOnceRef.current) return;
+    isOpeningViewOnceRef.current = true;
+
+    const hash = getMediaHash(media, 'full');
+    const blobUrl = hash ? await fetchMedia(hash, ApiMediaFormat.BlobUrl) : undefined;
+    if (!blobUrl) {
+      isOpeningViewOnceRef.current = false;
+      showNotification({ message: { key: 'ViewOnceLoadFailed' } });
+      return;
+    }
+
+    markMessagesRead({ chatId, messageIds: [id] });
+    openMediaViewer({
+      standaloneMedia: [{ ...media, blobUrl }],
+      origin: MediaViewerOrigin.ViewOnce,
+      viewOnceMedia: { hash: hash!, blobUrl },
+    });
+  }
   const action = message.content.action!;
 
   const isTextHidden = HIDDEN_TEXT_ACTIONS.has(action.type)
@@ -278,11 +310,7 @@ const ActionMessage = ({
       // Signal Desktop `ts/components/conversation/Message.dom.tsx` (`#handleOpen` for tap-to-view messages)
       case 'viewOnce': {
         if (action.media) {
-          openMediaViewer({
-            standaloneMedia: [action.media],
-            origin: MediaViewerOrigin.ViewOnce,
-            viewOnceMessage: { chatId, messageId: id },
-          });
+          void openViewOnceMedia(action.media);
         } else {
           showNotification({
             message: { key: message.isOutgoing ? 'ViewOnceOutgoingToast' : 'ViewOnceViewedToast' },

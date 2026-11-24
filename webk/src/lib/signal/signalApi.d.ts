@@ -226,6 +226,7 @@ export type SignalMessage = {
   isEdited?: boolean,
   editDate?: number,
   isPinned?: boolean,
+  isMentioned?: boolean,
   ttlPeriod?: number,
   groupedId?: string
 };

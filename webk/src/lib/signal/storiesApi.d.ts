@@ -72,11 +72,6 @@ export type SignalStoryDistributionList = {
   isMyStory?: true
 };
 
-export type SignalStorySettings = {
-  areStoriesDisabled?: boolean,
-  areViewReceiptsEnabled?: boolean
-};
-
 /** A Web K story item of a Signal story: a text story has no media of Telegram's, and a story may refuse replies */
 export type SignalStoryItem = StoryItem.storyItem & {
   signal_text_story?: SignalTextStory,

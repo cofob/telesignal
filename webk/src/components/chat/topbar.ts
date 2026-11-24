@@ -72,6 +72,8 @@ import verifyMenuItem from '@helpers/verifyMenuItem';
 
 type ButtonToVerify = {element?: HTMLElement, verify: () => boolean | Promise<boolean>};
 
+const SIGNAL_HIDDEN_MENU_ITEMS: Set<LangPackKey> = new Set(['ShareContact', 'SetWallpapers', 'ReportChat']);
+
 export default class ChatTopbar {
   public container: HTMLDivElement;
   public floatingPlatesWrapper: HTMLDivElement;
@@ -725,6 +727,9 @@ export default class ChatTopbar {
       verify: this.verifyIfCanDeleteChat
     }];
     this.deleteChatBtnMenuOptions = this.menuButtons[this.menuButtons.length - 1];
+    // * TeleSignal: the chat menu of Web A has no contact sharing (Web K sends no Signal contact cards yet), chat
+    // * wallpaper, sharing lock or chat report: Signal reports a chat only from its message request bar
+    this.menuButtons = this.menuButtons.filter(({text}) => !SIGNAL_HIDDEN_MENU_ITEMS.has(text));
 
     // the welcome messages section has one thing to offer: clearing them all (desktop's menu)
     this.menuButtons.forEach((button) => {

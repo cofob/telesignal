@@ -34,5 +34,6 @@ export function buildApiCallLogEntry(call: CallRecord, conversation: Conversatio
     outcome: getCallOutcome(call),
     date: Math.floor(call.timestamp / MS_PER_SECOND),
     isUnseen: call.isUnseen,
+    messageId: call.messageId,
   };
 }

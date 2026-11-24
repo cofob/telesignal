@@ -77,7 +77,6 @@ import type {ChatSetPeerOptions} from '@lib/appImManager';
 import type SidebarSlider from '@components/slider';
 import type {CallType} from '@lib/calls/types';
 import blockUserWithConfirmation, {unblockUser} from '@components/blockUser';
-import shareContact, {canShareContact} from '@components/shareContact';
 import {ButtonMenuItemOptionsVerifiable} from '@components/buttonMenu';
 import ButtonMenuToggle, {filterButtonMenuItems} from '@components/buttonMenuToggle';
 import getChatMembershipAction from '@appManagers/utils/chats/getChatMembershipAction';
@@ -1574,11 +1573,6 @@ PeerProfile.Actions = () => {
     text: 'VideoCall',
     onClick: () => appImManager.callUser(peerId.toUserId(), 'video'),
     verify: () => canCall('video')
-  }, {
-    icon: 'forward',
-    text: 'ShareContact',
-    onClick: () => shareContact(peerId),
-    verify: () => canShareContact(peerId)
   }, {
     // * someone not in my contacts is blocked and anyone unblocked from the rows below
     icon: 'lock',
