@@ -1772,7 +1772,7 @@ export default class ChatInput {
 
     this.btnSend = this.createButtonIcon();
     this.btnSend.classList.add('btn-circle', 'btn-send', 'animated-button-icon');
-    const icons: [Icon, string, string?][] = [
+    const icons: [Icon, string][] = [
       ['logo', 'send'],
       ['schedule', 'schedule'],
       ['check', 'edit'],
@@ -1781,7 +1781,7 @@ export default class ChatInput {
       ['forward', 'forward'],
       ['stop', 'stop']
     ];
-    this.btnSend.append(...icons.map(([name, type, mirror]) => Icon(name, 'animated-button-icon-icon', 'btn-send-icon-' + type, ...(mirror ? [mirror] : []))));
+    this.btnSend.append(...icons.map(([name, type]) => Icon(name, 'animated-button-icon-icon', 'btn-send-icon-' + type)));
     // * TeleSignal: Web A's send arrow (`src/assets/font-icons/new-send.svg`) in place of Telegram's plane
     this.btnSend.querySelector('.btn-send-icon-send').replaceChildren(createSignalSendIcon());
     // * the sparkles of a request the AI editor makes on what is sent, round the plane or the clock

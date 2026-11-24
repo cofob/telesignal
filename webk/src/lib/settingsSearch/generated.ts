@@ -132,7 +132,6 @@ const generated: GeneratedSettingsSearchData = {
     {id: 'AppExperimentalTab:Experimental.MemoryWatch', sectionId: 'AppExperimentalTab', kind: 'row', titleLangKey: 'Experimental.MemoryWatch'},
     {id: 'AppExperimentalTab:Experimental.OffscreenCanvas', sectionId: 'AppExperimentalTab', kind: 'row', titleLangKey: 'Experimental.OffscreenCanvas'},
     {id: 'AppExperimentalTab:Experimental.Pfs', sectionId: 'AppExperimentalTab', kind: 'row', titleLangKey: 'Experimental.Pfs'},
-    {id: 'AppExperimentalTab:Experimental.PopupSandbox', sectionId: 'AppExperimentalTab', kind: 'option', titleLangKey: 'Experimental.PopupSandbox'},
     {id: 'AppExperimentalTab:Experimental.ReleaseMedia', sectionId: 'AppExperimentalTab', kind: 'row', titleLangKey: 'Experimental.ReleaseMedia'},
     {id: 'AppExperimentalTab:Experimental.ResetAll', sectionId: 'AppExperimentalTab', kind: 'row', titleLangKey: 'Experimental.ResetAll'},
     {id: 'AppExperimentalTab:Experimental.Restart', sectionId: 'AppExperimentalTab', kind: 'row', titleLangKey: 'Experimental.Restart'},

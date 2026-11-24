@@ -15,7 +15,6 @@ import wrapCustomEmoji from '@components/wrappers/customEmoji';
 import {makeMediaSize} from '@helpers/mediaSize';
 import ReplyMarkupLayout from '@components/chat/bubbleParts/replyMarkupLayout';
 import classNames from '@helpers/string/classNames';
-import showCreateBotPopup from '@components/popups/createBot';
 import confirmationPopup from '@components/confirmationPopup';
 import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {wrapFormattedDuration} from './wrapDuration';
@@ -271,53 +270,8 @@ function getButtonTypeHandler({
         const managers = bindManagersToSession(rootScope.managers);
         const peerType = type.peer_type;
 
-        if(peerType._ === 'requestPeerTypeCreateBot') {
-          showCreateBotPopup({
-            requestingPeerId: peerId,
-            suggestedBotName: peerType.suggested_name,
-            suggestedUsername: peerType.suggested_username,
-            onCreate: async({name, username}) => {
-              try {
-                const createBotResult = await managers.appBotsManager.createManagedBot({
-                  managerId: peerId,
-                  botName: name,
-                  username: username
-                });
-
-                if(createBotResult.status === 'wait') {
-                  toastNew({
-                    langPackKey: 'CreateBot.TooManyBotsCreated',
-                    langPackArguments: [wrapFormattedDuration(formatDuration(createBotResult.waitTime))]
-                  });
-                  return true; // Close it, wait time is long
-                }
-
-                if(createBotResult.status === 'error') {
-                  toastNew({
-                    langPackKey: 'CreateBot.FailedToCreate',
-                    langPackArguments: []
-                  });
-                  return false;
-                }
-
-                const user = createBotResult.user;
-
-                await managers.appMessagesManager.sendBotRequestedPeer(
-                  peerId,
-                  type.button_id,
-                  [user.id.toPeerId()],
-                  {mid: messageMid}
-                );
-
-                return true;
-              } catch{
-                return false;
-              }
-            },
-            HotReloadGuard: SolidJSHotReloadGuardProvider
-          });
-          return;
-        }
+        // * TeleSignal: Signal has no bots to create
+        if(peerType._ === 'requestPeerTypeCreateBot') return;
 
         let requestedPeerIds: PeerId[];
         try {

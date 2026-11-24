@@ -5,13 +5,6 @@ export const IS_BETA = import.meta.env.DEV;
 // vite.preview.config.ts). Gates the preview-only un-blocking — see
 // helpers/dom/previewRaf.ts and helpers/preventDeadlock.ts.
 export const IS_PREVIEW = !!import.meta.env.VITE_PREVIEW;
-// `?popups=1` on a dev/preview build — the popup sandbox (components/popupSandbox). Like the
-// preview it usually runs in a tab that never paints (headless / background), so it needs the
-// same rAF + timer un-freezing. Folds away in production: IS_BETA is a literal `false` there.
-const SANDBOX_PARAMS = (IS_BETA || IS_PREVIEW) && typeof(location) !== 'undefined' ? new URLSearchParams(location.search) : undefined;
-export const IS_POPUP_SANDBOX = !!SANDBOX_PARAMS?.has('popups');
-// The sandbox owns the page: no session, mock managers, nothing on the wire.
-export const IS_SANDBOX_PAGE = IS_POPUP_SANDBOX;
 export const DEBUG = (IS_BETA || Modes.debug)/*  && false */;
 const ctx: any = typeof(window) !== 'undefined' ? window : self;
 export const MOUNT_CLASS_TO: any = DEBUG || true/*  && false */ ? ctx : {};

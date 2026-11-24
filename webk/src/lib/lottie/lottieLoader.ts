@@ -77,9 +77,6 @@ export type LottieAssetName =
   | 'collectible_username'
   | 'collectible_phone'
   | 'Experimental'
-  | 'Gram'
-  | 'WalletWordList'
-  | 'WalletWordCheck'
 ;
 
 /**

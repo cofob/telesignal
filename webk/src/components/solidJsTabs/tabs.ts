@@ -38,17 +38,6 @@ export const AppPrivacyMessagesTab =
   });
 
 
-type AppDirectMessagesTabPayload = {
-  chat: Chat.channel;
-};
-
-export const AppDirectMessagesTab =
-  scaffoldSolidJSTab<AppDirectMessagesTabPayload>({
-    title: 'ChannelDirectMessages.Settings.Title',
-    getComponentModule: () => import('../sidebarRight/tabs/channelDirectMessages')
-  });
-
-
 export const AppNotificationsTab =
   scaffoldSolidJSTab({
     title: 'Telegram.NotificationSettingsViewController',
@@ -389,19 +378,6 @@ export const AppBlockedUsersTab =
       this.scrollable.onScroll();
     }
   });
-
-
-type AppNewChannelTabPayload = {
-  onCreate?: (chatId: ChatId) => MaybePromise<void>,
-  openAfter?: boolean
-};
-
-export const AppNewChannelTab =
-  scaffoldSolidJSTab<AppNewChannelTabPayload>({
-    title: 'NewChannel',
-    getComponentModule: () => import('../sidebarLeft/tabs/newChannel')
-  });
-(AppNewChannelTab as any).noSame = true;
 
 
 export const AppBackgroundColorTab =
