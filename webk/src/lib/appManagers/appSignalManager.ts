@@ -45,6 +45,7 @@ import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} 
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import {buildCallLogHandlers, fetchCallLogMessages} from '@lib/signal/callLog';
+import {closeViewOnceMedia, getViewOnceMedia, openViewOnceMedia} from '@lib/signal/viewOnce';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
 import {buildOutgoingPoll, buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
 import {buildMediaMethodHandlers} from '@lib/signal/mediaMethods';
@@ -147,12 +148,14 @@ export default class AppSignalManager extends AppManager {
     return fetchMessageRecipients(this.createMethodHost(), peerId, mid);
   }
 
-  /**
-   * Marks view-once media viewed once its viewer closed, which erases it (Web A's `closeMediaViewer`); the message
-   * comes back as "Viewed"
-   */
-  public markViewOnceViewed(peerId: PeerId, mid: number) {
-    return this.call('markMessagesRead', {chat: {id: toSignalPeerId(peerId)}, messageIds: [mid]});
+  /** Loads unopened view-once media for its viewer and marks it viewed (`lib/signal/viewOnce.ts`) */
+  public openViewOnceMedia(peerId: PeerId, mid: number) {
+    const media = getViewOnceMedia(this.appMessagesManager.getMessageByPeer(peerId, mid));
+    return media ? openViewOnceMedia(this.createMethodHost(), this.thumbsStorage, peerId, mid, media) : Promise.resolve(false);
+  }
+
+  public closeViewOnceMedia(media: Parameters<typeof closeViewOnceMedia>[1]) {
+    closeViewOnceMedia(this.thumbsStorage, media);
   }
 
   public invoke<T extends keyof MethodDeclMap>(method: T, params: MethodDeclMap[T]['req']): Promise<MethodDeclMap[T]['res']> {

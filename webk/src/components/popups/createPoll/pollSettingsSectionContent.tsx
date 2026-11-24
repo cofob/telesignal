@@ -8,9 +8,7 @@ import {useCreatePollContext} from './storeContext';
  * TeleSignal: a Signal poll has one setting, multiple answers (Signal Desktop `PollCreateModal`); its voters are
  * always shown, and it has no quiz, added options, revote lock, shuffling, duration, country or subscriber limits
  */
-export const PollSettingsSectionContent = (_props: {
-  countriesElementRef?: (element: HTMLElement) => void
-}) => {
+export const PollSettingsSectionContent = () => {
   const context = useCreatePollContext();
 
   return (

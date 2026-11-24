@@ -10105,18 +10105,27 @@ export default class ChatBubbles {
           s.append(avatarContainer, text, button);
         }
       } else if(isSelfDestructingMedia) {
-        // * TeleSignal: the only self-destructing media is Signal's view-once media, which opens once and is marked
-        // * viewed (erased) when its viewer closes (Signal Desktop `#renderTapToViewText`, Web A's `closeMediaViewer`)
-        const isVideo = (message as Message.message).media._ === 'messageMediaDocument';
-        s.append(i18n(isVideo ? 'Signal.ViewOnce.Video' : 'Signal.ViewOnce.Photo'));
+        // * TeleSignal: the only self-destructing media is Signal's view-once media, which opens once: the worker loads
+        // * it and marks it viewed (erased) before the viewer shows the loaded copy (`lib/signal/viewOnce.ts`)
+        const media = (message as Message.message).media as MessageMedia.messageMediaPhoto | MessageMedia.messageMediaDocument;
+        s.append(i18n(media._ === 'messageMediaDocument' ? 'Signal.ViewOnce.Video' : 'Signal.ViewOnce.Photo'));
         const button = Button('bubble-service-button', {noRipple: true, text: 'Signal.ViewOnce.Open'});
-        attachClickEvent(button, () => {
+        attachClickEvent(button, async() => {
+          // * one click opens it: the button goes at once, and the message turns into "Viewed"
+          button.remove();
+          const {appSignalManager} = this.managers;
+          if(!(await appSignalManager.openViewOnceMedia(message.peerId, message.mid))) {
+            toastNew({langPackKey: 'Error.AnError'});
+            return;
+          }
+
+          const file = media._ === 'messageMediaPhoto' ? media.photo as Photo.photo : media.document as Document.document;
           const viewer = new hotReloadGuard.AppMediaViewer();
-          viewer.onClosed(() => this.managers.appSignalManager.markViewOnceViewed(message.peerId, message.mid));
+          viewer.onClosed(() => appSignalManager.closeViewOnceMedia(file));
           // * the viewer shows this media alone, with no neighbours to step to
           viewer
           .setSearchContext({peerId: message.peerId, inputFilter: {_: 'inputMessagesFilterEmpty'}, useSearch: false})
-          .openMedia({message: message as Message.message, target: button});
+          .openMedia({message: message as Message.message, target: s});
         }, {listenerSetter: this.listenerSetter});
         s.append(button);
       }

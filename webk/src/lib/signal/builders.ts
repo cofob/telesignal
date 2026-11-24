@@ -256,6 +256,12 @@ const VIEW_ONCE_TTL_SECONDS = 0x7FFFFFFF;
 function buildViewOnceMedia(media: any, date: number) {
   const built = media && buildSignalMessageMedia({[media.mediaType]: media} as SignalMessage['content'], date);
   if(built?._ !== 'messageMediaPhoto' && built?._ !== 'messageMediaDocument') return undefined;
+  if(built._ === 'messageMediaDocument' && built.document?._ === 'document') {
+    // * a view-once video plays from the copy loaded for it, not streamed: the file is erased once it is opened
+    built.document.attributes = built.document.attributes.map((attribute) => attribute._ === 'documentAttributeVideo' ?
+      {...attribute, pFlags: {...attribute.pFlags, supports_streaming: undefined as true}} :
+      attribute);
+  }
   return {...built, ttl_seconds: VIEW_ONCE_TTL_SECONDS};
 }
 

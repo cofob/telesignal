@@ -72,7 +72,7 @@ import verifyMenuItem from '@helpers/verifyMenuItem';
 
 type ButtonToVerify = {element?: HTMLElement, verify: () => boolean | Promise<boolean>};
 
-const SIGNAL_HIDDEN_MENU_ITEMS: Set<LangPackKey> = new Set(['ShareContact', 'SetWallpapers', 'DisableSharing', 'ReportChat']);
+const SIGNAL_HIDDEN_MENU_ITEMS: Set<LangPackKey> = new Set(['ShareContact', 'SetWallpapers', 'ReportChat']);
 
 export default class ChatTopbar {
   public container: HTMLDivElement;

@@ -41,6 +41,7 @@ import {
 } from '@lib/calls/helpers/callLog';
 import styles from '@components/sidebarLeft/tabs/calls.module.scss';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
+import {getIsNoticelessCallMid} from '@lib/signal/callLog';
 
 // tdesktop's constants are named `kFirstPageCount = 20` / `kPerPageCount = 100`
 // but its request uses them the other way round — the first page is the 100
@@ -104,9 +105,10 @@ function CallRow(props: {
   };
 
   const showInChat = () => {
+    // * TeleSignal: a row of group calls or of calls whose notice is gone opens its chat at the end
     hotReloadGuard.appImManager.setInnerPeer({
       peerId: props.group.peerId,
-      lastMsgId: props.group.mids[0]
+      lastMsgId: props.group.mids.find((mid) => !getIsNoticelessCallMid(mid))
     });
   };
 
@@ -258,10 +260,9 @@ const Calls = () => {
     setMessages((current) => {
       const byMid = new Map(current.map((message) => [message.mid, message]));
       added.forEach((message) => byMid.set(message.mid, message));
-      // Calls only happen in private chats, whose message ids share one
-      // account-wide sequence — which is what makes the peerless search's
-      // `offset_id` paging work, and what orders the log.
-      return Array.from(byMid.values()).sort((a, b) => b.mid - a.mid);
+      // * TeleSignal: the log orders by date, since group calls and calls
+      // * without a notice take ids above any message's (`lib/signal/callLog.ts`)
+      return Array.from(byMid.values()).sort((a, b) => b.date - a.date || b.mid - a.mid);
     });
   };
 
@@ -326,6 +327,8 @@ const Calls = () => {
 
     try {
       await tab.managers.appMessagesManager.deletePhoneCallHistory();
+      // * the rows without a notice go with the log, as no deletion names them
+      setMessages([]);
     } catch(error) {
       log.error('clearing the call log failed', error);
       toastNew({langPackKey: 'Error.AnError'});

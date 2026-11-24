@@ -5,14 +5,13 @@ import InputField from '@components/inputField';
 import Scrollable from '@components/scrollable2';
 import Section from '@components/section';
 import SimpleFormField from '@components/simpleFormField';
-import {toastNew} from '@components/toast';
 import getRichValueWithCaret from '@helpers/dom/getRichValueWithCaret';
 import {I18nTsx} from '@helpers/solid/i18n';
 import classNames from '@helpers/string/classNames';
 import I18n from '@lib/langPack';
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import type SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
-import {createSignal, onCleanup, Setter, Show} from 'solid-js';
+import {createSignal, onCleanup, Show} from 'solid-js';
 import PopupElement, {createPopup, useSnitchedPopupContext} from '../indexTsx';
 import {EmojiButtonWithOpacity as EmojiDropdownButton} from './emojiButtonWithOpacity';
 import {PollOptionsSectionContent} from './pollOptionsSectionContent';
@@ -26,7 +25,7 @@ import {
 } from './storeContext';
 import styles from './styles.module.scss';
 import {useCreatePollLimits} from './useCreatePollLimits';
-import {createFormFieldClickHandler, getFinalPayload, hasMeaningfulChanges, interactableClass, useCanSubmit, useVisibleOptionsLeft, validateCountryRestriction} from './utils';
+import {createFormFieldClickHandler, getFinalPayload, hasMeaningfulChanges, interactableClass, useCanSubmit, useVisibleOptionsLeft} from './utils';
 
 
 type CreatePollPopupProps = {
@@ -44,7 +43,6 @@ export const CreatePollPopup = (props: CreatePollPopupProps) => {
     supportedMediaTypes: () => props.supportedMediaTypes ?? [],
     quiz: props.quiz
   });
-  const [countriesElement, setCountriesElement] = createSignal<HTMLElement>();
 
   const {SnitchPopupContext, popupContext} = useSnitchedPopupContext();
 
@@ -72,19 +70,12 @@ export const CreatePollPopup = (props: CreatePollPopupProps) => {
       <CreatePollContext.Provider value={context}>
         <Header
           onSubmit={() => {
-            if(!validateCountryRestriction(
-              context.store,
-              context.isBroadcast(),
-              () => toastNew({langPackKey: 'NewPoll.ChooseCountry'}),
-              countriesElement()
-            )) return;
-
             props.onSubmit(getFinalPayload(context));
             popupContext()?.destroy();
           }}
         />
         <PopupElement.Body>
-          <BodyContent setCountriesElement={setCountriesElement} />
+          <BodyContent />
         </PopupElement.Body>
       </CreatePollContext.Provider>
     </PopupElement>
@@ -159,10 +150,7 @@ const QuestionAndDescription = () => {
   );
 };
 
-const BodyContent = (props: {
-  setCountriesElement: Setter<HTMLElement>
-}) => {
-  const context = useCreatePollContext();
+const BodyContent = () => {
   const [scrollable, setScrollable] = createSignal<HTMLElement>();
   const visibleOptionsLeft = useVisibleOptionsLeft();
 
@@ -183,12 +171,8 @@ const BodyContent = (props: {
         <PollOptionsSectionContent scrollable={scrollable()} />
       </Section>
 
-      <Section
-        name='Settings'
-        /* the note belongs to the explanation field, which only exists in quiz mode */
-        caption={context.store.hasCorrectAnswer ? <I18nTsx key='AddAnExplanationInfo' /> : undefined}
-      >
-        <PollSettingsSectionContent countriesElementRef={props.setCountriesElement} />
+      <Section name='Settings'>
+        <PollSettingsSectionContent />
       </Section>
     </PopupElement.Scrollable>
   );
