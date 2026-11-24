@@ -47,7 +47,7 @@ import contextMenuController from '@helpers/contextMenuController';
 import appDialogsManager from '@lib/appDialogsManager';
 import {DIALOG_LIST_ELEMENT_TAG} from '@components/dialogElement';
 import apiManagerProxy from '@lib/apiManagerProxy';
-import {FOLDER_ID_ARCHIVE, TEST_NO_STORIES} from '@appManagers/constants';
+import {FOLDER_ID_ARCHIVE} from '@appManagers/constants';
 import mediaSizes from '@helpers/mediaSizes';
 import updateColumnWidths, {setOpenTabsLeftSidebar} from '@helpers/updateColumnWidths';
 import installColumnResize from '@helpers/installColumnResize';
@@ -57,7 +57,6 @@ import DOCUMENT_PICTURE_IN_PICTURE_SUPPORTED from '@environment/documentPictureI
 import openClientPip, {closeClientPip, isClientPipOpen} from '@components/clientPip';
 import liteMode, {AnimationLevel} from '@helpers/liteMode';
 import {AppPowerSavingTab} from '@components/solidJsTabs/tabs';
-import {AppMyStoriesTab} from '@components/solidJsTabs/tabs';
 import Icon from '@components/icon';
 import AppSelectPeers from '@components/appSelectPeers';
 import setBadgeContent, {setBadgeCount} from '@helpers/setBadgeContent';
@@ -793,15 +792,6 @@ export class AppSidebarLeft extends SidebarSlider {
       },
       separator: true
     }, btnArchive, {
-      icon: 'stories',
-      text: 'MyStories.Title',
-      onClick: () => {
-        closeTabsBefore(() => {
-          this.createTab(AppMyStoriesTab).open(AppMyStoriesTab.getInitArgs());
-        });
-      },
-      verify: () => !TEST_NO_STORIES
-    }, {
       icon: 'user',
       text: 'Contacts',
       onClick: onContactsClick

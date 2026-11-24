@@ -273,7 +273,7 @@ export function getOutgoingMessageGradient(colors: number[] | undefined, animate
 }
 
 /**
- * The one colour that stands for the gradient, the one it shows most (widget-sandbox's SDK §5.1): the mean of what it
+ * The one colour that stands for the gradient, the one it shows most (Telegram's widget SDK §5.1): the mean of what it
  * is painted in, moved to read the text on as its colours are. The vertical one's colours are evenly spaced, each two
  * mixed between them, so its ends weigh half; the freeform one's are its points, as on Android
  */

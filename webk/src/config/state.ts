@@ -105,12 +105,6 @@ export type StateSettings = {
     dark: Extract<AppTheme['name'], 'night' | 'tinted'>,
     light: Extract<AppTheme['name'], 'day' | 'light'>
   },
-  // Empty-column tip cards (@components/chatTips): which tip is showing, and whether the deck is
-  // collapsed to the "select a chat" pill. macOS keeps the same collapse in FastSettings.emptyTips.
-  chatTips: {
-    index: number,
-    hidden: boolean
-  },
   notifications: {
     sound: boolean,
     push: boolean,
@@ -522,10 +516,6 @@ export const SETTINGS_INIT: StateSettings = {
   lastThemeNames: {
     dark: 'night',
     light: 'day'
-  },
-  chatTips: {
-    index: 0,
-    hidden: false
   },
   notifications: {
     sound: false,

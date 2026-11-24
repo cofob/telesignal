@@ -26,3 +26,11 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+// * TeleSignal: an icon drawn as SVG where the font has a Telegram glyph (`components/signalSendIcon.ts`)
+.signal-send-icon {
+  display: block;
+  width: 1em;
+  height: 1em;
+  fill: currentColor;
+}

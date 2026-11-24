@@ -170,13 +170,22 @@ is Web K's own cache of the chat list (the state loader), which keeps the deleti
 it lacks; this is not verified. A chat that a person deletes in Web K and that gets a new message while Web K is
 closed may stay hidden the same way.
 
-## Telegram-only entries still show in Web K
+## Telegram-only features remain in Web K's code behind hidden entry points
 
-Several Telegram-only entries remain outside the chat list and groups, and were seen while checking them: the
-«Previous Tip» and «Next Tip» panel on the empty chat, the
-Telegram paper-plane icon on the send button, and the community section code in the group editor, which never renders for Signal
-groups. The entries that this area hid are listed in `docs/signal/ITERATIONS.md`, section 11; the code behind them is
-still there, to be removed with the Telegram code.
+The TON wallet, the interactive widgets and the empty-column tips are removed, but most Telegram-only features are
+only unreachable: Stars, gifts and Premium screens (`src/components/stars`, `stargifts`, `premium`, `popups/premium*`),
+bots, Mini Apps and inline bots (`appAttachMenuBotsManager`, `inlineHelper.ts`, `popups/createBot`, `editBot.tsx`),
+payments, sponsored messages, channels, forums, boosts and statistics (`openBoosts.ts`, `sidebarRight/tabs/boosts.tsx`,
+`statistics.tsx`). Each is referenced from shared files that other work edits (`bubbles.ts`, `appMessagesManager.ts`,
+`topbar.ts`, the stories viewer, `internalLinkProcessor.ts`), so deleting one is a cascade through them. About 160
+`.invalid` links of these features remain in `src` (21 in `lang.ts`); the strings that Signal chats can show point to
+Signal on the phone instead. The community section code in the group editor never renders for Signal groups.
+
+## Web A calls Note to Self «Your Cloud Storage»
+
+Web A's empty Note to Self (`src/components/middle/NoMessages.tsx`, `ConversationCloudStorageInfoTitle` and the four
+description strings) keeps Telegram's wording: «Your Cloud Storage» and «Access this chat from any device». Signal keeps
+Note to Self on the linked devices, not in a cloud; Web K says «Your notes» and «See them on your linked devices».
 
 ## Web K shows no download progress until the whole attachment is decrypted
 

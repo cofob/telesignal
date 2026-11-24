@@ -1,6 +1,6 @@
 import liteMode from '@helpers/liteMode';
 import {CROSS_FADE_KEYFRAMES} from '@helpers/dom/crossfadeContent';
-import {linearEasing, spring} from '@components/wallet/visual/motion';
+import {linearEasing, spring} from '@helpers/visual/motion';
 import styles from '@components/chat/aiSendSparkles.module.scss';
 
 /**

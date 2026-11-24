@@ -3945,7 +3945,7 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     }
   }
 
-  // * one that holds a widget is of one colour all over (widget-sandbox's SDK §5.1): the one the gradient shows most
+  // * one that holds a widget is of one colour all over (Telegram's widget SDK §5.1): the one the gradient shows most
   // * (`--message-out-gradient-solid-color`), which the widget is told is its background. The gradient moves under the
   // * bubble as the chat scrolls, and a widget that paints its own background stood out against it. Its content paints
   // * the colour, so it is not cut out of the chat's piece (`OutgoingGradientUnion`); its pieces have no picture, so

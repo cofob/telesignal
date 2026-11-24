@@ -11,8 +11,7 @@ import countEmojiOnly from '@lib/richTextProcessor/countEmojiOnly';
  * reactions (`messages_reactions`), the views and shares (in the time, made anew with every edit)
  * and the comments' count (`replies_updated`) - as part of the shell, an edit made after any of them
  * changed would render the whole bubble anew. A pin shows in the time too (`peer_pinned_messages`).
- * Whether there are views at all is the shell's still: a post that has them is made as one. An HTML
- * widget's source and state reach its running widget by a way of their own as well (`widgetEdit.ts`).
+ * Whether there are views at all is the shell's still: a post that has them is made as one.
  */
 export function getSolidMessageBodyStructure(message: Message.message) {
   const bigEmoji = getBigEmojiShellSignature(message);

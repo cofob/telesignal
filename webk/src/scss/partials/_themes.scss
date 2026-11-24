@@ -171,7 +171,7 @@ $theme-bubble-out-end: .375rem;
       // * the theme's gradient of the outgoing bubbles (`message-out-gradient`) over the tile, as over a chat: the
       // * bubble shows the part of it it stands on, as a bubble of the chat does - the whole of it in a bubble this
       // * small would be every colour of it in a stripe. In fractions of the tile, which a host scaling the tile
-      // * keeps (`chatTips`)
+      // * keeps
       background-image: var(--message-out-gradient);
       background-size: math.percentage(math.div($theme-tile-width, $theme-bubble-width)) math.percentage(math.div($theme-tile-height, $theme-bubble-height));
       background-position:
