@@ -146,6 +146,14 @@ export default class AppSignalManager extends AppManager {
     return fetchMessageRecipients(this.createMethodHost(), peerId, mid);
   }
 
+  /**
+   * Marks view-once media viewed once its viewer closed, which erases it (Web A's `closeMediaViewer`); the message
+   * comes back as "Viewed"
+   */
+  public markViewOnceViewed(peerId: PeerId, mid: number) {
+    return this.call('markMessagesRead', {chat: {id: toSignalPeerId(peerId)}, messageIds: [mid]});
+  }
+
   public invoke<T extends keyof MethodDeclMap>(method: T, params: MethodDeclMap[T]['req']): Promise<MethodDeclMap[T]['res']> {
     const handler = this.handlers[method];
     if(!handler) {

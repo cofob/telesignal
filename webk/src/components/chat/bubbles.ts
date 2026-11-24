@@ -10191,12 +10191,20 @@ export default class ChatBubbles {
           s.append(avatarContainer, text, button);
         }
       } else if(isSelfDestructingMedia) {
-        const promise = wrapMessageForReply({
-          message,
-          ...wrapOptions
-        }).then((el) => s.append(el));
-
-        loadPromises.push(promise);
+        // * TeleSignal: the only self-destructing media is Signal's view-once media, which opens once and is marked
+        // * viewed (erased) when its viewer closes (Signal Desktop `#renderTapToViewText`, Web A's `closeMediaViewer`)
+        const isVideo = (message as Message.message).media._ === 'messageMediaDocument';
+        s.append(i18n(isVideo ? 'Signal.ViewOnce.Video' : 'Signal.ViewOnce.Photo'));
+        const button = Button('bubble-service-button', {noRipple: true, text: 'Signal.ViewOnce.Open'});
+        attachClickEvent(button, () => {
+          const viewer = new hotReloadGuard.AppMediaViewer();
+          viewer.onClosed(() => this.managers.appSignalManager.markViewOnceViewed(message.peerId, message.mid));
+          // * the viewer shows this media alone, with no neighbours to step to
+          viewer
+          .setSearchContext({peerId: message.peerId, inputFilter: {_: 'inputMessagesFilterEmpty'}, useSearch: false})
+          .openMedia({message: message as Message.message, target: button});
+        }, {listenerSetter: this.listenerSetter});
+        s.append(button);
       }
       if(!hideServiceText) bubbleContainer.append(s);
 
