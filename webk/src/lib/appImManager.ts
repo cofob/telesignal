@@ -343,8 +343,6 @@ export class AppImManager extends EventListenerBase<{
   public cacheStorage = new CacheStorageController('cachedFiles');
   public customEmojiSize: MediaSize;
 
-  public isShiftLockShortcut = false;
-
   private audioAssetPlayer: AudioAssetPlayer<Record<'message_sent', string>>;
 
   private chatPositions: {
@@ -1816,8 +1814,6 @@ export class AppImManager extends EventListenerBase<{
           container.focus({preventScroll: true});
         }
       };
-
-      if(this.isShiftLockShortcut && e.shiftKey) return;
 
       if((key.startsWith('Arrow') || (e.shiftKey && key === 'Shift')) && !isSelectionCollapsed) {
         return;

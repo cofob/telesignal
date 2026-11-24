@@ -3,9 +3,10 @@ import Row from '@components/rowTsx';
 import Section from '@components/section';
 import I18n, {i18n, LangPackKey} from '@lib/langPack';
 import {IS_APPLE} from '@environment/userAgent';
-import rootScope from '@lib/rootScope';
 import {useAppSettings} from '@stores/appSettings';
-import InlineSelect from '@components/sidebarLeft/tabs/passcodeLock/inlineSelect';
+import InlineSelect from '@components/inlineSelect';
+import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
+import {getLockScreenCombos} from '@appManagers/utils/useLockScreenShortcut';
 import styles from './keyboardShortcuts.module.scss';
 
 
@@ -253,34 +254,34 @@ const MediaEditorSection = () => (
   </Section>
 );
 
+// * the lock of Web A's passcode, which is set in the A version (`useLockScreenShortcut`)
+// * the lock of Web A's passcode, with Web A's combos (`useLockScreenShortcut`); the passcode is set in the A version
 const OtherSection = () => {
-  const [passcode] = createResource(() =>
-    rootScope.managers.appStateManager.getState().then((state) => state?.settings?.passcode)
-  );
-
-  const lockKeys = () => {
-    const p = passcode();
-    if(!p?.enabled || !p?.lockShortcutEnabled || !p?.lockShortcut?.length) return undefined;
-    return [...p.lockShortcut, 'L'];
+  const [combos] = createResource(getLockScreenCombos);
+  // * as the keys of this tab are written: Ctrl shows as ⌘ on Apple's systems, so a combo there may show twice
+  const keys = () => {
+    const shown = (combos() || []).map((combo) => combo.split('+').map((key) => key.length > 1 ? key.toLowerCase() : key.toUpperCase()));
+    return shown.filter((combo, index) => shown.findIndex((other) => labelsOf(other) === labelsOf(combo)) === index);
   };
 
   return (
     <Section name="KeyboardShortcuts.Section.Other">
       <ShortcutRow
         action="KeyboardShortcuts.Action.LockPasscode"
-        hint={lockKeys() ? undefined : 'KeyboardShortcuts.Hint.LockPasscodeNotSet'}
+        hint={isSignalPasscodeEnabled() ? undefined : 'KeyboardShortcuts.Hint.LockPasscodeNotSet'}
         keys={
-          <Show
-            when={lockKeys()}
-            fallback={<span class={styles.or}>—</span>}
-          >
-            <KeyCombo keys={lockKeys()} />
+          <Show when={keys().length} fallback={<span class={styles.or}>—</span>}>
+            <KeyAlternatives combos={keys()} />
           </Show>
         }
       />
     </Section>
   );
 };
+
+function labelsOf(keys: string[]) {
+  return keys.map(labelFor).join('+');
+}
 
 const KeyboardShortcutsTab = () => (
   <>

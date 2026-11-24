@@ -12,6 +12,7 @@ import Section from '@components/section';
 import {SliderSuperTabEventableConstructable} from '@components/sliderTab';
 import {useAppSettings} from '@stores/appSettings';
 import {StorageQuota, StorageQuotaControls} from './storageQuota';
+import {SignalProxySection} from './signalProxy';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import {type AppDataAndStorageTab} from '@components/solidJsTabs/tabs';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
@@ -124,6 +125,7 @@ const DataAndStorage: Component = () => {
         />
       </Section>
       <StorageQuota controlsRef={(localControls) => controls = localControls} />
+      <SignalProxySection />
     </>
   );
 };

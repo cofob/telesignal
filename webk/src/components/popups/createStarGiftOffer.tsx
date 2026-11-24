@@ -18,7 +18,7 @@ import bigInt from 'big-integer';
 import styles from '@components/popups/createStarGiftOffer.module.scss';
 import {StarGiftPriceInputField} from '@components/stargifts/stargiftPriceInputField';
 import {getCollectibleName} from '@appManagers/utils/gifts/getCollectibleName';
-import InlineSelect from '@components/sidebarLeft/tabs/passcodeLock/inlineSelect';
+import InlineSelect from '@components/inlineSelect';
 import {PeerTitleTsx} from '@components/peerTitleTsx';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import getPeerId from '@appManagers/utils/peers/getPeerId';

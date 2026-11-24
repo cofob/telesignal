@@ -83,6 +83,7 @@ import {
   cacheGlobalForSlot,
   cacheSharedState,
   forceUpdateCache,
+  getIsCachingStopped,
   loadCachedGlobalForSlot,
   migrateCache,
   removeAllGlobalCaches,
@@ -119,7 +120,7 @@ addActionHandler('setPasscode', async (global, actions, payload): Promise<void> 
       const meta = await loadPasscodeMeta();
       if (meta) {
         global = getGlobal();
-        await writeGlobalsVaultForSlot(ACCOUNT_SLOT, serializeGlobal(global));
+        await writeGlobalsVault(global);
         await refreshSessionsVault();
         const result = await changePasscode(passcode);
         hadPasskey = result.hadPasskey;
@@ -184,7 +185,7 @@ addActionHandler('clearPasscode', async (global, actions): Promise<void> => {
     if (!generation) return false;
 
     global = getGlobal();
-    await writeGlobalsVaultForSlot(ACCOUNT_SLOT, serializeGlobal(global));
+    await writeGlobalsVault(global);
     await refreshSessionsVault();
     if (!await claimPasscodeDisable(generation)) return false;
     localStorage.setItem(IS_SCREEN_LOCKED_CACHE_KEY, 'disabling');
@@ -270,7 +271,7 @@ addActionHandler('lockScreen', async (global): Promise<void> => {
       }
 
       global = getGlobal();
-      await writeGlobalsVaultForSlot(ACCOUNT_SLOT, serializeGlobal(global));
+      await writeGlobalsVault(global);
       await refreshSessionsVault();
       global = getGlobal();
       await updateLockScreenWallpaperCache(global).catch(logPasscodeWarning);
@@ -535,7 +536,7 @@ addActionHandler('onPasscodeStateChangedRemotely', async (global, actions, paylo
 
     if (dek && !meta.isLocked && !global.passcode.hasPasscode) {
       if (selectTabState(global, getCurrentTabId())?.isMasterTab) {
-        await writeGlobalsVaultForSlot(ACCOUNT_SLOT, serializeGlobal(global));
+        await writeGlobalsVault(global);
       }
       global = getGlobal();
       await cacheSharedState(global.sharedState);
@@ -550,7 +551,7 @@ addActionHandler('onPasscodeStateChangedRemotely', async (global, actions, paylo
         && dek
         && selectTabState(global, getCurrentTabId())?.isMasterTab
       ) {
-        await writeGlobalsVaultForSlot(ACCOUNT_SLOT, serializeGlobal(global));
+        await writeGlobalsVault(global);
       }
       global = getGlobal();
       const wasScreenLocked = global.passcode.isScreenLocked;
@@ -672,6 +673,12 @@ async function finishUnlock(dek: ArrayBuffer, generation: string, lockEpoch: num
     broadcastPasscodeState(dek, generation);
     await applyUnlockedState(globalJson, undefined, meta);
   });
+}
+
+// A tab that the other frontend made inactive keeps a state that may be of an account logged out since (`stopCaching`)
+function writeGlobalsVault(global: GlobalState) {
+  if (getIsCachingStopped()) return undefined;
+  return writeGlobalsVaultForSlot(ACCOUNT_SLOT, serializeGlobal(global));
 }
 
 async function readGlobalJson() {
@@ -888,6 +895,8 @@ async function restoreGlobalCaches(currentGlobal: GlobalState) {
   for (const slot of accountSlots) {
     const session = loadSlotSession(slot);
     if (slot !== currentSlot && !session) continue;
+    // This tab's state may be of an account that the other frontend logged out since it took over (`stopCaching`)
+    if (slot === currentSlot && getIsCachingStopped()) continue;
 
     let global: GlobalState;
     if (slot === currentSlot) {

@@ -32,8 +32,8 @@ import AccountController from '@lib/accounts/accountController';
 import createNotificationImage from '@helpers/createNotificationImage';
 import {getMiddleware, MiddlewareHelper} from '@helpers/middleware';
 import {FOLDER_ID_ALL} from '@appManagers/constants';
-import PasscodeLockScreenController from '@components/passcodeLock/passcodeLockScreenController';
 import {StateSettings} from '@config/state';
+import {getIsSignalVaultLocked} from '@lib/signal/passcode';
 import {useAppSettings} from '@stores/appSettings';
 import {unwrap} from 'solid-js/store';
 import AudioAssetPlayer from '@helpers/audioAssetPlayer';
@@ -374,7 +374,6 @@ export class UiNotificationsManager {
           // * the server sends the story id as msg_id, our own notification as story_id
           const storyId = +(custom?.story_id || custom?.msg_id) || undefined;
           const self = await managers.appUsersManager.getSelf();
-          hotReloadGuard.closeAddAccount?.();
           hotReloadGuard.appImManager.openStoriesForPeer(self.id.toPeerId(), storyId);
           return;
         }
@@ -393,16 +392,13 @@ export class UiNotificationsManager {
           return;
         }
 
-        // * what was clicked is shown: the sign-in of an account added over the app gives way to it
         if(custom.story_id) {
-          hotReloadGuard.closeAddAccount?.();
           hotReloadGuard.appImManager.openStoriesForPeer(peerId);
           return;
         }
 
         const lastMsgId = await managers.appMessagesIdsManager.generateMessageId(+custom.msg_id, channelId);
 
-        hotReloadGuard.closeAddAccount?.();
         hotReloadGuard.appImManager.setInnerPeer({
           peerId,
           lastMsgId
@@ -435,6 +431,12 @@ export class UiNotificationsManager {
   }
 
   public async buildNotification(payload: NotificationBuildTaskPayload) {
+    // * TeleSignal: nothing of the account is shown while Web A's vault is locked, or this tab is on its way to the lock
+    // * screen (`listenSignalPasscodeChannel`)
+    if(await getIsSignalVaultLocked()) {
+      return;
+    }
+
     if('story' in payload) {
       return this.buildStoryNotification(payload);
     }
@@ -463,9 +465,7 @@ export class UiNotificationsManager {
     let notificationMessage: string;
     let wrappedMessage = false;
 
-    const isLocked = PasscodeLockScreenController.getIsLocked();
-
-    if(peerTypeNotifySettings.show_previews && !isLocked) {
+    if(peerTypeNotifySettings.show_previews) {
       if(message._ === 'message' && message.fwd_from && fwdCount > 1) {
         notificationMessage = I18n.format('Notifications.Forwarded', true, [fwdCount]);
       } else {
@@ -547,7 +547,6 @@ export class UiNotificationsManager {
       peerId,
       peerString,
       peerTitle,
-      hideContent: isLocked,
       custom: {
         msg_id: '' + message.mid,
         peerId: '' + peerId
@@ -590,7 +589,6 @@ export class UiNotificationsManager {
       peerId,
       peerString,
       peerTitle,
-      hideContent: PasscodeLockScreenController.getIsLocked(),
       custom: {
         msg_id: '0',
         story_id: '' + storyId,
@@ -616,7 +614,7 @@ export class UiNotificationsManager {
     ]);
 
     // * without a preview the notification must not tell who reacted with what
-    const hideContent = !showPreview || !emoticon || PasscodeLockScreenController.getIsLocked();
+    const hideContent = !showPreview || !emoticon;
     const selfPeerId = self.id.toPeerId();
     const isDifferentAccount = accountNumber !== getCurrentAccount();
 
@@ -658,8 +656,6 @@ export class UiNotificationsManager {
    * account first, as Desktop does; a call goes on through the switch.
    */
   private openForAccount(accountNumber: ActiveAccountNumber, open: () => void) {
-    // * what was clicked is shown: the sign-in of an account added over the app gives way to it
-    hotReloadGuard.closeAddAccount?.();
     // * a switch under way would close what opened now: the click waits its turn behind it
     if(accountNumber === getCurrentAccount() && !getAccountSwitchingTo()) {
       open();
@@ -708,7 +704,7 @@ export class UiNotificationsManager {
     peerId: PeerId,
     peerString: string,
     peerTitle: string,
-    /** don't reveal who it's from nor what it says: passcode lock, or previews turned off */
+    /** don't reveal who it's from nor what it says: a story reaction without a preview */
     hideContent?: boolean,
     /** pass it when already resolved, otherwise it's fetched only when the suffix is needed */
     self?: User.user,
@@ -728,11 +724,6 @@ export class UiNotificationsManager {
 
     if(!hideContent) {
       notification.image = await createNotificationImage(account.managers, peerId, peerTitle);
-    }
-
-    if(PasscodeLockScreenController.getIsLocked()) {
-      notification.title = I18n.format('PasscodeLock.NotificationTitle', true);
-      notification.message = I18n.format('PasscodeLock.NotificationDescription', true);
     }
 
     return this.notify(notification, {
@@ -954,7 +945,8 @@ export class UiNotificationsManager {
   public async notify(data: NotifyOptions, pushData: PushNotificationObject) {
     this.log('notify', data, idleController.isIdle, this.notificationsUiSupport, this.stopped);
 
-    if(this.stopped) {
+    // * the vault may have been locked while the notification was built
+    if(this.stopped || await getIsSignalVaultLocked()) {
       return;
     }
 

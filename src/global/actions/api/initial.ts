@@ -98,6 +98,11 @@ addActionHandler('setSignalSealedSenderProxyUrl', (global, actions, payload): Ac
   saveProxySettings(global, { signalSealedSenderProxyUrl: payload.url });
 });
 
+// The other frontend has stored them and runs the engine: this tab neither stores them nor reconnects
+addActionHandler('applyOtherClientProxySettings', (global, actions, payload): ActionReturnType => {
+  return updateSharedSettings(global, payload);
+});
+
 function saveProxySettings(
   global: GlobalState, settings: Partial<SharedState['settings']>, shouldResetQrCode?: boolean,
 ) {
