@@ -430,7 +430,7 @@ export default class AppSignalManager extends AppManager {
     const lastMessageId = this.appMessagesManager.getHistoryStorage(peerId.toPeerId()).maxId || 0;
     const localId = this.nextLocalId(lastMessageId);
     const chatId = toSignalPeerId(peerId);
-    const entities = (params.entities || []).map((entity) => buildSignalEntity(entity)).filter(Boolean);
+    const entities = (params.entities || []).map((entity) => this.buildSignalEntity(entity)).filter(Boolean);
     const localMessage: SignalMessage = {
       id: localId,
       chatId,
@@ -488,7 +488,7 @@ export default class AppSignalManager extends AppManager {
       chat: {id: toSignalPeerId(peerId)},
       message: {id: params.id, chatId: toSignalPeerId(peerId)},
       text: params.message,
-      entities: (params.entities || []).map((entity) => buildSignalEntity(entity)).filter(Boolean)
+      entities: (params.entities || []).map((entity) => this.buildSignalEntity(entity)).filter(Boolean)
     });
     // * the edit comes back as an update once the engine stored it
     return {_: 'updates', updates: [], users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
@@ -536,23 +536,24 @@ export default class AppSignalManager extends AppManager {
     const lastMessageId = this.appMessagesManager.getHistoryStorage(toPeer).maxId || 0;
     const localIds = params.id.map(() => this.nextLocalId(lastMessageId));
     localIds.forEach((localId, index) => this.pendingForwardCopies.set(localId, '' + params.random_id[index]));
-    try {
-      const storedIds: (number | undefined)[] = await this.call('forwardMessages', {
-        fromChat,
-        toChat,
-        messages,
-        noCaptions: params.drop_media_captions,
-        lastMessageId,
-        localIds
-      });
-      if(!storedIds?.every((id) => id !== undefined)) {
-        throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
-      }
-
-      return {_: 'updates', updates: [], users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
-    } finally {
-      localIds.forEach((localId) => this.pendingForwardCopies.delete(localId));
+    // * each copy leaves the map with its own sent or failed update, which may come after the call returns
+    const storedIds: (number | undefined)[] = await this.call('forwardMessages', {
+      fromChat,
+      toChat,
+      messages,
+      noCaptions: params.drop_media_captions,
+      lastMessageId,
+      localIds
+    }).catch((err) => {
+      // * a call that failed may have left copies with no update to come
+      setTimeout(() => localIds.forEach((localId) => this.pendingForwardCopies.delete(localId)), SEND_TIMEOUT_MS);
+      throw err;
+    });
+    if(!storedIds?.every((id) => id !== undefined)) {
+      throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
     }
+
+    return {_: 'updates', updates: [], users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
   }
 
   /** The text and shared media search of a chat, and its pinned messages */
@@ -617,7 +618,7 @@ export default class AppSignalManager extends AppManager {
 
   private async getUsers(params: MethodDeclMap['users.getUsers']['req']) {
     const result: {users: SignalUser[]} = await this.call('fetchUsers', {
-      users: params.id.map((inputUser) => ({id: toSignalPeerId(getInputUserId(inputUser))}))
+      users: params.id.map((inputUser) => ({id: toSignalPeerId(this.getInputUserId(inputUser))}))
     });
     return (result?.users || []).map(buildUser);
   }
@@ -847,7 +848,30 @@ export default class AppSignalManager extends AppManager {
     });
   }
 
+  /** The Web K id of an input user, `inputUserSelf` being us */
+  private getInputUserId(inputUser: InputUser): UserId | undefined {
+    if(inputUser._ === 'inputUserSelf') return this.appPeersManager.peerId.toUserId();
+    return inputUser._ === 'inputUser' ? +inputUser.user_id : undefined;
+  }
+
+  // * Telegram's entity names with an upper-case first letter are Web A's `ApiMessageEntityTypes`; a mention that Web K
+  // * sends names its user with an input user, and it is Web A's `MessageEntityMentionName`
+  private buildSignalEntity(entity: MethodDeclMap['messages.sendMessage']['req']['entities'][number]) {
+    const isInputMention = entity._ === 'inputMessageEntityMentionName';
+    const name = isInputMention ? 'messageEntityMentionName' : entity._;
+    const userId = isInputMention ? this.getInputUserId(entity.user_id) : (entity as {user_id?: UserId}).user_id;
+    return {
+      type: name.charAt(0).toUpperCase() + name.slice(1),
+      offset: entity.offset,
+      length: entity.length,
+      url: (entity as {url?: string}).url,
+      userId: userId ? toSignalPeerId(userId) : undefined,
+      language: (entity as {language?: string}).language
+    };
+  }
+
   private onMessageSendFailed(localId: number) {
+    this.pendingForwardCopies.delete(localId);
     const pending = this.pendingSends.get(localId);
     if(!pending) {
       return;
@@ -899,9 +923,6 @@ function getProvider() {
   return provider ??= import('@signal-app/provider');
 }
 
-function getInputUserId(inputUser: InputUser): UserId {
-  return inputUser._ === 'inputUser' ? +inputUser.user_id : undefined;
-}
 
 function getPeerIdOfPeer(peer: Peer) {
   switch(peer._) {
@@ -914,18 +935,3 @@ function getPeerIdOfPeer(peer: Peer) {
   }
 }
 
-// * Telegram's entity names with an upper-case first letter are Web A's `ApiMessageEntityTypes`; a mention that Web K
-// * sends names its user with an input user, and it is Web A's `MessageEntityMentionName`
-function buildSignalEntity(entity: MethodDeclMap['messages.sendMessage']['req']['entities'][number]) {
-  const isInputMention = entity._ === 'inputMessageEntityMentionName';
-  const name = isInputMention ? 'messageEntityMentionName' : entity._;
-  const userId = isInputMention ? getInputUserId(entity.user_id) : (entity as {user_id?: UserId}).user_id;
-  return {
-    type: name.charAt(0).toUpperCase() + name.slice(1),
-    offset: entity.offset,
-    length: entity.length,
-    url: (entity as {url?: string}).url,
-    userId: userId ? toSignalPeerId(userId) : undefined,
-    language: (entity as {language?: string}).language
-  };
-}
