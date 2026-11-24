@@ -21,7 +21,6 @@ type InternalLinkAnchorType =
   | 'addemoji'
   | 'setMediaTimestamp'
   | 'addlist'
-  | 'boost'
   | 'premium_offer'
   | 'giftcode'
   | 'm'

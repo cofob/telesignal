@@ -4161,11 +4161,6 @@ export default class ChatInput {
       textElement = i18n('SlowmodeSendError');
     } else {
       const chatFull = await managers.appProfileManager.getChatFull(chatId) as ChatFull.channelFull;
-      // * a booster sends without waiting, as tdesktop has it; the other slow mode limits still hold
-      if(await managers.appChatsManager.isRestrictionLiftedByBoosts(chatId)) {
-        return false;
-      }
-
       const getLeftDuration = () => Math.max(0, (chatFull.slowmode_next_send_date || 0) - tsNow(true));
       if(!getLeftDuration()) {
         return false;

@@ -4,7 +4,6 @@ import {ChatRights} from '@appManagers/appChatsManager';
 // * what a member sends: the rights a group's restrictions take away, and the member's boosts can give back
 export const isSendRight = (action: ChatRights) => action === 'embed_links' || action.startsWith('send_');
 
-const NO_BANS: ChatBannedRights = {_: 'chatBannedRights', pFlags: {}, until_date: 0};
 
 /**
  * Check the user's ability to do an action in chat
@@ -12,16 +11,13 @@ const NO_BANS: ChatBannedRights = {_: 'chatBannedRights', pFlags: {}, until_date
  * @param action creator can still send messages to left channel. so this function shows server rights. see canSendToPeer for local rights in messages manager.
  * @param rights do not provide this parameter when checking rights for self
  * @param isThread
- * @param defaultBansLifted the member's own boosts set the group's restrictions of what is sent aside — never the
- * member's own ban, nor anything else that says no (appChatsManager.isRestrictionLiftedByBoosts)
  * @returns
  */
 export default function hasRights(
   chat: Exclude<Chat, Chat.chatEmpty>,
   action: ChatRights,
   rights?: ChatAdminRights | ChatBannedRights,
-  isThread?: boolean,
-  defaultBansLifted?: boolean
+  isThread?: boolean
 ) {
   if(!chat) return false;
 
@@ -46,8 +42,7 @@ export default function hasRights(
   // const bannedRights = (chat as Chat.channel).banned_rights || chat.default_banned_rights;
 
   if(!rights) {
-    const defaultBans = defaultBansLifted && isSendRight(action) ? NO_BANS : chat.default_banned_rights;
-    rights = chat.admin_rights || (chat as Chat.channel).banned_rights || defaultBans;
+    rights = chat.admin_rights || (chat as Chat.channel).banned_rights || chat.default_banned_rights;
 
     if(!rights) {
       return false;
