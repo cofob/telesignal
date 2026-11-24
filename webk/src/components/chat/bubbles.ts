@@ -282,6 +282,7 @@ import {RichMessageBubble, RichMessageBubbleLayout, isRichMessageButtonTarget, i
 import {isPagingSlideshowTarget} from '@components/slideshow';
 import {isWidgetHorizontalDragTarget} from '@lib/widgetSandbox/gestures';
 import {keepWidgetHeights} from '@lib/widgetSandbox/heights';
+import {getIsSignalAlbum} from '@lib/signal/media';
 import isEphemeralMessage from '@appManagers/utils/messages/isEphemeralMessage';
 import isAnchoredEphemeralMessage from '@appManagers/utils/messages/isAnchoredEphemeralMessage';
 import canReplyToEphemeralMessage from '@appManagers/utils/messages/canReplyToEphemeralMessage';
@@ -11935,7 +11936,9 @@ export default class ChatBubbles {
             paymentsWrapCurrencyAmount((context.messageMedia as I).total_amount, (context.messageMedia as I).currency) :
             paymentsWrapCurrencyAmount((context.messageMedia as P).stars_amount, STARS_CURRENCY);
           let priceEl: HTMLElement;
-          if(!extendedMedia.length || (!isInvoice && isAlreadyPaid)) {
+          if(!isInvoice && getIsSignalAlbum(context.messageMedia as P)) {
+            // * a Signal album shows no price
+          } else if(!extendedMedia.length || (!isInvoice && isAlreadyPaid)) {
             priceEl = document.createElement(innerMedia ? 'span' : 'div');
             const f = document.createDocumentFragment();
             const l = i18n((context.messageMedia as I).receipt_msg_id ? 'PaymentReceipt' : (isTest ? 'PaymentTestInvoice' : 'PaymentInvoice'));
