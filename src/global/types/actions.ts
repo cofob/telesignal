@@ -176,6 +176,10 @@ export interface ActionPayloads {
   setSharedSettingOption: Partial<SharedState['settings']> | undefined;
   setSignalProxyUrl: { url?: string };
   setSignalSealedSenderProxyUrl: { url?: string };
+  // The proxy servers that the other frontend stored, for the shared state of this tab
+  applyOtherClientProxySettings: Partial<
+    Pick<SharedState['settings'], 'signalProxyUrl' | 'signalSealedSenderProxyUrl'>
+  >;
   setKeyboardShortcut: {
     id: KeyboardShortcutId;
     combo: string | false;

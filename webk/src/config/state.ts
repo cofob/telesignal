@@ -5,7 +5,6 @@ import type {AccountContentSettings, AccountThemes, AutoDownloadSettings, BaseTh
 import type DialogsStorage from '@lib/storages/dialogs';
 import type FiltersStorage from '@lib/storages/filters';
 import type {AuthState, Modify} from '@types';
-import type {ShortcutKey as PasscodeLockShortcutKey} from '@components/sidebarLeft/tabs/passcodeLock/shortcutBuilder';
 import {IS_MOBILE} from '@environment/userAgent';
 import getTimeFormat from '@helpers/getTimeFormat';
 import App from '@config/app';
@@ -156,7 +155,7 @@ export type StateSettings = {
     enabled: boolean,
     autoLockTimeoutMins: number, // number | null is not working, gets reset after reloading the page
     lockShortcutEnabled: boolean,
-    lockShortcut: PasscodeLockShortcutKey[],
+    lockShortcut: ('Ctrl' | 'Alt' | 'Shift' | 'Meta')[],
     canAttemptAgainOn: number | null
   },
   logsDiffView?: boolean,

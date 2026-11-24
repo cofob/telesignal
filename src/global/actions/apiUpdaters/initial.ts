@@ -163,7 +163,9 @@ function onUpdateAuthorizationState<T extends GlobalState>(global: T, update: Ap
       global = updateAuth(global, {
         isLoggingOut: false,
       });
-      Object.values(global.byTabId).forEach(({ id: tabId }) => {
+      // A tab that the other frontend made inactive stays so: that frontend runs the account now
+      Object.values(global.byTabId).forEach(({ id: tabId, inactiveReason }) => {
+        if (inactiveReason === 'otherClient') return;
         global = updateTabState(global, {
           inactiveReason: undefined,
         }, tabId);

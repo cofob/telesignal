@@ -231,6 +231,8 @@ const ADDITIONAL_ALIASES = {
   '@signal-app/passcode-channel': path.join(signalAppDir, 'util/passcode/channel.ts'),
   '@signal-app/clear-local-data': path.join(signalAppDir, 'lib/signal/clearLocalData.ts'),
   '@signal-app/passcode-session': path.join(signalAppDir, 'util/passcode/sessionStore.ts'),
+  // * the check of a proxy server's URL that Web A's settings make
+  '@signal-app/signal-proxy': path.join(signalAppDir, 'util/signalProxy.ts'),
   '@': resolve(rootDir, 'src')
 };
 

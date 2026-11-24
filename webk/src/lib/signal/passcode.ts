@@ -24,6 +24,7 @@ import {
 import {broadcastPasscodeState} from '@signal-app/passcode-channel';
 import clearSignalLocalData from '@signal-app/clear-local-data';
 import {callSignalApi} from '@lib/signal/settingsApi';
+import noop from '@helpers/noop';
 
 // * Web A's `IS_SCREEN_LOCKED_CACHE_KEY` (`src/config.ts`): it is there while Web A has a passcode, and says whether the
 // * vault is locked
@@ -34,6 +35,11 @@ const INVALID_ATTEMPTS_TIMEOUT_BASE_MS = 30 * 1000;
 const INVALID_ATTEMPTS_TIMEOUT_MAX_MS = 5 * 60 * 1000;
 // * the engine stops on the way to a lock; a stop that hangs must not keep the page from reloading
 const ENGINE_STOP_TIMEOUT_MS = 3000;
+// * Web A's `CHANNEL_NAME` (`src/util/passcode/channel.ts`)
+const PASSCODE_CHANNEL_NAME = 'tt-passcode';
+
+// * set once this page goes to the lock screen: from then on it shows nothing of the account
+let isLocking = false;
 
 export type SignalLockState = {
   hasPasscode: boolean,
@@ -53,6 +59,48 @@ export async function getSignalLockState(): Promise<SignalLockState> {
   if(!meta) return {hasPasscode: false, isLocked: false};
 
   return {hasPasscode: true, isLocked: !!meta.isLocked || !getDek()};
+}
+
+/**
+ * Whether the account's content must not be shown: the vault is locked, by this tab or another, or this page is on its
+ * way to the lock screen
+ */
+export async function getIsSignalVaultLocked() {
+  if(isLocking) return true;
+  return (await getSignalLockState().catch((): undefined => undefined))?.isLocked ?? false;
+}
+
+/**
+ * Follows the vault and its sessions as other tabs of the origin change them, Web A's or Web K's of any slot: a lock
+ * stops the engine and reloads the page onto the lock screen (Web A's `onPasscodeStateChangedRemotely`), and Web A's
+ * reset of all data reloads it as well.
+ */
+export function listenSignalPasscodeChannel() {
+  const channel = new BroadcastChannel(PASSCODE_CHANNEL_NAME);
+  channel.addEventListener('message', async({data}: MessageEvent<{type: string, generation?: string}>) => {
+    if(data?.type === 'reset') {
+      location.reload();
+      return;
+    }
+
+    // * the sessions another tab changed, such as a slot that logged out, so that this page does not write the old
+    // * ones back into the vault (Web A's `onPasscodeSessionsChanged`)
+    if(data?.type === 'sessionsChanged') {
+      const generation = getDekGeneration();
+      if(generation && data.generation === generation && !isLocking) {
+        await restoreSessionsFromVault(generation).catch(noop);
+      }
+      return;
+    }
+
+    if(data?.type !== 'stateChanged' || isLocking) return;
+
+    const meta = await loadPasscodeMeta().catch((): undefined => undefined);
+    if(!meta?.isLocked) return;
+
+    forgetDek(meta.generation);
+    await stopEngineAndReload();
+  });
 }
 
 /** The time until which the passcode is not accepted, while it is not */
@@ -99,8 +147,15 @@ export async function lockSignalPasscode() {
   if(lockEpoch === undefined) return;
 
   localStorage.setItem(SCREEN_LOCKED_CACHE_KEY, 'true');
+  isLocking = true;
   broadcastPasscodeState(dek, generation);
   forgetDek(generation);
+  await stopEngineAndReload();
+}
+
+/** Stops the engine, so that its keys are out of memory, and reloads onto the lock screen */
+async function stopEngineAndReload() {
+  isLocking = true;
   await Promise.race([
     callSignalApi('destroy', true).catch((): undefined => undefined),
     new Promise((resolve) => setTimeout(resolve, ENGINE_STOP_TIMEOUT_MS))

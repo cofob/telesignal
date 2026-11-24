@@ -18,6 +18,7 @@ import sessionStorage from '@lib/sessionStorage';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import {IDB} from '@lib/files/idb';
 import noop from '@helpers/noop';
+import pause from '@helpers/schedulers/pause';
 import ApiManagerMethods from '@appManagers/apiManagerMethods';
 import tsNow from '@helpers/tsNow';
 import AccountController from '@lib/accounts/accountController';
@@ -28,6 +29,7 @@ import {ActiveAccountNumber} from '@lib/accounts/types';
 import makeError from '@helpers/makeError';
 import EncryptedStorageLayer from '@lib/encryptedStorageLayer';
 import {getCommonDatabaseState} from '@config/databases/state';
+import clearSignalLocalData from '@signal-app/clear-local-data';
 /**
  * To not be used in an ApiManager instance as there is no account number attached to it
  */
@@ -35,9 +37,11 @@ import globalRootScope from '@lib/rootScope';
 
 // * the data center Web K's code expects every account to have; nothing connects to it
 const SIGNAL_DC_ID = 2 as TrueDcId;
+// * how long a log out waits for the engine to unlink the device: Web A's `API_DESTROY_TIMEOUT_MS`
+const ENGINE_LOG_OUT_TIMEOUT_MS = 3000;
 
 export class ApiManager extends ApiManagerMethods {
-  private loggingOut: boolean;
+  private loggingOut: Promise<void>;
   private updatesProcessor: (obj: any) => void;
 
   constructor() {
@@ -83,45 +87,44 @@ export class ApiManager extends ApiManagerMethods {
     return dcId === SIGNAL_DC_ID;
   }
 
-  public async logOut(migrateAccountTo?: ActiveAccountNumber) {
-    if(this.loggingOut) {
-      return;
-    }
+  /**
+   * Logs the account of this slot out, as Web A's sign-out does (`signOut` in `src/global/actions/api/initial.ts`): the
+   * engine unlinks the device and forgets the account, waited for as long as Web A waits, then the engine's data, the
+   * slot and this client's data of it go. The slot stays linked until the engine's data is gone; a wipe that fails
+   * rejects, and the slot stays for another try. A log out asked for again while one runs is that same one. The slots
+   * of the other accounts keep their numbers: the engine's stores are named by them (`getEngineStoreName`).
+   */
+  public logOut(migrateAccountTo?: ActiveAccountNumber) {
+    return this.loggingOut ??= this.runLogOut(migrateAccountTo).catch((err) => {
+      this.loggingOut = undefined;
+      throw err;
+    });
+  }
 
-    this.loggingOut = true;
-
+  private async runLogOut(migrateAccountTo?: ActiveAccountNumber) {
     const accountNumber = this.getAccountNumber();
+    // * a tunnel that hangs does not keep the log out from going on, as in Web A (`API_DESTROY_TIMEOUT_MS`)
+    await Promise.race([this.appSignalManager.logOut().catch(noop), pause(ENGINE_LOG_OUT_TIMEOUT_MS)]);
+    // * the engine may not have run in this worker, such as before the passcode was entered, or not have finished
+    await clearSignalLocalData();
+
+    await AccountController.whenUpdated(accountNumber);
     const totalAccounts = await AccountController.getTotalAccounts();
-    // * the engine forgets the account, its messages and attachments, which Web A then has neither
-    const logoutPromise = this.appSignalManager.logOut().catch(noop);
+    const isLastAccount = totalAccounts <= 1 && !migrateAccountTo;
+    await Promise.all([
+      AccountController.remove(accountNumber),
+      AppStoragesManager.clearAllStoresForAccount(accountNumber),
+      ...(isLastAccount ? [
+        sessionStorage.delete('k_build'),
+        AppStoragesManager.clearSessionStores(),
+        commonStateStorage.clear(),
+        EncryptedStorageLayer.getInstance(getCommonDatabaseState(), 'localStorage__encrypted').clear(),
+        CacheStorageController.deleteAllStorages()
+      ] : [])
+    ]);
 
-    let wasCleared = false;
-    const clear = async() => {
-      if(wasCleared) return;
-      wasCleared = true;
-
-      await AccountController.whenUpdated(accountNumber);
-
-      if(totalAccounts <= 1 && accountNumber === 1 && !migrateAccountTo) {
-        await Promise.all([
-          sessionStorage.delete('account1'),
-          sessionStorage.delete('k_build'),
-          AppStoragesManager.clearAllStoresForAccount(1),
-          AppStoragesManager.clearSessionStores(),
-          commonStateStorage.clear(),
-          EncryptedStorageLayer.getInstance(getCommonDatabaseState(), 'localStorage__encrypted').clear(),
-          CacheStorageController.deleteAllStorages()
-        ]);
-      } else {
-        await AccountController.shiftAccounts(accountNumber);
-        await AppStoragesManager.shiftStorages(accountNumber);
-      }
-
-      IDB.closeDatabases();
-      this.rootScope.dispatchEvent('logging_out', {accountNumber, migrateTo: migrateAccountTo});
-    };
-
-    return logoutPromise.finally(clear);
+    IDB.closeDatabases();
+    this.rootScope.dispatchEvent('logging_out', {accountNumber, migrateTo: migrateAccountTo});
   }
 
   public static async forceLogOutAll() {

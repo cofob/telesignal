@@ -1,12 +1,15 @@
 import {onCleanup, onMount} from 'solid-js';
 
+import Button from '@components/buttonTsx';
 import LanguageChangeButton from '@components/languageChangeButton';
+import showSignalProxyPopup from '@components/popups/signalProxy';
 import {putPreloader} from '@components/putPreloader';
 import MediaHeader from '@components/mediaHeader';
 import mediaHeaderStyles from '@components/mediaHeader.module.scss';
 import {paintQrCode} from '@helpers/qrCode/paintQrCode';
 import {LangPackKey, i18n} from '@lib/langPack';
 import rootScope from '@lib/rootScope';
+import {getSignalProxySettings} from '@lib/signal/proxySettings';
 import type {SignalLinkCode} from '@appManagers/appSignalManager';
 
 import AuthCard from '@/pages/AuthCard';
@@ -176,6 +179,13 @@ export default function SignQRCard(_props: {spec: Spec}) {
       }
     >
       {helpList}
+      {/* a tunnel that is blocked shows no code: the proxy server is set here, as on Web A's link screen */}
+      <Button
+        class="btn-primary btn-secondary btn-primary-transparent primary"
+        onClick={async() => showSignalProxyPopup('signalProxyUrl', (await getSignalProxySettings()).signalProxyUrl)}
+      >
+        {i18n('SignalProxySettings')}
+      </Button>
       {accountNumber === 1 && <LanguageChangeButton />}
     </AuthCard>
   );

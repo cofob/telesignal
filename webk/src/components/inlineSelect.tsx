@@ -7,7 +7,7 @@ import Modes from '@config/modes';
 import {keepMe} from '@helpers/keepMe';
 import ListenerSetter from '@helpers/listenerSetter';
 import ripple from '@components/ripple';
-import styles from '@components/sidebarLeft/tabs/passcodeLock/inlineSelect.module.scss';
+import styles from '@components/inlineSelect.module.scss';
 
 keepMe(ripple);
 
