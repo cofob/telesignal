@@ -1,5 +1,5 @@
 import {Portal} from 'solid-js/web';
-import {batch, createContext, createEffect, createRoot, For, onCleanup, onMount, useContext, JSX, createMemo, createSignal, Accessor, untrack, createResource, Resource, on, createReaction, Show, createRenderEffect, createComputed, Setter} from 'solid-js';
+import {batch, createContext, createEffect, createRoot, For, onCleanup, onMount, useContext, JSX, createMemo, createSignal, Accessor, untrack, createResource, Resource, on, Show, createRenderEffect, createComputed, Setter} from 'solid-js';
 import styles from '@components/browser.module.scss';
 import {ButtonIconTsx} from '@components/buttonIconTsx';
 import getTextWidth from '@helpers/canvas/getTextWidth';
@@ -19,31 +19,21 @@ import positionMenu from '@helpers/positionMenu';
 import copy from '@helpers/object/copy';
 import {filterButtonMenuItems} from '@components/buttonMenuToggle';
 import Animated from '@helpers/solid/animations';
-import WebApp, {WebAppLaunchOptions} from '@components/webApp';
-import deferredPromise from '@helpers/cancellablePromise';
 import documentFragmentToNodes from '@helpers/dom/documentFragmentToNodes';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import I18n, {i18n} from '@lib/langPack';
 import {avatarNew} from '@components/avatarNew';
-import {getMiddleware} from '@helpers/middleware';
 import MovablePanel, {IS_MOVABLE_PANEL} from '@helpers/movablePanel';
 import appNavigationController, {NavigationItem} from '@components/appNavigationController';
 import {MovableState} from '@components/movableElement';
-import {Ref, resolveElements, resolveFirst} from '@solid-primitives/refs';
-import Section from '@components/section';
-import InputSearch from '@components/inputSearch';
+import {Ref, resolveFirst} from '@solid-primitives/refs';
 import rootScope from '@lib/rootScope';
-import {SimilarPeer} from '@components/chat/similarChannels';
-import SearchIndex from '@lib/searchIndex';
-import {useUser} from '@stores/peers';
-import {Game, Message, Page, User} from '@layer';
-import TelegramWebView from '@components/telegramWebView';
+import {Page} from '@layer';
 import {getOverlayRoot} from '@helpers/appWindow';
 import getPeerActiveUsernames from '@appManagers/utils/peers/getPeerActiveUsernames';
-import {INTERNAL_LINK_TYPE} from '@lib/internalLink';
 import {InstantView} from '@components/instantView';
 import {WebPage} from '@layer';
-import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
+import SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
 import {copyTextToClipboard} from '@helpers/clipboard';
 import safeWindowOpen from '@helpers/dom/safeWindowOpen';
 import wrapTelegramRichText from '@lib/richTextProcessor/wrapTelegramRichText';
@@ -57,7 +47,6 @@ import clamp from '@helpers/number/clamp';
 import windowSize from '@helpers/windowSize';
 import IS_TOUCH_SUPPORTED from '@environment/touchSupport';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
-import {getAccountSession, isSessionLeaving} from '@lib/accounts/getCurrentAccount';
 
 type BrowserPageProps<T = {}> = T & {
   title: string, // plain text
@@ -290,13 +279,6 @@ function BrowserHeader(props: {
             }}
             </For>
           </Animated>
-          <BrowserHeaderButton
-            class={classNames(styles.BrowserHeaderTabIcon, styles.BrowserHeaderNewButton)}
-            aria-label={I18n.format('MiniApps.OpenApp', true)}
-            onClick={() => openCatalogueInAppBrowser()}
-          >
-            <span class={styles.BrowserHeaderTabIconInner}><IconTsx icon="plus" /></span>
-          </BrowserHeaderButton>
         </div>
       </Scrollable>
       <div
@@ -675,419 +657,6 @@ export function openInAppBrowser(page?: BrowserPageProps) {
 /** Takes the in-app browser down with every page in it, the way its own close button does. */
 export function closeInAppBrowser() {
   lastContext?.[1].destroy();
-}
-
-export async function openWebAppInAppBrowser(options: WebAppLaunchOptions) {
-  if(lastContext && options.cacheKey) {
-    const page = lastContext[0].pages.find((page) => page.cacheKey === options.cacheKey);
-    if(page) {
-      lastContext[1].select(page);
-      lastContext[1].toggleCollapsed(false); // * opened again while minimized, it is shown, as a game is
-      return;
-    }
-  }
-
-  // * the account session the mini app is opened in: it is not mounted once the tab is on another account
-  const session = getAccountSession();
-  const deferred = deferredPromise<void>();
-  const [needBackButton, setNeedBackButton] = createSignal(false);
-  // * who closes it: the app's own close asks nothing, and goes ahead even while the user is asked about theirs
-  const [destroy, setDestroy] = createSignal<false | 'user' | 'app'>(false);
-  const webApp = new WebApp({
-    ...options,
-    header: document.createElement('div'),
-    title: document.createElement('div'),
-    body: document.createElement('div'),
-    forceHide: (byApp) => setDestroy((closing) => byApp ? 'app' : closing || 'user'),
-    onBackStatus: setNeedBackButton
-  });
-
-  const title = await webApp.getTitle(true);
-  if(destroy() || isSessionLeaving(session)) {
-    webApp.destroy();
-    options.onClose?.();
-    return;
-  }
-
-  webApp.init(() => deferred);
-
-  const middlewareHelper = getMiddleware();
-  const avatar = avatarNew({
-    peerId: webApp.getPeerId(),
-    size: 24,
-    middleware: middlewareHelper.get()
-  });
-  await avatar.readyThumbPromise;
-  if(destroy() || isSessionLeaving(session)) {
-    middlewareHelper.destroy();
-    webApp.destroy();
-    options.onClose?.();
-    return;
-  }
-
-  return createRoot((dispose) => {
-    const initialState: BrowserPageProps = {
-      title,
-      icon: avatar.node,
-      menuButtons: webApp.getMenuButtons(),
-      dispose,
-      isConfirmationNeededOnClose: webApp.isConfirmationNeededOnClose,
-      content: webApp.body,
-      get needBackButton() {
-        return needBackButton();
-      },
-      onBackClick: webApp.onBackClick,
-      cacheKey: webApp.cacheKey
-    };
-
-    onCleanup(() => {
-      webApp.destroy();
-      options.onClose?.();
-    });
-
-    createEffect(() => {
-      const closing = destroy();
-      if(closing) {
-        // * a close the user declined (the app asked to confirm it) leaves the app open, and able to close itself
-        // * again: left set, the signal would never change, and this would never run again
-        lastContext[1].close(initialState, closing === 'app').catch(() => {
-          setDestroy((closing) => closing === 'user' ? false : closing);
-        });
-      }
-    });
-
-    queueMicrotask(() => deferred.resolve());
-    // const [state, setState] = createStore<BrowserPageProps>(initialState);
-    const lastState = lastContext?.[0];
-    if(lastState && lastState?.page.isCatalogue) {
-      lastContext[1].replace(initialState, lastContext[0].page);
-    } else {
-      openInAppBrowser(initialState);
-    }
-
-    createEffect(on(() => lastContext[0].collapsed, (collapsed) => {
-      webApp.notifyVisible(!collapsed);
-    }))
-  });
-}
-
-const GAME_SANDBOX_ATTRIBUTES = [
-  'allow-scripts',
-  'allow-same-origin',
-  'allow-popups',
-  'allow-popups-to-escape-sandbox',
-  'allow-forms',
-  'allow-modals',
-  'allow-orientation-lock',
-  'allow-pointer-lock'
-].join(' ');
-
-const GAME_ALLOW_ATTRIBUTES = 'accelerometer; gyroscope; magnetometer; gamepad; fullscreen; autoplay; clipboard-write;';
-
-export async function openGameInAppBrowser(options: {
-  game: Game.game,
-  message: Message.message,
-  url: string
-}) {
-  const {game, message, url} = options;
-  const cacheKey = `game-${game.id}-${message.peerId}-${message.mid}`;
-  // * the account session the game is opened in: it is not mounted once the tab is on another account
-  const session = getAccountSession();
-
-  if(lastContext) {
-    const existing = lastContext[0].pages.find((page) => page.cacheKey === cacheKey);
-    if(existing) {
-      lastContext[1].select(existing);
-      lastContext[1].toggleCollapsed(false);
-      return;
-    }
-  }
-
-  const shareMessage = async() => {
-    const mids = await rootScope.managers.appMessagesManager.getMidsByMessage(message);
-    hotReloadGuard.showForwardPopup({[message.peerId]: mids});
-  };
-
-  const body = document.createElement('div');
-  body.classList.add(styles.BrowserGameBody);
-
-  const telegramWebView = new TelegramWebView({
-    url,
-    sandbox: GAME_SANDBOX_ATTRIBUTES,
-    allow: GAME_ALLOW_ATTRIBUTES,
-    onLoad: () => {
-      telegramWebView.iframe.style.opacity = '1';
-    }
-  });
-
-  const iframe = telegramWebView.iframe;
-  iframe.classList.add(styles.BrowserGameIframe);
-  iframe.style.opacity = '0';
-  body.append(iframe);
-
-  telegramWebView.addEventListener('share_game', shareMessage);
-  telegramWebView.addEventListener('share_score', shareMessage);
-
-  const botId = message.viaBotId || message.fromId;
-  const middlewareHelper = getMiddleware();
-  const avatar = avatarNew({
-    peerId: botId ? (botId as UserId).toPeerId(false) : message.peerId,
-    size: 24,
-    middleware: middlewareHelper.get()
-  });
-  await avatar.readyThumbPromise;
-  if(isSessionLeaving(session)) {
-    middlewareHelper.destroy();
-    telegramWebView.destroy();
-    return;
-  }
-
-  return createRoot((dispose) => {
-    const initialState: BrowserPageProps = {
-      title: game.title || '',
-      icon: avatar.node,
-      menuButtons: [{
-        icon: 'forward',
-        text: 'ShareFile',
-        onClick: shareMessage,
-        verify: () => true
-      }],
-      dispose,
-      content: body,
-      cacheKey
-    };
-
-    onCleanup(() => {
-      telegramWebView.destroy();
-      middlewareHelper.destroy();
-    });
-
-    queueMicrotask(() => telegramWebView.onMount());
-
-    const lastState = lastContext?.[0];
-    if(lastState && lastState?.page.isCatalogue) {
-      lastContext[1].replace(initialState, lastContext[0].page);
-    } else {
-      openInAppBrowser(initialState);
-    }
-  });
-}
-
-export async function openCatalogueInAppBrowser() {
-  return createRoot((dispose) => {
-    const [folded, setFolded] = createSignal(true);
-    const [value, setValue] = createSignal('');
-    const targets = new WeakMap<HTMLElement, BotId>;
-    const searchIndex = new SearchIndex<BotId>({ignoreCase: true});
-
-    const inputSearch = new InputSearch({
-      placeholder: 'MiniApps.Search',
-      onChange: (value) => {
-        value = value.trim();
-        setValue(value);
-      },
-      debounceTime: 200,
-      oldStyle: true
-    });
-
-    inputSearch.container.classList.add(styles.BrowserCatalogueSearch);
-
-    const render = (botIds: BotId[], ready: () => void) => {
-      const promises: Promise<any>[] = [];
-      const ret = botIds.map((botId) => {
-        return (
-          <SimilarPeer
-            ref={(el) => targets.set(el, botId)}
-            peerId={botId.toPeerId(false)}
-            promises={promises}
-            avatarSize={64}
-          />);
-      });
-
-      Promise.all(promises).then(ready);
-      return ret;
-    };
-
-    const children = (items: Accessor<JSX.Element>, folded?: Accessor<boolean>) => {
-      return (
-        <div class={classNames(styles.BrowserCatalogueList, folded?.() && styles.folded)}>{items()}</div>
-      );
-    };
-
-    const processBotIds = (botIds: BotId[]) => {
-      untrack(() => {
-        botIds.forEach((botId) => {
-          const user = useUser(botId) as User.user;
-          searchIndex.indexObjectArray(botId, [user.first_name, user.last_name, ...getPeerActiveUsernames(user)].filter(Boolean));
-        });
-      });
-
-      return botIds;
-    };
-
-    const search = (
-      <Section name="MiniApps.AppsSearch" noShadow>
-        <Loader
-          loader={() => {
-            const query = value();
-            return async() => {
-              const result = searchIndex.search(query);
-              return [...result];
-            };
-          }}
-          render={render}
-        >
-          {children}
-        </Loader>
-      </Section>
-    );
-
-    const main = (
-      <div>
-        <Loader
-          loader={() => {
-            return async() => {
-              const result = await rootScope.managers.appUsersManager.getTopPeers('bots_app');
-              return processBotIds(result.map((user) => user.id.toPeerId(false)));
-            };
-          }}
-          render={render}
-        >
-          {(items) => {
-            const elements = resolveElements(items).toArray;
-            const isMoreThanEnough = createMemo(() => elements().length > 7);
-            if(!isMoreThanEnough()) {
-              setFolded(false);
-            }
-
-            return (
-              <Section
-                name="MiniApps.Apps"
-                nameRight={isMoreThanEnough() && (
-                  <span onClick={() => setFolded((folded) => !folded)}>
-                    {i18n(folded() ? 'MiniApps.AppsMore' : 'MiniApps.AppsLess')}
-                  </span>
-                )}
-                noShadow
-              >
-                {children(items, folded)}
-              </Section>
-            );
-          }}
-        </Loader>
-        <Loader
-          loader={() => {
-            let offset = '';
-            return async() => {
-              const result = await rootScope.managers.appAttachMenuBotsManager.getPopularAppBots(offset, 50);
-              offset = result.nextOffset;
-              return processBotIds(result.userIds);
-            };
-          }}
-          render={render}
-        >
-          {(items) => {
-            return items() && (
-              <Section name="MiniApps.Popular" noShadow>
-                {children(items)}
-              </Section>
-            );
-          }}
-        </Loader>
-      </div>
-    );
-
-    const initialState: BrowserPageProps = {
-      title: 'Open App',
-      icon: IconTsx({icon: 'plus'}),
-      dispose,
-      content: (
-        <Scrollable>
-          <div
-            class={styles.BrowserCatalogue}
-            onClick={(e) => {
-              const target = findUpClassName(e.target as HTMLElement, 'similar-channels-channel');
-              if(!target) {
-                return;
-              }
-
-              const botId = targets.get(target);
-              hotReloadGuard.internalLinkProcessor.processWebAppLink({
-                _: INTERNAL_LINK_TYPE.WEB_APP,
-                appname: '',
-                domain: getPeerActiveUsernames(useUser(botId) as User.user)[0]
-              });
-              // lastContext[1].close(initialState);
-            }}
-          >
-            {inputSearch.container}
-            <Animated type="cross-fade">
-              {value() ? search : main}
-            </Animated>
-          </div>
-        </Scrollable>
-      ),
-      isCatalogue: true
-    };
-
-    openInAppBrowser(initialState);
-    // queueMicrotask(() => deferred.resolve());
-  });
-}
-
-function Loader<T>(props: {
-  loader: () => () => Promise<T>,
-  render: (item: T, ready: () => void) => JSX.Element,
-  children: (items: Accessor<JSX.Element>) => JSX.Element,
-  onReady?: () => void
-}) {
-  const loader = createMemo(props.loader);
-  const [ready, setReady] = createSignal(false);
-  const [rendered, setRendered] = createSignal<JSX.Element[]>(undefined, {equals: false});
-
-  const loadMore = (first?: boolean) => {
-    const _loader = loader();
-    const [result, setResult] = createSignal<T>();
-    _loader().then(setResult);
-
-    createReaction(() => {
-      const onReady = () => {
-        setRendered((v) => {
-          if(first) {
-            return [rendered];
-          }
-
-          return [...v, rendered];
-        });
-
-        props.onReady?.();
-        setReady(true);
-      };
-
-      let returned = false;
-      const rendered = props.render(result(), () => {
-        if(returned) {
-          onReady();
-        } else {
-          returned = true;
-        }
-      });
-
-      if(returned) {
-        onReady();
-      } else {
-        returned = true;
-      }
-    })(result);
-  };
-
-  createEffect(on(loader, () => loadMore(true)));
-
-  return (
-    <>
-      {ready() && props.children(rendered)}
-    </>
-  );
 }
 
 type InstantViewPageExtraProps = {

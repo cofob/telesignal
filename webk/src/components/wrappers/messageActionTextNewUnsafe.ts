@@ -202,10 +202,12 @@ export default async function wrapMessageActionTextNewUnsafe(options: WrapMessag
   // * TeleSignal: a notice of Signal, as a lang key and its arguments (`@lib/signal/notices`)
   const signalNotice = action._ === 'messageActionCustomAction' && action.message && decodeSignalNotice(action.message);
   if(signalNotice) {
-    const args = (signalNotice.args ?? []).map((arg) => typeof(arg) === 'object' ? I18n.format(arg.key as LangPackKey, true) : arg);
-    // * a key this build does not have (a newer adapter's) reads as an unsupported notice
-    const key = (I18n.strings.has(signalNotice.key as LangPackKey) ? signalNotice.key : 'Signal.Notice.Unsupported') as LangPackKey;
-    const text = I18n.format(key, true, args);
+    // * a key this build does not have (a newer adapter's), its own or an argument's, reads as an unsupported notice
+    const hasKey = (key: string) => I18n.strings.has(key as LangPackKey);
+    const argKeys = (signalNotice.args ?? []).filter((arg) => typeof(arg) === 'object').map((arg) => (arg as {key: string}).key);
+    const isKnown = hasKey(signalNotice.key) && argKeys.every(hasKey);
+    const args = isKnown ? (signalNotice.args ?? []).map((arg) => typeof(arg) === 'object' ? I18n.format(arg.key as LangPackKey, true) : arg) : [];
+    const text = I18n.format((isKnown ? signalNotice.key : 'Signal.Notice.Unsupported') as LangPackKey, true, args);
     if(plain) return text;
     element.textContent = text;
     return element;

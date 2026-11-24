@@ -30,8 +30,7 @@ import {wrapCallDuration as wrapDuration} from '@components/wrappers/wrapDuratio
 import {getStarsSubscriptionPresentation} from '@appManagers/utils/payments/starsSubscription';
 import {useUser} from '@stores/peers';
 import Button from '@components/buttonTsx';
-import showPickUserPopup, {showContactPickerPopup} from '@components/popups/pickUser';
-import anchorCallback from '@helpers/dom/anchorCallback';
+import {showContactPickerPopup} from '@components/popups/pickUser';
 import rootScope from '@lib/rootScope';
 import {toastNew} from '@components/toast';
 import {MoreButton} from '@components/sidebarRight/tabs/statistics';
@@ -49,41 +48,12 @@ import {getMiddleware} from '@helpers/middleware';
 import ListenerSetter from '@helpers/listenerSetter';
 import {ScrollableContextValue} from '@components/scrollable2';
 import {onCleanup} from 'solid-js';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {StarsStackedStars, StarsBalance, StarsAmount, StarsChange} from '@components/stars/starsAmount';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 
 export function getStarsTransactionTitle(transaction: StarsTransaction) {
   const presentation = getStarsTransactionPresentation(transaction);
   return i18n(presentation.titleKey, presentation.titleArgs);
-}
-
-export function getExamplesAnchor(hide: (callback: () => void) => void) {
-  let loading = false;
-  const popularAppBotsPromise = rootScope.managers.appAttachMenuBotsManager.getPopularAppBots();
-  const anchor = anchorCallback(async() => {
-    if(loading) return;
-    loading = true;
-    const {userIds: botIds} = await popularAppBotsPromise;
-    loading = false;
-    showPickUserPopup({
-      onSelect: ([obj]) => {
-        hide(() => {
-          hotReloadGuard.appImManager.setInnerPeer(obj);
-        });
-      },
-      peerType: ['custom'],
-      getMoreCustom: async() => {
-        return {
-          result: botIds.map((botId) => botId.toPeerId(false)),
-          isEnd: true
-        };
-      },
-      titleLangKey: 'SearchAppsExamples'
-    });
-  });
-  anchor.append(i18n('GiftStarsSubtitleLinkName'));
-  return anchor;
 }
 
 const starsTransactionPeerIcons: Partial<Record<StarsTransactionPeer['_'], Icon>> = {
@@ -437,12 +407,6 @@ export default function showStarsPopup(options: PopupStarsOptions = {}) {
   let onScrolledBottom: () => void;
   const setLoadMore = (load: () => void) => onScrolledBottom = load;
 
-  const deferredCloseCallbacks: (() => void)[] = [];
-  const hideWithCallback = (callback: () => void) => {
-    deferredCloseCallbacks.push(callback);
-    setShow(false);
-  };
-
   const renderSubscription = async(subscription: StarsSubscription) => {
     const peerId = getPeerId(subscription.peer);
     const title = await wrapPeerTitle({peerId});
@@ -540,8 +504,6 @@ export default function showStarsPopup(options: PopupStarsOptions = {}) {
       subtitle = (
         <>
           {i18n('GiftStarsSubtitle', [peerTitle])}
-          {' '}
-          {getExamplesAnchor(hideWithCallback)}
         </>
       );
     } else if(options.ton) {
@@ -789,7 +751,6 @@ export default function showStarsPopup(options: PopupStarsOptions = {}) {
               options.onCancel();
             }
           }}
-          onCloseAfterTimeout={() => deferredCloseCallbacks.splice(0).forEach((callback) => callback())}
         >
           <PopupElement.Header floating>
             <PopupElement.CloseButton />

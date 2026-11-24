@@ -205,8 +205,6 @@ export class AppProfileManager extends AppManager {
         botInfo.description_photo = this.appPhotosManager.savePhoto(botInfo.description_photo, referenceContext);
       }
 
-      userFull.business_intro = this.appBusinessManager.saveBusinessIntro(peerId.toUserId(), userFull.business_intro);
-
       if(userFull.personal_channel_message) {
         userFull.personal_channel_message = this.appMessagesIdsManager.generateMessageId(
           userFull.personal_channel_message,

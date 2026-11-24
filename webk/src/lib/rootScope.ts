@@ -1,4 +1,4 @@
-import type {Message, StickerSet, Update, NotifyPeer, PeerNotifySettings, PollResults, Poll, WebPage, GroupCall, GroupCallParticipant, ReactionCount, MessagePeerReaction, PhoneCall, Config, Reaction, AttachMenuBot, PeerSettings, StoryItem, PeerStories, SavedDialog, SavedReactionTag, InputSavedStarGift, LangPackDifference, StarsAmount, MessageEntity, HelpPromoData, StoriesStealthMode, StoryAlbum, GlobalPrivacySettings, ConnectedBot} from '@layer';
+import type {Message, StickerSet, Update, NotifyPeer, PeerNotifySettings, PollResults, Poll, WebPage, GroupCall, GroupCallParticipant, ReactionCount, MessagePeerReaction, PhoneCall, Config, Reaction, PeerSettings, StoryItem, PeerStories, SavedDialog, SavedReactionTag, InputSavedStarGift, LangPackDifference, StarsAmount, MessageEntity, HelpPromoData, StoriesStealthMode, StoryAlbum, GlobalPrivacySettings, ConnectedBot} from '@layer';
 import type {Dialog, ForumTopic, MessagesStorageKey, MyEphemeralMessage, MyMessage} from '@appManagers/appMessagesManager';
 import type {MyDialogFilter} from '@lib/storages/filters';
 import type {AnyDialog, Folder} from '@lib/storages/dialogs';
@@ -21,7 +21,6 @@ import type {MyStarGift} from '@appManagers/appGiftsManager';
 import type {MyPromoData} from '@appManagers/appPromoManager';
 import type {UnconfirmedAuthorization} from '@appManagers/appAccountManager';
 import type {ActiveAccountNumber} from '@lib/accounts/types';
-import type {BotConnectionReview} from '@appManagers/appBusinessManager';
 import type {NotifyException} from '@appManagers/appNotificationsManager';
 import type {StreamedMessageDraft, StreamedMessageDraftRemovalReason} from '@appManagers/utils/messages/streamedMessageDrafts';
 import type {TonConnectSession} from '@layer';
@@ -64,8 +63,6 @@ export type BroadcastEvents = {
   'user_auth': UserAuth,
   'user_full_update': UserId,
 
-  'attach_menu_bot': AttachMenuBot,
-
   'emoji_status_change': void,
 
   /** `threadId` scopes the change to one forum topic; absent = the whole peer. */
@@ -79,8 +76,6 @@ export type BroadcastEvents = {
   'widget_storage_remap': {accountNumber: ActiveAccountNumber, peerId: PeerId, tempId: number, mid: number}, // a widget message of the account was sent: what its widget kept goes under the server's id
   'peer_full_update': PeerId,
   'peer_settings': {peerId: PeerId, settings: PeerSettings},
-  'chat_automation_update': ConnectedBot.connectedBot | undefined,
-  'bot_connection_reviews_update': BotConnectionReview[],
   'peer_stories': {peerId: PeerId, available: boolean},
   'peer_stories_hidden': {peerId: PeerId, hidden: boolean},
 
@@ -105,7 +100,6 @@ export type BroadcastEvents = {
 
   'history_append': {storageKey: MessagesStorageKey, message: MyMessage},
   'history_update': {storageKey: MessagesStorageKey, message: MyMessage, tempId?: number, sequential?: boolean},
-  'history_reply_markup': {peerId: PeerId},
   'history_multiappend': MyMessage,
   // 'history_delete': {peerId: PeerId, msgs: Map<number, {savedPeerId?: PeerId}>},
   'history_delete': {peerId: PeerId, msgs: Set<number>},
@@ -244,9 +238,6 @@ export type BroadcastEvents = {
   'logging_out': {accountNumber?: ActiveAccountNumber, migrateTo?: ActiveAccountNumber},
 
   'payment_sent': {peerId: PeerId, mid: number, receiptMessage: Message.messageService},
-
-  'web_view_result_sent': Long,
-  'join_chat_webview_decision': Update.updateJoinChatWebViewDecision,
 
   'premium_toggle': boolean,
   'premium_toggle_private': {isNew: boolean, isPremium: boolean},

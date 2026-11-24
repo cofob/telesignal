@@ -2585,15 +2585,6 @@ export class AppDialogsManager {
     });
     const hasReactionsBadge = isSaved ? false : !!dialog.unread_reactions_count;
     const hasPollVotesBadge = isSaved || isMonoforumThread ? false : !!(dialog as Dialog | ForumTopic).unread_poll_votes_count;
-    // * a bot's main mini app opens right from its row in the chat list, as in the official apps -
-    // * where the row has nothing unread to show in its place
-    dialogElement.hasBotMainApp = peerId.isUser() && !!apiManagerProxy.getUser(peerId.toUserId())?.pFlags?.bot_has_main_app;
-    const hasBotAppButton = !!dialogElement.isMainList &&
-      dialogElement.hasBotMainApp &&
-      !hasUnreadBadge &&
-      !hasMentionsBadge &&
-      !hasReactionsBadge &&
-      !hasPollVotesBadge;
     let unreadBadgeText: string;
     if(hasUnreadBadge) {
       // dom.unreadMessagesSpan.innerText = '' + (unreadCount ? formatNumber(unreadCount, 1) : ' ');
@@ -2612,7 +2603,6 @@ export class AppDialogsManager {
       mentions: hasMentionsBadge,
       reactions: hasReactionsBadge,
       pollVotes: hasPollVotesBadge,
-      botApp: hasBotAppButton,
       transitionDuration
     });
 

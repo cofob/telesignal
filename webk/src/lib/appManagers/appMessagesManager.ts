@@ -232,7 +232,6 @@ export type HistoryStorage = {
   triedToReadMaxId?: number,
 
   maxOutId?: number,
-  replyMarkup?: ReplyMarkup,
 
   readonly type: 'history' | 'replies' | 'search',
   key: HistoryStorageKey,
@@ -344,7 +343,6 @@ const passHistoryStorageProperties: Set<keyof HistoryStorage> = new Set([
   'readMaxId',
   'readOutboxMaxId',
   'maxOutId',
-  'replyMarkup',
   'key',
   'wasFetched'
 ]);
@@ -860,7 +858,6 @@ export class AppMessagesManager extends AppManager {
   private streamedMessageStoppableScopes = new Set<string>();
   private streamedMessageDraftTtl = STREAMED_MESSAGE_DRAFT_TTL;
   private streamedMessageDraftTimeout: number;
-
 
   private pendingEditingMessages: Map<number, {
     canceled?: boolean;
@@ -2138,27 +2135,6 @@ export class AppMessagesManager extends AppManager {
       message: storedMessage as MyEphemeralMessage
     });
 
-    // a bot's keyboard or force-reply comes on ephemeral messages too (layer 229): it becomes the
-    // chat's keyboard like any other (desktop adds them through the same `addNewItem`), and a
-    // press answers the bot privately, in reply to this message. One sent to a topic is that
-    // topic's keyboard as well, and goes there now: loading the topic's history will not bring it
-    const historyStorages = [this.getHistoryStorage(peerId)];
-    const isForum = this.appPeersManager.isForum(peerId);
-    const isBotforum = this.appPeersManager.isBotforum(peerId);
-    const topicId = (isForum || isBotforum) && getMessageThreadId(storedMessage, {isForum, isBotforum});
-    if(topicId) {
-      historyStorages.push(this.getHistoryStorage(peerId, topicId));
-    }
-
-    let replyMarkupChanged = false;
-    for(const historyStorage of historyStorages) {
-      replyMarkupChanged = this.mergeReplyKeyboard(historyStorage, storedMessage) || replyMarkupChanged;
-    }
-
-    if(replyMarkupChanged) {
-      this.rootScope.dispatchEvent('history_reply_markup', {peerId});
-    }
-
     return storedMessage;
   }
 
@@ -2203,24 +2179,6 @@ export class AppMessagesManager extends AppManager {
     }
 
     this.schedulePendingEphemeralMessagesTimeout();
-
-    if(!deletedMids.size) {
-      return;
-    }
-
-    // the keyboard goes with the ephemeral message that brought it, from the chat and its topic
-    let replyMarkupChanged = false;
-    const historyStorages = [this.getHistoryStorage(peerId), ...Object.values(this.threadsStorage[peerId] || {})];
-    for(const historyStorage of historyStorages) {
-      if(historyStorage.replyMarkup && deletedMids.has(historyStorage.replyMarkup.mid)) {
-        historyStorage.replyMarkup = undefined;
-        replyMarkupChanged = true;
-      }
-    }
-
-    if(replyMarkupChanged) {
-      this.rootScope.dispatchEvent('history_reply_markup', {peerId});
-    }
 
     this.rootScope.dispatchEvent('ephemeral_history_delete', {peerId, msgs: deletedMids});
   }
@@ -9323,134 +9281,6 @@ export class AppMessagesManager extends AppManager {
     );
   }
 
-  public getReplyKeyboard(peerId: PeerId) {
-    return this.getHistoryStorage(peerId).replyMarkup;
-  }
-
-  /**
-   * Whether a message comes after the one the chat's keyboard came with. Ephemeral mids live in a
-   * range of their own above every history mid, so when either side is ephemeral the date decides.
-   */
-  private isAfterReplyMarkup(message: Message.messageService | Message.message, replyMarkup: ReplyMarkup) {
-    if(message.mid === replyMarkup.mid) {
-      return false;
-    }
-
-    if(!isEphemeralMessageId(message.mid) && !isEphemeralMessageId(replyMarkup.mid)) {
-      return message.mid > replyMarkup.mid;
-    }
-
-    // strictly later: our own ephemeral command comes back from the server only after the bot's
-    // answer to it may already be here, dated the same second — it is not an answer to that answer.
-    // A tie keeps the keyboard there is for incoming ones too: a history load merges every message
-    // of that second again, older ones included
-    const keyboardMessage = this.getMessageByPeer(message.peerId, replyMarkup.mid);
-    return !keyboardMessage || message.date > keyboardMessage.date;
-  }
-
-  public mergeReplyKeyboard(historyStorage: HistoryStorage, message: Message.messageService | Message.message) {
-    // this.log('merge', message.mid, message.reply_markup, historyStorage.reply_markup)
-    if(!message) {
-      return false;
-    }
-
-    const messageReplyMarkup = (message as Message.message).reply_markup;
-    if(!messageReplyMarkup &&
-      !message.pFlags?.out &&
-      !(message as Message.messageService).action) {
-      return false;
-    }
-
-    // layer 229 lets an inline markup force a reply. Such a markup takes part in the
-    // last-keyboard bookkeeping (so the input can reply to it), every other inline one
-    // lives entirely inside its own bubble.
-    if(messageReplyMarkup?._ === 'replyInlineMarkup' && !messageReplyMarkup.pFlags.force_reply) {
-      return false;
-    }
-
-    const lastReplyMarkup = historyStorage.replyMarkup;
-    if(messageReplyMarkup) {
-      if(lastReplyMarkup && !this.isAfterReplyMarkup(message, lastReplyMarkup)) {
-        return false;
-      }
-
-      // a selective one is for those its message mentions, and for the author of the message it
-      // answers: the server marks it `mentioned` for them (desktop's `mentionsMe`, Android's)
-      if(
-        (messageReplyMarkup as ReplyMarkup.replyKeyboardMarkup).pFlags.selective &&
-        !(message as Message.message).pFlags.mentioned
-      ) {
-        return false;
-      }
-
-      if(historyStorage.maxOutId &&
-        message.mid < historyStorage.maxOutId &&
-        (messageReplyMarkup as ReplyMarkup.replyKeyboardMarkup | ReplyMarkup.replyKeyboardForceReply).pFlags.single_use) {
-        (messageReplyMarkup as ReplyMarkup.replyKeyboardMarkup | ReplyMarkup.replyKeyboardForceReply).pFlags.hidden = true;
-      }
-
-      messageReplyMarkup.mid = message.mid;
-      /* messageReplyMarkup = Object.assign({
-        mid: message.mid
-      }, messageReplyMarkup); */
-
-      if(messageReplyMarkup._ !== 'replyKeyboardHide') {
-        messageReplyMarkup.fromId = this.appPeersManager.getPeerId(message.from_id || message.peer_id);
-      }
-
-      historyStorage.replyMarkup = messageReplyMarkup;
-      // this.log('set', historyStorage.reply_markup)
-      return true;
-    }
-
-    if(message.pFlags.out) {
-      if(lastReplyMarkup) {
-        assumeType<ReplyMarkup.replyKeyboardMarkup>(lastReplyMarkup);
-        // a single-use keyboard is spent by the next message, a force-reply by the answer to it
-        // (desktop's `lastKeyboardUsed`) — so reopening the chat does not ask for the reply again
-        const answersForceReply = isForceReplyMarkup(lastReplyMarkup) &&
-          (message as Message.message).reply_to_mid === lastReplyMarkup.mid;
-        if((lastReplyMarkup.pFlags.single_use || answersForceReply) &&
-          !lastReplyMarkup.pFlags.hidden &&
-          (answersForceReply || this.isAfterReplyMarkup(message, lastReplyMarkup) || message.pFlags.is_outgoing) &&
-          (message as Message.message).message) {
-          // a new object rather than a flag set in place: only top-level writes of the history
-          // storage reach the tab's mirror, and the tab is where the flag is read
-          historyStorage.replyMarkup = {
-            ...lastReplyMarkup,
-            pFlags: {...lastReplyMarkup.pFlags, hidden: true}
-          };
-          return true;
-        }
-      } else if(
-        // ephemeral mids are random and above the history's: they would make every later
-        // single-use keyboard look answered already
-        !isEphemeralMessageId(message.mid) &&
-        (!historyStorage.maxOutId || message.mid > historyStorage.maxOutId)
-      ) {
-        historyStorage.maxOutId = message.mid;
-      }
-    }
-
-    assumeType<Message.messageService>(message);
-    if(message.action?._ === 'messageActionChatDeleteUser' &&
-      (lastReplyMarkup ?
-        message.action.user_id === (lastReplyMarkup as ReplyMarkup.replyKeyboardMarkup).fromId :
-        this.appUsersManager.isBot(message.action.user_id)
-      )
-    ) {
-      historyStorage.replyMarkup = {
-        _: 'replyKeyboardHide',
-        mid: message.mid,
-        pFlags: {}
-      };
-      // this.log('set', historyStorage.reply_markup)
-      return true;
-    }
-
-    return false;
-  }
-
   public getReferenceContext(peerId: PeerId, mid: number, onlyCached?: boolean) {
     const key = peerId + '_' + mid;
     let context = this.references[key];
@@ -11397,10 +11227,6 @@ export class AppMessagesManager extends AppManager {
       historyStorage._maxId = message.mid;
     }
 
-    if(this.mergeReplyKeyboard(historyStorage, message)) {
-      this.rootScope.dispatchEvent('history_reply_markup', {peerId});
-    }
-
     const fromId = message.fromId;
     if(fromId.isUser() && !message.pFlags.out && message.from_id) {
       if(!(message as Message.message).pFlags.offline) {
@@ -12083,9 +11909,6 @@ export class AppMessagesManager extends AppManager {
     }
     if(this.isChannelServerMidAtOrBefore(historyStorage?.channelJoinedMid, maxMid)) {
       historyStorage.channelJoinedMid = undefined;
-    }
-    if(this.isChannelServerMidAtOrBefore((historyStorage?.replyMarkup as any)?.mid, maxMid)) {
-      historyStorage.replyMarkup = undefined;
     }
 
     return deleted;
@@ -14212,13 +14035,6 @@ export class AppMessagesManager extends AppManager {
 
     if(!isRequestingLegacy) {
       historyStorage.count = count;
-    }
-
-    if(!inputFilter) for(let i = 0, length = messages.length; i < length; ++i) {
-      const message = messages[i] as MyMessage;
-      if(this.mergeReplyKeyboard(historyStorage, message)) {
-        this.rootScope.dispatchEvent('history_reply_markup', {peerId});
-      }
     }
 
     if(!inputFilter && isBottomEnd) {

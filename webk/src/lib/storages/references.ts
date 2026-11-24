@@ -15,13 +15,10 @@ export type ReferenceContext =
   ReferenceContext.referenceContextReactions |
   ReferenceContext.referenceContextUserFull |
   ReferenceContext.referenceContextCustomEmoji |
-  ReferenceContext.referenceContextAttachMenuBotIcon |
   ReferenceContext.referenceContextWallPaper |
   ReferenceContext.referenceContextStoryItem |
   ReferenceContext.referenceContextPremiumPromo |
   ReferenceContext.referenceContextWebPage |
-  ReferenceContext.referenceContextBotApp |
-  ReferenceContext.referenceContextBotPreview |
   ReferenceContext.referenceContextChatInvite |
   ReferenceContext.referenceContextEffects |
   ReferenceContext.referenceContextStarsTransaction |
@@ -85,11 +82,6 @@ export namespace ReferenceContext {
     docId: DocId
   };
 
-  export type referenceContextAttachMenuBotIcon = {
-    type: 'attachMenuBotIcon',
-    botId: BotId
-  };
-
   export type referenceContextWallPaper = {
     type: 'wallPaper',
     wallPaperId: WallPaper['id']
@@ -108,18 +100,6 @@ export namespace ReferenceContext {
   export type referenceContextWebPage = {
     type: 'webPage',
     url: string
-  };
-
-  export type referenceContextBotApp = {
-    type: 'botApp',
-    botId: BotId,
-    appName: string
-  };
-
-  /** A bot's preview media, shown in its profile (`bots.getPreviewMedias`) */
-  export type referenceContextBotPreview = {
-    type: 'botPreview',
-    botId: BotId
   };
 
   export type referenceContextChatInvite = {
@@ -313,9 +293,6 @@ export class ReferencesStorage extends AppManager {
       case 'customEmoji':
         return this.appEmojiManager.getCustomEmojiDocuments([context.docId]);
 
-      case 'attachMenuBotIcon':
-        return this.appAttachMenuBotsManager.getAttachMenuBot(context.botId, true);
-
       case 'wallPaper':
         return this.appThemesManager.getWallPaperById(context.wallPaperId);
 
@@ -327,12 +304,6 @@ export class ReferencesStorage extends AppManager {
 
       case 'webPage':
         return this.appWebPagesManager.getWebPage(context.url);
-
-      case 'botApp':
-        return this.appAttachMenuBotsManager.getBotApp(context.botId, context.appName);
-
-      case 'botPreview':
-        return this.appBotsManager.getPreviewMedias(context.botId, true);
 
       case 'chatInvite':
         return this.appChatInvitesManager.checkChatInvite(context.hash);

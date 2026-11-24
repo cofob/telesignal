@@ -13,8 +13,6 @@ export default function AddChatToCommunity() {
   const [tab] = useSuperTab<typeof AppAddChatToCommunityTab>();
   useCommunityTabGuard(tab, tab.payload.communityId);
   const chatsPromise = tab.managers.appCommunitiesManager.getChatsToAdd();
-  const botsPromise = tab.managers.appCommunitiesManager.getBotsToAdd();
-  const candidatesPromise = Promise.all([chatsPromise, botsPromise]);
 
   const openChatSettings = async(peerId: PeerId) => {
     const settingsTab = tab.slider.createTab(hotReloadGuard.tabs.AppCommunityChatSettingsTab);
@@ -48,7 +46,7 @@ export default function AddChatToCommunity() {
     placeholder: 'SearchPlaceholder',
     sectionNameLangPackKey: 'FilterChats',
     getMoreCustom: async(query, middleware) => {
-      const [chats, bots] = await candidatesPromise;
+      const chats = await chatsPromise;
       if(!middleware()) {
         return;
       }
@@ -62,16 +60,9 @@ export default function AddChatToCommunity() {
       const chatPeerIds = chats
       .filter((chat) => matchesQuery([chat.title]))
       .map((chat) => chat.id.toPeerId(true));
-      const botPeerIds = bots
-      .filter((bot) => bot._ === 'user' && matchesQuery([
-        bot.first_name,
-        bot.last_name,
-        bot.username
-      ]))
-      .map((bot) => bot.id.toPeerId(false));
 
       return {
-        result: [...chatPeerIds, ...botPeerIds],
+        result: chatPeerIds,
         isEnd: true
       };
     },
