@@ -303,8 +303,8 @@ type WatchDownloadProgressArgs<T> = {
   cancel: () => void;
 };
 
-// * TeleSignal: the attach menu's items that Signal has
-const SIGNAL_ATTACH_ACTIONS: Set<RichMessageAttachMenuAction> = new Set(['visualMedia', 'document']);
+// * TeleSignal: the attach menu's items that Signal has: photos and videos, files and polls
+const SIGNAL_ATTACH_ACTIONS: Set<RichMessageAttachMenuAction> = new Set(['visualMedia', 'document', 'poll']);
 
 export default class ChatInput {
   private richMessageInput: RichMessageInputController;
@@ -1666,7 +1666,7 @@ export default class ChatInput {
       },
       verify: () => !this.editMsgId && !this.chat.isMonoforum && !this.ephemeralComposer && !this.isWelcomeComposer
     }];
-    // * TeleSignal: Signal sends photos, videos and files; the other attachments are Telegram's
+    // * TeleSignal: Signal sends photos, videos, files and polls; the other attachments are Telegram's
     this.attachMenuButtons = this.attachMenuButtons.filter(({richMessageAction}) => SIGNAL_ATTACH_ACTIONS.has(richMessageAction));
 
     const attachMenuButtons = this.attachMenuButtons.slice();
@@ -4090,18 +4090,8 @@ export default class ChatInput {
 
     const {openCreatePollPopup} = await import('@components/popups/createPoll');
 
-    const supportedMediaTypes: SupportedMediaType[] = ['link'];
-
-    const supportedPromises: [Promise<boolean>, SupportedMediaType][] = [
-      [this.chat.canSend('send_photos'), 'photo'],
-      [this.chat.canSend('send_stickers'), 'sticker'],
-      [this.chat.canSend('send_videos'), 'video'],
-      [this.chat.canSend('send_gifs'), 'gif']
-    ];
-
-    for(const [canSendPromise, type] of supportedPromises) {
-      if(await canSendPromise) supportedMediaTypes.push(type);
-    }
+    // * TeleSignal: a Signal poll is text only, with no media in its question, options or description
+    const supportedMediaTypes: SupportedMediaType[] = [];
 
     if(this.ephemeralComposer) {
       return;

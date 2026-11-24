@@ -45,7 +45,7 @@ import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} 
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
-import {buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
+import {buildOutgoingPoll, buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
 import {buildMediaMethodHandlers} from '@lib/signal/mediaMethods';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
@@ -471,6 +471,15 @@ export default class AppSignalManager extends AppManager {
   }
 
   private async sendMedia(params: MethodDeclMap['messages.sendMedia']['req']): Promise<Updates.updates> {
+    if(params.media._ === 'inputMediaPoll') {
+      return this.sendLocalMessage({
+        peerId: this.getInputPeerId(params.peer),
+        randomId: params.random_id,
+        replyTo: params.reply_to,
+        poll: buildOutgoingPoll(params.media)
+      });
+    }
+
     const {attachment, sticker} = await buildOutgoingMedia(params.media).catch(() => {
       throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
     });
@@ -508,7 +517,7 @@ export default class AppSignalManager extends AppManager {
   }
 
   /** Sends a text, an attachment or a sticker through the provider; the promise is the update of the sent message */
-  private sendLocalMessage({peerId, randomId, text, entities, replyTo, attachment, sticker, groupedId}: {
+  private sendLocalMessage({peerId, randomId, text, entities, replyTo, attachment, sticker, groupedId, poll}: {
     peerId: PeerId,
     randomId: number | string,
     text?: string,
@@ -516,7 +525,8 @@ export default class AppSignalManager extends AppManager {
     replyTo?: MethodDeclMap['messages.sendMessage']['req']['reply_to'],
     attachment?: SignalAttachment,
     sticker?: SignalSticker,
-    groupedId?: string
+    groupedId?: string,
+    poll?: ReturnType<typeof buildOutgoingPoll>
   }): Promise<Updates.updates> {
     const replyToMsgId = replyTo?._ === 'inputReplyToMessage' ? replyTo.reply_to_msg_id : undefined;
     const lastMessageId = this.appMessagesManager.getHistoryStorage(peerId.toPeerId()).maxId || 0;
@@ -555,7 +565,8 @@ export default class AppSignalManager extends AppManager {
       localMessage,
       attachment,
       sticker,
-      groupedId
+      groupedId,
+      poll
     }).catch((err) => {
       this.pendingSends.delete(localId);
       deferred.reject(err);
