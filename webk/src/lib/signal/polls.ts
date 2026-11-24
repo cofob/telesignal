@@ -4,7 +4,7 @@
  * its poll. A Signal poll option is its index, which Web K holds as the bytes of its text.
  */
 
-import type {MessageEntity, MessageMedia, MethodDeclMap, Poll, PollResults, Update, Updates} from '@layer';
+import type {InputMedia, MessageEntity, MessageMedia, MethodDeclMap, Poll, PollResults, Update, Updates} from '@layer';
 import type {SignalMethodHandlers, SignalMethodHost} from '@lib/signal/methodHost';
 import {buildPeer, toSignalPeerId} from '@lib/signal/builders';
 import makeError from '@helpers/makeError';
@@ -150,4 +150,17 @@ async function getPollVotes(host: SignalMethodHost, params: MethodDeclMap['messa
 
 function buildUpdates(updates: Update[]) {
   return {_: 'updates', updates, users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
+}
+
+/** The provider's new poll of Web K's `inputMediaPoll`: a question, its options in order and multiple choice */
+export function buildOutgoingPoll({poll}: InputMedia.inputMediaPoll) {
+  return {
+    summary: {
+      id: '',
+      hash: '',
+      isMultipleChoice: poll.pFlags.multiple_choice || undefined,
+      question: {text: poll.question.text},
+      answers: poll.answers.map((answer, index) => ({text: {text: answer.text.text}, option: String(index)}))
+    }
+  };
 }

@@ -10105,12 +10105,31 @@ export default class ChatBubbles {
           s.append(avatarContainer, text, button);
         }
       } else if(isSelfDestructingMedia) {
-        const promise = wrapMessageForReply({
-          message,
-          ...wrapOptions
-        }).then((el) => s.append(el));
+        // * TeleSignal: the only self-destructing media is Signal's view-once media, which opens once: the worker loads
+        // * it and marks it viewed (erased) before the viewer shows the loaded copy (`lib/signal/viewOnce.ts`)
+        const media = (message as Message.message).media as MessageMedia.messageMediaPhoto | MessageMedia.messageMediaDocument;
+        s.append(i18n(media._ === 'messageMediaDocument' ? 'Signal.ViewOnce.Video' : 'Signal.ViewOnce.Photo'));
+        const button = Button('bubble-service-button', {noRipple: true, text: 'Signal.ViewOnce.Open'});
+        attachClickEvent(button, async() => {
+          // * one click opens it: the button goes at once, and the message turns into "Viewed"; a failed load
+          // * brings it back for another try
+          button.remove();
+          const {appSignalManager} = this.managers;
+          if(!(await appSignalManager.openViewOnceMedia(message.peerId, message.mid))) {
+            s.append(button);
+            toastNew({langPackKey: 'Error.AnError'});
+            return;
+          }
 
-        loadPromises.push(promise);
+          const file = media._ === 'messageMediaPhoto' ? media.photo as Photo.photo : media.document as Document.document;
+          const viewer = new hotReloadGuard.AppMediaViewer();
+          viewer.onClosed(() => appSignalManager.closeViewOnceMedia(file));
+          // * the viewer shows this media alone, with no neighbours to step to
+          viewer
+          .setSearchContext({peerId: message.peerId, inputFilter: {_: 'inputMessagesFilterEmpty'}, useSearch: false})
+          .openMedia({message: message as Message.message, target: s});
+        }, {listenerSetter: this.listenerSetter});
+        s.append(button);
       }
       if(!hideServiceText) bubbleContainer.append(s);
 

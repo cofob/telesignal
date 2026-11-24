@@ -376,6 +376,9 @@ const lang = {
   'SignalUsernameSearch': 'Find by username',
   'SignalUsernameSearchNotFound': 'No Signal user with this username',
   'SignalUsernameSearchFailed': 'Couldn\'t look up the username. Try again later.',
+  'Signal.ViewOnce.Open': 'View',
+  'Signal.ViewOnce.Photo': 'View-once photo',
+  'Signal.ViewOnce.Video': 'View-once video',
   // * TeleSignal: the notices of Signal (`@lib/signal/notices`)
   'Signal.Notice.SafetyNumberChanged': 'Your safety number with %1$@ has changed',
   'Signal.Notice.SafetyNumberVerified': 'You marked your safety number with %1$@ as verified',

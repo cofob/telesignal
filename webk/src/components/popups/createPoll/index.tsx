@@ -5,19 +5,15 @@ import InputField from '@components/inputField';
 import Scrollable from '@components/scrollable2';
 import Section from '@components/section';
 import SimpleFormField from '@components/simpleFormField';
-import Space from '@components/space';
-import {toastNew} from '@components/toast';
 import getRichValueWithCaret from '@helpers/dom/getRichValueWithCaret';
 import {I18nTsx} from '@helpers/solid/i18n';
 import classNames from '@helpers/string/classNames';
 import I18n from '@lib/langPack';
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import type SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
-import {createSignal, onCleanup, Setter, Show} from 'solid-js';
+import {createSignal, onCleanup, Show} from 'solid-js';
 import PopupElement, {createPopup, useSnitchedPopupContext} from '../indexTsx';
-import {supportedDescriptionFormattingTypes} from './config';
 import {EmojiButtonWithOpacity as EmojiDropdownButton} from './emojiButtonWithOpacity';
-import {MediaAttachment} from './mediaAttachment';
 import {PollOptionsSectionContent} from './pollOptionsSectionContent';
 import {PollSettingsSectionContent} from './pollSettingsSectionContent';
 import {
@@ -29,7 +25,7 @@ import {
 } from './storeContext';
 import styles from './styles.module.scss';
 import {useCreatePollLimits} from './useCreatePollLimits';
-import {createFormFieldClickHandler, getFinalPayload, hasMeaningfulChanges, interactableClass, useCanSubmit, useSupportsMedia, useVisibleOptionsLeft, validateCountryRestriction} from './utils';
+import {createFormFieldClickHandler, getFinalPayload, hasMeaningfulChanges, interactableClass, useCanSubmit, useVisibleOptionsLeft} from './utils';
 
 
 type CreatePollPopupProps = {
@@ -47,7 +43,6 @@ export const CreatePollPopup = (props: CreatePollPopupProps) => {
     supportedMediaTypes: () => props.supportedMediaTypes ?? [],
     quiz: props.quiz
   });
-  const [countriesElement, setCountriesElement] = createSignal<HTMLElement>();
 
   const {SnitchPopupContext, popupContext} = useSnitchedPopupContext();
 
@@ -75,19 +70,12 @@ export const CreatePollPopup = (props: CreatePollPopupProps) => {
       <CreatePollContext.Provider value={context}>
         <Header
           onSubmit={() => {
-            if(!validateCountryRestriction(
-              context.store,
-              context.isBroadcast(),
-              () => toastNew({langPackKey: 'NewPoll.ChooseCountry'}),
-              countriesElement()
-            )) return;
-
             props.onSubmit(getFinalPayload(context));
             popupContext()?.destroy();
           }}
         />
         <PopupElement.Body>
-          <BodyContent setCountriesElement={setCountriesElement} />
+          <BodyContent />
         </PopupElement.Body>
       </CreatePollContext.Provider>
     </PopupElement>
@@ -116,8 +104,7 @@ const Header = (props: {
 
 const QuestionAndDescription = () => {
   const context = useCreatePollContext();
-  const {maxQuestionLength, maxDescriptionLength} = useCreatePollLimits();
-  const supportsMedia = useSupportsMedia();
+  const {maxQuestionLength} = useCreatePollLimits();
 
   const questionInput = new InputField({
     canWrapCustomEmojis: true,
@@ -136,26 +123,6 @@ const QuestionAndDescription = () => {
 
   questionInput.input.classList.replace('input-field-input', editableFieldStyles.editableFieldContent);
   questionInput.input.setAttribute('aria-label', I18n.format('AskAQuestion', true));
-
-  const descriptionInput = new InputField({
-    canHaveFormatting: supportedDescriptionFormattingTypes,
-    canWrapCustomEmojis: true,
-    withLinebreaks: true,
-    onRawInput: () => {
-      const {value, entities} = getRichValueWithCaret(descriptionInput.input);
-      context.setStore({
-        description: value,
-        descriptionEntities: entities
-      });
-    }
-  });
-
-  // The description travels as text plus entities; the composer's engine on
-  // the plain schema gives it the same formatting as the chat input.
-  const descriptionInputEditor = attachPlainMessageEditor(descriptionInput.input);
-  onCleanup(() => descriptionInputEditor.destroy());
-
-  descriptionInput.input.classList.replace('input-field-input', editableFieldStyles.editableFieldContent);
 
   return (
     <>
@@ -178,52 +145,12 @@ const QuestionAndDescription = () => {
         </SimpleFormField.SideContent>
       </SimpleFormField>
 
-      <Space amount='1rem' class={styles.flexFull} />
-
-      <SimpleFormField
-        value={context.store.description}
-        class={classNames(styles.flexFull, styles.formField)}
-        withEndButtonIcon
-        withMinHeight
-        isMarkupTooltipHost
-        onClick={createFormFieldClickHandler(descriptionInput)}
-      >
-        <SimpleFormField.InputStub>
-          {descriptionInput.input}
-        </SimpleFormField.InputStub>
-        <SimpleFormField.Label><I18nTsx key='DescriptionOptionalPlaceholder' /></SimpleFormField.Label>
-        <SimpleFormField.SideContent withFixedIcon first last>
-          <EmojiDropdownButton class={interactableClass} inputField={descriptionInput} />
-        </SimpleFormField.SideContent>
-        <Show when={supportsMedia('photo') || supportsMedia('video')}>
-          <SimpleFormField.WithAutoLengthCounter
-            maxLength={maxDescriptionLength()}
-            first={!context.store.descriptionAttachment}
-            last
-            withFixedIcon
-          >
-            <MediaAttachment
-              btnClass={interactableClass}
-              supportedMediaTypes={[
-                ...(supportsMedia('photo') ? ['photo'] as const : []),
-                ...(supportsMedia('video') ? ['video'] as const : []),
-                ...(supportsMedia('gif') ? ['gif'] as const : []) // GIF is additional to photo
-              ]}
-              imgClass={styles.mediaAttachmentImage}
-              attachedMedia={context.store.descriptionAttachment}
-              onAttach={(value) => context.setStore('descriptionAttachment', value)}
-            />
-          </SimpleFormField.WithAutoLengthCounter>
-        </Show>
-      </SimpleFormField>
+      {/* TeleSignal: a Signal poll has no description */}
     </>
   );
 };
 
-const BodyContent = (props: {
-  setCountriesElement: Setter<HTMLElement>
-}) => {
-  const context = useCreatePollContext();
+const BodyContent = () => {
   const [scrollable, setScrollable] = createSignal<HTMLElement>();
   const visibleOptionsLeft = useVisibleOptionsLeft();
 
@@ -244,12 +171,8 @@ const BodyContent = (props: {
         <PollOptionsSectionContent scrollable={scrollable()} />
       </Section>
 
-      <Section
-        name='Settings'
-        /* the note belongs to the explanation field, which only exists in quiz mode */
-        caption={context.store.hasCorrectAnswer ? <I18nTsx key='AddAnExplanationInfo' /> : undefined}
-      >
-        <PollSettingsSectionContent countriesElementRef={props.setCountriesElement} />
+      <Section name='Settings'>
+        <PollSettingsSectionContent />
       </Section>
     </PopupElement.Scrollable>
   );

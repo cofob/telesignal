@@ -1530,6 +1530,7 @@
 "ActionViewOnceVideo" = "View-once video";
 "ViewOnceViewedToast" = "You already viewed this message.";
 "ViewOnceOutgoingToast" = "View-once media is deleted after sending";
+"ViewOnceLoadFailed" = "Couldn't load this media. Please try again.";
 "ActionAddUser" = "{from} added {user}";
 "ActionAddUserYou" = "You added {user}";
 "ActionAddUsersMany" = "{from} added {users}";

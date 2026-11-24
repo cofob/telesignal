@@ -4,12 +4,9 @@ import {createMemo} from 'solid-js';
 import {unwrap} from 'solid-js/store';
 import {AttachedMedia, CreatePollContextValue, CreatePollPayload, CreatePollStore, FinalizedAttachedMedia, StorePollOption, SupportedMediaType, useCreatePollContext} from './storeContext';
 import {useCreatePollLimits} from './useCreatePollLimits';
-import smoothScrollBehavior from '@helpers/dom/smoothScrollBehavior';
 
 
 type CreatePollValidationLimits = {
-  maxDescriptionLength: number;
-  maxExplanationLength: number;
   maxOptionLength: number;
   maxOptions: number;
   maxQuestionLength: number;
@@ -18,7 +15,6 @@ type CreatePollValidationLimits = {
 export const canSubmitPoll = (store: CreatePollStore, limits: CreatePollValidationLimits) => {
   if(!store.question) return false;
   if(store.question.length > limits.maxQuestionLength) return false;
-  if(store.description.length > limits.maxDescriptionLength) return false;
 
   const trimmedOptions = [...store.pollOptions];
   if(!checkOptionHasValue(lastItem(trimmedOptions))) trimmedOptions.pop();
@@ -33,18 +29,15 @@ export const canSubmitPoll = (store: CreatePollStore, limits: CreatePollValidati
   if(store.pollOptions.some((option) => option.text.length > limits.maxOptionLength)) return false;
   if(new Set(store.pollOptions.map((option) => option.text)).size !== store.pollOptions.length) return false;
   if(store.hasCorrectAnswer && !store.pollOptions.some((option) => option.checked)) return false;
-  if(store.hasCorrectAnswer && store.explanation.length > limits.maxExplanationLength) return false;
 
   return true;
 };
 
 export const useCanSubmit = () => {
   const {store} = useCreatePollContext();
-  const {maxOptions, maxQuestionLength, maxDescriptionLength, maxOptionLength, maxExplanationLength} = useCreatePollLimits();
+  const {maxOptions, maxQuestionLength, maxOptionLength} = useCreatePollLimits();
 
   return createMemo(() => canSubmitPoll(store, {
-    maxDescriptionLength: maxDescriptionLength(),
-    maxExplanationLength: maxExplanationLength(),
     maxOptionLength: maxOptionLength(),
     maxOptions: maxOptions(),
     maxQuestionLength: maxQuestionLength()
@@ -69,19 +62,6 @@ export const useVisibleOptionsLeft = () => {
       (store.pollOptions.length && checkOptionHasValue(lastItem(store.pollOptions)) ? 0 : 1)
     );
   });
-};
-
-export const validateCountryRestriction = (
-  store: CreatePollStore,
-  isBroadcast: boolean,
-  onError: () => void,
-  countriesElement?: HTMLElement
-) => {
-  if(!isBroadcast || !store.limitByCountry || store.countriesIso2.length) return true;
-
-  onError();
-  countriesElement?.scrollIntoView({behavior: smoothScrollBehavior(), block: 'center'});
-  return false;
 };
 
 const finalizeAttachment = (attachment: AttachedMedia | undefined): FinalizedAttachedMedia | undefined => {
