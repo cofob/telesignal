@@ -17,8 +17,6 @@ import type {BusinessIntroTabPayload} from '@components/sidebarLeft/tabs/busines
 import type {TimezoneTabPayload} from '@components/sidebarLeft/tabs/timezone';
 import type {BusinessPeriod} from '@components/sidebarLeft/tabs/businessHoursShared';
 import type {StoriesSearch} from '@components/stories/store';
-import {ButtonMenuItemOptionsVerifiable} from '@components/buttonMenu';
-import {ChatInvite, ChatInviteActions, getChatInviteLinksInitArgs} from '@components/sidebarRight/tabs/chatInviteLinkShared';
 import lottieLoader, {type PreloadedLottieAsset} from '@lib/lottie/lottieLoader';
 import {deleteFolder as deleteEditFolder, getEditFolderInitArgs} from '@components/sidebarLeft/tabs/editFolderShared';
 import type {
@@ -749,50 +747,15 @@ export const AppPrivacyAndSecurityTab =
   });
 
 
-type AppEditChatInviteLinkTabPayload = {
-  chatId: ChatId,
-  invite?: ChatInvite
-};
-
-export const AppEditChatInviteLinkTab =
-  scaffoldSolidJSTabEventable<AppEditChatInviteLinkTabPayload, {
-    finish: (chatInvite: ChatInvite) => void
-      }>({
-        title: (p) => p.invite ? 'InviteLinks.Edit' : 'NewLink',
-        getComponentModule: () => import('../sidebarRight/tabs/editChatInviteLink')
-      });
-
-
-type AppChatInviteLinkTabPayload = {
-  chatId: ChatId,
-  chatInvite: ChatInvite,
-  menuButtons: ButtonMenuItemOptionsVerifiable[],
-  actions: ChatInviteActions,
-  onUpdate?: (chatInvite: ChatInvite) => void
-};
-
-export const AppChatInviteLinkTab =
-  scaffoldSolidJSTabEventable<AppChatInviteLinkTabPayload>({
-    title: 'InviteLink',
-    getComponentModule: () => import('../sidebarRight/tabs/chatInviteLink')
-  });
-
-
 type AppChatInviteLinksTabPayload = {
-  chatId: ChatId,
-  adminId?: UserId,
-  p?: ReturnType<typeof getChatInviteLinksInitArgs>
+  chatId: ChatId
 };
 
-// getInitArgs is read directly (typed) by editChat's navigationTab, so expose it
-// on the constructor via Object.assign rather than an untyped property poke.
-export const AppChatInviteLinksTab = Object.assign(
+export const AppChatInviteLinksTab =
   scaffoldSolidJSTabEventable<AppChatInviteLinksTabPayload>({
-    title: 'InviteLinks',
+    title: 'Signal.GroupLink.Title',
     getComponentModule: () => import('../sidebarRight/tabs/chatInviteLinks')
-  }),
-  {getInitArgs: getChatInviteLinksInitArgs}
-);
+  });
 
 
 type AppEditChatTabPayload = {

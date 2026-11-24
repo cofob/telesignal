@@ -230,7 +230,7 @@ function EditChatForm(props: {
       return 'ForumToggleDescription';
     }
 
-    if(isAdmin()) {
+    if(showDiscussion()) {
       return 'DiscussionInfo';
     }
   });
@@ -421,7 +421,8 @@ function EditChatForm(props: {
       tab.close();
     } catch(error) {
       console.error('edit chat error', error);
-      toastNew({langPackKey: 'Error.AnError'});
+      // * TeleSignal: a refusal of the provider was shown with its reason
+      if(!(error as ApiError)?.handled) toastNew({langPackKey: 'Error.AnError'});
     } finally {
       setSaving(false);
     }
@@ -631,12 +632,12 @@ function EditChatForm(props: {
         </Portal>
       </Show>
 
+      {/* TeleSignal: Signal limits the name and description in graphemes, which the provider checks on saving */}
       <Section noDelimiter caption="PeerInfo.SetAboutDescription">
         <div class="input-wrapper">
           <InputFieldTsx
             label={isBroadcast() ? 'EnterChannelName' : 'CreateGroup.NameHolder'}
             name="chat-name"
-            maxLength={255}
             required
             value={title()}
             onRawInput={setTitle}
@@ -645,7 +646,6 @@ function EditChatForm(props: {
           <InputFieldTsx
             label="DescriptionPlaceholder"
             name="chat-description"
-            maxLength={255}
             withLinebreaks
             value={about()}
             onRawInput={setAbout}
@@ -678,14 +678,11 @@ function EditChatForm(props: {
 
           <Show when={canManageInviteLinks()}>
             <Row clickable={() => {
-              tab.slider.createTab(hotReloadGuard.tabs.AppChatInviteLinksTab).open({
-                chatId: chatId(),
-                p: hotReloadGuard.tabs.AppChatInviteLinksTab.getInitArgs(chatId())
-              });
+              tab.slider.createTab(hotReloadGuard.tabs.AppChatInviteLinksTab).open({chatId: chatId()});
             }}>
               <Row.Icon icon="link_filled" />
-              <Row.Title>{i18n('InviteLinks')}</Row.Title>
-              <Row.Subtitle>1</Row.Subtitle>
+              <Row.Title>{i18n('Signal.GroupLink.Title')}</Row.Title>
+              <Row.Subtitle>{i18n(chatFull().exported_invite ? 'Signal.GroupLink.On' : 'Signal.GroupLink.Off')}</Row.Subtitle>
             </Row>
           </Show>
 
@@ -699,7 +696,8 @@ function EditChatForm(props: {
             </Row>
           </Show>
 
-          <Show when={canChangeInfo() && isAdmin()}>
+          {/* TeleSignal: a Signal group takes every reaction, with no setting of its own */}
+          <Show when={canChangeInfo() && isAdmin() && isChannel()}>
             <Row clickable={() => {
               tab.slider.createTab(hotReloadGuard.tabs.AppChatReactionsTab).open({chatId: chatId()});
             }}>

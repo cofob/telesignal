@@ -37,8 +37,9 @@ import { rememberConversation, rememberReadOutbox } from '../updaters/chats';
 import { sendApiUpdate } from '../updates';
 import { collectShownMessages } from './messages';
 
-// The error code of the dialog, see `READABLE_ERROR_KEYS` in `src/util/getReadableErrorText.ts`
+// The error codes of the dialog, see `READABLE_ERROR_KEYS` in `src/util/getReadableErrorText.ts`
 const PINNED_LIMIT_ERROR = 'SIGNAL_PINNED_LIMIT';
+const CHAT_CHANGE_ERROR = 'SIGNAL_CHAT_CHANGE_FAILED';
 
 // E.164: a country code and at most 15 digits in all
 const E164_PATTERN = /^\+[1-9]\d{6,14}$/;
@@ -187,12 +188,15 @@ export async function hidePeerSettingsBar(peer: ApiPeer) {
 
 /**
  * Deletes the chat's messages on this device and on our other devices. A message request is deleted as a
- * response to it, as Signal Desktop does from the request bar.
+ * response to it, as Signal Desktop does from the request bar. A failed deletion keeps the chat and says so.
  */
 export async function deleteHistory({ chat }: { chat: ApiChat; shouldDeleteForAll?: boolean; maxId?: number }) {
   const selfAci = getCurrentAccount()?.aci;
   const conversation = await getConversationByPeerId(chat.id);
-  if (!selfAci || !conversation) return;
+  if (!selfAci || !conversation) {
+    sendApiUpdate({ '@type': 'error', error: { message: CHAT_CHANGE_ERROR, hasErrorKey: true } });
+    return undefined;
+  }
 
   try {
     if (getIsConversationAccepted(conversation, selfAci)) {
@@ -202,8 +206,11 @@ export async function deleteHistory({ chat }: { chat: ApiChat; shouldDeleteForAl
     }
   } catch (err) {
     logError(err);
+    sendApiUpdate({ '@type': 'error', error: { message: CHAT_CHANGE_ERROR, hasErrorKey: true } });
+    return undefined;
   }
   sendApiUpdate({ '@type': 'deleteHistory', chatId: chat.id });
+  return true as const;
 }
 
 /**

@@ -10,6 +10,7 @@ import {getInputUserPeerId, getUserRef} from '@lib/signal/methodHost';
 import {buildChat, toPeerId, toSignalPeerId} from '@lib/signal/builders';
 import {getSignalChatOf} from '@lib/signal/chatMethods';
 import {unwrapInputPeer} from '@lib/signal/methodHost';
+import {makeReportedError} from '@lib/signal/errors';
 import makeError from '@helpers/makeError';
 import tsNow from '@helpers/tsNow';
 
@@ -21,8 +22,18 @@ const BANNED_RIGHTS_BY_FLAG: Record<string, string> = {
   edit_rank: 'editRank'
 };
 
+// * the error of a group change the provider refused (`GROUP_CHANGE_ERROR` of `src/api/signal/methods/groups.ts`)
+const GROUP_CHANGE_ERROR = 'SIGNAL_GROUP_CHANGE_FAILED';
+
+// * the largest upload the group server takes for an avatar (signalapp/storage-service
+// * `src/main/java/org/signal/storageservice/controllers/GroupsController.java`, `getAvatarUploadForm`); Signal Desktop
+// * and Android set no lower limit for group avatars
+const GROUP_AVATAR_MAX_SIZE = 3 * 1024 * 1024;
+const AVATAR_TOO_BIG_ERROR = 'PHOTO_FILE_TOO_BIG';
+const AVATAR_PARTS_ERROR = 'FILE_PARTS_INVALID';
+
 /** The file parts of avatar uploads by the upload's id, until the group's photo takes them */
-const uploadedParts = new Map<string, Map<number, Uint8Array>>();
+const uploadedParts = new Map<string, {parts: Map<number, Uint8Array>, size: number}>();
 
 export function buildGroupMethodHandlers(host: SignalMethodHost): SignalMethodHandlers {
   return {
@@ -41,6 +52,7 @@ export function buildGroupMethodHandlers(host: SignalMethodHost): SignalMethodHa
     'messages.editExportedChatInvite': ({peer, link, revoked, request_needed}) => (
       editExportedChatInvite(host, peer, link, revoked, request_needed)
     ),
+    'messages.deleteExportedChatInvite': ({peer}) => disableChatInvite(host, peer),
     'messages.getChatInviteImporters': ({peer, requested}) => getChatInviteImporters(host, peer, requested),
     'messages.hideChatJoinRequest': ({peer, user_id, approved}) => hideChatJoinRequest(host, peer, user_id, approved),
     'messages.hideAllChatJoinRequests': ({peer, approved}) => hideAllChatJoinRequests(host, peer, approved),
@@ -50,6 +62,14 @@ export function buildGroupMethodHandlers(host: SignalMethodHost): SignalMethodHa
     'upload.saveFilePart': ({file_id, file_part, bytes}) => saveFilePart(file_id, file_part, bytes),
     'upload.saveBigFilePart': ({file_id, file_part, bytes}) => saveFilePart(file_id, file_part, bytes)
   };
+}
+
+/**
+ * Waits for a change of a group or of a chat's timer and rejects when the provider refused it: it answers `undefined`
+ * only after reporting the reason as an error update, which Web K shows
+ */
+async function applyGroupChange(promise: Promise<unknown>) {
+  if(await promise === undefined) throw makeReportedError(GROUP_CHANGE_ERROR);
 }
 
 /** The result of a change of a group: the provider's update of the group comes separately */
@@ -86,7 +106,10 @@ async function getFullChat(host: SignalMethodHost, chatId: number) {
       participants: {_: 'chatParticipants', chat_id: chatId, participants, version: 0},
       notify_settings: {_: 'peerNotifySettings'},
       exported_invite: inviteLink ? {_: 'chatInviteExported', pFlags: {permanent: true}, link: inviteLink, admin_id: 0, date: 0} : undefined,
-      ttl_period: fullInfo?.ttlPeriod || undefined
+      ttl_period: fullInfo?.ttlPeriod || undefined,
+      // * the join requests of the group link, which only admins get
+      requests_pending: fullInfo?.requestsPending,
+      recent_requesters: fullInfo?.recentRequesterIds?.map((id: string) => toPeerId(id))
     },
     chats: [] as Chat[],
     users: result?.users ?? []
@@ -99,7 +122,7 @@ async function createChat(host: SignalMethodHost, title: string, users: any[]) {
     title,
     users: peerIds.map((peerId) => ({id: toSignalPeerId(peerId)}))
   });
-  if(!result?.chat) throw makeError('SIGNAL_GROUP_CHANGE_FAILED' as ErrorType);
+  if(!result?.chat) throw makeReportedError(GROUP_CHANGE_ERROR);
 
   const chat = buildChat(result.chat);
   return {
@@ -112,9 +135,9 @@ async function createChat(host: SignalMethodHost, title: string, users: any[]) {
 async function addChatUser(host: SignalMethodHost, chatId: number, inputUser: any) {
   const peerId = getInputUserPeerId(host, inputUser);
   const chat = getGroupOf(host, chatId);
-  if(peerId !== undefined && chat) {
-    await host.call('addChatMembers', chat, [getUserRef(peerId)]);
-  }
+  if(peerId === undefined || !chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  await applyGroupChange(host.call('addChatMembers', chat, [getUserRef(peerId)]));
   return {_: 'messages.invitedUsers', updates: emptyUpdates(), missing_invitees: [] as MissingInvitee[]};
 }
 
@@ -122,79 +145,112 @@ async function addChatUser(host: SignalMethodHost, chatId: number, inputUser: an
 async function deleteChatUser(host: SignalMethodHost, chatId: number, inputUser: any) {
   const peerId = getInputUserPeerId(host, inputUser);
   const chat = getGroupOf(host, chatId);
-  if(peerId !== undefined && chat) {
-    const isSelf = peerId === host.getManagers().appPeersManager.peerId;
-    await host.call('deleteChatUser', {chat, user: {...getUserRef(peerId), isSelf}});
-  }
+  if(peerId === undefined || !chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  const isSelf = peerId === host.getManagers().appPeersManager.peerId;
+  await applyGroupChange(host.call('deleteChatUser', {chat, user: {...getUserRef(peerId), isSelf}}));
   return emptyUpdates();
 }
 
 async function editChatAdmin(host: SignalMethodHost, chatId: number, inputUser: any, isAdmin: boolean) {
   const peerId = getInputUserPeerId(host, inputUser);
   const chat = getGroupOf(host, chatId);
-  if(peerId === undefined || !chat) return false;
+  if(peerId === undefined || !chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
 
   // * Signal's admins have every admin right; a member has none
-  return host.call('updateChatAdmin', {
+  await applyGroupChange(host.call('updateChatAdmin', {
     chat, user: getUserRef(peerId), adminRights: isAdmin ? {changeInfo: true} : {}
-  }) ? true : false;
+  }));
+  return true;
 }
 
 async function editChatTitle(host: SignalMethodHost, chatId: number, title: string) {
   const chat = getGroupOf(host, chatId);
-  if(chat) await host.call('updateChatTitle', chat, title);
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  await applyGroupChange(host.call('updateChatTitle', chat, title));
   return emptyUpdates();
 }
 
 async function editChatAbout(host: SignalMethodHost, peer: any, about: string) {
   const chat = getSignalChatOf(host, unwrapInputPeer(peer));
-  if(chat) await host.call('updateChatAbout', chat, about);
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  await applyGroupChange(host.call('updateChatAbout', chat, about));
   return true;
 }
 
-/** An avatar sent as an upload: its parts are taken from the uploads of this session */
+/**
+ * An avatar sent as an upload, whose parts are taken from the uploads of this session, or no avatar
+ * (`inputChatPhotoEmpty`) to remove it
+ */
 async function editChatPhoto(host: SignalMethodHost, chatId: number, photo: any) {
-  const chat = getGroupOf(host, chatId);
-  if(!chat) return false;
+  // * Signal keeps no earlier avatars to choose again
+  if(photo?._ !== 'inputChatUploadedPhoto' && photo?._ !== 'inputChatPhotoEmpty') {
+    throw makeError(AVATAR_PARTS_ERROR as ErrorType);
+  }
 
-  const file = photo?._ === 'inputChatUploadedPhoto' ? takeUploadedFile(photo.file) : undefined;
-  await host.call('editChatPhoto', {chat, photo: file ? {file} : undefined});
+  const file = photo._ === 'inputChatUploadedPhoto' ? takeUploadedFile(photo.file) : undefined;
+  const chat = getGroupOf(host, chatId);
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  const isApplied = await host.call('editChatPhoto', {chat, photo: file ? {file} : undefined});
+  if(!isApplied) throw makeReportedError(GROUP_CHANGE_ERROR);
   return emptyUpdates();
 }
 
-function takeUploadedFile(inputFile: {id: string, name?: string} | undefined) {
-  const parts = inputFile && uploadedParts.get(inputFile.id);
-  if(!inputFile || !parts) return undefined;
-
+/** The uploaded file, whose parts are dropped once taken; an upload with missing parts is refused */
+function takeUploadedFile(inputFile: {id: string, parts: number, name?: string}) {
+  const upload = uploadedParts.get(inputFile.id);
   uploadedParts.delete(inputFile.id);
-  const blobParts = [...parts.entries()].sort(([a], [b]) => a - b).map(([, bytes]) => bytes as Uint8Array<ArrayBuffer>);
+  if(!upload || upload.parts.size !== inputFile.parts) throw makeError(AVATAR_PARTS_ERROR as ErrorType);
+
+  const blobParts: Uint8Array<ArrayBuffer>[] = [];
+  for(let i = 0; i < inputFile.parts; ++i) {
+    const bytes = upload.parts.get(i);
+    if(!bytes) throw makeError(AVATAR_PARTS_ERROR as ErrorType);
+    blobParts.push(bytes as Uint8Array<ArrayBuffer>);
+  }
   return new File(blobParts, inputFile.name ?? 'avatar.jpg', {type: 'image/jpeg'});
 }
 
+/**
+ * Keeps a part of an avatar upload; an upload over the group server's limit is dropped and refused. The first part of
+ * a new upload drops the uploads that no avatar took, which Web K left: it sends one avatar at a time.
+ */
 function saveFilePart(fileId: string, filePart: number, bytes: Uint8Array) {
-  const parts = uploadedParts.get(fileId) ?? new Map<number, Uint8Array>();
-  parts.set(filePart, bytes);
-  uploadedParts.set(fileId, parts);
+  if(filePart === 0 && !uploadedParts.has(fileId)) uploadedParts.clear();
+
+  const upload = uploadedParts.get(fileId) ?? {parts: new Map<number, Uint8Array>(), size: 0};
+  upload.size += bytes.length - (upload.parts.get(filePart)?.length ?? 0);
+  if(upload.size > GROUP_AVATAR_MAX_SIZE) {
+    uploadedParts.delete(fileId);
+    throw makeError(AVATAR_TOO_BIG_ERROR as ErrorType);
+  }
+
+  upload.parts.set(filePart, bytes);
+  uploadedParts.set(fileId, upload);
   return true;
 }
 
 async function editChatDefaultBannedRights(host: SignalMethodHost, peer: any, bannedRights: ChatBannedRights.chatBannedRights) {
   const chat = getSignalChatOf(host, unwrapInputPeer(peer));
-  if(!chat) return false;
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
 
   const rights: Record<string, boolean> = {};
   Object.entries(BANNED_RIGHTS_BY_FLAG).forEach(([flag, name]) => {
     rights[name] = Boolean(bannedRights.pFlags[flag as keyof ChatBannedRights.chatBannedRights['pFlags']]);
   });
-  return host.call('updateChatDefaultBannedRights', {chat, bannedRights: rights}) ? true : false;
+  await applyGroupChange(host.call('updateChatDefaultBannedRights', {chat, bannedRights: rights}));
+  return emptyUpdates();
 }
 
 async function editChatParticipantRank(host: SignalMethodHost, peer: any, participant: any, rank: string) {
   const chat = getSignalChatOf(host, unwrapInputPeer(peer));
   const peerId = getInputUserPeerId(host, participant);
-  if(chat && peerId !== undefined) {
-    await host.call('editChatParticipantRank', {chat, peer: getUserRef(peerId), rank});
-  }
+  if(!chat || peerId === undefined) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  await applyGroupChange(host.call('editChatParticipantRank', {chat, peer: getUserRef(peerId), rank}));
   return emptyUpdates();
 }
 
@@ -220,7 +276,7 @@ function buildExportedInvite(invite: any) {
 async function exportChatInvite(host: SignalMethodHost, peer: any, isRequestNeeded?: boolean) {
   const chat = getSignalChatOf(host, unwrapInputPeer(peer));
   const invite = chat && await host.call('exportChatInvite', {peer: chat, isRequestNeeded});
-  if(!invite) throw makeError('SIGNAL_GROUP_CHANGE_FAILED' as ErrorType);
+  if(!invite) throw makeReportedError(GROUP_CHANGE_ERROR);
   return buildExportedInvite(invite);
 }
 
@@ -246,7 +302,16 @@ async function editExportedChatInvite(host: SignalMethodHost, peer: any, link: s
       users: [] as User[]
     };
   }
-  return buildExportedInvite(result.newInvite);
+  return {_: 'messages.exportedChatInvite', invite: buildExportedInvite(result.newInvite), users: [] as User[]};
+}
+
+/** Signal keeps no revoked links: deleting the group's link turns it off, and turning it on brings it back */
+async function disableChatInvite(host: SignalMethodHost, peer: any) {
+  const chat = getSignalChatOf(host, unwrapInputPeer(peer));
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  await applyGroupChange(host.call('disableChatInvite', {peer: chat}));
+  return true;
 }
 
 async function getChatInviteImporters(host: SignalMethodHost, peer: any, isRequested?: boolean) {
@@ -266,15 +331,18 @@ async function getChatInviteImporters(host: SignalMethodHost, peer: any, isReque
 async function hideChatJoinRequest(host: SignalMethodHost, peer: any, inputUser: any, isApproved: boolean) {
   const chat = getSignalChatOf(host, unwrapInputPeer(peer));
   const peerId = getInputUserPeerId(host, inputUser);
-  if(chat && peerId !== undefined) {
-    await host.call('hideChatJoinRequest', {peer: chat, user: getUserRef(peerId), isApproved});
-  }
+  if(!chat || peerId === undefined) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  await applyGroupChange(host.call('hideChatJoinRequest', {peer: chat, user: getUserRef(peerId), isApproved}));
   return emptyUpdates();
 }
 
 async function hideAllChatJoinRequests(host: SignalMethodHost, peer: any, isApproved: boolean) {
   const chat = getSignalChatOf(host, unwrapInputPeer(peer));
-  if(chat) await host.call('hideAllChatJoinRequests', {peer: chat, isApproved});
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  // * the provider answers `true` when no request is left, as for the requests it answered
+  await applyGroupChange(host.call('hideAllChatJoinRequests', {peer: chat, isApproved}));
   return emptyUpdates();
 }
 
@@ -313,6 +381,8 @@ async function importChatInvite(host: SignalMethodHost, hash: string) {
 /** The disappearing messages timer of a chat: a group's is part of its state, a private chat's is sent to them */
 async function setHistoryTtl(host: SignalMethodHost, peer: any, period: number) {
   const chat = getSignalChatOf(host, unwrapInputPeer(peer));
-  if(chat) await host.call('setHistoryTtl', {peer: chat, period});
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  await applyGroupChange(host.call('setHistoryTtl', {peer: chat, period}));
   return emptyUpdates();
 }

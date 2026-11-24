@@ -1096,7 +1096,8 @@ addActionHandler('deleteHistory', async (global, actions, payload): Promise<void
     return;
   }
 
-  await callApi('deleteHistory', { chat, shouldDeleteForAll });
+  const result = await callApi('deleteHistory', { chat, shouldDeleteForAll });
+  if (!result) return;
 
   global = getGlobal();
   const activeChat = selectCurrentMessageList(global, tabId);

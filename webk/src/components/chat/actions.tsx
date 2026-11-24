@@ -27,6 +27,7 @@ import {Accessor, createSignal, For, Show} from 'solid-js';
 import TopbarPlate, {createTopbarPlate, TopbarPlateController} from '@components/chat/topbarPlate';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {hotListen} from '@helpers/hotModule';
+import noop from '@helpers/noop';
 
 type PeerSettingsKey = keyof PeerSettings['pFlags'];
 
@@ -35,7 +36,13 @@ type PeerSettingsKey = keyof PeerSettings['pFlags'];
  * sibling bars tdesktop stacks next to the contact status one (`TopicReopenBar`
  * and `ContactStatus::State::Type::SetBotPhoto`, `history_view_contact_status.cpp`).
  */
-type ActionKey = PeerSettingsKey | 'reopen_topic' | 'set_bot_photo';
+type ActionKey = PeerSettingsKey | 'reopen_topic' | 'set_bot_photo' | MessageRequestActionKey;
+
+/**
+ * TeleSignal: the answers to a Signal message request, as Web A's `ChatReportPane` offers them. Signal's peer
+ * settings are only message requests (`lib/signal/chatMethods.ts`), and `block_contact` marks one.
+ */
+type MessageRequestActionKey = 'request_accept' | 'request_delete' | 'request_block' | 'request_report';
 
 type ActionDef = {
   key: ActionKey,
@@ -66,10 +73,13 @@ const LANG_KEY_MAP: {[key in ActionKey]?: LangPackKey} = {
   add_contact: 'AddContact',
   autoarchived: 'Unarchive',
   block_contact: 'BlockUser',
-  report_spam: 'DeleteReportSpam',
   share_contact: 'ShareMyPhoneNoCaps',
   reopen_topic: 'RestartTopic',
-  set_bot_photo: 'SetProfilePhoto'
+  set_bot_photo: 'SetProfilePhoto',
+  request_accept: 'Signal.MessageRequest.Accept',
+  request_delete: 'Signal.MessageRequest.Delete',
+  request_block: 'Signal.MessageRequest.Block',
+  request_report: 'Signal.MessageRequest.Report'
 };
 
 /**
@@ -82,9 +92,12 @@ const LANG_KEY_MAP: {[key in ActionKey]?: LangPackKey} = {
  */
 const botPhotoPromptOpenedEmpty = new Map<PeerId, boolean>();
 const botPhotoPromptHidden = new Set<PeerId>();
+/** The message requests whose bar the cross hid on this tab: the cross does not answer the request */
+const messageRequestBarHidden = new Set<PeerId>();
 hotListen(import.meta.hot, rootScope, 'account_switched', () => {
   botPhotoPromptOpenedEmpty.clear();
   botPhotoPromptHidden.clear();
+  messageRequestBarHidden.clear();
 });
 
 export type ChatActionsPlate = TopbarPlateController & {
@@ -201,7 +214,8 @@ export default function createChatActionsPlate(
   let currentPeerId: PeerId | undefined;
   let currentThreadId: number | undefined;
   let currentSettings: PeerSettings | undefined;
-  let peerSettingsActions: PeerSettingsActionDef[] = [];
+  let peerSettingsActions: ActionDef[] = [];
+  let isMessageRequest = false;
   let requestChatInfo: RequestChatInfo | undefined;
   let canReopenTopic = false;
   let canSetBotPhoto = false;
@@ -224,11 +238,7 @@ export default function createChatActionsPlate(
   }, {
     key: 'block_contact',
     onClick: () => {
-      topbar.blockUser(
-        peerSettingsActions.some((action) => action.key === 'report_spam'),
-        true,
-        (promise) => freeze(promise)
-      );
+      topbar.blockUser(false, true, (promise) => freeze(promise));
     },
     danger: true
   }, {
@@ -258,27 +268,61 @@ export default function createChatActionsPlate(
       });
       freeze(promise);
     }
-  }, {
-    key: 'report_spam',
-    onClick: async() => {
-      const peerId = currentPeerId;
-      if(peerId.isUser()) {
-        actions.find((action) => action.key === 'block_contact').onClick();
-      } else {
-        await confirmationPopup({
-          titleLangKey: 'Chat.Confirm.ReportSpam.Header',
-          descriptionLangKey: await managers.appPeersManager.isBroadcast(peerId) ?
-            'Chat.Confirm.ReportSpam.Channel' :
-            'Chat.Confirm.ReportSpam.Group',
-          button: {langKey: 'ReportChat'}
-        });
+  }];
 
-        const promise = Promise.all([
-          managers.appMessagesManager.reportSpam(peerId),
-          managers.appChatsManager.leave(peerId.toChatId())
-        ]);
-        freeze(promise);
-      }
+  /** The answer to a message request; the bar goes once the provider has sent it, and stays when it could not */
+  const respondToMessageRequest = (promise: Promise<unknown>) => freeze(promise.catch((err: ApiError) => {
+    // * a failure that the provider reported is shown already
+    if(err?.type !== 'MIDDLEWARE' && !err?.handled) toastNew({langPackKey: 'Signal.Error.RequestResponseFailed'});
+  }));
+
+  const messageRequestActions: ActionDef[] = [{
+    key: 'request_accept',
+    onClick: () => {
+      respondToMessageRequest(managers.appProfileManager.hidePeerSettingsBar(currentPeerId));
+    }
+  }, {
+    key: 'request_delete',
+    onClick: () => {
+      const peerId = currentPeerId;
+      confirmationPopup({
+        titleLangKey: 'Signal.MessageRequest.DeleteTitle',
+        descriptionLangKey: 'Signal.MessageRequest.DeleteText',
+        button: {langKey: 'Signal.MessageRequest.Delete', isDanger: true}
+      }).then(() => {
+        respondToMessageRequest(managers.appMessagesManager.flushHistory({peerId, justClear: false, revoke: true}));
+      }, noop);
+    },
+    danger: true
+  }, {
+    key: 'request_block',
+    onClick: () => {
+      const peerId = currentPeerId;
+      confirmationPopup({
+        titleLangKey: 'Signal.MessageRequest.BlockTitle',
+        titleLangArgs: [new PeerTitle({peerId, onlyFirstName: true}).element],
+        descriptionLangKey: peerId.isUser() ? 'Signal.MessageRequest.BlockText' : 'Signal.MessageRequest.BlockGroupText',
+        button: {langKey: 'Signal.MessageRequest.Block', isDanger: true}
+      }).then(() => {
+        respondToMessageRequest(managers.appUsersManager.toggleBlock(peerId, true));
+      }, noop);
+    },
+    danger: true
+  }, {
+    key: 'request_report',
+    onClick: () => {
+      const peerId = currentPeerId;
+      confirmationPopup({
+        titleLangKey: 'Signal.MessageRequest.ReportTitle',
+        descriptionLangKey: 'Signal.MessageRequest.ReportText',
+        checkbox: {text: 'Signal.MessageRequest.ReportAndBlock', checked: true},
+        button: {langKey: 'Signal.MessageRequest.Report', isDanger: true}
+      }).then((shouldBlock) => {
+        // * the report goes first: it names messages of the request
+        respondToMessageRequest(managers.appMessagesManager.reportSpam(peerId).then(() => {
+          return shouldBlock && managers.appUsersManager.toggleBlock(peerId, true);
+        }));
+      }, noop);
     },
     danger: true
   }];
@@ -328,7 +372,9 @@ export default function createChatActionsPlate(
       return;
     }
 
-    if(currentPeerId !== undefined) {
+    if(isMessageRequest) {
+      messageRequestBarHidden.add(currentPeerId);
+    } else if(currentPeerId !== undefined) {
       managers.appProfileManager.hidePeerSettingsBar(currentPeerId);
     }
 
@@ -374,7 +420,8 @@ export default function createChatActionsPlate(
         list = [setBotPhotoAction];
       }
 
-      const visible = list.slice(0, 2);
+      // * a message request has its four answers, as Web A shows them
+      const visible = isMessageRequest ? list : list.slice(0, 2);
       setButtons(visible.length ? visible : undefined);
       setCanClose(!!peerSettingsActions.length || canSetBotPhoto);
       plate.setHidden(!visible.length);
@@ -467,7 +514,19 @@ export default function createChatActionsPlate(
     const pFlags = settings?.pFlags;
     peerSettingsActions = [];
     requestChatInfo = undefined;
+    isMessageRequest = false;
     if(!pFlags) {
+      return;
+    }
+
+    if(pFlags.block_contact) {
+      if(!messageRequestBarHidden.has(currentPeerId)) {
+        isMessageRequest = true;
+        peerSettingsActions = currentPeerId.isUser() ?
+          messageRequestActions :
+          messageRequestActions.filter((action) => action.key !== 'request_report');
+      }
+
       return;
     }
 
