@@ -315,6 +315,10 @@ const PrivacyAndSecurity: Component = () => {
             </>
           )}
         </Show>
+        <Row clickable={() => tab.slider.createTab(hotReloadGuard.tabs.AppSignalStoriesTab).open()}>
+          <Row.Icon icon="stories" />
+          <Row.Title>{i18n('SignalStories.Title')}</Row.Title>
+        </Row>
         <Row clickable={onBlockedClick}>
           <Row.Icon icon="user_block" />
           <Row.Title>{i18n('BlockedUsers')}</Row.Title>

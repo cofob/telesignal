@@ -31,7 +31,8 @@ export type SignalUser = {
   phoneNumber: string,
   usernames?: {username: string, isActive?: boolean}[],
   avatarPhotoId?: string,
-  color?: {color?: number}
+  color?: {color?: number},
+  areStoriesHidden?: true
 };
 
 /** The rights of `ApiChatAdminRights` and `ApiChatBannedRights`: the provider's flag names set to `true` */
@@ -51,7 +52,8 @@ export type SignalChat = {
   isOwner?: boolean,
   adminRights?: SignalRights,
   defaultBannedRights?: SignalRights,
-  ttlPeriod?: number
+  ttlPeriod?: number,
+  areStoriesHidden?: true
 };
 
 export type SignalMessageAction = {

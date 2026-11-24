@@ -889,9 +889,9 @@ export default class AppStoriesManager extends AppManager {
     };
   }
 
-  public canEditStorySettings(peerId: PeerId, id: number) {
-    if(peerId.isUser()) return peerId === this.appPeersManager.peerId;
-    return this.appChatsManager.getChat(peerId.toChatId())?._ === 'channel' && this.hasRights(peerId, id, 'pin');
+  // * Signal: who sees a story is chosen as it is sent, and stays so
+  public canEditStorySettings(_peerId: PeerId, _id: number) {
+    return false;
   }
 
   private assertStorySettingsRights(peerId: PeerId, id: number) {
@@ -2246,13 +2246,12 @@ export default class AppStoriesManager extends AppManager {
     this.rootScope.dispatchEvent('story_deleted', {peerId: cache.peerId, id});
   }
 
+  // * Signal: stories come from the people who share their profile with us, and from the groups we are in
   public isSubcribedToPeer(peerId: PeerId) {
     if(peerId.isUser()) {
-      return this.appUsersManager.isContact(peerId.toUserId());
+      return true;
     } else {
-      const chatId = peerId.toChatId();
-      return (this.appChatsManager.isBroadcast(chatId) || this.appChatsManager.isMegagroup(chatId)) &&
-        this.appChatsManager.isInChat(chatId);
+      return this.appChatsManager.isInChat(peerId.toChatId());
     }
   }
 
@@ -2275,37 +2274,20 @@ export default class AppStoriesManager extends AppManager {
     return story.expire_date <= tsNow(true);
   }
 
+  /**
+   * Signal: a story is not changed once sent and has no archive or profile; its author deletes it, from their own
+   * stories or from a group's (Signal Desktop `StoryViewer.dom.tsx` offers deleting one's own story only)
+   */
   public hasRights(peerId: PeerId, storyId: number, right: 'send' | 'edit' | 'delete' | 'archive' | 'pin') {
-    if(peerId.isUser()) {
-      return this.appPeersManager.peerId === peerId;
-    }
-
-    const chatId = peerId.toChatId();
-    const story = this.getStoryByIdCached(peerId, storyId) as StoryItem.storyItem;
-    const isMyStory = !!story?.pFlags.out;
-
-    const canEdit = this.appChatsManager.hasRights(chatId, 'edit_stories');
-    const canPost = this.appChatsManager.hasRights(chatId, 'post_stories');
-    const canDelete = this.appChatsManager.hasRights(chatId, 'delete_stories');
+    const isMe = this.appPeersManager.peerId === peerId;
     switch(right) {
       case 'send': {
-        return canPost;
-      }
-
-      case 'edit': {
-        return !isMyStory ? canEdit : canPost;
+        return isMe;
       }
 
       case 'delete': {
-        return !isMyStory ? canDelete : canPost;
-      }
-
-      case 'archive': {
-        return canEdit;
-      }
-
-      case 'pin': {
-        return canEdit;
+        const story = this.getStoryByIdCached(peerId, storyId) as StoryItem.storyItem;
+        return isMe || !!story?.pFlags.out;
       }
 
       default: {

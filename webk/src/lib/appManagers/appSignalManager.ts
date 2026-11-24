@@ -43,6 +43,8 @@ import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} 
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
+import {buildStoryMethodHandlers, buildStoryUpdates, sendStory, sendStoryReply} from '@lib/signal/stories';
+import type {SignalNewStory} from '@lib/signal/storySettingsApi';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
 import makeError from '@helpers/makeError';
@@ -164,6 +166,11 @@ export default class AppSignalManager extends AppManager {
     this.isAuthorized = false;
   }
 
+  /** Sends a story from Web K's story composer (`lib/signal/storySettingsApi`) */
+  public sendSignalStory(story: SignalNewStory, listIds: string[], groupIds: string[]) {
+    return sendStory(this.createMethodHost(), story, listIds, groupIds);
+  }
+
   /** A provider method that the settings screens call, run by the engine of this worker (`lib/signal/settingsApi`) */
   public callSignal(name: string, ...args: any[]) {
     return this.call(name, ...args);
@@ -239,30 +246,19 @@ export default class AppSignalManager extends AppManager {
       'contacts.getBirthdays': () => ({_: 'contacts.contactBirthdays', contacts: [], users: []}),
       'account.getAuthorizations': () => ({_: 'account.authorizations', authorization_ttl_days: 0, authorizations: []}),
       'photos.getUserPhotos': () => ({_: 'photos.photos', photos: [], users: []}),
-      'stories.getAllReadPeerStories': emptyUpdates,
-      'stories.getPinnedStories': () => ({_: 'stories.stories', pFlags: {}, count: 0, stories: [], chats: [], users: [], pinned_to_top: []}),
       'messages.getScheduledHistory': () => ({_: 'messages.messages', messages: [], chats: [], users: [], topics: []}),
       'messages.getSavedDialogs': () => ({_: 'messages.savedDialogs', dialogs: [], messages: [], chats: [], users: []}),
       'messages.getStickerSet': () => Promise.reject(makeError('STICKERSET_INVALID' as ErrorType)),
       'users.getUsers': (params) => this.getUsers(params),
       'contacts.getContacts': () => this.getContacts(),
       'contacts.getTopPeers': () => ({_: 'contacts.topPeersDisabled'}),
-      'stories.getAllStories': () => ({
-        _: 'stories.allStories',
-        pFlags: {},
-        count: 0,
-        state: '',
-        peer_stories: [],
-        chats: [],
-        users: [],
-        stealth_mode: {_: 'storiesStealthMode', pFlags: {}}
-      }),
       ...buildChatMethodHandlers(host),
       ...buildGroupMethodHandlers(host),
       ...buildUserMethodHandlers(host),
       ...buildPinnedMessageHandlers(host),
       ...buildSharedMediaHandlers(host),
-      ...buildAccountMethodHandlers(host)
+      ...buildAccountMethodHandlers(host),
+      ...buildStoryMethodHandlers(host)
     };
   }
 
@@ -451,6 +447,15 @@ export default class AppSignalManager extends AppManager {
   }
 
   private sendMessage(params: MethodDeclMap['messages.sendMessage']['req']): Promise<Updates> {
+    if(params.reply_to?._ === 'inputReplyToStory') {
+      // * the reply is not a message of the chat until the engine stores it, as a private reply: the pending one goes
+      const entities = (params.entities || []).map((entity) => this.buildSignalEntity(entity)).filter(Boolean);
+      return sendStoryReply(this.createMethodHost(), params, entities).then((updates) => {
+        this.appMessagesManager.cancelPendingMessage('' + params.random_id);
+        return updates as Updates;
+      });
+    }
+
     const peerId = this.getInputPeerId(params.peer);
     const replyTo = params.reply_to?._ === 'inputReplyToMessage' ? params.reply_to.reply_to_msg_id : undefined;
     const lastMessageId = this.appMessagesManager.getHistoryStorage(peerId.toPeerId()).maxId || 0;
@@ -766,8 +771,11 @@ export default class AppSignalManager extends AppManager {
           order: (update.ids as string[]).map((id) => ({_: 'dialogPeer', peer: buildPeer(id)}))
         }]);
         break;
-      default:
+      default: {
+        const storyUpdates = buildStoryUpdates(update);
+        if(storyUpdates) this.pushUpdates(storyUpdates);
         break;
+      }
     }
   }
 
@@ -817,7 +825,8 @@ export default class AppSignalManager extends AppManager {
       firstName: user.first_name,
       lastName: user.last_name,
       phoneNumber: user.phone,
-      isSelf: user.pFlags.self
+      isSelf: user.pFlags.self,
+      areStoriesHidden: user.pFlags.stories_hidden
     } : {};
   }
 

@@ -132,7 +132,9 @@ chat), and the quick-reaction lookup and the picker's sticker id throw. The Sign
 those lookups (`reaction.ts`, `reactionsMenu.ts`, `appReactionsManager.ts`), so the reaction chips, the picker and the
 reactors' popover work, and the strip's More button opens the regular emoji panel instead of the catalog. Each new reaction
 feature of Web K meets the same catalog assumption and needs its own guard; Web K's code has no single place where the
-emoji-as-text rendering is chosen.
+emoji-as-text rendering is chosen. The stories port added two more such guards: the reaction on the story viewer's heart
+(`renderStoryReaction` in `webk/src/components/stories/viewer.tsx`) and the reaction of a row in the story viewers list
+(`processDialogElementForReaction` in `webk/src/components/popups/reactedList.tsx`), which threw on `static_icon`.
 
 ## Web K keeps search tabs and dead branches of the channels, apps and posts tabs
 
@@ -238,7 +240,10 @@ writes, as Web A does, would close it.
 
 Each load of `/k/` in Chromium logs several `pageerror` events whose error is a plain object, and Solid logs
 `solid error Error: Unknown error` (seen in Playwright on the demo account while checking logout, accounts and
-settings). The app keeps working, and the source is not known: the events carry no stack.
+settings). The app keeps working. Some of them are verified: an `unhandledrejection` listener added before the page
+loads shows `{type: 'SIGNAL_METHOD_UNSUPPORTED'}` rejections of `langpack.getLangPack` and of
+`AppReactionsManager.getSavedReactionTags`, which call methods the adapter (`appSignalManager.ts`) does not answer and
+do not catch the rejection; the stack of the others ends at `invokeApiSingleProcess`, without the method's name.
 
 ## Message search reads the stored messages without an index
 
@@ -250,3 +255,12 @@ pages through a small cache of recent cursors, so a client that jumps to an offs
 count of that page alone. Web K's shared media tab counters come from `fetchSharedMediaCounts`, which reads a whole chat once
 and keeps the counts until a message of the chat changes. An index of message text and attachment kinds in `MessageDb`,
 kept by `MessageProcessor`, would make all three exact and bounded.
+
+## Web K cannot tell whether a story reply was sent
+
+A text reply to a story goes through the provider's `sendMessage` with a story `replyInfo`
+(`src/api/signal/methods/messages.ts`, `sendStoryReply`), which resolves with `undefined` whether the reply went out or
+not, and reports a failure only as an `error` update. Web K's adapter (`sendStoryReply` in `webk/src/lib/signal/stories.ts`)
+therefore treats every reply as sent and drops Web K's pending copy (`cancelPendingMessage`); a reply that failed shows
+the error toast but no failed message to send again. Emoji reactions use `sendStoryReaction`, which does report a failure.
+

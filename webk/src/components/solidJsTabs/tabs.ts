@@ -746,6 +746,13 @@ export const AppPrivacyAndSecurityTab =
     getComponentModule: () => import('../sidebarLeft/tabs/privacyAndSecurity')
   });
 
+/** TeleSignal: the stories settings of Signal, which the privacy settings open from their own row */
+export const AppSignalStoriesTab =
+  scaffoldSolidJSTab({
+    title: 'SignalStories.Title',
+    getComponentModule: () => import('../sidebarLeft/tabs/signalStories')
+  });
+
 
 type AppChatInviteLinksTabPayload = {
   chatId: ChatId

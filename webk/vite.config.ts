@@ -233,6 +233,8 @@ const ADDITIONAL_ALIASES = {
   '@signal-app/passcode-session': path.join(signalAppDir, 'util/passcode/sessionStore.ts'),
   // * the check of a proxy server's URL that Web A's settings make
   '@signal-app/signal-proxy': path.join(signalAppDir, 'util/signalProxy.ts'),
+  // * the text story backgrounds of Web A's story composer
+  '@signal-app/story-backgrounds': path.join(signalAppDir, 'util/storyBackgrounds.ts'),
   '@': resolve(rootDir, 'src')
 };
 

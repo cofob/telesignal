@@ -13,14 +13,12 @@ import {StoriesProvider, useStories} from '@components/stories/store';
 import {toastNew} from '@components/toast';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import removeStoriesFromRecent from '@components/stories/removeFromRecent';
-import {createStoriesNotifyMuteButtons} from '@components/stories/notifyMute';
 import {ChatType} from '@components/chat/chatType';
 import {subscribeOn} from '@helpers/solid/subscribeOn';
 import {useCollapsable} from '@hooks/useCollapsable';
 import createMiddleware from '@helpers/solid/createMiddleware';
 import ListenerSetter from '@helpers/listenerSetter';
 import {PeerTitleTsx} from '@components/peerTitleTsx';
-import showStoriesStealthModePopup from '@components/popups/storiesStealthMode';
 import buttonKeyDown from '@helpers/solid/buttonKeyDown';
 import Modes from '@config/modes';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
@@ -382,21 +380,8 @@ function _StoriesList(props: {
     };
 
     createContextMenu({
+      // * Signal has no saved or archived stories of one's own, no stealth mode and no story notifications
       buttons: [{
-        icon: 'stories',
-        text: 'SavedStories',
-        onClick: () => {
-          hotReloadGuard.appSidebarLeft.createTab(hotReloadGuard.tabs.AppMyStoriesTab).open(hotReloadGuard.tabs.AppMyStoriesTab.getInitArgs());
-        },
-        verify: () => isSelf
-      }, {
-        icon: 'archive',
-        text: 'ArchivedStories',
-        onClick: () => {
-          hotReloadGuard.appSidebarLeft.createTab(hotReloadGuard.tabs.AppMyStoriesTab).open({...hotReloadGuard.tabs.AppMyStoriesTab.getInitArgs(), isArchive: true});
-        },
-        verify: () => isSelf
-      }, {
         icon: 'message',
         text: 'SendMessage',
         onClick: openChat,
@@ -416,24 +401,6 @@ function _StoriesList(props: {
         text: 'OpenGroup2',
         onClick: openChat,
         verify: () => !peer.peerId.isUser() && !isBroadcast
-      }, ...createStoriesNotifyMuteButtons(() => peer.peerId, () => !isSelf), {
-        icon: 'eyecross',
-        text: 'Stories.StealthMode.View',
-        // * another user's stories only, as iOS and Android have it
-        verify: () => !isSelf && peer.peerId.isUser(),
-        onClick: () => {
-          const {peerId} = peer;
-          showStoriesStealthModePopup({
-            onActivate: () => {
-              const peer = peers().find((p) => p.peerId === peerId);
-              if(!peer) {
-                return;
-              }
-
-              onItemClick(peer);
-            }
-          });
-        }
       }, {
         icon: 'archive',
         text: 'ArchivePeerStories',

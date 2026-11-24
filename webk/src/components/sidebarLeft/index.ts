@@ -57,7 +57,6 @@ import DOCUMENT_PICTURE_IN_PICTURE_SUPPORTED from '@environment/documentPictureI
 import openClientPip, {closeClientPip, isClientPipOpen} from '@components/clientPip';
 import liteMode, {AnimationLevel} from '@helpers/liteMode';
 import {AppPowerSavingTab} from '@components/solidJsTabs/tabs';
-import {AppMyStoriesTab} from '@components/solidJsTabs/tabs';
 import Icon from '@components/icon';
 import AppSelectPeers from '@components/appSelectPeers';
 import setBadgeContent, {setBadgeCount} from '@helpers/setBadgeContent';
@@ -770,11 +769,12 @@ export class AppSidebarLeft extends SidebarSlider {
       },
       separator: true
     }, btnArchive, {
+      // * Signal has no saved stories of one's own: a story lives a day. A new one starts here, as in Web A's menu
       icon: 'stories',
-      text: 'MyStories.Title',
+      text: 'SignalStory.New',
       onClick: () => {
-        closeTabsBefore(() => {
-          this.createTab(AppMyStoriesTab).open(AppMyStoriesTab.getInitArgs());
+        import('@components/popups/signalStoryComposer').then(({default: showSignalStoryComposerPopup}) => {
+          showSignalStoryComposerPopup();
         });
       },
       verify: () => !TEST_NO_STORIES
