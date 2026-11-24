@@ -14,6 +14,7 @@ import type {
   Message,
   MessageAction,
   MessageEntity,
+  MessageMedia,
   MessagePeerReaction,
   MessageReactions,
   MessageReplyHeader,
@@ -34,6 +35,7 @@ import type {
   SignalUser
 } from '@lib/signal/signalApi';
 import {buildReaction} from '@lib/signal/reactions';
+import {buildPollMedia} from '@lib/signal/polls';
 
 // * Web A's `ARCHIVED_FOLDER_ID`, which Web K's folder of archived chats has too
 const ARCHIVED_FOLDER_ID = 1;
@@ -218,7 +220,7 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
     date: message.date,
     message: text?.text || '',
     entities: text?.entities?.map(buildEntity).filter(Boolean),
-    media: getHasUnsupportedMedia(message) ? {_: 'messageMediaUnsupported'} : undefined,
+    media: buildMessageMedia(message),
     reply_to: buildReplyHeader(message.replyInfo),
     reactions: message.reactions ? buildMessageReactions(message.reactions) : undefined,
     edit_date: message.isEdited ? message.editDate || message.date : undefined,
@@ -229,9 +231,11 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
   };
 }
 
-function getHasUnsupportedMedia(message: SignalMessage) {
+function buildMessageMedia(message: SignalMessage): MessageMedia | undefined {
   const {photo, video, document, sticker, voice, audio, contact, pollId} = message.content;
-  return Boolean(photo || video || document || sticker || voice || audio || contact || pollId);
+  const pollMedia = pollId ? buildPollMedia(pollId) : undefined;
+  if(pollMedia) return pollMedia;
+  return photo || video || document || sticker || voice || audio || contact || pollId ? {_: 'messageMediaUnsupported'} : undefined;
 }
 
 // * a reply to a message of the chat names it; a quote of a message that is not in the chat, or is gone, keeps the

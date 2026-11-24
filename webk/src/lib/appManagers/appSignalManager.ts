@@ -42,6 +42,7 @@ import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} 
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
+import {buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import makeError from '@helpers/makeError';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
@@ -236,7 +237,8 @@ export default class AppSignalManager extends AppManager {
       ...buildGroupMethodHandlers(host),
       ...buildUserMethodHandlers(host),
       ...buildPinnedMessageHandlers(host),
-      ...buildSharedMediaHandlers(host)
+      ...buildSharedMediaHandlers(host),
+      ...buildPollHandlers(host)
     };
   }
 
@@ -483,6 +485,10 @@ export default class AppSignalManager extends AppManager {
   }
 
   private async editMessage(params: MethodDeclMap['messages.editMessage']['req']) {
+    if(await closePollByEdit(this.createMethodHost(), params)) {
+      return {_: 'updates', updates: [], users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
+    }
+
     const peerId = this.getInputPeerId(params.peer);
     await this.call('editMessage', {
       chat: {id: toSignalPeerId(peerId)},
@@ -663,6 +669,8 @@ export default class AppSignalManager extends AppManager {
   };
 
   private handleUpdate(update: SignalApiUpdate) {
+    // * the polls of messages come with them or as entities, before the messages are built
+    rememberPolls(update.polls ?? (update.poll ? [update.poll] : undefined));
     switch(update['@type']) {
       case 'updateAuthorizationState':
         this.onAuthorizationState(update);
@@ -707,6 +715,7 @@ export default class AppSignalManager extends AppManager {
         if(update.message?.content && update.message.chatId) {
           this.pushUpdates([{_: 'updateEditMessage', message: this.buildMessage(update.message as SignalMessage), pts: 0, pts_count: 0}]);
         }
+        if(update.poll) this.pushUpdates([buildPollUpdate(update.poll)]);
         break;
       case 'updateMessageSendSucceeded':
         this.onMessageSent(update.localId, update.message);
