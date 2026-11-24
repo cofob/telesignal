@@ -261,9 +261,6 @@ export type State = {
   userId?: UserId,
   /** Key: `getPinnedMessagesKey(peerId, threadId)` — thread-scoped in a forum topic. */
   hiddenPinnedMessages: {[peerIdOrThreadKey: string]: number},
-  /** Key: a history storage's (a topic's is its own), value: the message of the bot keyboard the user closed there. */
-  /** Key: a history storage's, value: the message of the force reply whose answer in the field the user dropped there. */
-  droppedForceReplies: {[historyStorageKey: string]: number},
   hideChatJoinRequests: {[peerId: PeerId]: number},
   // stateId?: number, // ! DEPRECATED
   notifySettings: {[k in GlobalNotifySettingsKey]?: PeerNotifySettings.peerNotifySettings},
@@ -641,7 +638,6 @@ export const STATE_INIT: State = {
   },
   userId: undefined,
   hiddenPinnedMessages: {},
-  droppedForceReplies: {},
   hideChatJoinRequests: {},
   // stateId: nextRandomUint(32),
   notifySettings: {},

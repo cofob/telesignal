@@ -185,7 +185,7 @@ export namespace InternalLink {
 
   export interface InternalLinkNew {
     _: INTERNAL_LINK_TYPE.NEW,
-    type?: 'group' | 'contact' | 'channel'
+    type?: 'group' | 'contact'
   }
 
   export interface InternalLinkSettings {
