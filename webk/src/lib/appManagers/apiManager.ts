@@ -28,6 +28,7 @@ import {ActiveAccountNumber} from '@lib/accounts/types';
 import makeError from '@helpers/makeError';
 import EncryptedStorageLayer from '@lib/encryptedStorageLayer';
 import {getCommonDatabaseState} from '@config/databases/state';
+import clearSignalLocalData from '@signal-app/clear-local-data';
 /**
  * To not be used in an ApiManager instance as there is no account number attached to it
  */
@@ -83,6 +84,13 @@ export class ApiManager extends ApiManagerMethods {
     return dcId === SIGNAL_DC_ID;
   }
 
+  /**
+   * Logs the account of this slot out, as Web A's sign-out does (`signOut` in `src/global/actions/api/initial.ts`): the
+   * engine unlinks the device and forgets the account, then the slot and this client's data of it go. The slot stays
+   * linked until the engine's data is gone, so that a log out cut short leaves no linked slot without its account or
+   * account without its slot; a wipe that fails rejects, and the slot stays for another try. The slots of the other
+   * accounts keep their numbers: the engine's stores are named by them (`getEngineStoreName`).
+   */
   public async logOut(migrateAccountTo?: ActiveAccountNumber) {
     if(this.loggingOut) {
       return;
@@ -91,37 +99,33 @@ export class ApiManager extends ApiManagerMethods {
     this.loggingOut = true;
 
     const accountNumber = this.getAccountNumber();
+    try {
+      // * the unlink request is answered or has failed before the data goes, which a worker terminated earlier would cut
+      await this.appSignalManager.logOut().catch(noop);
+      // * the engine may not have run in this worker, such as before the passcode was entered
+      await clearSignalLocalData();
+    } catch(err) {
+      this.loggingOut = false;
+      throw err;
+    }
+
+    await AccountController.whenUpdated(accountNumber);
     const totalAccounts = await AccountController.getTotalAccounts();
-    // * the engine forgets the account, its messages and attachments, which Web A then has neither
-    const logoutPromise = this.appSignalManager.logOut().catch(noop);
+    const isLastAccount = totalAccounts <= 1 && !migrateAccountTo;
+    await Promise.all([
+      AccountController.remove(accountNumber),
+      AppStoragesManager.clearAllStoresForAccount(accountNumber),
+      ...(isLastAccount ? [
+        sessionStorage.delete('k_build'),
+        AppStoragesManager.clearSessionStores(),
+        commonStateStorage.clear(),
+        EncryptedStorageLayer.getInstance(getCommonDatabaseState(), 'localStorage__encrypted').clear(),
+        CacheStorageController.deleteAllStorages()
+      ] : [])
+    ]);
 
-    let wasCleared = false;
-    const clear = async() => {
-      if(wasCleared) return;
-      wasCleared = true;
-
-      await AccountController.whenUpdated(accountNumber);
-
-      if(totalAccounts <= 1 && accountNumber === 1 && !migrateAccountTo) {
-        await Promise.all([
-          sessionStorage.delete('account1'),
-          sessionStorage.delete('k_build'),
-          AppStoragesManager.clearAllStoresForAccount(1),
-          AppStoragesManager.clearSessionStores(),
-          commonStateStorage.clear(),
-          EncryptedStorageLayer.getInstance(getCommonDatabaseState(), 'localStorage__encrypted').clear(),
-          CacheStorageController.deleteAllStorages()
-        ]);
-      } else {
-        await AccountController.shiftAccounts(accountNumber);
-        await AppStoragesManager.shiftStorages(accountNumber);
-      }
-
-      IDB.closeDatabases();
-      this.rootScope.dispatchEvent('logging_out', {accountNumber, migrateTo: migrateAccountTo});
-    };
-
-    return logoutPromise.finally(clear);
+    IDB.closeDatabases();
+    this.rootScope.dispatchEvent('logging_out', {accountNumber, migrateTo: migrateAccountTo});
   }
 
   public static async forceLogOutAll() {

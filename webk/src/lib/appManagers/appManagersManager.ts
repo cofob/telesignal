@@ -12,7 +12,6 @@ import createManagers from '@appManagers/createManagers';
 import {ActiveAccountNumber} from '@lib/accounts/types';
 import AppStateManager from '@appManagers/appStateManager';
 import rootScope from '@lib/rootScope';
-import AccountController from '@lib/accounts/accountController';
 import pushSingleManager from '@appManagers/pushSingleManager';
 import Modes from '@config/modes';
 import SuperMessagePort from '@lib/superMessagePort';
@@ -153,21 +152,6 @@ export class AppManagersManager {
       });
       urls.push(...newURLs);
       return urls;
-    });
-
-    rootScope.addEventListener('account_logged_in', async({accountNumber, userId}) => {
-      // * a new account goes to the first free slot, and Web A leaves gaps: the same one may be after it
-      const existing = (await AccountController.getAccounts()).find(([otherAccountNumber, accountData]) => {
-        return otherAccountNumber !== accountNumber && accountData.userId === userId;
-      });
-      if(existing) {
-        const [otherAccountNumber] = existing;
-        const managersByAccount = await this.getManagersByAccount();
-        // * the slots after the one signed out move down by one
-        managersByAccount[accountNumber].apiManager.logOut(
-          (otherAccountNumber > accountNumber ? otherAccountNumber - 1 : otherAccountNumber) as ActiveAccountNumber
-        );
-      }
     });
 
     rootScope.addEventListener('logging_out', ({accountNumber}) => {

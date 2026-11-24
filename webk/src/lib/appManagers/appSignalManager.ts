@@ -39,6 +39,7 @@ import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
 import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
+import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
 import makeError from '@helpers/makeError';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
 import tsNow from '@helpers/tsNow';
@@ -86,8 +87,8 @@ export default class AppSignalManager extends AppManager {
    * engine lock in `src/lib/signal/engineOwnership.ts`). Called by every tab that opens, after its passcode check.
    */
   public async start(args: Omit<SignalInitialArgs, 'userAgent'>) {
-    // * one engine per worker: the slots of the other accounts are not supported yet
-    if(this.getAccountNumber() !== 1) {
+    // * one engine per worker: the worker of each slot runs that slot's engine (`lib/signal/accountSlot`)
+    if(this.getAccountNumber() !== getSignalWorkerAccountNumber()) {
       return;
     }
 
@@ -119,12 +120,18 @@ export default class AppSignalManager extends AppManager {
     return Promise.resolve().then(() => handler(params));
   }
 
+  /**
+   * Unlinks this device and forgets the account, its messages and attachments, as Web A's sign-out does; settles once
+   * the unlink request is answered or has failed and the engine's stores are cleared
+   */
   public async logOut() {
     if(!this.isStarted) {
       return;
     }
 
     await this.call('destroy');
+    this.isStarted = false;
+    this.isAuthorized = false;
   }
 
   /** A provider method that the settings screens call, run by the engine of this worker (`lib/signal/settingsApi`) */

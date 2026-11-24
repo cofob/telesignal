@@ -10,7 +10,7 @@ import StaticUtilityClass from '@lib/staticUtilityClass';
 
 import {AccountSessionData, ActiveAccountNumber, SessionUserFields, StoredAccountSessionData} from '@lib/accounts/types';
 import getAuthKeyFingerprint from '@lib/accounts/authKeyFingerprint';
-import {DC_IDS, MAX_ACCOUNTS} from '@lib/accounts/constants';
+import {DC_IDS} from '@lib/accounts/constants';
 import bytesToHex from '@helpers/bytes/bytesToHex';
 import randomize from '@helpers/array/randomize';
 import noop from '@helpers/noop';
@@ -27,10 +27,6 @@ export class AccountController extends StaticUtilityClass {
   // * the write in progress of each account: every update reads the whole data, merges and writes it
   // * back, so two at once would lose one of them
   private static updates: Map<ActiveAccountNumber, Promise<unknown>> = new Map();
-  // * Set once the slots start moving after a log out, and never cleared: the worker is terminated
-  // * right after, and until then every live writer still holds its old account number. A write that
-  // * can be skipped (the temporary auth keys) checks it and writes nothing
-  public static shifting: boolean;
 
   static async getTotalAccounts() {
     return (await this.getAccounts()).length;
@@ -231,26 +227,17 @@ export class AccountController extends StaticUtilityClass {
   }
 
   /**
-   * Shifts 4 -> 3, 3 -> 2 ... depending on which account you need to delete
-   * @param upTo Account to delete basically
+   * Empties the slot of an account that logged out, with the first account's copy beside it (`user_auth`), which a
+   * start would otherwise take for the account again
    */
-  static async shiftAccounts(upTo: ActiveAccountNumber) {
-    this.shifting = true;
-    // * what is already on its way to any of the moving slots lands first, then they move
-    const slots: ActiveAccountNumber[] = [];
-    for(let i = upTo; i <= MAX_ACCOUNTS; i++) {
-      slots.push(i as ActiveAccountNumber);
+  static async remove(accountNumber: ActiveAccountNumber) {
+    await this.whenUpdated(accountNumber);
+    await sessionStorage.delete(`account${accountNumber}`);
+    if(accountNumber === 1) {
+      await this.updateStorageForLegacy(null);
     }
 
-    await Promise.all(slots.map((accountNumber) => this.whenUpdated(accountNumber)));
-
-    for(let i = upTo; i <= MAX_ACCOUNTS; i++) {
-      await sessionStorage.delete(`account${i as ActiveAccountNumber}`);
-      if(i < MAX_ACCOUNTS) {
-        const toMove = await this.get((i + 1) as ActiveAccountNumber);
-        toMove.userId && (await this.update(i as ActiveAccountNumber, toMove, true));
-      }
-    }
+    await sessionStorage.set({number_of_accounts: await this.getTotalAccounts()});
   }
 
   /**

@@ -650,6 +650,13 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
   if(authState._ !== 'authStateSignedIn'/*  || 1 === 1 */) {
     console.log('Will mount auth page:', authState._, Date.now() / 1000);
 
+    // * the account this tab was opened from to link another one (`AppSidebarLeft.addAccount`), which its back button
+    // * returns to
+    const storedPreviousAccount = await sessionStorage.get('previous_account');
+    const previousAccount = storedPreviousAccount && storedPreviousAccount !== getCurrentAccount() ?
+      getValidatedAccount(storedPreviousAccount) :
+      undefined;
+
     (async() => {
       const [accountNumbers, freeAccountNumber] = await Promise.all([
         AccountController.getAccountNumbers(),
@@ -661,7 +668,8 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
       const currentAccount = getCurrentAccount();
       // * the first slot is left empty when Web A signs its account out, with its other accounts still there:
       // * the tab goes on to them with the link it was opened by, unless that link signs in here
-      const isEmptyFirstSlot = currentAccount === 1 && !!accountNumbers.length && authState._ !== 'authStateSignImport';
+      const isEmptyFirstSlot = currentAccount === 1 && !!accountNumbers.length && authState._ !== 'authStateSignImport' &&
+        !previousAccount;
       const canSignInHere = currentAccount === freeAccountNumber &&
         accountNumbers.length < maxAccountNumber &&
         !isEmptyFirstSlot;
@@ -690,14 +698,16 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
       accountNumber,
       managers: rootScope.managers,
       // * a page opened on a slot of its own to add an account goes back to the account it was added from
-      back: accountNumber !== 1 ? async(host) => {
+      back: previousAccount ? async(host) => {
         await sessionStorage.set({should_animate_main: 1});
-        const previousAccount = getValidatedAccount(await sessionStorage.get('previous_account'));
         await sessionStorage.delete('previous_account');
         await host.leave();
         changeAccount(previousAccount);
       } : undefined,
-      toIm: () => import('./pages/bootstrapIm').catch(onStartImportFailed).then(({bootstrapIm}) => bootstrapIm()),
+      toIm: async() => {
+        await sessionStorage.delete('previous_account');
+        return import('./pages/bootstrapIm').catch(onStartImportFailed).then(({bootstrapIm}) => bootstrapIm());
+      },
       openAccount: (accountNumber) => changeAccount(accountNumber)
     });
   } else {

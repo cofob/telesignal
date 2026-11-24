@@ -57,6 +57,7 @@ import getPeerTitleText from '@components/wrappers/getPeerTitleText';
 import I18n from '@lib/langPack';
 import {NOTIFICATION_BADGE_PATH} from '@config/notifications';
 import {createAppURLForAccount} from '@lib/accounts/createAppURLForAccount';
+import {getSignalWorkerName} from '@lib/signal/accountSlot';
 import {setAppSettingsSilent} from '@stores/appSettings';
 import {batch} from 'solid-js';
 import createNotificationImage from '@helpers/createNotificationImage';
@@ -706,13 +707,12 @@ class ApiManagerProxy extends MTProtoMessagePort {
   ) {
     let url = new URL(location.href);
 
+    // * the slots keep their numbers (`ApiManager.logOut`): a tab of the first slot left empty goes on to the
+    // * accounts after it (index.ts)
     const currentAccount = getCurrentAccount();
     if(!accountNumber) {
       url.hash = '';
       url.search = '';
-    } else if(currentAccount > accountNumber) {
-      const newAccountNumber = currentAccount - 1;
-      url = createAppURLForAccount(newAccountNumber as ActiveAccountNumber, undefined, true);
     } else if(currentAccount === accountNumber) {
       if(migrateTo) url = createAppURLForAccount(migrateTo);
       else {
@@ -1097,17 +1097,19 @@ class ApiManagerProxy extends MTProtoMessagePort {
     // constructing a URL dynamically here would emit the source .ts file unchanged.
     const workerUrl = makeWorkerURL(MainWorkerURL);
     workerUrl.searchParams.set(THREADED_WORKER_PROTOCOL_QUERY_PARAM, THREADED_WORKER_PROTOCOL_VERSION + '');
+    // * TeleSignal: each account slot has a worker of its own, which runs the slot's Signal engine
+    const name = getSignalWorkerName(getCurrentAccount());
     let worker: SharedWorker | Worker;
     if(IS_SHARED_WORKER_SUPPORTED) {
       worker = new SharedWorker(
         workerUrl,
-        {type: 'module'}
+        {type: 'module', name}
       );
       this.closeMTProtoWorker = () => (worker as SharedWorker).port.close();
     } else {
       worker = new Worker(
         workerUrl,
-        {type: 'module'}
+        {type: 'module', name}
       );
       this.closeMTProtoWorker = () => (worker as Worker).terminate();
     }

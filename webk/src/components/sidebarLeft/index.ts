@@ -83,7 +83,6 @@ import pause from '@helpers/schedulers/pause';
 import showAccountsLimitPopup from '@components/sidebarLeft/accountsLimitPopup';
 import {changeAccount} from '@lib/accounts/changeAccount';
 import switchAccount from '@lib/accounts/switchAccount';
-import addAccount from '@lib/accounts/addAccount';
 import uiNotificationsManager from '@lib/uiNotificationsManager';
 import {renderFoldersSidebarContent} from '@components/sidebarLeft/foldersSidebarContent';
 import SolidJSHotReloadGuardProvider, {registerHotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
@@ -885,7 +884,9 @@ export class AppSidebarLeft extends SidebarSlider {
             const user = await otherManagers.appUsersManager.getSelf();
 
             const content = document.createElement('span');
-            content.append(wrapUserName(user || peerId));
+            // * TeleSignal: an account whose slot this worker has not run is known by the name Web A keeps in its slot
+            const slotName = [accountData.firstName, accountData.lastName].filter(Boolean).join(' ');
+            content.append(user || !slotName ? wrapUserName(user || peerId) : slotName);
 
             if(notificationsCount[accountNumber]) {
               const badge = createBadge('span', 20, 'primary');
@@ -1886,21 +1887,13 @@ export class AppSidebarLeft extends SidebarSlider {
       return;
     }
 
-    // * the first slot is free only when Web A has signed its account out, and a tab opened on it goes to
-    // * the accounts after it (see index.ts): it is signed in to here
-    if((e?.ctrlKey || e?.metaKey) && accountNumber !== 1) {
-      // * the sign-in screen's back button returns here
-      await sessionStorage.set({previous_account: getCurrentAccount()});
-      changeAccount(accountNumber, true);
-      return;
-    }
-
-    // * the sign-in is a screen of the whole tab: the client comes back from Picture-in-Picture for it
-    if(isClientPipOpen()) {
-      closeClientPip();
-    }
-
-    addAccount(accountNumber);
+    // * TeleSignal: the link screen of the new slot is a page of its own, whose engine runs in the slot's worker
+    // * (`lib/signal/accountSlot`), as Web A opens `?account=N`. The first slot is free only when the account there
+    // * logged out, and a tab opened on it goes to the accounts after it (see index.ts): it is linked here
+    const isNewTab = (e?.ctrlKey || e?.metaKey) && accountNumber !== 1;
+    // * the link screen's back button returns here
+    await sessionStorage.set({previous_account: getCurrentAccount()});
+    changeAccount(accountNumber, isNewTab);
   };
 }
 
