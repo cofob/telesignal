@@ -1,7 +1,8 @@
 /*
  * TeleSignal: Web K's pages in the desktop app (`tauri/`), as Web A's `src/util/tauri` serves its pages: the native
  * transport for the worker's engine, system notifications, the unread count on the tray icon, links in the system
- * browser and downloads that the app saves (`lib/signal/desktopFiles`). The app gives IPC to both frontends' pages
+ * browser, downloads that the app saves (`lib/signal/desktopFiles`), the app's own settings and the quit shortcut; the
+ * main screen adds the rest (`lib/signal/desktopIm`). The app gives IPC to both frontends' pages
  * (`FRONTEND_PATHS` in `tauri/src/lib.rs`); the commands are in `tauri/src`, and `tauri/README.md` describes them.
  */
 
@@ -10,6 +11,9 @@ import {I18n} from '@lib/langPack';
 import DEBUG from '@config/debug';
 import {IS_APPLE} from '@environment/userAgent';
 import noop from '@helpers/noop';
+import serveNativeTransport from '@signal-app/serve-native-transport';
+import {readWebASharedSettings} from '@lib/signal/webAState';
+import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 /** Tauri's `isTauri()`: the app's pages get the flag before their scripts run */
 export const IS_DESKTOP_APP = !!(globalThis as {isTauri?: boolean}).isTauri;
@@ -19,11 +23,30 @@ export const IS_DESKTOP_APP_BUNDLE = IS_DESKTOP_APP &&
   (location.protocol === 'tauri:' || location.hostname === 'tauri.localhost');
 
 const NOTIFICATION_CLICKED_EVENT = 'notification-clicked';
+// * Cmd+, in the macOS menu bar (`tauri/src/menu.rs`)
+const OPEN_SETTINGS_EVENT = 'open-settings';
+// * Web A's id of the shortcut and its default (`quitApp` in `src/util/keyboardShortcuts/registry.ts`): Ctrl+Q outside
+// * macOS, whose menu bar quits with Cmd+Q
+const QUIT_SHORTCUT_ID = 'quitApp';
+const DEFAULT_QUIT_COMBO = 'Ctrl+Q';
+// * the app reports a click with the chat that the notification named; Web K names its key with this prefix, which
+// * Web A's pages ignore after the window switched frontends (`src/util/tauri/setupTauriListeners.ts`)
+const NOTIFICATION_PREFIX = 'webk:';
 // * the app keeps at most 64 notifications waiting for a click (`MAX_WAITING_NOTIFICATIONS`)
 const MAX_NOTIFICATION_CLICKS = 64;
 // * the inputs that hold text, unlike checkboxes, ranges and buttons
 const TEXT_INPUT_TYPES = new Set(['text', 'search', 'url', 'tel', 'email', 'password', 'number']);
 const AUXILIARY_BUTTON = 1;
+
+/** What the app keeps itself (`tauri/src/settings.rs`) */
+export type DesktopSettings = {
+  shouldCloseToTray: boolean,
+  shouldLaunchAtLogin: boolean,
+  isContentProtected: boolean
+};
+
+/** Only macOS and Windows can hide a window from screenshots */
+export const CAN_PROTECT_CONTENT = IS_APPLE || navigator.userAgent.includes('Windows');
 
 type NotificationClick = {
   chatId: string,
@@ -40,8 +63,7 @@ const notificationClicks = new Map<string, () => void>();
 export function serveNativeTransportToWorker(sendPort: (port: MessagePort) => void) {
   const {port1, port2} = new MessageChannel();
   sendPort(port2);
-  // * the requests wait on the port until the module has loaded
-  import('@signal-app/serve-native-transport').then(({default: serveNativeTransport}) => serveNativeTransport(port1));
+  serveNativeTransport(port1);
 }
 
 /** Sets the unread count on the tray icon, the Dock icon, the taskbar button or the launcher */
@@ -60,9 +82,17 @@ export function showDesktopNotification(key: string, title: string, body: string
     notificationClicks.delete(notificationClicks.keys().next().value);
   }
 
-  invoke<void>('show_notification', {title, body, openLabel: I18n.format('Open', true), chatId: key}).catch((err) => {
+  invoke<void>('show_notification', {title, body, openLabel: I18n.format('Open', true), chatId: NOTIFICATION_PREFIX + key}).catch((err) => {
     console.error('Failed to show a notification', err);
   });
+}
+
+export function fetchDesktopSettings() {
+  return invoke<DesktopSettings>('get_desktop_settings');
+}
+
+export function updateDesktopSettings(patch: Partial<DesktopSettings>) {
+  return invoke<DesktopSettings>('set_desktop_settings', {patch});
 }
 
 /** Takes the links and the app's events; the page calls it once, before it renders */
@@ -91,14 +121,51 @@ export function setupDesktopApp() {
   window.addEventListener('click', onLinkClick);
   window.addEventListener('auxclick', onLinkClick);
 
-  import('@tauri-apps/api/event').then(({listen}) => {
-    return listen<NotificationClick>(NOTIFICATION_CLICKED_EVENT, ({payload}) => {
-      const onClick = notificationClicks.get(payload.chatId);
-      notificationClicks.delete(payload.chatId);
+  if(!IS_APPLE) {
+    listenToQuitShortcut().catch(noop);
+  }
+
+  import('@tauri-apps/api/event').then(({listen}) => Promise.all([
+    listen<NotificationClick>(NOTIFICATION_CLICKED_EVENT, ({payload}) => {
+      // * Web A's chats, from before the window switched frontends, have no key here
+      const key = payload.chatId.slice(NOTIFICATION_PREFIX.length);
+      const onClick = payload.chatId.startsWith(NOTIFICATION_PREFIX) ? notificationClicks.get(key) : undefined;
+      notificationClicks.delete(key);
       onClick?.();
-    });
-  }).catch((err) => {
+    }),
+    listen(OPEN_SETTINGS_EVENT, () => {
+      // * the main screen has the settings; the sign-in screens have none
+      const {appSidebarLeft, tabs} = hotReloadGuard;
+      appSidebarLeft?.createTab(tabs.AppSettingsTab).open();
+    })
+  ])).catch((err) => {
     console.error('Failed to listen to the app\'s events', err);
+  });
+}
+
+/**
+ * Ctrl+Q quits on Windows and Linux, where the app has no menu bar, with Web A's combo or its user's change of it; a
+ * change made in Web A is read when the user comes back to this window
+ */
+async function listenToQuitShortcut() {
+  // * the keys as Web A reads them; loaded later, as the module reaches the passcode
+  const {getEventCombo, normalizeCombo} = await import('@appManagers/utils/useLockScreenShortcut');
+  let combos = [normalizeCombo(DEFAULT_QUIT_COMBO)];
+  const refresh = () => readWebASharedSettings().then(({keyboardShortcuts}) => {
+    const custom = keyboardShortcuts?.[QUIT_SHORTCUT_ID];
+    combos = custom === false ? [] : [normalizeCombo(custom || DEFAULT_QUIT_COMBO)];
+  }, noop);
+  refresh();
+  window.addEventListener('focus', refresh);
+
+  document.addEventListener('keydown', (e) => {
+    // * Web K passes a key on to the composer as a copy of the event (`focusInput`)
+    if(!e.isTrusted) return;
+    const combo = getEventCombo(e);
+    if(!combo || !combos.includes(combo)) return;
+
+    e.preventDefault();
+    invoke<void>('quit_app').catch(noop);
   });
 }
 

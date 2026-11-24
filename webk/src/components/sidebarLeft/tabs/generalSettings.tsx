@@ -24,6 +24,8 @@ import fastSmoothScroll from '@helpers/fastSmoothScroll';
 import ChatBackgroundStore from '@lib/chatBackgroundStore';
 import appDownloadManager from '@lib/appDownloadManager';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
+import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
+import {DesktopAppSection} from './desktopAppSettings';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Section 1 — text size, chat background, animations toggle, lite mode entry
@@ -301,6 +303,7 @@ const GeneralSettings = () => {
       <ThemeSection />
       {IS_GEOLOCATION_SUPPORTED && <DistanceUnitsSection />}
       <TimeFormatSection />
+      {IS_DESKTOP_APP && <DesktopAppSection />}
     </>
   );
 };

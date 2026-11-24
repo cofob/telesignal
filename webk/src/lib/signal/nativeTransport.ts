@@ -9,38 +9,25 @@
  * serving page leaves, every open connection therefore closes for the engine, which reconnects through the next page
  * that offered a port; with no page left, connections close as they are asked for. The serving page stays until it
  * leaves, so a new tab does not interrupt the connections that run.
- *
- * In a production build the provider's chunk imports this worker's entry chunk by a URL without the entry's query,
- * which evaluates a second copy of the entry and of this module (`FRICTION_LOG.md`). The relay therefore lives on the
- * worker's global scope, which both copies share, and the engine's module is imported dynamically, as the provider is,
- * so that the port reaches the copy that the engine uses.
  */
 
 import type {NativeTransportEvent, NativeTransportRequest} from '@signal-app/native-transport';
+import {setNativeTransportPort} from '@signal-app/native-transport';
 
-type Relay = {
+const PAGE_CLOSED_REASON = 'The page that served the connection closed';
+const NO_PAGE_REASON = 'No page serves the native transport';
+
+const relay: {
   // * the ports that the pages offered, oldest first, by the page
   offeredPorts: Map<MessageEventSource, MessagePort>,
   servingSource?: MessageEventSource,
   enginePort?: MessagePort,
-  settingEnginePort?: Promise<void>,
   // * the connections that the engine opened and that have not closed, by the engine's id
   openIds: Set<number>
-};
-
-const RELAY_KEY = '__signalNativeTransportRelay';
-const PAGE_CLOSED_REASON = 'The page that served the connection closed';
-const NO_PAGE_REASON = 'No page serves the native transport';
-
-const relay: Relay = (globalThis as any)[RELAY_KEY] ??= {offeredPorts: new Map(), openIds: new Set()};
+} = {offeredPorts: new Map(), openIds: new Set()};
 
 /** Takes a page's end of the native transport; the first one also tells the engine that the app connects natively */
 export function offerNativeTransportPort(source: MessageEventSource, port: MessagePort) {
-  // * both copies of the entry take the same message
-  if(relay.offeredPorts.get(source) === port) {
-    return;
-  }
-
   releaseNativeTransportSource(source);
   relay.offeredPorts.set(source, port);
 
@@ -48,22 +35,13 @@ export function offerNativeTransportPort(source: MessageEventSource, port: Messa
     const channel = new MessageChannel();
     relay.enginePort = channel.port1;
     relay.enginePort.onmessage = handleEngineRequest;
-    relay.settingEnginePort = import('@signal-app/native-transport').then(({setNativeTransportPort}) => {
-      setNativeTransportPort(channel.port2);
-    });
+    // * a page's offer comes before its request to start the engine, so the engine connects natively from the first
+    setNativeTransportPort(channel.port2);
   }
 
   if(!relay.servingSource) {
     serveFrom(source);
   }
-}
-
-/**
- * Settles once the engine has the port, when a page of the app offered one. A page's offer comes before its request to
- * start the engine, so the engine that waits for this connects natively from its first connection.
- */
-export function waitForNativeTransport() {
-  return relay.settingEnginePort;
 }
 
 /** Forgets a page that closed; when it served the engine, its connections close and the next page serves */

@@ -6,6 +6,7 @@ import rootScope from '@lib/rootScope';
 
 import {disposeActiveAuthFlow} from '@/pages/mountAuthFlow';
 import {onStartImportFailed} from '@/pages/deactivatedScreen';
+import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 
 let bootstrapped = false;
 
@@ -50,6 +51,8 @@ export async function bootstrapIm(): Promise<void> {
     (window as any).Recorder = recorder.default;
   }
   appDialogsManager.start();
+  // * TeleSignal: the window title, menus, links and updates of the desktop app
+  if(IS_DESKTOP_APP) import('@lib/signal/desktopIm').then(({startDesktopIm}) => startDesktopIm());
   // start() toggles body.is-left-column-shown synchronously
   // (appImManager.selectTab(CHATLIST)). The .main-column transform/opacity
   // transition in _chats.scss is gated by :not(.has-auth-pages) so the bar

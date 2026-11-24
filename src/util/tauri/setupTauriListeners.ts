@@ -3,13 +3,16 @@ import { getActions } from '../../global';
 import { SettingsScreens } from '../../types';
 
 import { DEBUG } from '../../config';
-import { MouseButton } from '../browser/windowEnvironment';
+import { IS_MAC_OS, MouseButton } from '../browser/windowEnvironment';
 import { isDeepLink } from '../deepLinkParser';
 import { getLoggableError } from '../maskSensitiveText';
 import { isSgnlLink, parseSignalLink } from '../signalLinks';
 import { openExternalUrl } from './desktopApp';
 
 const NOTIFICATION_CLICKED_EVENT = 'notification-clicked';
+// Web K's notifications name no chat but a key with this prefix (`webk/src/lib/signal/desktopApp.ts`); a click on one
+// reaches this page when the window switched to Web A since
+const WEB_K_NOTIFICATION_PREFIX = 'webk:';
 const OPEN_SETTINGS_EVENT = 'open-settings';
 
 type NotificationClick = {
@@ -34,6 +37,12 @@ export default function setupTauriListeners() {
   }
 
   void listenToNativeEvents();
+
+  // Web K leaves a macOS window on the standard title bar; the auth and lock screens expect the overlay before `Main`
+  // asks for it
+  if (IS_MAC_OS) {
+    window.tauri.markTitleBarOverlay(true).catch(() => undefined);
+  }
 
   // Disable Backspace handling as back navigation
   document.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -94,6 +103,7 @@ async function listenToNativeEvents() {
 
     // The app brought the window forward after a click on a notification (`tauri/src/notifications.rs`)
     await listen<NotificationClick>(NOTIFICATION_CLICKED_EVENT, ({ payload: { chatId, messageId } }) => {
+      if (chatId.startsWith(WEB_K_NOTIFICATION_PREFIX)) return;
       if (messageId === undefined) {
         getActions().openChat({ id: chatId, shouldReplaceHistory: true });
         return;

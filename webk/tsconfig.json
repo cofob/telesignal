@@ -73,7 +73,7 @@
       "@signal-app/signal-proxy": ["./src/lib/signal/signalProxyApi.d.ts"],
       "@signal-app/native-transport": ["./src/lib/signal/nativeTransportApi.d.ts"],
       "@signal-app/serve-native-transport": ["./src/lib/signal/serveNativeTransportApi.d.ts"],
-      "@tauri-apps/api/*": ["../node_modules/@tauri-apps/api/*"],
+      "@tauri-apps/*": ["../node_modules/@tauri-apps/*"],
       "@/*": ["./src/*"]
     },
     // "rootDirs": [],                        /* List of root folders whose combined content represents the structure of the project at runtime. */

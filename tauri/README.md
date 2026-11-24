@@ -8,7 +8,9 @@ page's worker, in WebAssembly.
 - Closing the window hides it (Settings, General, Desktop app, "Close to tray", on by default); the engine keeps
   running, and the tray icon or a second launch shows the window again. The tray menu quits the app. The unread
   count appears on the tray icon, the Dock icon (macOS), the taskbar button (Windows) and the launcher icon (Linux
-  desktops with the Unity launcher API).
+  desktops with the Unity launcher API). Each window reports its own count (`set_notifications_count`), and the app
+  shows the sum, so that windows of different frontends or account slots do not replace each other's count; two
+  windows of the same account count it twice.
 - New messages show system notifications when the window is not focused and web notifications are on in Settings,
   Notifications; a click opens the chat. See [Desktop integration](#desktop-integration).
 - `sgnl://` links open the app and the page handles them like the links in messages (`src/util/signalLinks.ts`):
@@ -237,7 +239,9 @@ for the user on a thread of its own (at most 64 at once; the others are shown wi
 says so): the D-Bus `ActionInvoked` signal of the `default` action on Linux, the toast activation on Windows and the
 notification center on macOS. A click brings the window forward (`bring_window_forward`) and emits
 `notification-clicked` with `{ chatId, messageId }`, which `setupTauriListeners.ts` turns into `focusMessage`. Web K
-passes its notification's key as `chatId` and runs that notification's click action (`webk/src/lib/signal/desktopApp.ts`).
+passes its notification's key with the prefix `webk:` as `chatId` and runs that notification's click action
+(`webk/src/lib/signal/desktopApp.ts`); each frontend ignores the clicks of the other's notifications, which reach it
+when the window switched frontends since.
 
 On Linux the text is escaped (`&`, `<`, `>`) when the server has `body-markup`, so a sender cannot inject links or
 images, and the default action goes only to a server with `actions`; its label is the page's word for "Open". The page
@@ -254,6 +258,17 @@ click reveals nothing that the notification did not. The notification plugin rem
   keyboard shortcut registry.
 - macOS keeps the app out of App Nap for as long as it runs (`begin_background_activity`), so that a hidden window
   does not delay the engine's timers and network callbacks.
+
+### Web K
+
+Web K (`/k/`) takes the same integration from `webk/src/lib/signal/desktopApp.ts` and, once its chats show,
+`webk/src/lib/signal/desktopIm.ts`: the native transport, notifications, the unread count, links in the system browser,
+downloads, the "Desktop app" settings (General) and "Ask where to save each file" (Data and Storage), Ctrl+Q with Web A's
+combo, Cmd+, opening its settings, the menu labels, the window title of the open chat (unless Web A's
+`canDisplayChatInTitle` is off) and the update check. Web K has no route for `sgnl:` links yet: it takes them and,
+after a confirmation, opens the A version with the newest one in its address (`#?tgaddr=`), which Web A opens as a
+Signal link. On macOS Web K uses the standard title bar (`mark_title_bar_overlay(false)`); Web A asks for the overlay
+again when it starts.
 
 ### Connection and theme
 

@@ -56,7 +56,6 @@ import noop from '@helpers/noop';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
 import tsNow from '@helpers/tsNow';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
-import {waitForNativeTransport} from '@lib/signal/nativeTransport';
 
 export type SignalLinkCode = {url: string, expires: number};
 
@@ -108,7 +107,7 @@ export default class AppSignalManager extends AppManager {
       return;
     }
 
-    const [{initApi}] = await Promise.all([getProvider(), waitForNativeTransport()]);
+    const {initApi} = await getProvider();
     this.isStarted = true;
     await initApi(this.onUpdate, {...args, userAgent: navigator.userAgent});
   }

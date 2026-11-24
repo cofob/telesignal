@@ -236,8 +236,9 @@ const ADDITIONAL_ALIASES = {
   // * the desktop app's native transport: the engine's side in the worker, and the page's side that calls the app
   '@signal-app/native-transport': path.join(signalAppDir, 'lib/signal/net/NativeTransport.ts'),
   '@signal-app/serve-native-transport': path.join(signalAppDir, 'util/tauri/serveNativeTransport.ts'),
-  // * the desktop app's API, a dependency of the repository (`../package.json`) that this app's pages call in the app
-  '@tauri-apps/api': path.join(repositoryDir, 'node_modules/@tauri-apps/api'),
+  // * the desktop app's API and plugins, dependencies of the repository (`../package.json`) that this app's pages call
+  // * in the app
+  '@tauri-apps': path.join(repositoryDir, 'node_modules/@tauri-apps'),
   '@': resolve(rootDir, 'src')
 };
 
@@ -485,7 +486,15 @@ export default defineConfig({
   worker: {
     format: 'es',
     // a build makes the workers with these alone: the engine worker's QuickJS is this checkout's, as the page's is
-    plugins: () => [widgetSandboxQuickjsPlugin(rootDir)]
+    plugins: () => [widgetSandboxQuickjsPlugin(rootDir)],
+    // * each worker is one file: the page opens a worker with a query (`makeWorkerURL`), and a dynamic chunk of the worker
+    // * would import the modules it shares with the entry from the entry's plain URL, which runs the entry a second time.
+    // * `dev/build.ts` fails a build where a chunk imports a worker's entry.
+    rolldownOptions: {
+      output: {
+        codeSplitting: false
+      }
+    }
   },
   css: {
     devSourcemap: true,
