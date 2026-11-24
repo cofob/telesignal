@@ -1578,7 +1578,8 @@ PeerProfile.Actions = () => {
     icon: 'forward',
     text: 'ShareContact',
     onClick: () => shareContact(peerId),
-    verify: () => canShareContact(peerId)
+    // * TeleSignal: Web K sends no Signal contact cards yet (Web A's attach menu does)
+    verify: () => false && canShareContact(peerId)
   }, {
     // * someone not in my contacts is blocked and anyone unblocked from the rows below
     icon: 'lock',
