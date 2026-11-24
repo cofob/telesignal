@@ -42,7 +42,7 @@ import Modes from '@config/modes';
 import {SliceEnd} from '@helpers/slicedArray';
 import PeerTitle, {createPeerTitleElement} from '@components/peerTitle';
 import findUpClassName from '@helpers/dom/findUpClassName';
-import {countFirstScreen, estimateBubbleHeight, FirstScreenPlace, getAlbumBubbleMessage, getBubbleHeightAtLeast, GetWidgetHeight, joinHistories, keepFrom, keepRange, measureTextWidth, MessageTextMetrics} from '@components/chat/firstScreenHistory';
+import {countFirstScreen, estimateBubbleHeight, FirstScreenPlace, getAlbumBubbleMessage, getBubbleHeightAtLeast, joinHistories, keepFrom, keepRange, measureTextWidth, MessageTextMetrics} from '@components/chat/firstScreenHistory';
 import findUpTag from '@helpers/dom/findUpTag';
 import {hideToast, toastNew} from '@components/toast';
 import {getMiddleware, Middleware, MiddlewareHelper} from '@helpers/middleware';
@@ -225,8 +225,6 @@ import {getCurrentNewMediaPopup} from '@components/popups/newMedia';
 import showStarGiftInfoPopup from '@components/popups/starGiftInfo';
 import {StarGiftBubble, UniqueStarGiftWebPageBox} from '@components/chat/bubbles/starGift';
 import {PremiumGiftBubble} from '@components/chat/bubbles/premiumGift';
-import WalletChatCard from '@components/wallet/chatCard';
-import {isWalletReleased} from '@lib/wallet/release';
 import {ChatThemeGiftBubble} from '@components/chat/bubbles/chatThemeGift';
 import {ChatWallPaperBubble} from '@components/chat/bubbles/chatWallPaper';
 import {UnknownUserBubble} from '@components/chat/bubbles/unknownUser';
@@ -275,13 +273,9 @@ import compareUint8Arrays from '@helpers/bytes/compareUint8Arrays';
 import {linkToPollOption} from './bubbleParts/pollMessageContent/pollToOptionLink';
 import {getSimulatedEvent} from '@helpers/dom/dispatchEvent';
 import {richMessageToPage} from '@lib/richMessage';
-import {getWidgetSource, isWidgetRenderingEnabled, whenWidgetRenderingEnabled} from '@lib/widgetSandbox/payload';
-import {getWidgetHeightAtLeast, getWidgetKey, onWidgetHeightRemembered, WIDGET_MIN_WIDTH} from '@lib/widgetSandbox/sizing';
 import {getManagersSession} from '@lib/accounts/getCurrentAccount';
 import {RichMessageBubble, RichMessageBubbleLayout, isRichMessageButtonTarget, isRichMessageTarget} from '@components/chat/bubbles/richMessage';
 import {isPagingSlideshowTarget} from '@components/slideshow';
-import {isWidgetHorizontalDragTarget} from '@lib/widgetSandbox/gestures';
-import {keepWidgetHeights} from '@lib/widgetSandbox/heights';
 import {getIsSignalAlbum} from '@lib/signal/media';
 import isEphemeralMessage from '@appManagers/utils/messages/isEphemeralMessage';
 import isAnchoredEphemeralMessage from '@appManagers/utils/messages/isAnchoredEphemeralMessage';
@@ -299,7 +293,6 @@ import {
   getSolidMessageBodyStructure,
   hasMessageTextSpoilers
 } from '@components/chat/bubbleParts/solidMessageShell';
-import createWidgetEditHandler, {createPendingWidgetEditHandler} from '@components/chat/bubbleParts/widgetEdit';
 import useReducedMotion from '@stores/reducedMotion';
 import wheelDeltaToPixels from '@helpers/dom/wheelDeltaToPixels';
 import {TEXT_LINK_ATTRIBUTE} from '@helpers/dom/linkPress';
@@ -446,11 +439,9 @@ type FirstScreen =
   {at: 'unread', readMaxId: number} |
   {at: 'position', mid: number, top: number};
 
-// * which of the messages a render puts in go in out of sight: above or below what the screen shows. Of an opening
-// * chat's first screen more go out of sight while it renders (`watch`), as its widgets report their heights
+// * which of the messages a render puts in go in out of sight: above or below what the screen shows
 type RenderSight = {
-  isOutOfSight: (mid: number) => boolean,
-  watch?: (mid: number, onOutOfSight: () => void) => () => void
+  isOutOfSight: (mid: number) => boolean
 };
 
 // * all of them: history loaded by scrolling, the rest of an opening chat's page
@@ -1139,8 +1130,6 @@ export default class ChatBubbles {
 
     this.listenerSetter = new ListenerSetter();
 
-    // the heights widgets had where they last ran, off the account's disk before a chat of it counts its first screen
-    if(isWidgetRenderingEnabled()) keepWidgetHeights(this.managers);
 
     // --- scroll preservation across viewport reflows (window/PiP-window resize, PiP pop-in/out) ---
     this.saveReflowScrollDebounced = debounce(this.saveReflowScroll, 200, false, true);
@@ -2109,8 +2098,7 @@ export default class ChatBubbles {
             bubble.classList.contains('service') ||
             bubble.classList.contains('is-sending') ||
             !this.canReplyToBubble(bubble) ||
-            isPagingSlideshowTarget(e.target) || // * pages through its items instead
-            isWidgetHorizontalDragTarget(e.target, getEvent(e).clientX)) { // * a widget drags its own knob, or back
+            isPagingSlideshowTarget(e.target)) { // * pages through its items instead
             return false;
           }
 
@@ -2952,11 +2940,6 @@ export default class ChatBubbles {
     });
   }
 
-  /** The key a widget message's height and crash count go by: one out of the chat's history by its store's own ids. */
-  private getMessageWidgetKey(message: Message.message, accountNumber = getManagersSession(this.chat.managers).accountNumber) {
-    return getWidgetKey(accountNumber, message.peerId, message.mid, getNonHistoryStore(this.chat.type, message));
-  }
-
   /**
    * What an opening chat counts its first screen by: the messages of a history (newest first), the height of its
    * screen, and the height of a message's bubble by how this kind of chat lays out text, else the lowest a bubble can
@@ -2970,11 +2953,6 @@ export default class ChatBubbles {
     const layout = this.getLayoutKey(width);
     const metrics = messageTextMetrics.get(this.getTextMetricsKind());
     const textMetrics = !this.isTextTranslated() && metrics?.layout === layout ? metrics : undefined;
-    // * a widget is as high as its bot says, else as it was at this layout when it last ran, else as low as one gets
-    const accountNumber = getManagersSession(this.chat.managers).accountNumber;
-    const getWidgetHeight: GetWidgetHeight = isWidgetRenderingEnabled() ? (message, media) => {
-      return getWidgetHeightAtLeast(media, this.getMessageWidgetKey(message, accountNumber), layout);
-    } : undefined;
     const getHeight = (message: Message.message | Message.messageService, inAlbum: boolean) => {
       // * an album as the chat has it, whole: a history may hold some of its items only (a saved position has its main
       // * one), and the caption its bubble shows is the only one of all its items
@@ -2983,7 +2961,7 @@ export default class ChatBubbles {
         message = getAlbumBubbleMessage(album);
       }
 
-      return textMetrics ? estimateBubbleHeight(message, textMetrics, inAlbum, getWidgetHeight) : getBubbleHeightAtLeast(message, inAlbum, getWidgetHeight);
+      return textMetrics ? estimateBubbleHeight(message, textMetrics, inAlbum) : getBubbleHeightAtLeast(message, inAlbum);
     };
 
     return {items, messages, height, getHeight};
@@ -3100,45 +3078,13 @@ export default class ChatBubbles {
   /**
    * What of an opening chat's first screen is out of sight: of the messages counted (`mids`, newest first), those
    * outside the range `countInSight` gives by the heights known now - not one added to the history after (the chat's
-   * last message). A widget's height comes to be known as it runs, so they are counted again then, for as long as
-   * messages are watched - until `dispose`, once the first screen is in
+   * last message)
    */
   private watchFirstScreenSight(mids: number[], countInSight: () => {newest: number, oldest: number}): RenderSight & {dispose: () => void} {
     const counted = new Set(mids);
-    let inSight: Set<number>;
-    const countSight = () => {
-      const {newest, oldest} = countInSight();
-      inSight = new Set(mids.slice(newest, oldest + 1));
-    };
-    const isOutOfSight = (mid: number) => counted.has(mid) && !inSight.has(mid);
-    countSight();
-
-    const watchers = new Map<number, () => void>();
-    let stopListening: () => void;
-    const recount = () => {
-      countSight();
-      for(const [mid, onOutOfSight] of watchers) {
-        if(isOutOfSight(mid)) {
-          watchers.delete(mid);
-          onOutOfSight();
-        }
-      }
-    };
-
-    return {
-      isOutOfSight,
-      watch: (mid, onOutOfSight) => {
-        watchers.set(mid, onOutOfSight);
-        // * once for every height reported in one task
-        stopListening ??= onWidgetHeightRemembered(throttleWith(queueMicrotask, recount));
-
-        return () => watchers.delete(mid);
-      },
-      dispose: () => {
-        watchers.clear();
-        stopListening?.();
-      }
-    };
+    const {newest, oldest} = countInSight();
+    const inSight = new Set(mids.slice(newest, oldest + 1));
+    return {isOutOfSight: (mid) => counted.has(mid) && !inSight.has(mid), dispose: noop};
   }
 
   /**
@@ -9360,14 +9306,6 @@ export default class ChatBubbles {
     const loadPromises: Promise<any>[] = [...additionalPromises];
 
     const isMessage = message._ === 'message';
-    // * a widget's bubble takes no change of its widget in place until the widget runs (createWidgetEditHandler, below):
-    // * till then, or if it does not load, such a change, and the id a sent one gets, have the bubble made anew
-    if(message._ === 'message' && message.media?._ === 'messageMediaWidget') {
-      this.updateLocalOnEdit.set(bubble, createPendingWidgetEditHandler(message));
-      middleware.onClean(() => {
-        this.updateLocalOnEdit.delete(bubble);
-      });
-    }
     const isEphemeral = isEphemeralMessage(message);
     // layer 229: an ordinary message an ephemeral one is currently standing in for. What it shows
     // is not really its content, so it must not be forwarded, quoted, linked to or selected.
@@ -9932,30 +9870,6 @@ export default class ChatBubbles {
           }), content, middleware);
 
           bubbleContainer.after(content);
-        } else if(action._ === 'messageActionGramTransfer') {
-          // * a wallet transfer in the chat: the card opens its details in the wallet
-          const content = bubbleContainer.cloneNode(false) as HTMLElement;
-          content.classList.add('has-service-before');
-
-          this.wrapSomeSolid(() => WalletChatCard({
-            message: message as Message.messageService,
-            animationGroup: this.chat.animationGroup,
-            middleware
-          }), content, middleware);
-
-          bubbleContainer.after(content);
-        } else if(action._ === 'messageActionWalletTonConnectRequest') {
-          // * a connected app's request: a click reviews it in the wallet while it is pending (Android, tdesktop)
-          if(isWalletReleased() && message.peerId === SERVICE_PEER_ID && !message.pFlags.out && !action.pFlags.accepted && !action.pFlags.declined) {
-            bubbleContainer.classList.add('is-clickable');
-            // * a button to assistive technology, and with the a11y layer a tab stop Enter and Space open
-            ensureButtonSemantics(s);
-            attachClickEvent(s, () => {
-              import('@components/wallet/tonConnect').then(({openTonConnectRequestMessage}) => {
-                openTonConnectRequestMessage(String(action.session_id), (message as Message.messageService).id, action.expires);
-              });
-            }, {listenerSetter: this.listenerSetter});
-          }
         } else if(action._ === 'messageActionChannelJoined') {
           bubble.classList.add('is-similar-channels');
 
@@ -12290,88 +12204,7 @@ export default class ChatBubbles {
         }
 
         case 'messageMediaWidget': {
-          const media = context.messageMedia;
-          const loaded = await whenWidgetRenderingEnabled() && await Promise.all([
-            getWidgetSource(media),
-            import('@components/widgetSandbox/widgetBlock'),
-            import('@lib/widgetSandbox/storage'),
-            import('@lib/widgetSandbox/messageWidget')
-          ]).catch((err) => {
-            this.log.error('widget source', err, message);
-          });
-
-          // the bubble gone meanwhile (the chat left, the bubble rendered anew): nothing more is set up for it — what its
-          // render set up went with it (the pending edit handler with its middleware)
-          if(!middleware()) {
-            break;
-          }
-
-          if(loaded) {
-            const [html, {default: WidgetBlock}, {createMessageWidgetStorage}, messageWidget] = loaded;
-            // an edit of its widget while that loaded had the bubble made anew (createPendingWidgetEditHandler): the
-            // message is as it was rendered from
-            const widgetMessage = message as Message.message;
-            // with no caption below it the time is drawn over the widget's corner, as over a photo, and the widget is told
-            // what it covers (`timeOver`: the content safe area, widget-sandbox docs/sdk-v1.md §2.17)
-            bubble.classList.add('widget-message');
-            context.attachmentDiv.classList.add('no-background');
-            // * no preview that opens media (makeMediaPreviewsAccessible): the widget's controls are its own, in its frame
-            context.attachmentDiv.setAttribute('role', 'none');
-            // a width of its own sizes the bubble (as a photo's does); none takes all a bubble may have
-            if(media.width) context.attachmentDiv.style.width = Math.max(media.width, WIDGET_MIN_WIDTH) + 'px';
-            else bubble.classList.add('is-full-width');
-
-            const [source, setSource] = createSignal(html);
-            const [data, setData] = createSignal(messageWidget.getWidgetData(media), {equals: deepEqual});
-            this.updateLocalOnEdit.set(bubble, createWidgetEditHandler(widgetMessage, {
-              data: (edited) => setData(messageWidget.getWidgetData(edited)),
-              source: (edited) => getWidgetSource(edited).then(setSource, noop),
-              // the time says it was edited ("edited", its date): a caption's body makes it anew with the edit it takes,
-              // a widget with no caption has it made here
-              dated: (edited) => {
-                if(this.getSolidMessageBody(bubble, edited.mid)?.ownsTime) return;
-                this.modifyBubble(() => this.updateSolidMessageBodyTime(bubble, edited), bubble, 'meta');
-              }
-            }));
-
-            // a message of the chat's history, as the server keeps it (tdesktop's isRegular): a scheduled message is
-            // another one once it is sent, an admin log's entry or a preview names a message it is not, and an ephemeral
-            // one the server keeps no history of — none is asked through, polled or kept for, beyond the bubble
-            const historyEntry = isHistoryMessage(this.chat.type, widgetMessage);
-            this.wrapSomeSolid(() => WidgetBlock({
-              get html() {
-                return source();
-              },
-              width: media.width,
-              height: media.height,
-              chat: this.chat,
-              widgetKey: this.getMessageWidgetKey(widgetMessage),
-              storage: historyEntry ? createMessageWidgetStorage(this.chat.managers, message.peerId, message.mid) : undefined,
-              get data() {
-                return data();
-              },
-              context: messageWidget.getWidgetContext(widgetMessage, media, historyEntry),
-              onRequest: historyEntry ? messageWidget.createWidgetRequestHandler(this.chat.managers, message.peerId, message.mid) : undefined,
-              onCopyText: messageWidget.copyWidgetText,
-              publicData: media.widget_id && historyEntry ? {
-                widgetId: '' + media.widget_id,
-                peerId: message.peerId,
-                mid: message.mid,
-                managers: this.chat.managers
-              } : undefined,
-              // the engine copy and the storage come before the bubble enters the chat: the widget draws as it enters; out
-              // of sight it starts as it comes near the screen, at the height the first screen was counted by
-              loadPromises: context.loadPromises,
-              lazy: sight?.isOutOfSight(message.mid),
-              whenOutOfSight: sight?.watch && ((onOutOfSight) => sight.watch(message.mid, onOutOfSight)),
-              layout: () => this.getLayoutKey(this.getScrollableSize().width),
-              // read when the widget starts, by when the bubble has placed its time
-              timeOver: () => bubble.classList.contains('has-floating-time') ? bubble.timeSpan : undefined
-            }), context.attachmentDiv, middleware);
-            break;
-          }
-
-          // turned off, or a source that does not inflate: unsupported media, over the caption
+          // * TeleSignal: a Telegram widget is unsupported media, over the caption
           context.attachmentDiv = undefined;
           context.mediaRequiresMessageDiv = true;
           noAttachmentDivNeeded = true;

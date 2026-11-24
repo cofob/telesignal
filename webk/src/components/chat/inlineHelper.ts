@@ -28,7 +28,6 @@ import {POSTING_NOT_ALLOWED_MAP} from '@components/chat/postingNotAllowedMap';
 import liteMode from '@helpers/liteMode';
 import noop from '@helpers/noop';
 import type {Middleware} from '@helpers/middleware';
-import {getWidgetSource, whenWidgetRenderingEnabled} from '@lib/widgetSandbox/payload';
 
 const ANIMATION_GROUP: AnimationItemGroup = 'INLINE-HELPER';
 // const GRID_ITEMS = 5;
@@ -148,9 +147,6 @@ export default class InlineHelper extends AutocompleteHelper {
       const loadPromises: Promise<any>[] = [];
       const isGallery = !!botResults.pFlags.gallery;
       let hasWidgets = false;
-      // * the widget previews of this set go with it: as the helper hides (another helper's suggestions in its place)
-      // * or shows the next set — the helper's own middleware, which both clean
-      const previews = this.getMiddleware();
       // botResults.results.length = 3;
       for(const item of botResults.results) {
         const container = document.createElement('div');
@@ -191,7 +187,6 @@ export default class InlineHelper extends AutocompleteHelper {
           if(widget) {
             hasWidgets = true;
             container.classList.add('is-widget');
-            this.renderWidgetPreview(widget, container, `${botResults.query_id}_${item.id}`, previews);
           }
 
           if(!isGallery) {
@@ -347,36 +342,6 @@ export default class InlineHelper extends AutocompleteHelper {
 
     return {user: peer, renderPromise, guestChat: false};
   };
-
-  /**
-   * A widget result (layer 233) runs as a preview (docs/sdk-v1.md §2.16): with its state, but no input — a tap on it
-   * picks the result — no requests and nothing about the user. Once sent it is a message's widget.
-   */
-  private async renderWidgetPreview(widget: BotInlineMessage.botInlineMessageWidget, container: HTMLElement, key: string, middleware: Middleware) {
-    if(!(await whenWidgetRenderingEnabled())) return;
-    const loaded = await Promise.all([
-      getWidgetSource(widget),
-      import('@components/widgetSandbox/widgetBlock'),
-      import('solid-js/web'),
-      import('@lib/widgetSandbox/messageWidget')
-    ]).catch(noop);
-    if(!loaded || !middleware()) return;
-    const [html, {default: WidgetBlock}, {render}, {getWidgetData}] = loaded;
-    const div = document.createElement('div');
-    div.classList.add('inline-helper-result-widget');
-    container.append(div);
-    middleware.onClean(render(() => WidgetBlock({
-      html,
-      width: widget.width,
-      height: widget.height,
-      widgetKey: 'inline_' + key,
-      data: getWidgetData(widget),
-      context: {preview: true},
-      // * the results below the helper's few rows start as they come near what it shows, in a gallery too
-      lazy: true,
-      scrollable: this.scrollable
-    }), div));
-  }
 
   public init() {
     this.list = document.createElement('div');
