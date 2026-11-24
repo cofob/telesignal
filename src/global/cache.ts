@@ -283,7 +283,8 @@ export function migrateSharedCache(
 ): SharedState {
   const cacheVersion = cached?.cacheVersion ?? 0;
   const cachedSettings = cached?.settings;
-  const settings = cachedSettings || initialState.settings;
+  // Web K writes only the settings it shares (the proxy servers) when Web A has saved none yet
+  const settings = cachedSettings ? { ...initialState.settings, ...cachedSettings } : initialState.settings;
   let migrated = cached || initialState;
 
   if (cacheVersion < SHARED_STATE_CACHE_VERSION) {

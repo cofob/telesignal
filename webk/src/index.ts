@@ -48,7 +48,8 @@ import MEDIA_MIME_TYPES_SUPPORTED from '@environment/mediaMimeTypesSupport';
 import {doubleRaf} from '@helpers/schedulers';
 import {getCurrentAccount} from '@lib/accounts/getCurrentAccount';
 import AccountController from '@lib/accounts/accountController';
-import {getSignalLockState, getSignalStorageKey} from '@lib/signal/passcode';
+import {getSignalLockState} from '@lib/signal/passcode';
+import {getSignalStartArgs} from '@lib/signal/proxySettings';
 import {showSignalLockScreen} from '@components/signalLockScreen';
 import {changeAccount} from '@lib/accounts/changeAccount';
 import {getValidatedAccount} from '@lib/accounts/getValidatedAccount';
@@ -339,10 +340,7 @@ function onInstanceDeactivated(reason: InstanceDeactivateReason) {
     if(reason === 'otherClient') {
       singleInstance.onMyClient();
       // * the other frontend took the engine over (`src/lib/signal/engineOwnership.ts`): this one takes it back
-      rootScope.managers.appSignalManager.start({
-        platform: navigator.platform,
-        langCode: I18n.getLastRequestedLangCode()
-      });
+      getSignalStartArgs().then((args) => rootScope.managers.appSignalManager.start(args));
     } else {
       singleInstance.activateInstance();
     }
@@ -604,11 +602,7 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
     rootScope.managers.appStateManager.pushToState('authState', authState);
   }
 
-  rootScope.managers.appSignalManager.start({
-    platform: navigator.platform,
-    langCode: I18n.getLastRequestedLangCode(),
-    storageKey: await getSignalStorageKey()
-  });
+  rootScope.managers.appSignalManager.start(await getSignalStartArgs());
 
   const hash = location.hash;
   const splitted = hash.split('?');

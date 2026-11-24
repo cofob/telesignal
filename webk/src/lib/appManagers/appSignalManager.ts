@@ -97,6 +97,15 @@ export default class AppSignalManager extends AppManager {
     await initApi(this.onUpdate, {...args, userAgent: navigator.userAgent});
   }
 
+  /** Starts the engine again with new arguments, such as other proxy servers, as Web A's `reconnectApi` does */
+  public async restart(args: Omit<SignalInitialArgs, 'userAgent'>) {
+    if(this.isStarted) {
+      await this.call('destroy', true);
+    }
+
+    await this.start(args);
+  }
+
   public getLinkCode() {
     return this.linkCode;
   }
