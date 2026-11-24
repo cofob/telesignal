@@ -790,6 +790,15 @@ export class AppSidebarLeft extends SidebarSlider {
       },
       separator: true
     }, btnArchive, {
+      // * Signal has no saved stories of one's own: a story lives a day. A new one starts here, as in Web A's menu
+      icon: 'stories',
+      text: 'SignalStory.New',
+      onClick: () => {
+        import('@components/popups/signalStoryComposer').then(({default: showSignalStoryComposerPopup}) => {
+          showSignalStoryComposerPopup();
+        });
+      }
+    }, {
       icon: 'user',
       text: 'Contacts',
       onClick: onContactsClick

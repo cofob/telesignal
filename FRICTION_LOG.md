@@ -133,7 +133,9 @@ chat), and the quick-reaction lookup and the picker's sticker id throw. The Sign
 those lookups (`reaction.ts`, `reactionsMenu.ts`, `appReactionsManager.ts`), so the reaction chips, the picker and the
 reactors' popover work, and the strip's More button opens the regular emoji panel instead of the catalog. Each new reaction
 feature of Web K meets the same catalog assumption and needs its own guard; Web K's code has no single place where the
-emoji-as-text rendering is chosen.
+emoji-as-text rendering is chosen. The stories port added two more such guards: the reaction on the story viewer's heart
+(`renderStoryReaction` in `webk/src/components/stories/viewer.tsx`) and the reaction of a row in the story viewers list
+(`processDialogElementForReaction` in `webk/src/components/popups/reactedList.tsx`), which threw on `static_icon`.
 
 ## Web K keeps search tabs and dead branches of the channels, apps and posts tabs
 
@@ -262,7 +264,10 @@ work when one worker serves every account. Removing them means checking each lis
 
 Each load of `/k/` in Chromium logs several `pageerror` events whose error is a plain object, and Solid logs
 `solid error Error: Unknown error` (seen in Playwright on the demo account while checking logout, accounts and
-settings). The app keeps working, and the source is not known: the events carry no stack.
+settings). The app keeps working. Some of them are verified: an `unhandledrejection` listener added before the page
+loads shows `{type: 'SIGNAL_METHOD_UNSUPPORTED'}` rejections of `langpack.getLangPack` and of
+`AppReactionsManager.getSavedReactionTags`, which call methods the adapter (`appSignalManager.ts`) does not answer and
+do not catch the rejection; the stack of the others ends at `invokeApiSingleProcess`, without the method's name.
 
 ## Message search reads the stored messages without an index
 

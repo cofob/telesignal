@@ -12,3 +12,88 @@
   line-height: var(--line-height-16);
   text-align: center;
 }
+
+// a Signal text story (Web A's `TextStory`): it fills the frame, and its text sizes follow the frame's width
+.TextStory {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  padding: 8%;
+}
+
+.TextStoryText {
+  overflow: hidden;
+  max-width: 100%;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.TextStoryLarge {
+  font-size: 11cqw;
+}
+
+.TextStoryMedium {
+  font-size: 8cqw;
+}
+
+.TextStorySmall {
+  font-size: 6cqw;
+  text-align: start;
+}
+
+// Signal's fonts are approximated with system fonts, as Web A does
+.TextStoryDefault {
+  font-weight: var(--font-weight-normal);
+}
+
+.TextStoryBold {
+  font-weight: var(--font-weight-bold);
+}
+
+.TextStorySerif {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: var(--font-weight-normal);
+}
+
+.TextStoryScript {
+  font-family: "Segoe Script", "Brush Script MT", "Comic Sans MS", cursive;
+  font-weight: var(--font-weight-normal);
+}
+
+.TextStoryCondensed {
+  font-family: "Roboto Condensed", "Arial Narrow", sans-serif;
+  font-stretch: condensed;
+}
+
+.TextStoryLink {
+  max-width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+.TextStoryLinkTitle {
+  overflow: hidden;
+  font-weight: var(--font-weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.TextStoryLinkUrl {
+  overflow: hidden;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
+}

@@ -235,6 +235,8 @@ const ADDITIONAL_ALIASES = {
   // * the desktop app's API and plugins, dependencies of the repository (`../package.json`) that this app's pages call
   // * in the app
   '@tauri-apps': path.join(repositoryDir, 'node_modules/@tauri-apps'),
+  // * the text story backgrounds of Web A's story composer
+  '@signal-app/story-backgrounds': path.join(signalAppDir, 'util/storyBackgrounds.ts'),
   '@': resolve(rootDir, 'src')
 };
 

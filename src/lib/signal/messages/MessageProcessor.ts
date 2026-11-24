@@ -41,6 +41,7 @@ import type { AccountRecord, EarlyReceiptRecord, StoryDistributionList } from '.
 
 import { SIGNAL_PRIMARY_DEVICE_ID } from '../config';
 import { bufferFromBase64, buffersEqual, bufferToBase64, bufferToHex } from '../../../util/encoding/buffer';
+import { getServerTime } from '../../../util/serverTime';
 import { applyBackfillResponse, ATTACHMENT_BACKFILL_TIMEOUT_MS } from '../attachments/attachmentBackfill';
 import { getAttachmentCacheKey, getIsAttachmentCached, removeAttachmentBlob } from '../attachments/attachmentCache';
 import { downloadAttachment } from '../attachments/downloadAttachment';
@@ -274,6 +275,7 @@ const STORAGE_MERGE_PASSES: { id: string; cases: NonNullable<StorageRecord['reco
   { id: 'storyFields', cases: ['contact', 'groupV2', 'account'] },
 ];
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MS_PER_SECOND = 1000;
 // Signal Desktop `ts/routineProfileRefresh.preload.ts`
 const PROFILE_MAX_AGE_MS = 3 * DAY_MS;
 const MAX_PROFILES_TO_REFRESH = 50;
@@ -1220,9 +1222,9 @@ export default class MessageProcessor {
     });
   }
 
-  /** Stories whose day has not run out, oldest first */
+  /** Stories whose day has not run out by the server's clock, oldest first */
   async getStories() {
-    const now = Date.now();
+    const now = getServerTime() * MS_PER_SECOND;
     return (await this.db.getStories()).filter(({ expiresAt }) => expiresAt > now);
   }
 
@@ -2980,7 +2982,7 @@ export default class MessageProcessor {
   private async handleStoryMessage(source: MessageSource, story: StoryMessage) {
     const account = await this.getAccount();
     const expiresAt = getStoryExpiresAt(source.sentAt);
-    if (account.isStoriesDisabled || expiresAt <= Date.now()) return;
+    if (account.isStoriesDisabled || expiresAt <= getServerTime() * MS_PER_SECOND) return;
     if (await this.db.findStory(source.authorAci, source.sentAt)) return;
 
     const conversation = story.group?.masterKey.length
@@ -3021,7 +3023,7 @@ export default class MessageProcessor {
     }
     // As for stories of others, nothing is kept while stories are off or after the day ran out
     const expiresAt = getStoryExpiresAt(sentAt);
-    if (account.isStoriesDisabled || expiresAt <= Date.now()) return;
+    if (account.isStoriesDisabled || expiresAt <= getServerTime() * MS_PER_SECOND) return;
 
     const groupId = story.group?.masterKey.length ? getGroupId(story.group.masterKey) : undefined;
     if (groupId && !await this.db.getConversation(groupId)) return;

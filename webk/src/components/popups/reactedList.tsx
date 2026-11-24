@@ -13,6 +13,7 @@ import ReactionElement, {ReactionLayoutType} from '@components/chat/reaction';
 import getUserStatusString from '@components/wrappers/getUserStatusString';
 import {MediaSize, makeMediaSize} from '@helpers/mediaSize';
 import wrapCustomEmoji from '@components/wrappers/customEmoji';
+import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import {formatFullSentTime} from '@helpers/date';
 import {Middleware} from '@helpers/middleware';
 import rootScope from '@lib/rootScope';
@@ -59,14 +60,19 @@ export async function processDialogElementForReaction({
 
     if(reaction._ === 'reactionEmoji') {
       const availableReaction = await managers.appReactionsManager.getReaction(reaction.emoticon);
-
-      wrapSticker({
-        doc: availableReaction.static_icon,
-        div: stickerContainer,
-        width: 24,
-        height: 24,
-        middleware
-      });
+      // * a Signal reaction is any emoji, which Telegram's catalog has no sticker for: it shows as text
+      if(!availableReaction?.static_icon) {
+        stickerContainer.classList.add('is-emoji');
+        stickerContainer.append(wrapEmojiText(reaction.emoticon));
+      } else {
+        wrapSticker({
+          doc: availableReaction.static_icon,
+          div: stickerContainer,
+          width: 24,
+          height: 24,
+          middleware
+        });
+      }
     } else if(reaction._ === 'reactionCustomEmoji') {
       stickerContainer.append(wrapCustomEmoji({
         docIds: [reaction.document_id],

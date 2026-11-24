@@ -21,6 +21,20 @@ import {IS_H265_SUPPORTED} from '@environment/videoSupport';
 import {i18n} from '@lib/langPack';
 import styles from '@components/stories/preview.module.scss';
 import {getStoryVideoDocuments, isStoryHighQuality} from '@components/stories/quality';
+import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
+import type {SignalStoryItem, SignalTextStory} from '@lib/signal/storiesApi';
+
+// * Signal Desktop `getTextSize` in `ts/components/TextAttachment.dom.tsx`, as Web A's `TextStory`: shorter texts are larger
+const TEXT_STORY_LARGE_LENGTH = 50;
+const TEXT_STORY_MEDIUM_LENGTH = 200;
+const TEXT_STORY_STYLE_CLASSES: Record<SignalTextStory['style'], string> = {
+  default: styles.TextStoryDefault,
+  regular: styles.TextStoryDefault,
+  bold: styles.TextStoryBold,
+  serif: styles.TextStorySerif,
+  script: styles.TextStoryScript,
+  condensed: styles.TextStoryCondensed
+};
 
 let processing = false;
 const pollStories = () => {
@@ -297,6 +311,51 @@ export const wrapStoryMedia = (props: {
       return result;
     },
 
+    // * a Signal text story: its text centred on its background, in the font of its style, with its link
+    textStory: (textStory: SignalTextStory) => {
+      const root = document.createElement('div');
+      root.classList.add(styles.TextStory);
+      root.style.background = textStory.background;
+      if(textStory.text) {
+        const text = document.createElement('div');
+        const length = textStory.text.length;
+        text.classList.add(
+          styles.TextStoryText,
+          TEXT_STORY_STYLE_CLASSES[textStory.style] || styles.TextStoryDefault,
+          length < TEXT_STORY_LARGE_LENGTH ? styles.TextStoryLarge : (length < TEXT_STORY_MEDIUM_LENGTH ? styles.TextStoryMedium : styles.TextStorySmall)
+        );
+        text.dir = 'auto';
+        text.style.color = textStory.textColor;
+        if(textStory.textBackgroundColor) text.style.backgroundColor = textStory.textBackgroundColor;
+        text.append(wrapEmojiText(textStory.text));
+        root.append(text);
+      }
+
+      if(textStory.linkPreview) {
+        const link = document.createElement('div');
+        link.classList.add(styles.TextStoryLink);
+        if(textStory.linkPreview.title) {
+          const title = document.createElement('div');
+          title.classList.add(styles.TextStoryLinkTitle);
+          title.append(wrapEmojiText(textStory.linkPreview.title));
+          link.append(title);
+        }
+
+        const url = document.createElement('div');
+        url.classList.add(styles.TextStoryLinkUrl);
+        url.textContent = textStory.linkPreview.url;
+        link.append(url);
+        root.append(link);
+      }
+
+      div.append(root);
+      queueMicrotask(() => {
+        if(!middleware()) return;
+        setReady(true);
+        setMedia(root);
+      });
+    },
+
     // * media of a kind this client cannot show (a newer layer's): a note in its place, as iOS and
     // * Android have it — in the viewer, a tile has no room for one — and the story goes on by its
     // * timer, as a photo does. Ready once whoever wrapped it has started listening, as a photo is;
@@ -318,7 +377,10 @@ export const wrapStoryMedia = (props: {
   };
 
   let mediaResult: ReturnType<typeof wrapPhoto | typeof wrapVideo>, unsupported = false;
-  switch(messageMedia._) {
+  const textStory = (props.storyItem as SignalStoryItem).signal_text_story;
+  if(textStory) {
+    wrappers.textStory(textStory);
+  } else switch(messageMedia._) {
     case 'messageMediaPhoto': {
       mediaResult = wrappers.photo(messageMedia);
       break;

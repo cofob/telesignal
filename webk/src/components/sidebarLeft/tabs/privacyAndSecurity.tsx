@@ -29,8 +29,7 @@ import {
   setPin,
   setRegistrationLock,
   updateMessageSettings,
-  updatePhoneNumberPrivacy,
-  updateStorySettings
+  updatePhoneNumberPrivacy
 } from '@lib/signal/settingsApi';
 
 // * Signal's PIN is at least four characters (Signal Android `PinEditText`)
@@ -91,20 +90,6 @@ const PrivacyAndSecurity: Component = () => {
     if(keyTransparencyStatus() === 'running') return;
     setKeyTransparencyStatus('running');
     setKeyTransparencyStatus(await checkKeyTransparencySelf() ?? 'error');
-  };
-
-  // * the change shows at once and goes back when it fails, as in Web A
-  const onStorySettingChange = async(update: SignalStorySettings) => {
-    const previous = storySettings();
-    setStorySettings({...previous, ...update});
-    const updated = await updateStorySettings(update);
-    if(!updated) {
-      toastNew({langPackKey: 'Signal.Privacy.SaveFailed'});
-      setStorySettings({...previous});
-      return;
-    }
-
-    setStorySettings(updated);
   };
 
   const onMessageSettingChange = async(update: Partial<SignalMessageSettings>) => {
@@ -328,37 +313,6 @@ const PrivacyAndSecurity: Component = () => {
         </Section>
       </Show>
 
-      <Show when={storySettings()}>
-        {(settings) => (
-          <Section name="StoriesSettingTitle">
-            <Row>
-              <Row.CheckboxFieldToggle>
-                <CheckboxFieldTsx
-                  checked={!settings().areStoriesDisabled}
-                  onChange={(value) => onStorySettingChange({areStoriesDisabled: !value})}
-                  toggle
-                />
-              </Row.CheckboxFieldToggle>
-              <Row.Title>{i18n('StoriesSettingEnable')}</Row.Title>
-              <Row.Subtitle>{i18n('StoriesSettingEnableInfo')}</Row.Subtitle>
-            </Row>
-            <Show when={!settings().areStoriesDisabled}>
-              <Row>
-                <Row.CheckboxFieldToggle>
-                  <CheckboxFieldTsx
-                    checked={!!settings().areViewReceiptsEnabled}
-                    onChange={(value) => onStorySettingChange({areViewReceiptsEnabled: value})}
-                    toggle
-                  />
-                </Row.CheckboxFieldToggle>
-                <Row.Title>{i18n('StoriesSettingViewReceipts')}</Row.Title>
-                <Row.Subtitle>{i18n('StoriesSettingViewReceiptsInfo')}</Row.Subtitle>
-              </Row>
-            </Show>
-          </Section>
-        )}
-      </Show>
-
       <Section name="Signal.Privacy.Security">
         <Show when={pinSettings()}>
           {(pin) => (
@@ -389,6 +343,12 @@ const PrivacyAndSecurity: Component = () => {
               </Show>
             </>
           )}
+        </Show>
+        <Show when={storySettings()}>
+          <Row clickable={() => tab.slider.createTab(hotReloadGuard.tabs.AppSignalStoriesTab).open()}>
+            <Row.Icon icon="stories" />
+            <Row.Title>{i18n('StoriesSettingTitle')}</Row.Title>
+          </Row>
         </Show>
         <Row clickable={() => showRecoveryKeyPopup()}>
           <Row.Icon icon="key" />
