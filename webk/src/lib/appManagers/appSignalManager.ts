@@ -1027,7 +1027,11 @@ export default class AppSignalManager extends AppManager {
   private onConnectionState(state: string) {
     // * the engine breaks the connection only once the server stopped accepting this device (`handleDeauthorized`)
     if(state === 'connectionStateBroken' && this.isAuthorized) {
-      this.onDeauthorized();
+      // * a log out that failed leaves the chats of a removed account: the page says so
+      this.onDeauthorized().catch((err) => {
+        this.log.error('logging out of the removed device failed', err);
+        this.rootScope.dispatchEvent('signal_error', 'Error.AnError');
+      });
     }
 
     const status = state === 'connectionStateReady' ? ConnectionStatus.Connected : (

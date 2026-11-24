@@ -8,6 +8,7 @@ import rootScope from '@lib/rootScope';
 import {disposeActiveAuthFlow} from '@/pages/mountAuthFlow';
 import {onStartImportFailed} from '@/pages/deactivatedScreen';
 import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
+import {forgetDeauthorization} from '@lib/signal/deauthorization';
 
 let bootstrapped = false;
 
@@ -27,6 +28,8 @@ const RECOVERY_KEY_PROMPT_LOCK = 'signal_recovery_key_prompt';
 export async function bootstrapIm(): Promise<void> {
   if(bootstrapped) return;
   bootstrapped = true;
+  // * the account is signed in again, so its removal has nothing left to tell
+  forgetDeauthorization();
 
   await rootScope.managers.appStateManager.pushToState('authState', {_: 'authStateSignedIn'});
 

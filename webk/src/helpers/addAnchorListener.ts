@@ -2,6 +2,7 @@ import wrapUrl, {getAnchorHandlerName, isAnchorHandlerName} from '@lib/richTextP
 import matchTelegramUrlHost from '@lib/richTextProcessor/matchTelegramUrlHost';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import parseUriParams from '@helpers/string/parseUriParams';
+import {toastNew} from '@components/toast';
 
 // * https://core.telegram.org/api/links
 
@@ -43,6 +44,7 @@ type InternalLinkAnchorType =
   | 'transfer'
   | 'ton-connect'
   | 'tonconnect'
+  | 'signal_link'
 ;
 
 export const UNSAFE_ANCHOR_LINK_TYPES: Set<InternalLinkAnchorType> = new Set([
@@ -144,6 +146,54 @@ function onMaskedAnchorAuxClick(e: MouseEvent) {
   cancelEvent(e);
   showMaskedAlert(anchor, e);
   return true;
+}
+
+/**
+ * TeleSignal: what a link of a message, a caption or a link preview may do here. Everything else that Web K's
+ * Telegram links did (`t.me` and `tg:` links, bot commands, bank cards) acts on a click without asking, such as
+ * looking up a phone number, so it is not opened: the link says it is not supported.
+ */
+const CONTENT_ANCHOR_HANDLERS: Set<string> = new Set(['signal_link', 'showMaskedAlert', 'searchByHashtag', 'setMediaTimestamp']);
+
+/** Runs the handler that a link of content names, if it is one that content may run (`CONTENT_ANCHOR_HANDLERS`) */
+export function runContentAnchorHandler(name: string, anchor: HTMLElement, e: Event) {
+  const handler = CONTENT_ANCHOR_HANDLERS.has(name) && Object.prototype.hasOwnProperty.call(window, name) ?
+    (window as any)[name] :
+    undefined;
+  if(typeof(handler) !== 'function') {
+    cancelEvent(e);
+    toastNew({langPackKey: 'Link.NotSupported'});
+    return;
+  }
+
+  return handler(anchor, e);
+}
+
+/**
+ * TeleSignal: the app's content security policy (`buildCsp`) allows no inline scripts, so the browser never runs an
+ * anchor's inline `onclick`: a click on such a link runs the handler it names from here, if content may run it. An
+ * inline handler that a policy did allow cancels the click first, and this one then leaves it alone.
+ */
+function onAnchorClick(e: MouseEvent) {
+  if(e.defaultPrevented || e.button !== 0) {
+    return;
+  }
+
+  const anchor = (e.target as Element)?.closest?.('a[onclick]') as HTMLAnchorElement;
+  const name = anchor && getAnchorCallbackName(anchor);
+  if(name) {
+    runContentAnchorHandler(name, anchor, e);
+  }
+}
+
+let listeningForAnchorClicks = false;
+export function listenForAnchorClicks() {
+  if(listeningForAnchorClicks) {
+    return;
+  }
+
+  listeningForAnchorClicks = true;
+  document.addEventListener('click', onAnchorClick);
 }
 
 let listeningForMaskedAnchorAuxClicks = false;

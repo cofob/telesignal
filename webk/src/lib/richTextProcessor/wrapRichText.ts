@@ -703,13 +703,10 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
             masked = true;
           }
 
+          // * a link that the app opens itself stays in this window
           const currentContext = !!onclick;
-          if(
-            !onclick &&
-            masked &&
-            !currentContext &&
-            !options.passMaskedLinks
-          ) {
+          // * TeleSignal: a masked link asks first whatever it would open, a Signal link included
+          if(masked && !options.passMaskedLinks) {
             onclick = 'showMaskedAlert';
           }
 
