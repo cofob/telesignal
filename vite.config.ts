@@ -29,6 +29,11 @@ const BUNDLE_STATS_VISUALIZER_FILE = 'visualizer.html';
 const WORKER_BUNDLE_COLLECTOR_PLUGIN_NAME = 'telegram:collect-worker-report-bundle';
 const BUNDLE_REPORT_PLUGIN_SUFFIX = ':with-workers';
 const DEV_SERVER_WATCH_IGNORES = [
+  // Anchored to this checkout: a worktree's own path contains `.claude/worktrees/<name>/`, so `**/.claude/**` would
+  // ignore all of its files. From the main checkout, this leaves out the worktrees inside it: watched, they would reload
+  // the pages on every edit there, and polled (`CHOKIDAR_USEPOLLING`), their files would keep the server too busy to
+  // proxy Web K's modules
+  `${DIR_NAME}/.claude/**`,
   '**/.cache/**',
   '**/webk/**',
   '**/dist/**',
