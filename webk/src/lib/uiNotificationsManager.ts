@@ -33,6 +33,7 @@ import {getMiddleware, MiddlewareHelper} from '@helpers/middleware';
 import {FOLDER_ID_ALL} from '@appManagers/constants';
 import {StateSettings} from '@config/state';
 import {getIsSignalVaultLocked} from '@lib/signal/passcode';
+import {getIsSilencedByNotificationProfile} from '@lib/signal/notificationProfiles';
 import {useAppSettings} from '@stores/appSettings';
 import {unwrap} from 'solid-js/store';
 import AudioAssetPlayer from '@helpers/audioAssetPlayer';
@@ -454,9 +455,14 @@ export class UiNotificationsManager {
     } = payload;
     let {message} = payload;
     const peerId = message.peerId;
+    // * TeleSignal: a pinned message notifies unless that is turned off, and a mention in it gets through a muted chat
+    // * (Web A's `checkIfShouldNotify`); a notification profile that is on lets through only what it allows
+    const isPin = message._ === 'messageService' && message.action._ === 'messageActionPinMessage';
+    if(isPin && this.settings.nopinned) return;
+    const account = this.accounts.get(accountNumber);
+    if(await getIsSilencedByNotificationProfile(account.managers, message)) return;
     const isAnyChat = peerId.isAnyChat();
     const notification: NotifyOptions = {};
-    const account = this.accounts.get(accountNumber);
     const [peerString, isForum = false] = await Promise.all([
       account.managers.appPeersManager.getPeerString(peerId),
       isAnyChat && account.managers.appPeersManager.isForum(peerId)

@@ -24,10 +24,10 @@ const QR_SIZE = 240;
 
 /**
  * Card variant of `pageSignQR`: the Signal device link code, painted into the `auth-image` slot; once the
- * phone links this device we go to IM. Linking a new account by phone number is in the A version for now.
+ * phone links this device we go to IM. A new account is registered by its phone number from here (`SignInCard`).
  */
 export default function SignQRCard(_props: {spec: Spec}) {
-  const {accountNumber, managers, toIm} = useAuthFlow();
+  const {accountNumber, managers} = useAuthFlow();
 
   // Persistent host for the QR canvas (qr-code-styling injects its canvas
   // into this div). We hand it to <MediaHeader.Sticker element={...}>.
@@ -118,7 +118,7 @@ export default function SignQRCard(_props: {spec: Spec}) {
 
   // * TeleSignal: the code is the Signal engine's device link URL (`sgnl://linkdevice?...`), which the
   // * provisioning socket replaces while it waits (@appManagers/appSignalManager). The engine starts the
-  // * account's session once the phone scanned it, and `signal_authorized` comes once the slot holds it
+  // * account's session once the phone scanned it, and the chats open once the slot holds it (`SignalAuthController`)
   let lastUrl: string | undefined;
   const onLinkCode = (code: SignalLinkCode) => {
     if(stopped || !code || code.url === lastUrl) return;
@@ -126,14 +126,7 @@ export default function SignQRCard(_props: {spec: Spec}) {
     paintQR(code.url);
   };
 
-  const onAuthorized = () => {
-    if(stopped) return;
-    stopped = true;
-    toIm();
-  };
-
   rootScope.addEventListener('signal_link_code', onLinkCode);
-  rootScope.addEventListener('signal_authorized', onAuthorized);
 
   /* ---------- lifecycle ---------- */
 
@@ -156,7 +149,6 @@ export default function SignQRCard(_props: {spec: Spec}) {
     rootScope.removeEventListener('user_auth', onUserAuth);
     rootScope.removeEventListener('theme_changed', onThemeChanged);
     rootScope.removeEventListener('signal_link_code', onLinkCode);
-    rootScope.removeEventListener('signal_authorized', onAuthorized);
   });
 
   /* ---------- render ---------- */
@@ -179,6 +171,13 @@ export default function SignQRCard(_props: {spec: Spec}) {
       }
     >
       {helpList}
+      {/* the engine leaves the link code for the number's entry, as Web A's link screen does */}
+      <Button
+        class="btn-primary btn-secondary btn-primary-transparent primary"
+        onClick={() => managers.appSignalManager.callSignal('restartAuth')}
+      >
+        {i18n('SignalRegisterLink')}
+      </Button>
       {/* a tunnel that is blocked shows no code: the proxy server is set here, as on Web A's link screen */}
       <Button
         class="btn-primary btn-secondary btn-primary-transparent primary"

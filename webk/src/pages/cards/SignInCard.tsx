@@ -1,45 +1,39 @@
-import {createSignal, JSX, onCleanup, onMount} from 'solid-js';
+import {createEffect, createSignal, onCleanup, onMount} from 'solid-js';
 
 import Button from '@components/buttonTsx';
 import CountryInputField from '@components/countryInputField';
 import LanguageChangeButton from '@components/languageChangeButton';
-import PasskeyLoginButton from '@components/passkeyLoginButton';
 import MediaHeader from '@components/mediaHeader';
 import TelInputField from '@components/telInputField';
 import IS_TOUCH_SUPPORTED from '@environment/touchSupport';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import focusWhenSettled from '@helpers/dom/focusWhenSettled';
 import placeCaretAtEnd from '@helpers/dom/placeCaretAtEnd';
-import replaceContent from '@helpers/dom/replaceContent';
-import formatDuration from '@helpers/formatDuration';
 import {HelpCountry, HelpCountryCode} from '@layer';
-import {getFloodWaitTime} from '@appManagers/utils/getFloodWaitTime';
-import I18n, {i18n} from '@lib/langPack';
-import AccountController from '@lib/accounts/accountController';
-import commonStateStorage from '@lib/commonStateStorage';
-import {wrapFormattedDuration} from '@components/wrappers/wrapDuration';
-import {TrueDcId} from '@types';
+import {i18n} from '@lib/langPack';
 
 import AuthCard from '@/pages/AuthCard';
 import AuthCardError from '@/pages/AuthCardError';
 import {CardSpec, useAuthFlow} from '@/pages/authFlow';
-import {continueLogin} from '@/pages/continueLogin';
 import styles from '@/pages/authFlow.module.scss';
-import {preloadTrackingMonkey} from '@components/monkeys/tracking';
+import {
+  clearSignalAuthError,
+  formatSignalAuthError,
+  setSignalPhoneNumber,
+  signalAuthError
+} from '@/pages/signalRegistration';
 
 if(import.meta.hot) import.meta.hot.accept();
 
 type Spec = Extract<CardSpec, {name: 'signIn'}>;
 
 /**
- * Card variant of `pageSignIn`. Country picker + tel input → `auth.sendCode` →
- * branches to authCode (default), pageIm (rare authorization-on-send case),
- * password (passkey path). Also exposes a QR-login button and the passkey
- * button. On mount kicks off `tryAgain()` — a DC pre-warming cascade — that's
- * cancelled on unmount via a local `cancelled` flag.
+ * Card variant of `pageSignIn`: the phone number of a Signal registration, as Web A's `AuthPhoneNumber`. Country
+ * picker + tel input → the engine (`provideAuthPhoneNumber`), which goes on to the captcha or the code
+ * (`pages/signalRegistration`); the QR button goes back to linking.
  */
 export default function SignInCard(_props: {spec: Spec}) {
-  const {accountNumber, managers, navigate, toIm} = useAuthFlow();
+  const {accountNumber, managers} = useAuthFlow();
 
   let cancelled = false;
 
@@ -47,9 +41,6 @@ export default function SignInCard(_props: {spec: Spec}) {
 
   const [submitting, setSubmitting] = createSignal(false);
   const [hasValidInput, setHasValidInput] = createSignal(false);
-  const [nextContent, setNextContent] = createSignal<JSX.Element>(i18n('Login.Next'));
-  // a whole sentence with a duration: too long for the field's floating label, so it gets a line under it
-  const [floodError, setFloodError] = createSignal<JSX.Element>();
 
   /* ---------- inputs ---------- */
 
@@ -77,9 +68,6 @@ export default function SignInCard(_props: {spec: Spec}) {
 
   const telInputField = new TelInputField({
     onInput: (formatted) => {
-      // * what the code card's sticker is drawn from, while the number is typed (preloadTrackingMonkey)
-      preloadTrackingMonkey();
-
       const {country, code} = formatted || {};
       const countryName = country ? country.name || country.default_name : '';
       if(countryName !== countryInputField.value && (
@@ -96,7 +84,7 @@ export default function SignInCard(_props: {spec: Spec}) {
       }
 
       setHasValidInput(!!(country || (telInputField.value.length - 1) > 1));
-      setFloodError();
+      clearSignalAuthError();
     }
   });
 
@@ -115,119 +103,37 @@ export default function SignInCard(_props: {spec: Spec}) {
     if(e) cancelEvent(e);
 
     setSubmitting(true);
-    setFloodError();
-    setNextContent(
-      <>
-        {i18n('PleaseWait')}
-        <svg xmlns="http://www.w3.org/2000/svg" class="preloader-circular" viewBox="25 25 50 50">
-          <circle class="preloader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>
-        </svg>
-      </>
-    );
-
-    const phone_number = telInputField.value;
-    // * the code card's sticker is fetched alongside the code itself, and the card opens once it is there: loaded
-    // * when the card mounts, the monkey turned up in it a moment after the card had opened
-    const stickerLoaded = preloadTrackingMonkey();
-    managers.appAccountManager.sendCode(phone_number).then(async(code) => {
-      await stickerLoaded;
-      // the very first send has no previous `phone_code_hash` to sign up with
-      return continueLogin(code, {managers, navigate, toIm, phone_number});
-    }).catch((err: ApiError) => {
-      setSubmitting(false);
-
-      switch(err.type) {
-        case 'PHONE_NUMBER_INVALID':
-          telInputField.setError();
-          replaceContent(telInputField.label, i18n('Login.PhoneLabelInvalid'));
-          telEl.classList.add('error');
-          setNextContent(i18n('Login.Next'));
-          break;
-        default: {
-          console.error('auth.sendCode error:', err);
-          const floodWait = getFloodWaitTime(err);
-          if(floodWait.hasWaitTime) {
-            telInputField.setError();
-            setFloodError(i18n('Login.Code.TooManyAttempts', [wrapFormattedDuration(formatDuration(floodWait.waitTime))]));
-            setNextContent(i18n('Login.Next'));
-          } else {
-            setNextContent(err.type);
-          }
-          break;
-        }
-      }
-    });
+    clearSignalAuthError();
+    setSignalPhoneNumber(telInputField.value);
+    // * as Web A's `setAuthPhoneNumber`: the digits only
+    managers.appSignalManager.callSignal('provideAuthPhoneNumber', telInputField.value.replace(/\D/g, ''));
   }
 
-  /* ---------- DC pre-warm cascade ---------- */
+  // * a refused number takes the button back
+  createEffect(() => {
+    if(signalAuthError()) setSubmitting(false);
+  });
 
-  function tryAgain() {
-    managers.apiManager.getNearestDc().then((nearestDcResult) => {
-      if(cancelled) return nearestDcResult;
+  /* ---------- nearest country ---------- */
 
-      const langPack = commonStateStorage.getFromCache('langPack');
-      if(langPack && !langPack.countries?.hash) {
-        I18n.getLangPackAndApply(langPack.lang_code).then(() => {
-          if(!cancelled) telInputField.simulateInputEvent();
-        });
-      }
-
-      const dcs = new Set([1, 2, 3, 4, 5]);
-      const done: number[] = [nearestDcResult.this_dc];
-
-      let promise: Promise<any>;
-      if(nearestDcResult.nearest_dc !== nearestDcResult.this_dc) {
-        promise = managers.apiManager.getNetworkerVoid(nearestDcResult.nearest_dc).then(() => {
-          done.push(nearestDcResult.nearest_dc);
-        });
-      }
-
-      (promise || Promise.resolve()).then(() => {
-        if(cancelled) return;
-
-        done.forEach((dcId) => dcs.delete(dcId));
-
-        const _dcs = [...dcs];
-        const g = async(): Promise<void> => {
-          if(cancelled) return;
-          const dcId = _dcs.shift();
-          if(!dcId) return;
-
-          const accountData = await AccountController.get(accountNumber);
-          const key = accountData[`dc${dcId as TrueDcId}_auth_key`];
-
-          if(key) return g();
-
-          // ! если одновременно запросить все нетворкеры, не будет проходить запрос на код
-          setTimeout(() => {
-            if(cancelled) return;
-            managers.apiManager.getNetworkerVoid(dcId).finally(g);
-          }, 3000);
-        };
-
-        g();
-      });
-
-      return nearestDcResult;
-    }).then((nearestDcResult) => {
-      if(cancelled) return;
-      if(!countryInputField.value.length && !telInputField.value.length) {
-        countryInputField.selectCountryByIso2(nearestDcResult.country);
-      }
-    });
+  // * Signal has no location lookup: the engine takes the browser language's likely region (Web A's `fetchNearestCountry`)
+  async function selectNearestCountry() {
+    const iso2: string = await managers.appSignalManager.callSignal('fetchNearestCountry');
+    if(cancelled || !iso2) return;
+    if(!countryInputField.value.length && !telInputField.value.length) {
+      countryInputField.selectCountryByIso2(iso2);
+    }
   }
 
   /* ---------- lifecycle ---------- */
 
   let cancelFocus: (() => void) | undefined;
   onMount(() => {
-    managers.appStateManager.pushToState('authState', {_: 'authStateSignIn'});
-
     if(!IS_TOUCH_SUPPORTED) {
       cancelFocus = focusWhenSettled(telEl, () => !cancelled);
     }
 
-    tryAgain();
+    selectNearestCountry();
   });
 
   onCleanup(() => {
@@ -261,24 +167,30 @@ export default function SignInCard(_props: {spec: Spec}) {
         {/* one grid cell with its error line, so that the line takes no gap of the wrapper while empty */}
         <div class={styles.fieldWithError}>
           {telInputField.container}
-          <AuthCardError content={floodError()} describes={telEl} />
+          <AuthCardError content={formatSignalAuthError(signalAuthError())} describes={telEl} />
         </div>
         <Button
           class="btn-primary btn-color-primary"
           disabled={!hasValidInput() || submitting()}
           onClick={onSubmit}
         >
-          {nextContent()}
+          {submitting() ? (
+            <>
+              {i18n('PleaseWait')}
+              <svg xmlns="http://www.w3.org/2000/svg" class="preloader-circular" viewBox="25 25 50 50">
+                <circle class="preloader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>
+              </svg>
+            </>
+          ) : i18n('Login.Next')}
         </Button>
         {accountNumber === 1 && <LanguageChangeButton />}
       </div>
       <Button
         class="btn-primary btn-secondary btn-primary-transparent primary"
         disabled={submitting()}
-        onClick={() => navigate({name: 'signQR'})}
+        onClick={() => managers.appSignalManager.callSignal('restartAuthWithQr')}
         text="Login.QR.Login"
       />
-      <PasskeyLoginButton disabled={submitting()} />
     </AuthCard>
   );
 }

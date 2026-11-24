@@ -192,3 +192,102 @@ export function updateProfile(params: {
 }): Promise<true | undefined> {
   return callSignalApi('updateOwnProfile', params);
 }
+
+/* ---------- backups and the recovery key (`src/api/signal/methods/backups.ts`, `profile.ts`) ---------- */
+
+export type SignalBackupFrequency = 'daily' | 'weekly' | 'monthly' | 'manual';
+
+export type SignalBackupSettings = {
+  unavailableReason?: 'noRecoveryKey' | 'noMediaRootKey',
+  isPrimary: boolean,
+  isEnabled: boolean,
+  frequency: SignalBackupFrequency,
+  lastBackupAt?: number,
+  lastBackupSize?: number,
+  tier?: number,
+  lastError?: string,
+  isRunning?: boolean,
+  progress?: {step: 'exporting' | 'validating' | 'uploading', progress?: number}
+};
+
+export type SignalBackupRemoteStatus = {
+  hasBackup: boolean,
+  size?: number,
+  modifiedAt?: number,
+  tier?: number
+};
+
+/** The settings after an action of the backup settings, or the reason that it failed */
+export type SignalBackupResult = SignalBackupSettings | {error: string};
+
+export function fetchBackupSettings(): Promise<SignalBackupSettings | undefined> {
+  return callSignalApi('fetchBackupSettings');
+}
+
+export function fetchBackupRemoteStatus(): Promise<SignalBackupRemoteStatus | undefined> {
+  return callSignalApi('fetchBackupRemoteStatus');
+}
+
+export function enableBackups(frequency: SignalBackupFrequency, shouldReplaceBackup?: boolean): Promise<SignalBackupResult> {
+  return callSignalApi('enableBackups', frequency, shouldReplaceBackup);
+}
+
+export function disableBackups(shouldDeleteBackup?: boolean): Promise<SignalBackupResult> {
+  return callSignalApi('disableBackups', shouldDeleteBackup);
+}
+
+export function setBackupFrequency(frequency: SignalBackupFrequency): Promise<SignalBackupResult> {
+  return callSignalApi('setBackupFrequency', frequency);
+}
+
+export function backUpNow(): Promise<SignalBackupResult> {
+  return callSignalApi('backUpNow');
+}
+
+export function cancelBackup(): Promise<unknown> {
+  return callSignalApi('cancelBackup');
+}
+
+export function exportBackupFile(): Promise<{fileName: string, data: Uint8Array} | {error: string}> {
+  return callSignalApi('exportBackupFile');
+}
+
+export function importBackupFile(data: Uint8Array, recoveryKey: string): Promise<{messageCount: number} | {error: string}> {
+  return callSignalApi('importBackupFile', data, recoveryKey);
+}
+
+/** The recovery key of a primary device, and whether the user has not confirmed saving it yet */
+export function fetchRecoveryKey(): Promise<{key: string, isUnconfirmed?: boolean} | undefined> {
+  return callSignalApi('fetchRecoveryKey');
+}
+
+export function confirmRecoveryKeySaved(): Promise<unknown> {
+  return callSignalApi('confirmRecoveryKeySaved');
+}
+
+/* ---------- key transparency and story settings (`keyTransparency.ts`, `stories.ts`) ---------- */
+
+export type SignalKeyTransparencySelfStatus = 'idle' | 'running' | 'ok' | 'fail' | 'intermittent';
+
+export type SignalStorySettings = {
+  areStoriesDisabled?: boolean,
+  areViewReceiptsEnabled?: boolean
+};
+
+/** The result of the last check of our own account against the key log; none where the check is not available */
+export function fetchKeyTransparencySelfStatus(): Promise<SignalKeyTransparencySelfStatus | undefined> {
+  return callSignalApi('fetchKeyTransparencySelfStatus');
+}
+
+export function checkKeyTransparencySelf(): Promise<SignalKeyTransparencySelfStatus | undefined> {
+  return callSignalApi('checkKeyTransparencySelf');
+}
+
+export function fetchStorySettings(): Promise<SignalStorySettings | undefined> {
+  return callSignalApi('fetchStorySettings');
+}
+
+/** The settings after the change; `undefined` when it failed */
+export function updateStorySettings(update: SignalStorySettings): Promise<SignalStorySettings | undefined> {
+  return callSignalApi<SignalStorySettings>('updateStorySettings', update).catch((): undefined => undefined);
+}

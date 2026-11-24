@@ -11,6 +11,8 @@ import IS_NOTIFICATION_SUPPORTED from '@environment/notificationSupport';
 import {i18n, LangPackKey} from '@lib/langPack';
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {useAppSettings} from '@stores/appSettings';
+import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
+import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {
   fetchNotifyDefaults,
   SignalNotifyDefault,
@@ -239,9 +241,41 @@ const SoundEffectsSection = () => {
   );
 };
 
+// * TeleSignal: Signal's notification profiles, and the notifications of pinned messages (Web A's `SettingsNotifications`)
+const SignalProfilesSection = () => {
+  const [tab] = useSuperTab();
+  return (
+    <Section>
+      <Row clickable={() => tab.slider.createTab(hotReloadGuard.tabs.AppNotificationProfilesTab).open()}>
+        <Row.Icon icon="mute" />
+        <Row.Title>{i18n('NotificationProfiles')}</Row.Title>
+      </Row>
+    </Section>
+  );
+};
+
+const SignalOtherSection = () => {
+  const [appSettings, setAppSettings] = useAppSettings();
+  return (
+    <Section name="PhoneOther">
+      <Row>
+        <Row.CheckboxFieldToggle>
+          <CheckboxFieldTsx
+            checked={!appSettings.notifications.nopinned}
+            onChange={(value) => setAppSettings('notifications', 'nopinned', value ? undefined : true)}
+            toggle
+          />
+        </Row.CheckboxFieldToggle>
+        <Row.Title>{i18n('PinnedMessagesNotifications')}</Row.Title>
+      </Row>
+    </Section>
+  );
+};
+
 const Notifications = () => {
   return (
     <>
+      <SignalProfilesSection />
       <NotificationsSection />
       <SoundSection />
       <SoundEffectsSection />
@@ -255,6 +289,7 @@ const Notifications = () => {
         typeText="NotificationsForGroups"
         peerType="groups"
       />
+      <SignalOtherSection />
     </>
   );
 };

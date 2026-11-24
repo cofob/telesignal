@@ -51,6 +51,7 @@ import {buildOutgoingPoll, buildPollHandlers, buildPollUpdate, closePollByEdit, 
 import {buildMediaMethodHandlers} from '@lib/signal/mediaMethods';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
+import type {SignalAuthState} from '@lib/signal/registrationTypes';
 import makeError from '@helpers/makeError';
 import {storeSignalWebPages} from '@lib/signal/media';
 import {buildOutgoingMedia} from '@lib/signal/outgoingMedia';
@@ -87,6 +88,7 @@ export default class AppSignalManager extends AppManager {
   private isStarted: boolean;
   private isAuthorized: boolean;
   private restarting: Promise<void>;
+  private authState: SignalAuthState;
   private pendingSends: Map<number, PendingSend> = new Map();
   // * the `random_id` of each forwarded copy by its local id, until the engine stores the copy
   private pendingForwardCopies: Map<number, string> = new Map();
@@ -809,6 +811,17 @@ export default class AppSignalManager extends AppManager {
     // * the polls of messages come with them or as entities, before the messages are built
     rememberPolls(update.polls ?? (update.poll ? [update.poll] : undefined));
     switch(update['@type']) {
+      case 'updateNotificationProfiles':
+        // * the profile that is on changes by its schedule too (`lib/signal/notificationProfiles`)
+        this.rootScope.dispatchEvent('signal_notification_profiles', update.state);
+        break;
+      case 'updateBackupSettings':
+        // * a backup under way reports its steps, which the backup settings show (`tabs/backups`)
+        this.rootScope.dispatchEvent('signal_backup_settings', update.settings);
+        break;
+      case 'updateAuthorizationError':
+        this.rootScope.dispatchEvent('signal_auth_error', update.errorKey);
+        break;
       case 'updateAuthorizationState':
         this.onAuthorizationState(update);
         break;
@@ -901,7 +914,20 @@ export default class AppSignalManager extends AppManager {
     }
   }
 
+  /** The sign-in step the engine is at, for the link and registration screens (`pages/signalRegistration`) */
+  public getAuthState() {
+    return this.authState;
+  }
+
   private onAuthorizationState(update: SignalApiUpdate) {
+    this.authState = {
+      state: update.authorizationState,
+      phoneNumber: update.phoneNumber,
+      codeInfo: update.codeInfo,
+      backupRestore: update.backupRestore
+    };
+    this.rootScope.dispatchEvent('signal_auth_state', this.authState);
+
     if(update.authorizationState === 'authorizationStateWaitQrCode' && update.qrCode) {
       this.linkCode = {url: update.qrCode.token, expires: update.qrCode.expires};
       this.rootScope.dispatchEvent('signal_link_code', this.linkCode);
