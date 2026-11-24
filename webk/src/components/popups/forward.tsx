@@ -2,6 +2,7 @@ import type {ChatRights} from '@appManagers/appChatsManager';
 import flatten from '@helpers/array/flatten';
 import rootScope from '@lib/rootScope';
 import {toastNew} from '@components/toast';
+import {SIGNAL_FORWARD_CHATS_MAX} from '@lib/signal/forwardLimits';
 import showPickUserPopup from '@components/popups/pickUser';
 import getMediaFromMessage from '@appManagers/utils/messages/getMediaFromMessage';
 import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId';
@@ -484,6 +485,9 @@ export default async function showForwardPopup(
   });
 
   if(handle.selector) {
+    handle.selector.setLimit(SIGNAL_FORWARD_CHATS_MAX, () => {
+      toastNew({langPackKey: 'ForwardChatsLimit', langPackArguments: [SIGNAL_FORWARD_CHATS_MAX]});
+    });
     handle.selector.onStarsAmountUpdate = () => {
       starsState.set('starsTick', (t) => t + 1);
     };

@@ -38,6 +38,7 @@ import {makeFullMid} from '@appManagers/utils/messages/fullMid';
 import flatten from '@helpers/array/flatten';
 import IS_STANDALONE from '@environment/standalone';
 import {toastNew} from '@components/toast';
+import {SIGNAL_FORWARD_MESSAGES_MAX} from '@lib/signal/forwardLimits';
 import confirmationPopup from '@components/confirmationPopup';
 import {
   expandAlbumSelectionRange,
@@ -1296,6 +1297,11 @@ export default class ChatSelection extends AppSelection {
         } else {
           rightButton = this.selectionForwardBtn = ButtonIcon('forward selection-container-forward', {ariaLabel: 'Forward'});
           attachClickEvent(this.selectionForwardBtn, () => {
+            if(this.length() > SIGNAL_FORWARD_MESSAGES_MAX) {
+              toastNew({langPackKey: 'ForwardMessagesLimit', langPackArguments: [SIGNAL_FORWARD_MESSAGES_MAX]});
+              return;
+            }
+
             const obj: {[fromPeerId: PeerId]: number[]} = {};
             for(const [fromPeerId, mids] of this.selectedMids) {
               obj[fromPeerId] = Array.from(mids).sort((a, b) => a - b);

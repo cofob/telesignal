@@ -283,6 +283,10 @@ count of that page alone. Web K's shared media tab counters come from `fetchShar
 and keeps the counts until a message of the chat changes. An index of message text and attachment kinds in `MessageDb`,
 kept by `MessageProcessor`, would make all three exact and bounded.
 
+Unread messages have no index either: `MessageDb.getUnreadMessages` (`src/lib/signal/db/MessageDb.ts`) decodes every
+stored message of the chat and filters on `readAt`, so marking a chat read and Web K's unread mention button
+(`fetchUnreadMentions`, called for each step of the button) read the whole chat however few messages are unread.
+
 ## Web K keeps Telegram's sign-in cards that nothing opens
 
 Web K's sign-in now links with the QR code or registers a phone number through the Signal engine

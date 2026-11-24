@@ -4,7 +4,7 @@ import { releaseEngineOwnership } from '../../../lib/signal/engineOwnership';
 import {
   disableEncryptionAtRest, enableEncryptionAtRest, eraseUnreadableRecords, forgetStorageKey,
 } from '../../../lib/signal/store/atRestMigration';
-import { reconnectClient, stopClient } from '../client';
+import { getPendingDeauthorization, reconnectClient, stopClient } from '../client';
 import { db, logError, store } from '../engine';
 
 /**
@@ -51,6 +51,14 @@ export function disableStorageEncryption(slots: number[]) {
 /** Deletes the records that the key does not open, when the user asks for it; resolves with their number */
 export function eraseUnreadableStorageRecords() {
   return eraseUnreadableRecords(store, db);
+}
+
+/**
+ * Why the server stopped accepting this device, for an app that logs out in a new worker when it is told
+ * (`connectionStateBroken`), where the link screen of the next start no longer has the reason
+ */
+export function fetchDeauthorizationReason() {
+  return getPendingDeauthorization();
 }
 
 export function disconnect() {

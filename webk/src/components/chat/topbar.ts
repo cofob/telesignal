@@ -727,8 +727,8 @@ export default class ChatTopbar {
       verify: this.verifyIfCanDeleteChat
     }];
     this.deleteChatBtnMenuOptions = this.menuButtons[this.menuButtons.length - 1];
-    // * TeleSignal: the chat menu of Web A has no contact sharing (Web K sends no Signal contact cards yet), chat
-    // * wallpaper, sharing lock or chat report: Signal reports a chat only from its message request bar
+    // * TeleSignal: the chat menu of Web A has no contact sharing (the profile menu shares a contact), chat wallpaper
+    // * or chat report: Signal reports a chat only from its message request bar
     this.menuButtons = this.menuButtons.filter(({text}) => !SIGNAL_HIDDEN_MENU_ITEMS.has(text));
 
     // the welcome messages section has one thing to offer: clearing them all (desktop's menu)

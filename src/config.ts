@@ -23,6 +23,11 @@ export const STRICTERDOM_ENABLED = DEBUG;
 // servers: the settings screen, the restore step of a registration and the backup schedule need this flag
 export const IS_SIGNAL_BACKUPS_ENABLED = Boolean(import.meta.env.TG_SIGNAL_BACKUPS);
 
+// Signal Desktop forwards up to 30 selected messages (`SelectModeActions.dom.tsx`) to up to 5 chats
+// (`ForwardMessagesModal.dom.tsx`)
+export const FORWARD_MESSAGES_MAX = 30;
+export const FORWARD_CHATS_MAX = 5;
+
 export const PAGE_TITLE = import.meta.env.TG_APP_TITLE;
 export const PAGE_TITLE_TAURI = APP_NAME;
 
