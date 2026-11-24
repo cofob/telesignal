@@ -1892,6 +1892,7 @@ export interface LangPair {
   'ErrorChatWriteForbidden': undefined;
   'ErrorChatAdminRequired': undefined;
   'ErrorGroupChangeFailed': undefined;
+  'ErrorChatChangeFailed': undefined;
   'ErrorGroupTitleTooLong': undefined;
   'ErrorGroupDescriptionTooLong': undefined;
   'ErrorGroupLabelTooLong': undefined;

@@ -51,6 +51,7 @@ import { sendApiUpdate } from '../updates';
 
 // Error keys of `getReadableErrorText`
 const GROUP_CHANGE_ERROR = 'SIGNAL_GROUP_CHANGE_FAILED';
+const CHAT_CHANGE_ERROR = 'SIGNAL_CHAT_CHANGE_FAILED';
 const INVITE_LINK_ERROR = 'INVITE_HASH_EXPIRED';
 const REFUSED_CHANGE_ERRORS = {
   titleTooLong: 'SIGNAL_GROUP_TITLE_TOO_LONG',
@@ -81,12 +82,12 @@ export async function createGroupChat({ title, users }: { title: string; users: 
   }
 }
 
-export async function updateChatTitle(chat: ApiChat, title: string) {
-  await changeGroup(chat, buildTitleChange(title), { check: () => checkGroupTitle(title) });
+export function updateChatTitle(chat: ApiChat, title: string) {
+  return changeGroup(chat, buildTitleChange(title), { check: () => checkGroupTitle(title) });
 }
 
-export async function updateChatAbout(chat: ApiChat, about: string) {
-  await changeGroup(chat, buildDescriptionChange(about), { check: () => checkGroupDescription(about) });
+export function updateChatAbout(chat: ApiChat, about: string) {
+  return changeGroup(chat, buildDescriptionChange(about), { check: () => checkGroupDescription(about) });
 }
 
 /** Sets a new group avatar, or removes it without `photo`; earlier avatars cannot be chosen again in Signal */
@@ -114,10 +115,10 @@ export async function setHistoryTtl({ peer, period }: { peer: ApiPeer; period: n
       return true as const;
     } catch (err) {
       logError(err);
+      sendApiUpdate({ '@type': 'error', error: { message: CHAT_CHANGE_ERROR, hasErrorKey: true } });
       return undefined;
     }
   }
-  if (!conversation) return undefined;
   return changeGroup(peer, buildExpireTimerChange(period));
 }
 
@@ -286,6 +287,11 @@ export async function editExportedChatInvite({
   return { oldInvite: isRevoked ? { ...oldInvite, isRevoked: true } : newInvite, newInvite };
 }
 
+/** Turns the group link off; turned on again (`exportChatInvite`), the same link works again */
+export function disableChatInvite({ peer }: { peer: ApiChat }) {
+  return changeGroup(peer, buildInviteLinkChange({ isEnabled: false }));
+}
+
 /** Revoked links are not kept, so there is nothing to delete */
 export function deleteExportedChatInvite() {
   return Promise.resolve(true as const);
@@ -320,12 +326,16 @@ export async function fetchChatInviteImporters({
   };
 }
 
-/** Approves a join request, or denies it and bans the requester */
+/** Approves a join request, or denies it and bans the requester; failures are reported */
 export async function hideChatJoinRequest({
   peer, user, isApproved,
 }: { peer: ApiChat; user: ApiUser; isApproved: boolean }) {
   const [aci] = await getAcis([user]);
-  return aci ? changeGroup(peer, buildJoinRequestChange(aci, isApproved)) : undefined;
+  if (!aci) {
+    reportError(new Error('The requester has no ACI'));
+    return undefined;
+  }
+  return changeGroup(peer, buildJoinRequestChange(aci, isApproved));
 }
 
 export async function hideAllChatJoinRequests({
@@ -333,7 +343,8 @@ export async function hideAllChatJoinRequests({
 }: { peer: ApiChat; isApproved: boolean; link?: string }) {
   const conversation = await getGroupConversation(peer);
   const requests = conversation?.groupState?.requestingMembers ?? [];
-  if (!requests.length) return undefined;
+  // No request is left to answer, which is no failure
+  if (conversation && !requests.length) return true as const;
   const changes = requests.map(({ aci }) => buildJoinRequestChange(aci, isApproved));
   return changeGroup(peer, combineGroupChanges(...changes));
 }
@@ -398,7 +409,8 @@ export async function joinChannel({ channelId }: { channelId: string; accessHash
 }
 
 /**
- * Runs a change of the group behind `chat`; returns `true` once it is applied and `undefined` when it fails.
+ * Runs a change of the group behind `chat`; returns `true` once it is applied and `undefined` when it fails, which
+ * it reports.
  * Edits of the title, description and avatar made together go as one change; they pass `check`, which refuses a
  * value over its limit before it joins the others, so that it does not keep them from being applied.
  */
@@ -406,7 +418,10 @@ async function changeGroup(
   chat: Pick<ApiChat, 'id'>, build: GroupChangeBuilder, { check }: { check?: () => void } = {},
 ) {
   const conversation = await getGroupConversation(chat);
-  if (!conversation) return undefined;
+  if (!conversation) {
+    reportError(new Error('The group is not stored'));
+    return undefined;
+  }
 
   try {
     const { id } = conversation;

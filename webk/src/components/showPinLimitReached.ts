@@ -1,7 +1,6 @@
 import showLimitPopup from '@components/popups/limit';
 import {toastNew} from '@components/toast';
 import {REAL_FOLDERS} from '@appManagers/constants';
-import getFolderPinLimitType from '@appManagers/utils/dialogs/getFolderPinLimitType';
 import rootScope from '@lib/rootScope';
 
 /**
@@ -29,6 +28,7 @@ export default function showPinLimitReached(err: ApiError, {filterId, isSaved, i
   } else if(!REAL_FOLDERS.has(filterId)) {
     toastNew({langPackKey: 'PinFolderLimitReached'});
   } else {
-    showLimitPopup(getFolderPinLimitType(filterId));
+    // * TeleSignal: Signal's limit of pinned chats has no Premium to raise it (`toggleChatPinned` of the provider)
+    toastNew({langPackKey: 'Signal.Error.PinnedLimit'});
   }
 }

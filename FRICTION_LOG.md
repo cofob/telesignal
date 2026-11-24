@@ -159,31 +159,33 @@ sends the message as a `signal_error` event from `rootScope`, and `appImManager`
 likely cause is that the component reads DOM globals when its module loads, which a worker lacks; this is not
 verified. Any new UI call from a manager needs the same event route.
 
-## Web K's invite link screen assumes a permanent Telegram link
+## Web K does not show a chat again that came back while Web K was closed
 
-A Signal group has a link only while it is on, and Web K's invite links screen (`sidebarRight/tabs/chatInviteLinks.tsx`)
-and group editor read the exported invite as the group's permanent link. In the demo group with the link off, the
-primary link box renders empty and the tab logs `Cannot read properties of undefined (reading 'link')`. Creating a
-link goes through `messages.exportChatInvite`, which needs Signal's group server, so the empty state has not been
-exercised end to end.
+In Web K, the message request of Dave from the demo was deleted (bar «Delete»), then `signalDev.seedDemo()` on Web A
+wrote it again while Web K was closed. Web A lists Dave again, but Web K, reloaded twice, does not: the dialog stays
+out of its chat list in that browser profile (verified in Chromium with a persistent profile). The suspected cause
+is Web K's own cache of the chat list (the state loader), which keeps the deletion and asks the adapter only for what
+it lacks; this is not verified. A chat that a person deletes in Web K and that gets a new message while Web K is
+closed may stay hidden the same way.
 
 ## Telegram-only entries still show in Web K
 
 Several Telegram-only entries remain outside the chat list and groups, and were seen while checking them: the
 Privacy and Security rows «Connected websites», «Two-Step Verification» and «Passkeys» (their rows show «Loading…»,
 apparently because the methods they call are unsupported; not checked), the «Previous Tip» and «Next Tip» panel on the empty chat, the
-Telegram paper-plane icon on the send button, the Premium text of the pinned-chats limit
-(`LimitReachedPinDialogs`), and the community section code in the group editor, which never renders for Signal
+Telegram paper-plane icon on the send button, and the community section code in the group editor, which never renders for Signal
 groups. The entries that this area hid are listed in `docs/signal/ITERATIONS.md`, section 11; the code behind them is
 still there, to be removed with the Telegram code.
 
 ## Group changes cannot be exercised with the demo account
 
 The Signal group server is not reachable from the demo account, so every group change (title, description, avatar,
-members, admins, rights, link, requests, leaving and creating a group) fails inside the provider and shows the
-generic error toast. The adapter calls and the provider calls are checked up to that point, but a change that
-succeeds on the server has not been seen in the app. Testing the success path needs a linked account on a reachable
-server, which a contributor cannot use from the demo seed.
+members, admins, rights, link, requests, leaving and creating a group) fails inside the provider, which reports
+the reason, and Web K shows it once. The adapter calls and the provider calls are checked up to that point, but a
+change that succeeds on the server has not been seen in the app. The demo seed also has no group with its link on
+and no join request, so Web K's group link screen with a link and its join request bar and list were seen only with
+data put in by hand. Testing the success path needs a linked account on a reachable server, which a contributor
+cannot use from the demo seed.
 
 ## Web K's settings call the provider only through its worker, and a page-side call reads no account
 

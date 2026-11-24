@@ -2329,6 +2329,7 @@
 "ErrorChatWriteForbidden" = "You can't write in this chat";
 "ErrorChatAdminRequired" = "You must be an admin in this chat to do this";
 "ErrorGroupChangeFailed" = "The group could not be updated. Check your connection and try again.";
+"ErrorChatChangeFailed" = "The chat could not be updated. Check your connection and try again.";
 "ErrorGroupTitleTooLong" = "Group names can be up to 32 characters long.";
 "ErrorGroupDescriptionTooLong" = "Group descriptions can be up to 480 characters long.";
 "ErrorGroupLabelTooLong" = "Member labels can be up to 24 characters long.";
