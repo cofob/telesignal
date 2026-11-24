@@ -11228,7 +11228,7 @@ export default class ChatBubbles {
                   }
                 },
                 fontSize: this.chat.appSettings.messagesTextSize,
-                canTranscribeVoice: true
+                canTranscribeVoice: false // * TeleSignal: Signal has no voice transcription
               });
               preview.append(docDiv);
               props.media.hasDocument = true;
@@ -11728,7 +11728,7 @@ export default class ChatBubbles {
               fontSize: this.chat.appSettings.messagesTextSize,
               richTextFragment: richText,
               richTextOptions: getRichTextOptions(),
-              canTranscribeVoice: true,
+              canTranscribeVoice: false, // * TeleSignal: Signal has no voice transcription
               translatableParams,
               createMessageText: (element, documentMessage) => {
                 const holder: {entry?: SolidMessageBodyEntry} = {};

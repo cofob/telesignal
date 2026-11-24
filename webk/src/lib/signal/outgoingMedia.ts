@@ -7,18 +7,30 @@
 
 import type {DocumentAttribute, InputFile, InputMedia} from '@layer';
 import type {SignalAttachment, SignalSticker} from '@lib/signal/signalApi';
+import makeError from '@helpers/makeError';
 
 // * the MIME type of a photo Web K uploads, which it compresses to JPEG
 const PHOTO_MIME_TYPE = 'image/jpeg';
 
+// * Signal Android `RemoteConfig.maxAttachmentSizeBytes` (`global.attachments.maxBytes`, 100 MiB by default)
+const MAX_ATTACHMENT_SIZE = 100 * 1024 * 1024;
+
 // * the parts of the uploads not sent yet, by the upload's id; a part is a blob, as it is only read to be sent
 const uploadedParts = new Map<string, Blob[]>();
+// * the uploads over the limit, whose parts still on the way are dropped
+const rejectedUploads = new Set<string>();
 
-/** Keeps a part of an upload until its message is sent; parts may arrive in any order */
+/** Keeps a part of an upload until its message is sent; parts may arrive in any order. A file over Signal's limit fails. */
 export function saveUploadPart(fileId: string | number, filePart: number, bytes: Uint8Array) {
   const key = String(fileId);
   const parts = uploadedParts.get(key) ?? [];
   parts[filePart] = new Blob([bytes.slice()]);
+  if(rejectedUploads.has(key) || parts.reduce((size, part) => size + (part?.size ?? 0), 0) > MAX_ATTACHMENT_SIZE) {
+    uploadedParts.delete(key);
+    rejectedUploads.add(key);
+    throw makeError('FILE_TOO_BIG');
+  }
+
   uploadedParts.set(key, parts);
 }
 
