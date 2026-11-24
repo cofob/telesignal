@@ -495,7 +495,9 @@ export default class AppSignalManager extends AppManager {
 
     const deferred = deferredPromise<Updates.updates>();
     this.pendingSends.set(localId, {randomId: '' + randomId, deferred});
-    const timeout = setTimeout(() => {
+    // * an attachment or a sticker is uploaded to the CDN within the send, which takes as long as the file needs; the
+    // * provider reports its failure
+    const timeout = attachment || sticker ? undefined : setTimeout(() => {
       this.pendingSends.delete(localId);
       deferred.reject(makeError('SIGNAL_SEND_TIMEOUT' as ErrorType));
     }, SEND_TIMEOUT_MS);
