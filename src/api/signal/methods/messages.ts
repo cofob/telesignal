@@ -155,7 +155,7 @@ const EMPTY_SEARCH_RESULT: SearchMessagesResult = { messages: [], totalCount: 0,
  * so the stored text is read; the shared media of a chat has no search yet and comes back empty.
  */
 export async function searchMessagesInChat({
-  peer, type, query, limit, offsetId,
+  peer, type, query, limit, offsetId, fromPeer,
 }: {
   peer: ApiPeer;
   type: string;
@@ -171,8 +171,12 @@ export async function searchMessagesInChat({
   const conversation = await getConversationByPeerId(peer.id);
   if (!conversation || type !== 'text' || !query) return EMPTY_SEARCH_RESULT;
 
-  const matches = await findTextMatches([conversation], query, limit, offsetId);
-  return buildSearchResult(matches, limit);
+  // A sender filter names a user, whose conversation is the ACI of the user's messages
+  const senderConversation = fromPeer ? await getConversationByPeerId(fromPeer.id) : undefined;
+  if (fromPeer && !senderConversation) return EMPTY_SEARCH_RESULT;
+
+  const scan = await scanTextMatches([conversation], query, limit, offsetId, senderConversation?.id);
+  return buildSearchResult(scan);
 }
 
 /**
@@ -199,29 +203,75 @@ export async function searchMessagesGlobal({
   const conversations = (await db.getConversations()).filter((conversation) => (
     getIsChatListed(conversation, selfAci)
   ));
-  const matches = await findTextMatches(conversations, query, limit, offsetId);
-  return buildSearchResult(matches, limit);
+  const scan = await scanTextMatches(conversations, query, limit, offsetId);
+  return buildSearchResult(scan);
 }
 
-/** The newest messages of each conversation whose text has `query`, with the newest `limit` of them first */
-async function findTextMatches(
-  conversations: ConversationRecord[], query: string, limit: number, offsetId?: number,
+/** Records read per search, which bounds the work of one call; a search goes on from its cursor */
+const SEARCH_SCAN_LIMIT = 1000;
+/** Records read from a chat at a time, as the search walks the chats back in time together */
+const SEARCH_BATCH_SIZE = 32;
+
+/** A chat walked by a search: the records read from it and not looked at yet, newest first */
+type SearchChat = {
+  conversation: ConversationRecord;
+  buffer: MessageRecord[];
+  // The records older than this are not read yet
+  before: number;
+  isExhausted: boolean;
+};
+
+/**
+ * The messages whose text has `query`, newest first, from before `offsetId`. The chats are walked together, the newest
+ * record of any of them next, so every record newer than the cursor has been looked at when the walk stops. The walk
+ * ends after `limit` matches or `SEARCH_SCAN_LIMIT` records. `cursor` is the id to continue from, and it is `undefined`
+ * once no record is left.
+ */
+async function scanTextMatches(
+  conversations: ConversationRecord[], query: string, limit: number, offsetId?: number, senderAci?: string,
 ) {
   const needle = query.toLowerCase();
-  const before = offsetId || Number.MAX_SAFE_INTEGER;
+  const chats: SearchChat[] = conversations.map((conversation) => ({
+    conversation, buffer: [], before: offsetId || Number.MAX_SAFE_INTEGER, isExhausted: false,
+  }));
   const matches: { record: MessageRecord; conversation: ConversationRecord }[] = [];
-  for (const conversation of conversations) {
-    const records = await db.findLatestMessages(conversation.id, limit, (message) => (
-      message.id < before && !getIsMessageHidden(message) && Boolean(message.body?.toLowerCase().includes(needle))
-    ));
-    matches.push(...records.map((record) => ({ record, conversation })));
+  let scanned = 0;
+  let lastRead: number | undefined;
+  while (matches.length < limit && scanned < SEARCH_SCAN_LIMIT) {
+    for (const chat of chats) await fillSearchBuffer(chat);
+    let newest: SearchChat | undefined;
+    for (const chat of chats) {
+      if (chat.buffer.length && (!newest || chat.buffer[0].id > newest.buffer[0].id)) newest = chat;
+    }
+    if (!newest) break;
+
+    const record = newest.buffer.shift()!;
+    scanned++;
+    lastRead = record.id;
+    const isMatch = !getIsMessageHidden(record) && (!senderAci || record.authorAci === senderAci)
+      && Boolean(record.body?.toLowerCase().includes(needle));
+    if (isMatch) matches.push({ record, conversation: newest.conversation });
   }
-  return matches.sort((a, b) => b.record.id - a.record.id).slice(0, limit);
+
+  const isComplete = chats.every((chat) => chat.isExhausted && !chat.buffer.length);
+  return { matches, cursor: isComplete ? undefined : lastRead, isComplete };
 }
 
-/** The matches as messages, with the offset of the next page when a full page may have more behind it */
+/** Reads the next batch of a chat's records into its buffer, unless the buffer holds records or the chat is read */
+async function fillSearchBuffer(chat: SearchChat) {
+  if (chat.buffer.length || chat.isExhausted) return;
+  const records = await db.getMessages(chat.conversation.id, SEARCH_BATCH_SIZE, chat.before);
+  chat.buffer = records;
+  chat.isExhausted = records.length < SEARCH_BATCH_SIZE;
+  if (records.length) chat.before = records[records.length - 1].id;
+}
+
+/**
+ * The matches as messages. While records remain, the result names the next page and counts one match beyond the
+ * loaded ones, so a client does not take the loaded matches for all of them.
+ */
 async function buildSearchResult(
-  matches: { record: MessageRecord; conversation: ConversationRecord }[], limit: number,
+  { matches, cursor, isComplete }: Awaited<ReturnType<typeof scanTextMatches>>,
 ): Promise<SearchMessagesResult> {
   const messages: ApiMessage[] = [];
   const byConversation = new Map<ConversationRecord, MessageRecord[]>();
@@ -233,11 +283,10 @@ async function buildSearchResult(
   }
   messages.sort((a, b) => b.id - a.id);
 
-  const isPageFull = matches.length >= limit;
   return {
     messages,
-    totalCount: messages.length,
-    nextOffsetId: isPageFull ? messages[messages.length - 1].id : undefined,
+    totalCount: isComplete ? messages.length : messages.length + 1,
+    nextOffsetId: cursor,
     userStatusesById: {},
   };
 }
@@ -462,14 +511,14 @@ export async function closePoll({ messageId }: { chat: ApiChat; messageId: numbe
  */
 export async function forwardMessages(params: ForwardMessagesParams) {
   const {
-    toChat, messages, noCaptions, lastMessageId, wasDrafted,
+    toChat, messages, noCaptions, lastMessageId, localIds, wasDrafted,
   } = params;
 
   const localMessages: ApiMessage[] = [];
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
     const hasMedia = Object.keys(omit(message.content, ['text'])).length > 0;
     const content = noCaptions && hasMedia ? omit(message.content, ['text']) : message.content;
-    localMessages.push(await showLocalMessage(toChat, lastMessageId, content, { wasDrafted }));
+    localMessages.push(await showLocalMessage(toChat, lastMessageId, content, { wasDrafted, localId: localIds?.[index] }));
   }
 
   const conversation = await getConversationByPeerId(toChat.id);
@@ -892,12 +941,12 @@ async function showLocalMessage(
   chat: ApiChat,
   lastMessageId: number | undefined,
   content: MediaContent,
-  options: { replyInfo?: ApiReplyInfo; poll?: ApiMessagePoll; groupedId?: string; wasDrafted?: boolean },
+  options: { replyInfo?: ApiReplyInfo; poll?: ApiMessagePoll; groupedId?: string; wasDrafted?: boolean; localId?: number },
 ) {
   const cleanContent = omitUndefined(content);
   if (cleanContent.text) cleanContent.text.emojiOnlyCount = getEmojiOnlyCountForMessage(cleanContent);
   const localMessage: ApiMessage = {
-    id: (lastMessageId ?? 0) + ++localMessageCounter / LOCAL_MESSAGES_LIMIT,
+    id: options.localId ?? (lastMessageId ?? 0) + ++localMessageCounter / LOCAL_MESSAGES_LIMIT,
     chatId: chat.id,
     content: cleanContent,
     date: getServerTime(),
