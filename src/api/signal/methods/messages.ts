@@ -159,7 +159,7 @@ const EMPTY_SEARCH_RESULT: SearchMessagesResult = { messages: [], totalCount: 0,
  * `addOffset` matches from `offsetId`: a negative `addOffset` reaches past it to newer matches, the match at `offsetId`
  * itself being the last of them, as the media viewer asks for the items around the open one. The shared media types
  * (`SHARED_MEDIA_SEARCH_TYPES`) and a sender search take an empty query. Signal keeps no search index, so the stored
- * messages are read; a search that a newer one of the same chat and type replaced resolves to `undefined`.
+ * messages are read; a search whose query a newer query replaced resolves to `undefined` (`latestQueriesBySearchKey`).
  */
 export async function searchMessagesInChat({
   peer, type, query = '', limit, offsetId, addOffset = 0, fromPeer,
@@ -183,14 +183,30 @@ export async function searchMessagesInChat({
   if (!conversation || (fromPeer && !senderConversation)) return EMPTY_SEARCH_RESULT;
 
   const filter: SearchFilter = { type, needle: query.toLowerCase(), senderAci: senderConversation?.id };
-  const generation = startSearch(conversation.id, type);
+  const run = startSearch(conversation.id, filter);
+  try {
+    return await searchChatWindow(conversation, filter, limit, addOffset, run, offsetId);
+  } finally {
+    endSearch(run);
+  }
+}
+
+/** The window of `limit` matches of a chat around `offsetId`, see `searchMessagesInChat` */
+async function searchChatWindow(
+  conversation: ConversationRecord,
+  filter: SearchFilter,
+  limit: number,
+  addOffset: number,
+  run?: SearchRun,
+  offsetId?: number,
+) {
   // The window's positions run from `addOffset` on: below -1 the matches newer than `offsetId`, -1 the match at
   // `offsetId`, and from 0 the older ones
   const start = offsetId ? Math.min(addOffset, 0) : 0;
   const end = start + limit;
   const newerCount = Math.min(-start - 1, limit);
   const newer = newerCount > 0
-    ? await scanNewerMatches(conversation, filter, offsetId! + 1, newerCount, generation)
+    ? await scanNewerMatches(conversation, filter, offsetId! + 1, newerCount, run)
     : [];
   if (!newer) return undefined;
   const offsetRecord = start <= -1 && end > -1 ? await db.getMessage(offsetId!) : undefined;
@@ -199,7 +215,7 @@ export async function searchMessagesInChat({
     : [];
   const older = end > 0
     ? await scanMessages({
-      scope: conversation.id, conversations: [conversation], filter, limit: end, offsetId, generation,
+      scope: conversation.id, conversations: [conversation], filter, limit: end, offsetId, run,
     })
     : { matches: [], matchCount: 0 };
   if (!older) return undefined;
@@ -234,15 +250,16 @@ export async function searchMessagesGlobal({
   const conversations = (await db.getConversations()).filter((conversation) => (
     getIsChatListed(conversation, selfAci)
   ));
-  const scan = await scanMessages({
-    scope: GLOBAL_SEARCH_SCOPE,
-    conversations,
-    filter: { type, needle: query.toLowerCase() },
-    limit,
-    offsetId,
-    generation: startSearch(GLOBAL_SEARCH_SCOPE, type),
-  });
-  return scan && buildSearchResult(scan);
+  const filter: SearchFilter = { type, needle: query.toLowerCase() };
+  const run = startSearch(GLOBAL_SEARCH_SCOPE, filter);
+  try {
+    const scan = await scanMessages({
+      scope: GLOBAL_SEARCH_SCOPE, conversations, filter, limit, offsetId, run,
+    });
+    return scan && await buildSearchResult(scan);
+  } finally {
+    endSearch(run);
+  }
 }
 
 const MIN_SEARCH_QUERY_LENGTH = 2;
@@ -262,10 +279,11 @@ const SEARCH_CHUNK_SIZE = 1000;
 const SEARCH_BATCH_SIZE = 32;
 const GLOBAL_SEARCH_SCOPE = 'global';
 /**
- * The latest search of each chat or of all chats, by scope and type: a search that a newer one replaced stops at its
- * next chunk instead of reading on for a page nobody waits for
+ * The latest text query of each chat or of all chats, by scope, type and sender, with how many of its searches run: a
+ * search of an older query stops at its next chunk instead of reading on for a page nobody waits for. Searches of the
+ * same query (pages, the loads before and after an item) and searches without a query never stop each other.
  */
-const searchGenerationsByScope = new Map<string, number>();
+const latestQueriesBySearchKey = new Map<string, { needle: string; runningCount: number }>();
 /** Recent search cursors that are remembered with the count of the matches up to them */
 const SEARCH_COUNTS_LIMIT = 32;
 
@@ -306,36 +324,49 @@ function getIsSearchSupported(type: string, query: string, isSenderSearch?: bool
   return SHARED_MEDIA_SEARCH_TYPES.has(type) && (!query || query.length >= MIN_SEARCH_QUERY_LENGTH);
 }
 
-/** Starts a search of a scope and type, which replaces the one before it; returns its generation */
-function startSearch(scope: string, type: string) {
-  const key = `${scope}\n${type}`;
-  const generation = (searchGenerationsByScope.get(key) ?? 0) + 1;
-  searchGenerationsByScope.set(key, generation);
-  return { key, generation };
+type SearchRun = { key: string; needle: string };
+
+/** Starts a search with a query, which replaces the searches of other queries of its scope, type and sender */
+function startSearch(scope: string, { type, needle, senderAci }: SearchFilter): SearchRun | undefined {
+  if (!needle) return undefined;
+  const key = [scope, type, senderAci ?? ''].join('\n');
+  const latest = latestQueriesBySearchKey.get(key);
+  if (latest?.needle === needle) {
+    latest.runningCount++;
+  } else {
+    latestQueriesBySearchKey.set(key, { needle, runningCount: 1 });
+  }
+  return { key, needle };
 }
 
-type SearchGeneration = ReturnType<typeof startSearch>;
+/** Forgets the latest query of a search key once none of its searches runs */
+function endSearch(run?: SearchRun) {
+  const latest = run && latestQueriesBySearchKey.get(run.key);
+  if (!latest || latest.needle !== run.needle) return;
+  latest.runningCount--;
+  if (!latest.runningCount) latestQueriesBySearchKey.delete(run.key);
+}
 
-function getIsSearchReplaced({ key, generation }: SearchGeneration) {
-  return searchGenerationsByScope.get(key) !== generation;
+function getIsSearchReplaced(run?: SearchRun) {
+  return Boolean(run) && latestQueriesBySearchKey.get(run.key)?.needle !== run.needle;
 }
 
 /**
  * The matches of `filter`, newest first, from before `offsetId`. The chats are walked together, the newest record of
  * any of them next, so every record newer than the cursor has been looked at when the walk stops; a chat is read only
  * when its turn comes. The walk ends after `limit` matches, or at the end of a chunk of `SEARCH_CHUNK_SIZE` records
- * with at least one match, and it gives up with `undefined` at the end of a chunk when a newer search replaced it.
+ * with at least one match, and it gives up with `undefined` at the end of a chunk when a newer query replaced its own.
  * `cursor` is the id to continue from, and it is `undefined` once no record is left.
  */
 async function scanMessages({
-  scope, conversations, filter, limit, offsetId, generation,
+  scope, conversations, filter, limit, offsetId, run,
 }: {
   scope: string;
   conversations: ConversationRecord[];
   filter: SearchFilter;
   limit: number;
   offsetId?: number;
-  generation: SearchGeneration;
+  run?: SearchRun;
 }): Promise<SearchScan | undefined> {
   const searchKey = [scope, filter.type, filter.senderAci ?? '', filter.needle].join('\n');
   const nextIds = await db.getNewestMessageIds(
@@ -361,7 +392,7 @@ async function scanMessages({
       if (matches.length) break;
       lookedAt = 0;
       await pause(0);
-      if (getIsSearchReplaced(generation)) return undefined;
+      if (getIsSearchReplaced(run)) return undefined;
     }
 
     const record = chat.buffer.shift()!;
@@ -385,10 +416,10 @@ async function scanMessages({
 
 /**
  * Up to `count` matches of a chat from `fromId` on, newest first, yielding after each chunk of records; `undefined`
- * when a newer search replaced this one
+ * when a newer query replaced its own
  */
 async function scanNewerMatches(
-  conversation: ConversationRecord, filter: SearchFilter, fromId: number, count: number, generation: SearchGeneration,
+  conversation: ConversationRecord, filter: SearchFilter, fromId: number, count: number, run?: SearchRun,
 ) {
   const matches: MessageRecord[] = [];
   let cursorId = fromId;
@@ -406,7 +437,7 @@ async function scanNewerMatches(
     if (lookedAt >= SEARCH_CHUNK_SIZE) {
       lookedAt = 0;
       await pause(0);
-      if (getIsSearchReplaced(generation)) return undefined;
+      if (getIsSearchReplaced(run)) return undefined;
     }
   }
   return matches.reverse();

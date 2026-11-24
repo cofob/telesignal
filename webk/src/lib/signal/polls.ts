@@ -119,24 +119,30 @@ function getPollResults(params: MethodDeclMap['messages.getPollResults']['req'])
   return buildUpdates(poll ? [buildPollUpdate(poll)] : []);
 }
 
-/** Who voted for an option; Signal votes carry no date */
+/** Who voted for an option, or for each option of the poll without one; Signal votes carry no date */
 async function getPollVotes(host: SignalMethodHost, params: MethodDeclMap['messages.getPollVotes']['req']) {
   const peerId = host.getInputPeerId(params.peer);
-  const result: {count: number, votes: {peerId: string}[]} | undefined = await host.call('loadPollOptionResults', {
-    chat: {id: toSignalPeerId(peerId)},
-    messageId: params.id,
-    option: params.option ? decoder.decode(params.option) : undefined
-  });
+  const options = params.option ?
+    [params.option] :
+    (pollsById.get(String(params.id))?.summary.answers ?? []).map(({option}) => encoder.encode(option));
+  const votes = (await Promise.all(options.map(async(option) => {
+    const result: {votes: {peerId: string}[]} | undefined = await host.call('loadPollOptionResults', {
+      chat: {id: toSignalPeerId(peerId)},
+      messageId: params.id,
+      option: decoder.decode(option)
+    });
+    return (result?.votes ?? []).map(({peerId: voterId}) => ({
+      _: 'messagePeerVote',
+      peer: buildPeer(voterId),
+      option,
+      date: 0
+    }));
+  }))).flat();
   return {
     _: 'messages.votesList',
     pFlags: {},
-    count: result?.count ?? 0,
-    votes: (result?.votes ?? []).map(({peerId: voterId}) => ({
-      _: 'messagePeerVote',
-      peer: buildPeer(voterId),
-      option: params.option,
-      date: 0
-    })),
+    count: votes.length,
+    votes,
     chats: [],
     users: []
   } as MethodDeclMap['messages.getPollVotes']['res'];

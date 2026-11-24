@@ -626,7 +626,8 @@ export default class AppSignalManager extends AppManager {
   }
 
   private buildSearchResult(result: SignalSearchResult | undefined) {
-    if(!result) return emptySearchResult();
+    // * the provider drops a search whose query a newer one replaced: an empty answer would end Web K's list
+    if(!result) throw makeError('SIGNAL_SEARCH_REPLACED' as ErrorType);
 
     const chatIds = new Set(result.messages.map(({chatId}) => chatId).filter(isGroupPeerId));
     return {

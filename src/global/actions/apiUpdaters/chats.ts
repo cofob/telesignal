@@ -33,7 +33,7 @@ import { selectThreadLocalStateParam, selectThreadReadState } from '../../select
 const TYPING_STATUS_CLEAR_DELAY = 6000; // 6 seconds
 // Actions of Signal messages that count as unread, as the engine counts them: the other actions are notices (timers,
 // group changes, calls, pins, safety numbers), which the engine stores as read
-const UNREAD_ACTION_TYPES = new Set<string>(['viewOnce', 'giftBadge', 'payment']);
+const UNREAD_ACTION_TYPES = new Set<string>(['viewOnce', 'giftBadge', 'payment', 'unsupported']);
 const INVALIDATE_FULL_CHAT_FIELDS = new Set<keyof ApiChat>([
   'restrictionReasons', 'isJoinRequest', 'type',
 ]);
