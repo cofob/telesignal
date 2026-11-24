@@ -176,7 +176,6 @@ export default class AppSignalManager extends AppManager {
       'account.updateStatus': () => true,
       'account.getContentSettings': () => ({_: 'account.contentSettings', pFlags: {}}),
       'account.getGlobalPrivacySettings': () => ({_: 'globalPrivacySettings', pFlags: {}}),
-      'account.getNotifySettings': () => ({_: 'peerNotifySettings'}),
       'account.registerDevice': () => true,
       'account.unregisterDevice': () => true,
       'langpack.getLangPack': () => Promise.reject(makeError(UNSUPPORTED_ERROR as ErrorType)),

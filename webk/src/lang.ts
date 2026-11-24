@@ -721,7 +721,7 @@ const lang = {
     'one_value': 'Forwarded %d message',
     'other_value': 'Forwarded %d messages'
   },
-  'Notifications.New': 'New notification',
+  'Notifications.New': 'New message',
   // 'Notifications.Section': 'Notifications',
   'PushNotification.Action.Mute1d': 'Mute background alerts for 1 day',
   'PushNotification.Action.Settings': 'Background alerts settings',

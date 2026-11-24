@@ -692,7 +692,7 @@
 "Notifications.Count_other" = "%d notifications";
 "Notifications.Forwarded_one" = "Forwarded %d message";
 "Notifications.Forwarded_other" = "Forwarded %d messages";
-"Notifications.New" = "New notification";
+"Notifications.New" = "New message";
 "PushNotification.Action.Mute1d" = "Mute background alerts for 1 day";
 "PushNotification.Action.Settings" = "Background alerts settings";
 "PushNotification.Action.Mute1d.Mobile" = "Mute for 1 day";
