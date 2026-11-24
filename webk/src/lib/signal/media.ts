@@ -45,14 +45,22 @@ const THUMBNAIL_SIZE_TYPE = 'm';
 // * the MIME types Web K knows; a Signal file of another type is an octet stream, as a file of unknown type is
 const KNOWN_MIME_TYPES: Set<string> = new Set(Object.values(EXTENSION_MIME_TYPE_MAP));
 
-// * link previews by the id of their message, from the `updateEntities` the provider sends with the messages
+// * link previews by the id of their message, from the `updateEntities` the provider sends with the messages; the
+// * oldest go once there are more, as their messages were built when they came
 const webPages = new Map<string, SignalWebPage>();
+const MAX_WEB_PAGES = 500;
 
 /** Keeps the link previews the provider sends, for the messages that refer to them */
 export function storeSignalWebPages(pages: SignalWebPage[] | undefined) {
   pages?.forEach((page) => {
-    if(page.webpageType === 'full') webPages.set(page.id, page);
+    if(page.webpageType !== 'full') return;
+    webPages.delete(page.id);
+    webPages.set(page.id, page);
   });
+  for(const id of webPages.keys()) {
+    if(webPages.size <= MAX_WEB_PAGES) break;
+    webPages.delete(id);
+  }
 }
 
 /**
@@ -107,7 +115,7 @@ function buildAlbumMedia(items: SignalAlbumItem[], date: number): MessageMedia.m
 
 function buildVideoDocument(video: SignalVideo, date: number): Document.document {
   const attributes: DocumentAttribute[] = [
-    {_: 'documentAttributeVideo', pFlags: {supports_streaming: true}, duration: 0, w: video.width ?? 0, h: video.height ?? 0},
+    {_: 'documentAttributeVideo', pFlags: {supports_streaming: true}, duration: video.duration, w: video.width ?? 0, h: video.height ?? 0},
     {_: 'documentAttributeFilename', file_name: video.fileName}
   ];
   if(video.isGif) attributes.push({_: 'documentAttributeAnimated'});

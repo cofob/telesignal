@@ -81,6 +81,7 @@ const VIDEO_WIDTH = 480;
 const VIDEO_HEIGHT = 270;
 const VIDEO_DURATION_MS = 2000;
 const VIDEO_FPS = 30;
+const MS_PER_SECOND = 1000;
 const VIDEO_BALL_RADIUS = 40;
 const GIF_SIZE = 240;
 const VIDEO_MIME_TYPE = 'video/mp4';
@@ -1069,6 +1070,7 @@ async function createDemoVideo(
     recorder.onstop = resolve;
   });
   const startedAt = performance.now();
+  // A timer rather than animation frames, which a background tab does not get; it only runs slower there
   const drawFrame = () => {
     const progress = Math.min((performance.now() - startedAt) / VIDEO_DURATION_MS, 1);
     drawSunset(context, width, height);
@@ -1076,14 +1078,14 @@ async function createDemoVideo(
     context.beginPath();
     context.arc(progress * width, height / 2, VIDEO_BALL_RADIUS, 0, 2 * Math.PI);
     context.fill();
-    if (progress < 1) {
-      requestAnimationFrame(drawFrame);
-    } else {
-      recorder.stop();
-    }
+    if (progress < 1) return;
+
+    clearInterval(timer);
+    recorder.stop();
   };
   drawFrame();
   recorder.start();
+  const timer = setInterval(drawFrame, MS_PER_SECOND / VIDEO_FPS);
   await stopped;
 
   const blob = new Blob(chunks, { type: VIDEO_MIME_TYPE });
