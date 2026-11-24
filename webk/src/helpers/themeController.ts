@@ -4,10 +4,10 @@ import type {BaseTheme, Theme, ThemeSettings, WallPaper} from '@layer';
 import {blendWallpaperForTinted, getCloudThemeWallpaper, presetThemeId, presetToThemeSettings} from '@config/themePresets';
 import type {AppBackgroundTab} from '@components/sidebarLeft/tabs/background';
 import type {AppChatBackground} from '@components/chat/bubbles/chatBackground';
-import {applyOutgoingMessageGradient, getOutgoingMessageGradient, keepReadableOnOutgoingMessageGradient, MESSAGE_OUT_TINT} from '@helpers/outgoingMessageGradient';
+import {applyOutgoingMessageGradient, getOutgoingMessageGradient, MESSAGE_OUT_TINT} from '@helpers/outgoingMessageGradient';
 import IS_TOUCH_SUPPORTED from '@environment/touchSupport';
 import rootScope from '@lib/rootScope';
-import {changeColorAccent, ColorRgb, ensureTextContrast, getAccentColor, getAverageColor, getRgbColorFromTelegramColor, hexToRgb, hslaStringToHex, hslaStringToRgba, hslaToRgba, hsvToRgb, mixColors, relativeLuminance, rgbaToHexa, rgbaToHsla, rgbToHsv} from '@helpers/color';
+import {changeColorAccent, ColorRgb, ensureTextContrast, getAccentColor, getAverageColor, getRgbColorFromTelegramColor, hexToRgb, hslaStringToHex, hslaStringToRgba, hsvToRgb, mixColors, relativeLuminance, rgbaToHexa, rgbaToHsla, rgbToHsv} from '@helpers/color';
 import {SETTINGS_INIT} from '@config/state';
 import {MOUNT_CLASS_TO} from '@config/debug';
 import Modes from '@config/modes';
@@ -123,40 +123,42 @@ const colorMap: {
     [name in AppColorName]?: string
   }
 } = {
+  // * Day and night are Signal's palette, as Web A's Signal theme (`SIGNAL_*` in `src/util/theme.ts`, DESIGN.md
+  // * "Signal theme"): the ultramarine accent and outgoing bubble, the gray incoming bubble and surfaces
   day: {
-    'primary-color': '#3390ec',
-    'message-out-primary-color': '#5CA853',
-    'message-background-color': '#ffffff',
+    'primary-color': '#2c6bed',
+    'message-out-primary-color': '#2c6bed',
+    'message-background-color': '#e9e9e9',
     'surface-color': '#ffffff',
     'danger-color': '#df3f40',
     'primary-text-color': '#000000',
-    'secondary-text-color': '#707579',
-    'saved-color': '#359AD4',
+    'secondary-text-color': '#5e5e5e',
+    'saved-color': '#2c6bed',
     'green-color': '#70b768',
     // SCSS-side defaults migrated from base.scss :root
-    'background-color': '#f4f4f5',
+    'background-color': '#f6f6f6',
     'body-background-color': '#ffffff',
-    'border-color': '#dfe1e5',
+    'border-color': '#e9e9e9',
     'secondary-color': '#c4c9cc',
     'input-search-background-color': '#ffffff',
     ...PAID_REACTION_OUTSIDE_DAY_COLORS
   },
   night: {
-    'primary-color': '#8774E1',
-    'message-out-primary-color': '#8774E1',
-    'message-background-color': '#212121',
-    'surface-color': '#212121',
+    'primary-color': '#2c6bed',
+    'message-out-primary-color': '#2c6bed',
+    'message-background-color': '#3b3b3b',
+    'surface-color': '#1b1b1b',
     'danger-color': '#ff595a',
     'primary-text-color': '#ffffff',
-    'secondary-text-color': '#aaaaaa',
-    'saved-color': '#8774E1',
+    'secondary-text-color': '#b9b9b9',
+    'saved-color': '#2c6bed',
     'green-color': '#5CC85E',
     // SCSS-side defaults migrated from base.scss .night
-    'background-color': '#181818',
-    'body-background-color': '#181818',
-    'border-color': '#0f0f0f',
+    'background-color': '#121212',
+    'body-background-color': '#121212',
+    'border-color': '#2e2e2e',
     'secondary-color': '#707579',
-    'input-search-background-color': '#181818',
+    'input-search-background-color': '#121212',
     'reaction-paid-outside-background-color': '#D3720A33',
     'reaction-paid-outside-color': '#FFD738',
     'reaction-paid-outside-chosen-background-color': '#D3720A'
@@ -280,7 +282,7 @@ export class ThemeController {
   public setThemeColor(color = this.themeColor) {
     if(!color) {
       const themeName = this.getResolvedThemeName();
-      color = colorMap[themeName]?.['surface-color'] || (this.isNight() ? '#212121' : '#ffffff');
+      color = colorMap[themeName]?.['surface-color'] || (this.isNight() ? '#1b1b1b' : '#ffffff');
     }
 
     const themeColorElem = this.themeColorElem;
@@ -919,8 +921,9 @@ export class ThemeController {
       untrack(() => this.getThemeSettings(this.getTheme(themeName)));
     const messageColors = bubbleSettings?.message_colors;
 
-    // * increased contrast keeps the bubbles of the one colour it adjusts for the text
-    const outgoingTextColor = hexToRgb(baseColors['primary-text-color']);
+    // * increased contrast keeps the bubbles of the one colour it adjusts for the text, which is white on
+    // * Signal's outgoing bubbles in every theme
+    const outgoingTextColor: ColorRgb = [255, 255, 255];
     const outgoingGradient = this.isHighContrast() ? undefined : getOutgoingMessageGradient(messageColors, !!bubbleSettings?.pFlags?.message_colors_animated, outgoingTextColor);
     applyOutgoingMessageGradient(element, outgoingGradient);
 
@@ -928,7 +931,8 @@ export class ThemeController {
       return;
     }
 
-    const messageLightenAlpha = isNight ? 1 : 0.12;
+    // * Signal's outgoing bubble is the colour itself in the light themes as in the dark ones (Web A's Signal theme)
+    const messageLightenAlpha = 1;
     const baseMessageColor = hexToRgb(baseColors['message-out-primary-color']);
     hsvTemp1 = rgbToHsv(...baseMessageColor);
     // Use the iOS-derived surface for tinted so message-out-background-color and downstream
@@ -962,15 +966,7 @@ export class ThemeController {
 
     // console.log(o, c, rgbaToHexa(o), rgbaToHexa(c));
 
-    const accentColor2 = themeSettings.outbox_accent_color !== undefined && rgbToHsv(...getRgbColorFromTelegramColor(themeSettings.outbox_accent_color));
-
-    let newMessageOutBackgroundColor = mixColors(myMessagesAccent, surfaceForMessage, messageLightenAlpha);
-
-    if(!isNight/*  || true */) {
-      const messageOutBackgroundColorHsl = rgbaToHsla(...newMessageOutBackgroundColor);
-      messageOutBackgroundColorHsl.s = Math.min(messageOutBackgroundColorHsl.s + (isNight ? 8 : 63), 100);
-      newMessageOutBackgroundColor = hslaToRgba(messageOutBackgroundColorHsl.h, messageOutBackgroundColorHsl.s, messageOutBackgroundColorHsl.l, messageOutBackgroundColorHsl.a).slice(0, 3) as ColorRgb;
-    }
+    const newMessageOutBackgroundColor = mixColors(myMessagesAccent, surfaceForMessage, messageLightenAlpha);
 
     applyAppColor({
       name: 'message-out-background-color',
@@ -978,11 +974,10 @@ export class ThemeController {
       lightenAlpha: messageLightenAlpha
     });
 
-    const outgoingAccent = rgbaToHexa(accentColor2 ? hsvToRgb(...accentColor2) : myMessagesAccent);
     applyAppColor({
       name: 'message-out-primary-color',
-      // * the time, the ticks and the links of a bubble of a gradient are read on all of it
-      hex: isNight ? '#ffffff' : outgoingGradient ? keepReadableOnOutgoingMessageGradient(outgoingAccent, outgoingGradient) : outgoingAccent,
+      // * the time, the ticks and the links are white, as the text
+      hex: '#ffffff',
       mixColor: newMessageOutBackgroundColor,
       // * a reaction's tint, which the colour is read on over a gradient
       lightenAlpha: MESSAGE_OUT_TINT

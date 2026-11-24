@@ -66,6 +66,9 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
 - Media: a Signal album shows as paid media without a price (`src/lib/signal/media.ts`); the attach menu keeps photos,
   videos and files; media spoilers, round video recording, voice transcription, the GIF tab and the edit that replaces
   a message's media are off; the voice recorder's worklet is a file of the app instead of a `blob:` URL.
+- Theme: the day and night palettes (`src/helpers/themeController.ts`), bubbles, service messages, the composer and
+  the chat list follow Web A's Signal theme; avatars use Signal's colours. `public/assets/tgs/Search.json` and
+  `Flame.json` are Web A's `Search.tgs` and `Flame.tgs`, unpacked, in place of `UtyanSearch` and `UtyanDisappear`.
 
 ## Updating
 

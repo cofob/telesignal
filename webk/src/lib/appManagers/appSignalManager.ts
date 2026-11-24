@@ -11,6 +11,8 @@
 import type {
   Chat,
   Dialog,
+  HelpPeerColors,
+  HelpPeerColorSet,
   InputDialogPeer,
   InputPeer,
   InputUser,
@@ -56,6 +58,7 @@ import makeError from '@helpers/makeError';
 import {storeSignalWebPages} from '@lib/signal/media';
 import {buildOutgoingMedia} from '@lib/signal/outgoingMedia';
 import noop from '@helpers/noop';
+import {ColorRgb, hexToRgb, mixColors, rgbaToHexa} from '@helpers/color';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
 import tsNow from '@helpers/tsNow';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
@@ -80,6 +83,8 @@ const DIALOGS_PAGE_LIMIT = 100;
 const LOCAL_ID_STEP = 1e-4;
 // * a sent message replaces its local one in Web K once the engine stored it, which takes no network round trip
 const SEND_TIMEOUT_MS = 60e3;
+const WHITE_RGB: ColorRgb = [255, 255, 255];
+const DARK_PEER_COLOR_WEIGHT = 0.5;
 
 let provider: Promise<typeof import('@signal-app/provider')>;
 
@@ -189,6 +194,26 @@ export default class AppSignalManager extends AppManager {
     return this.call(name, ...args);
   }
 
+  /**
+   * Signal's avatar colours as the peer colours, which also colour names and reply bars. At night a
+   * name is mixed halfway toward white, as Web A does (`--color-peer-accent` in `_common.scss`)
+   */
+  private async getPeerColors(): Promise<HelpPeerColors.helpPeerColors> {
+    const {colors} = await this.call<{colors: Record<number, {colors: string[]}>}>('fetchPeerColors');
+    const toColorSet = (hex: string): HelpPeerColorSet => ({_: 'help.peerColorSet', colors: [parseInt(hex.slice(1), 16)]});
+    return {
+      _: 'help.peerColors',
+      hash: 1,
+      colors: Object.entries(colors).map(([colorId, {colors: [hex]}]) => ({
+        _: 'help.peerColorOption',
+        pFlags: {},
+        color_id: +colorId,
+        colors: toColorSet(hex),
+        dark_colors: toColorSet(rgbaToHexa(mixColors(hexToRgb(hex), WHITE_RGB, DARK_PEER_COLOR_WEIGHT)))
+      }))
+    };
+  }
+
   private async call<T = any>(name: string, ...args: any[]): Promise<T> {
     const {callApi} = await getProvider();
     return callApi(name, ...args);
@@ -205,7 +230,7 @@ export default class AppSignalManager extends AppManager {
       'help.getConfig': () => this.getConfig(),
       'help.getAppConfig': () => ({_: 'help.appConfig', hash: 1, config: {_: 'jsonObject', value: []}}),
       'help.getNearestDc': () => ({_: 'nearestDc', country: '', this_dc: 2, nearest_dc: 2}),
-      'help.getPeerColors': () => ({_: 'help.peerColors', hash: 1, colors: []}),
+      'help.getPeerColors': () => this.getPeerColors(),
       'help.getPeerProfileColors': () => ({_: 'help.peerColors', hash: 1, colors: []}),
       'help.getTimezonesList': () => ({_: 'help.timezonesList', timezones: [], hash: 0}),
       'help.getPromoData': () => ({_: 'help.promoDataEmpty', expires: now() + 86400}),

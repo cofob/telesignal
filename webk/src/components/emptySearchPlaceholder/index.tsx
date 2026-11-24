@@ -29,7 +29,7 @@ const EmptySearchPlaceholder = defineSolidElement({
           size={156}
           lottieLoader={lottieLoader}
           restartOnClick
-          name="UtyanSearch"
+          name="Search"
           onPromise={(promise) => promise.then((player) => player.onFirstFrame(() => setIsDrawn(true)))}
         />
 

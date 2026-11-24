@@ -135,8 +135,9 @@ function buildBannedRights(rights?: SignalRights): ChatBannedRights.chatBannedRi
 }
 
 /** Groups only: a private conversation is its user (`buildUser`) */
+// * A group carries its avatar colour as a user does, which Telegram's basic group has no field for
 export function buildChat(chat: SignalChat): Chat.chat {
-  return {
+  const result: Chat.chat & Pick<User.user, 'color'> = {
     _: 'chat',
     pFlags: {
       creator: chat.isOwner || undefined,
@@ -149,8 +150,10 @@ export function buildChat(chat: SignalChat): Chat.chat {
     date: chat.creationDate || 0,
     version: 0,
     admin_rights: buildAdminRights(chat.adminRights),
-    default_banned_rights: buildBannedRights(chat.defaultBannedRights)
+    default_banned_rights: buildBannedRights(chat.defaultBannedRights),
+    color: chat.color?.color !== undefined ? {_: 'peerColor', color: chat.color.color} : undefined
   };
+  return result;
 }
 
 export function buildDialog({chat, readState, topMessageId, notifySettings, isPinned}: {

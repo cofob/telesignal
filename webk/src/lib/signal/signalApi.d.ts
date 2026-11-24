@@ -51,7 +51,8 @@ export type SignalChat = {
   isOwner?: boolean,
   adminRights?: SignalRights,
   defaultBannedRights?: SignalRights,
-  ttlPeriod?: number
+  ttlPeriod?: number,
+  color?: {color?: number}
 };
 
 export type SignalMessageAction = {
