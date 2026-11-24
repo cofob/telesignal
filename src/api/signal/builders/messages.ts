@@ -127,6 +127,18 @@ export async function buildApiMessageWithPoll(
       },
     };
   }
+  if (message.kind === 'pinnedMessage') {
+    return {
+      message: {
+        ...base,
+        isOutgoing: message.actorAci === selfAci,
+        content: { action: { mediaType: 'action', type: 'pinMessage' } },
+        replyInfo: message.pinnedMessageId
+          ? { type: 'message', replyToMsgId: message.pinnedMessageId }
+          : undefined,
+      },
+    };
+  }
   if (message.kind !== 'message') {
     return { message: { ...base, content: { action: { mediaType: 'action', type: 'unsupported' } } } };
   }

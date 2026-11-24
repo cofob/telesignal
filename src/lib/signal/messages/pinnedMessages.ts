@@ -25,15 +25,37 @@ export function getIsMessagePinnable(message: MessageRecord) {
 }
 
 /**
- * The pins of a chat after a pin: a newer pin of the message replaces its older one, and the chat keeps its newest
- * `PINNED_MESSAGES_LIMIT` pins (Signal Desktop `appendPinnedMessage` in `ts/sql/server/pinnedMessages.std.ts`)
+ * The pins of a chat after a pin: a newer pin of the message replaces its older one, expired pins go, and the chat
+ * keeps its newest `PINNED_MESSAGES_LIMIT` pins (Signal Desktop `appendPinnedMessage` in
+ * `ts/sql/server/pinnedMessages.std.ts`)
  */
-export function addPinnedMessage(pins: PinnedMessageEntry[] = [], pin: PinnedMessageEntry) {
+export function addPinnedMessage(pins: PinnedMessageEntry[] = [], pin: PinnedMessageEntry, now: number) {
   const existing = pins.find(({ messageId }) => messageId === pin.messageId);
   if (existing && existing.pinnedAt >= pin.pinnedAt) return pins;
-  return [...pins.filter(({ messageId }) => messageId !== pin.messageId), pin]
+  const others = pins.filter(({ messageId, expiresAt }) => (
+    messageId !== pin.messageId && (!expiresAt || expiresAt > now)
+  ));
+  return [...others, pin]
     .sort((a, b) => b.pinnedAt - a.pinnedAt)
     .slice(0, PINNED_MESSAGES_LIMIT);
+}
+
+/**
+ * The pins of `current` with a change from `previous` to `changed` taken back: the pins it added go and the pins it
+ * removed come back, and whatever else changed meanwhile stays
+ */
+export function revertPinChange(
+  current: PinnedMessageEntry[] = [], previous: PinnedMessageEntry[] = [], changed: PinnedMessageEntry[] = [],
+) {
+  const isSame = (a: PinnedMessageEntry, b: PinnedMessageEntry) => (
+    a.messageId === b.messageId && a.pinnedAt === b.pinnedAt
+  );
+  const added = changed.filter((pin) => !previous.some((other) => isSame(pin, other)));
+  const removed = previous.filter((pin) => !changed.some((other) => isSame(pin, other)));
+  return [
+    ...current.filter((pin) => !added.some((other) => isSame(pin, other))),
+    ...removed.filter((pin) => !current.some(({ messageId }) => messageId === pin.messageId)),
+  ];
 }
 
 /** The pins of a chat that have not expired, newest first */
