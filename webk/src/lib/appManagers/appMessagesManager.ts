@@ -6380,7 +6380,7 @@ export class AppMessagesManager extends AppManager {
         }
       }
 
-      // a widget forwarded is a copy (widget-sandbox docs/tgw-format.md): never the original's chat state, and whether it
+      // a widget forwarded is a copy (Telegram's widget format): never the original's chat state, and whether it
       // may ask the bot is the server's to say (fwd_allow_queries, which the original does not show)
       if(message.media?._ === 'messageMediaWidget') {
         message.media.pFlags = {is_copy: true};
