@@ -11,7 +11,7 @@ import styles from '@components/popups/recoveryKey.module.scss';
 /**
  * The recovery key of the account, as Web A's `RecoveryKeyModal`: with copying, and, for a new account that has not
  * confirmed it yet, the request to save it and the confirmation (`shouldSkipConfirmed`: shown only then, as at the
- * start after a registration). A linked device has no key to show.
+ * start after a registration). A linked device has no key to show. Settles once the popup is closed.
  */
 export default async function showRecoveryKeyPopup(shouldSkipConfirmed?: boolean) {
   const result = await fetchRecoveryKey();
@@ -38,7 +38,7 @@ export default async function showRecoveryKeyPopup(shouldSkipConfirmed?: boolean
     }
   } : {langKey: 'Close'};
 
-  confirmationPopup({
+  await confirmationPopup({
     titleLangKey: result.isUnconfirmed ? 'RecoveryKeyRecord' : 'RecoveryKey',
     descriptionLangKey: 'RecoveryKeyText',
     content: (

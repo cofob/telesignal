@@ -460,10 +460,10 @@ export class UiNotificationsManager {
     // * (Web A's `checkIfShouldNotify`); a notification profile that is on lets through only what it allows
     const isPin = message._ === 'messageService' && message.action._ === 'messageActionPinMessage';
     if(isPin && this.settings.nopinned) return;
-    if(await getIsSilencedByNotificationProfile(this.accounts.get(payload.accountNumber).managers, message)) return;
+    const account = this.accounts.get(accountNumber);
+    if(await getIsSilencedByNotificationProfile(account.managers, message)) return;
     const isAnyChat = peerId.isAnyChat();
     const notification: NotifyOptions = {};
-    const account = this.accounts.get(accountNumber);
     const [peerString, isForum = false] = await Promise.all([
       account.managers.appPeersManager.getPeerString(peerId),
       isAnyChat && account.managers.appPeersManager.isForum(peerId)

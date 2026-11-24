@@ -330,7 +330,10 @@ function getRestoreErrorKey(err: unknown): RegularLangFnParameters {
 
 function sendBackupRestoreState(backupRestore: ApiBackupRestoreState) {
   sendApiUpdate({
-    '@type': 'updateAuthorizationState', authorizationState: 'authorizationStateWaitBackupRestore', backupRestore,
+    '@type': 'updateAuthorizationState',
+    authorizationState: 'authorizationStateWaitBackupRestore',
+    backupRestore,
+    phoneNumber: state.number,
   });
 }
 

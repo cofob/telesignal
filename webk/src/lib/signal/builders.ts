@@ -193,8 +193,7 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
   const pFlags: Message.message['pFlags'] = {
     out: message.isOutgoing || undefined,
     pinned: message.isPinned || undefined,
-    // * a mention of us, which notifies in a muted chat and through a notification profile that allows mentions; a pin
-    // * of our message carries it too
+    // * a mention of us, which notifies in a muted chat and through a notification profile that allows mentions
     mentioned: message.isMentioned || undefined
   };
 
