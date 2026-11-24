@@ -1,5 +1,5 @@
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
-import {AccountPasskeys, AccountPassword, Authorization, ChannelParticipant, Chat, ChatAdminRights, ChatParticipant, ConnectedBot, DialogFilter, ExportedChatlistInvite, GlobalPrivacySettings, MediaArea, Passkey, WebAuthorization} from '@layer';
+import {AccountPasskeys, AccountPassword, ChannelParticipant, Chat, ChatAdminRights, ChatParticipant, ConnectedBot, DialogFilter, ExportedChatlistInvite, GlobalPrivacySettings, MediaArea, Passkey} from '@layer';
 import type SidebarSlider from '@components/slider';
 import type {SliderSuperTab} from '@components/slider';
 import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId';
@@ -26,7 +26,6 @@ import type {
   SelectSearchPeerType
 } from '@components/appSelectPeers';
 import type {IsPeerType} from '@appManagers/appPeersManager';
-import type {NotifyException} from '@appManagers/appNotificationsManager';
 import type {AppChatFull} from '@appManagers/appProfileManager';
 
 
@@ -56,19 +55,6 @@ export const AppNotificationsTab =
   scaffoldSolidJSTab({
     title: 'Telegram.NotificationSettingsViewController',
     getComponentModule: () => import('../sidebarLeft/tabs/notifications')
-  });
-
-
-export type AppNotificationExceptionsTabPayload = {
-  inputKey: 'inputNotifyUsers' | 'inputNotifyChats' | 'inputNotifyBroadcasts',
-  /** the type's exceptions, kept up to date by the Notifications tab under this one */
-  exceptions: () => NotifyException[] | undefined
-};
-
-export const AppNotificationExceptionsTab =
-  scaffoldSolidJSTab<AppNotificationExceptionsTabPayload>({
-    title: 'NotificationsExceptions',
-    getComponentModule: () => import('../sidebarLeft/tabs/notificationExceptions')
   });
 
 
@@ -523,40 +509,6 @@ export const AppLinkedDevicesTab =
     title: 'Signal.Devices.Title',
     getComponentModule: () => import('../sidebarLeft/tabs/linkedDevices')
   });
-
-type AppSessionTabPayload = {
-  authorization: Authorization.authorization;
-  /**
-   * Confirms + terminates the session; resolves to whether it was terminated.
-   * Absent for the current session, which cannot terminate itself.
-   */
-  onTerminate?: () => Promise<boolean>;
-  /** Reports a flag flipped through account.changeAuthorizationSettings back to the list. */
-  onSettingsChanged?: (authorization: Authorization.authorization) => void;
-};
-
-export const AppSessionTab =
-  scaffoldSolidJSTabEventable<AppSessionTabPayload>({
-    title: 'AuthSessions.View.Device',
-    getComponentModule: () => import('../sidebarLeft/tabs/session')
-  });
-
-type AppConnectedBotSessionTabPayload = {
-  connectedBot: ConnectedBot.connectedBot;
-};
-
-export const AppConnectedBotSessionTab =
-  scaffoldSolidJSTabEventable<AppConnectedBotSessionTabPayload>({
-    title: 'ChatAutomation.Session',
-    getComponentModule: () => import('../sidebarLeft/tabs/connectedBotSession')
-  });
-
-export const AppActiveWebSessionsTab =
-  scaffoldSolidJSTabEventable<WebAuthorization[]>({
-    title: 'WebSessionsTitle',
-    getComponentModule: () => import('../sidebarLeft/tabs/activeWebSessions')
-  });
-
 
 // ─── Data and storage + its auto-download sub-tabs (all eventable) ───
 

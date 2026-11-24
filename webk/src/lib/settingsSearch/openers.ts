@@ -24,8 +24,6 @@ export const NON_NAVIGABLE_SECTIONS = new Set([
   'AppTwoStepVerificationEmailTab',
   'AppTwoStepVerificationEmailConfirmationTab',
   'AppTwoStepVerificationSetTab',
-  'AppSessionTab',
-  'AppConnectedBotSessionTab',
   'AppEditFolderTab',
   // its list is a store owned by the Privacy tab
   'AppPasskeysTab',
@@ -37,9 +35,7 @@ export const NON_NAVIGABLE_SECTIONS = new Set([
   'AppBusinessHoursDayTab',
   'AppTimezoneTab',
   // the debugging tools under the version line, kept out of the way like every client's debug menu
-  'AppExperimentalTab',
-  // one chat type's exceptions, whose list the Notifications tab keeps
-  'AppNotificationExceptionsTab'
+  'AppExperimentalTab'
 ]);
 
 /**
@@ -127,10 +123,6 @@ const SECTION_OPENERS: {[sectionId: string]: SectionOpener} = {
     }
 
     return hotReloadGuard.tabs.AppTwoStepVerificationTab.openChecked(slider, state);
-  },
-  AppActiveWebSessionsTab: async(slider, middleware) => {
-    const authorizations = await rootScope.managers.appSeamlessLoginManager.getWebAuthorizations();
-    return openTab(slider, hotReloadGuard.tabs.AppActiveWebSessionsTab, middleware, authorizations);
   },
   // the payload Settings gives it (its rows load it as the tab opens)
   AppEditProfileTab: (slider, middleware) => {

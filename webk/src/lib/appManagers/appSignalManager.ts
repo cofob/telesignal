@@ -37,6 +37,7 @@ import {buildChat, buildDialog, buildMessage, buildPeer, buildPeerReaction, buil
 import {DEFAULT_REACTION_EMOJIS, buildReaction, toSignalReaction} from '@lib/signal/reactions';
 import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
 import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
+import {buildAccountMethodHandlers} from '@lib/signal/accountMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
@@ -242,7 +243,8 @@ export default class AppSignalManager extends AppManager {
       }),
       ...buildChatMethodHandlers(host),
       ...buildGroupMethodHandlers(host),
-      ...buildUserMethodHandlers(host)
+      ...buildUserMethodHandlers(host),
+      ...buildAccountMethodHandlers(host)
     };
   }
 
