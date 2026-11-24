@@ -1,11 +1,12 @@
-import {createResource, createSignal, For, Show, JSX} from 'solid-js';
+import {createSignal, For, Show, JSX} from 'solid-js';
 import Row from '@components/rowTsx';
 import Section from '@components/section';
 import I18n, {i18n, LangPackKey} from '@lib/langPack';
 import {IS_APPLE} from '@environment/userAgent';
-import rootScope from '@lib/rootScope';
 import {useAppSettings} from '@stores/appSettings';
-import InlineSelect from '@components/sidebarLeft/tabs/passcodeLock/inlineSelect';
+import InlineSelect from '@components/inlineSelect';
+import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
+import {LOCK_SCREEN_SHORTCUT_KEYS} from '@appManagers/utils/useLockScreenShortcut';
 import styles from './keyboardShortcuts.module.scss';
 
 
@@ -253,34 +254,16 @@ const MediaEditorSection = () => (
   </Section>
 );
 
-const OtherSection = () => {
-  const [passcode] = createResource(() =>
-    rootScope.managers.appStateManager.getState().then((state) => state?.settings?.passcode)
-  );
-
-  const lockKeys = () => {
-    const p = passcode();
-    if(!p?.enabled || !p?.lockShortcutEnabled || !p?.lockShortcut?.length) return undefined;
-    return [...p.lockShortcut, 'L'];
-  };
-
-  return (
-    <Section name="KeyboardShortcuts.Section.Other">
-      <ShortcutRow
-        action="KeyboardShortcuts.Action.LockPasscode"
-        hint={lockKeys() ? undefined : 'KeyboardShortcuts.Hint.LockPasscodeNotSet'}
-        keys={
-          <Show
-            when={lockKeys()}
-            fallback={<span class={styles.or}>—</span>}
-          >
-            <KeyCombo keys={lockKeys()} />
-          </Show>
-        }
-      />
-    </Section>
-  );
-};
+// * the lock of Web A's passcode, which is set in the A version (`useLockScreenShortcut`)
+const OtherSection = () => (
+  <Section name="KeyboardShortcuts.Section.Other">
+    <ShortcutRow
+      action="KeyboardShortcuts.Action.LockPasscode"
+      hint={isSignalPasscodeEnabled() ? undefined : 'KeyboardShortcuts.Hint.LockPasscodeNotSet'}
+      keys={<KeyCombo keys={LOCK_SCREEN_SHORTCUT_KEYS} />}
+    />
+  </Section>
+);
 
 const KeyboardShortcutsTab = () => (
   <>

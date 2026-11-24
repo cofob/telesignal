@@ -32,7 +32,6 @@ import AccountController from '@lib/accounts/accountController';
 import createNotificationImage from '@helpers/createNotificationImage';
 import {getMiddleware, MiddlewareHelper} from '@helpers/middleware';
 import {FOLDER_ID_ALL} from '@appManagers/constants';
-import PasscodeLockScreenController from '@components/passcodeLock/passcodeLockScreenController';
 import {StateSettings} from '@config/state';
 import {useAppSettings} from '@stores/appSettings';
 import {unwrap} from 'solid-js/store';
@@ -459,9 +458,8 @@ export class UiNotificationsManager {
     let notificationMessage: string;
     let wrappedMessage = false;
 
-    const isLocked = PasscodeLockScreenController.getIsLocked();
-
-    if(peerTypeNotifySettings.show_previews && !isLocked) {
+    // * TeleSignal: a locked vault (Web A's passcode) reloads every tab onto the lock screen, so nothing notifies then
+    if(peerTypeNotifySettings.show_previews) {
       if(message._ === 'message' && message.fwd_from && fwdCount > 1) {
         notificationMessage = I18n.format('Notifications.Forwarded', true, [fwdCount]);
       } else {
@@ -543,7 +541,6 @@ export class UiNotificationsManager {
       peerId,
       peerString,
       peerTitle,
-      hideContent: isLocked,
       custom: {
         msg_id: '' + message.mid,
         peerId: '' + peerId
@@ -586,7 +583,6 @@ export class UiNotificationsManager {
       peerId,
       peerString,
       peerTitle,
-      hideContent: PasscodeLockScreenController.getIsLocked(),
       custom: {
         msg_id: '0',
         story_id: '' + storyId,
@@ -612,7 +608,7 @@ export class UiNotificationsManager {
     ]);
 
     // * without a preview the notification must not tell who reacted with what
-    const hideContent = !showPreview || !emoticon || PasscodeLockScreenController.getIsLocked();
+    const hideContent = !showPreview || !emoticon;
     const selfPeerId = self.id.toPeerId();
     const isDifferentAccount = accountNumber !== getCurrentAccount();
 
@@ -702,7 +698,7 @@ export class UiNotificationsManager {
     peerId: PeerId,
     peerString: string,
     peerTitle: string,
-    /** don't reveal who it's from nor what it says: passcode lock, or previews turned off */
+    /** don't reveal who it's from nor what it says: a story reaction without a preview */
     hideContent?: boolean,
     /** pass it when already resolved, otherwise it's fetched only when the suffix is needed */
     self?: User.user,
@@ -722,11 +718,6 @@ export class UiNotificationsManager {
 
     if(!hideContent) {
       notification.image = await createNotificationImage(account.managers, peerId, peerTitle);
-    }
-
-    if(PasscodeLockScreenController.getIsLocked()) {
-      notification.title = I18n.format('PasscodeLock.NotificationTitle', true);
-      notification.message = I18n.format('PasscodeLock.NotificationDescription', true);
     }
 
     return this.notify(notification, {

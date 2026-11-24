@@ -1,94 +1,21 @@
-import PasscodeLockScreenController from '@components/passcodeLock/passcodeLockScreenController';
-import ListenerSetter from '@helpers/listenerSetter';
-import {joinDeepPath} from '@helpers/object/setDeepProperty';
+import {IS_APPLE} from '@environment/userAgent';
 import {addShortcutListener} from '@helpers/shortcutListener';
-import {getAppWindow} from '@helpers/appWindow';
-import apiManagerProxy from '@lib/apiManagerProxy';
-import rootScope from '@lib/rootScope';
-import {createEffect, createResource, createRoot, createSignal, onCleanup} from 'solid-js';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
+import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
+import {lockSignalPasscode} from '@lib/signal/passcode';
 
+// * Web A's default of `lockScreen` (`src/util/keyboardShortcuts/registry.ts`); `ctrl` shows as ⌘ on Apple's systems
+export const LOCK_SCREEN_SHORTCUT_KEYS = ['ctrl', 'shift', 'L'];
 
-const _useLockScreenShortcut = () => {
-  const [locked, setLocked] = createSignal(PasscodeLockScreenController.getIsLocked());
+/**
+ * TeleSignal: the shortcut that locks the passcode of Web A's vault, as the lock button of the sidebar does; it does
+ * nothing without a passcode, and the browser keeps its own use of the keys then
+ */
+export default function useLockScreenShortcut() {
+  const combo = (IS_APPLE ? ['meta', 'shift', 'L'] : LOCK_SCREEN_SHORTCUT_KEYS).join('+');
+  addShortcutListener([combo], (_, event) => {
+    if(!isSignalPasscodeEnabled()) return;
 
-  const [enabled, {mutate: mutateEnabled}] = createResource(() =>
-    rootScope.managers.appStateManager.getState().then(state =>
-      state.settings?.passcode?.enabled || false
-    )
-  );
-
-  const [shortcutEnabled, {mutate: mutateShortcutEnabled}] = createResource(() =>
-    rootScope.managers.appStateManager.getState().then(state =>
-      state?.settings?.passcode?.lockShortcutEnabled || false
-    )
-  );
-
-  const [shortcutKeys, {mutate: mutateShortcutKeys}] = createResource(() =>
-    rootScope.managers.appStateManager.getState().then(state =>
-      state?.settings?.passcode?.lockShortcut || []
-    )
-  );
-
-  const listenerSetter = new ListenerSetter();
-
-  listenerSetter.add(rootScope)('settings_updated', ({key, value}) => {
-    if(key === joinDeepPath('settings', 'passcode', 'enabled')) {
-      mutateEnabled(value);
-    } else if(key === joinDeepPath('settings', 'passcode', 'lockShortcut')) {
-      mutateShortcutKeys(value);
-    } else if(key === joinDeepPath('settings', 'passcode', 'lockShortcutEnabled')) {
-      mutateShortcutEnabled(value);
-    }
-  });
-
-  onCleanup(() => {
-    listenerSetter.removeAll();
-  });
-
-  createEffect(() => {
-    if(locked() || !enabled() || !shortcutEnabled()) return;
-
-    if(!shortcutKeys()?.length) return;
-
-    const combo = [...shortcutKeys(), 'KeyL'].join('+');
-
-    const isShiftLockShortcut = combo === 'Shift+KeyL';
-    hotReloadGuard.appImManager.isShiftLockShortcut = isShiftLockShortcut;
-
-    const removeListener = addShortcutListener([combo], (_, event) => {
-      const activeElement = getAppWindow().document.activeElement as HTMLElement;
-
-      if(
-        isShiftLockShortcut &&
-        activeElement &&
-        (activeElement.isContentEditable || ['INPUT', 'TEXTAREA'].includes(activeElement.tagName))
-      ) return;
-
-      event.preventDefault();
-
-      PasscodeLockScreenController.lock(true, () => {
-        apiManagerProxy.lock();
-      });
-      // PasscodeLockScreenController.lockOtherTabs();
-    }, false);
-
-    onCleanup(() => {
-      removeListener();
-      hotReloadGuard.appImManager.isShiftLockShortcut = false;
-    });
-  });
-};
-
-
-const useLockScreenShortcut = () => {
-  let dispose: () => void;
-  createRoot((_dispose) => {
-    dispose = _dispose;
-    _useLockScreenShortcut();
-  });
-
-  return {dispose};
-};
-
-export default useLockScreenShortcut;
+    event.preventDefault();
+    lockSignalPasscode();
+  }, false);
+}

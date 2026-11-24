@@ -538,7 +538,7 @@
 "KeyboardShortcuts.Action.Undo" = "Undo";
 "KeyboardShortcuts.Action.Redo" = "Redo";
 "KeyboardShortcuts.Action.LockPasscode" = "Lock by passcode";
-"KeyboardShortcuts.Hint.LockPasscodeNotSet" = "set in Privacy and Security";
+"KeyboardShortcuts.Hint.LockPasscodeNotSet" = "set a passcode in the A version";
 "KeyboardShortcuts.Hint.SendDepends" = "depends on settings";
 "KeyboardShortcuts.Hint.WhenInputEmpty" = "when input is empty";
 "General.TimeFormat" = "Time Format";
@@ -5432,6 +5432,7 @@
 "PasscodeLock.WrongPasscode" = "Wrong passcode. Please try again.";
 "PasscodeLock.PasscodeHasBeenSet" = "Passcode has been set.";
 "PasscodeLock.TapToLock" = "Tap to lock TeleSignal.";
+"PasscodeLock.Lock" = "Lock";
 "PasscodeLock.PasscodeHasBeenChanged" = "Passcode has been changed.";
 "PasscodeLock.PasscodeHasBeenDisabled" = "Passcode has been disabled.";
 "PasscodeLock.NotificationTitle" = "User";

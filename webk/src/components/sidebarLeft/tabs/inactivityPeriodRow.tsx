@@ -1,5 +1,5 @@
 import {createMemo, createSignal, JSX, Show, Signal} from 'solid-js';
-import InlineSelect from '@components/sidebarLeft/tabs/passcodeLock/inlineSelect';
+import InlineSelect from '@components/inlineSelect';
 import {wrapFormattedDuration} from '@components/wrappers/wrapDuration';
 import {DurationType} from '@helpers/formatDuration';
 import createOptimisticSave from '@helpers/createOptimisticSave';

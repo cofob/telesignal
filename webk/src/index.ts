@@ -60,9 +60,7 @@ import listenForWindowPrint from '@helpers/dom/windowPrint';
 import cancelImageEvents from '@helpers/dom/cancelImageEvents';
 import listenForLinkPress from '@helpers/dom/linkPress';
 import {DeactivatedScreen, onStartImportFailed, showDeactivatedScreen} from '@/pages/deactivatedScreen';
-import PasscodeLockScreenController from '@components/passcodeLock/passcodeLockScreenController'; PasscodeLockScreenController;
-import commonStateStorage from '@lib/commonStateStorage';
-import {useAppSettings, setAppSettingsSilent} from '@stores/appSettings';
+import {useAppSettings} from '@stores/appSettings';
 import {isUserCollapsedLeft} from '@helpers/updateColumnWidths';
 import {useMediaSizes} from '@helpers/mediaSizes';
 import useHasFoldersSidebar, {useIsSidebarCollapsed} from '@stores/foldersSidebar';
@@ -479,22 +477,6 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
     await I18n.getCacheLangPackAndApply();
     await showSignalLockScreen();
   }
-
-  await PasscodeLockScreenController.waitForUnlock(async() => {
-    const settings = await commonStateStorage.get('settings');
-    settings && setAppSettingsSilent(settings);
-    themeController.setThemeListener();
-
-    appChatBackground.attach();
-    appChatBackground.setBackground({transition: 'instant'});
-
-    await I18n.getCacheLangPackAndApply();
-
-    if(IS_BETA) import('./pages/bootstrapIm'); // cache it
-    // const settings = await commonStateStorage.get('settings');
-    // const timeFormat =
-    // I18n.setTimeFormat(settings?.timeFormat || STATE_INIT.settings?.timeFormat);
-  });
 
   console.time(TIME_LABEL);
 

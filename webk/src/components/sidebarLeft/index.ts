@@ -94,6 +94,7 @@ import {addShortcutListener} from '@helpers/shortcutListener';
 import tsNow from '@helpers/tsNow';
 import {toastNew} from '@components/toast';
 import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
+import {lockSignalPasscode} from '@lib/signal/passcode';
 import createLockButton from '@components/sidebarLeft/lockButton';
 import createSubmenuTrigger, {CreateSubmenuArgs} from '@components/createSubmenuTrigger';
 import ChatTypeMenu from '@components/chatTypeMenu';
@@ -800,6 +801,12 @@ export class AppSidebarLeft extends SidebarSlider {
           this.createTab(AppSettingsTab).open();
         });
       }
+    }, {
+      // * TeleSignal: locks Web A's vault, as the lock button above the chats and its shortcut do
+      icon: 'lock',
+      text: 'PasscodeLock.Lock',
+      onClick: () => lockSignalPasscode(),
+      verify: () => isSignalPasscodeEnabled()
     }, moreSubmenu];
 
     const filteredButtons = menuButtons.filter(Boolean);
