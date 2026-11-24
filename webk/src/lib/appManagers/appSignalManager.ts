@@ -657,6 +657,8 @@ export default class AppSignalManager extends AppManager {
       query: params.q,
       limit: params.limit,
       offsetId: params.offset_id || undefined,
+      // * the media viewer asks for the newer media too, with a negative offset
+      addOffset: params.add_offset || undefined,
       fromPeer: fromPeerId ? {id: toSignalPeerId(fromPeerId)} : undefined
     });
     return this.buildSearchResult(result);
