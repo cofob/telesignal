@@ -35,12 +35,6 @@ export default function AddChatToCommunity() {
       onCreate: (chatId) => openChatSettings(chatId.toPeerId(true))
     });
   };
-  const createChannel = () => {
-    tab.slider.createTab(hotReloadGuard.tabs.AppNewChannelTab).open({
-      openAfter: false,
-      onCreate: (chatId) => openChatSettings(chatId.toPeerId(true))
-    });
-  };
 
   tab.scrollable.container.remove();
 
@@ -110,20 +104,6 @@ export default function AddChatToCommunity() {
       >
         <Row.Icon icon="newgroup_filled" />
         <Row.Title>{i18n('NewGroup')}</Row.Title>
-      </Row>
-      <Row
-        clickable={createChannel}
-        role="button"
-        tabIndex={0}
-        on:keydown={(event) => {
-          if(event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            event.currentTarget.click();
-          }
-        }}
-      >
-        <Row.Icon icon="newchannel_filled" />
-        <Row.Title>{i18n('NewChannel')}</Row.Title>
       </Row>
     </Section>
   );
