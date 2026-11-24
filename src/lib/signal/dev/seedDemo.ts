@@ -25,6 +25,7 @@ import {
 } from '../proto/generated/Backup_pb';
 import { Member_Role } from '../proto/generated/Groups_pb';
 import {
+  AttachmentPointer_Flags,
   AttachmentPointerSchema,
   BodyRange_Style,
   DataMessage_Contact_Phone_Type,
@@ -63,6 +64,26 @@ const DEMO_USERNAME_LINK_LENGTH = 48;
 const DEMO_KEY_LENGTH = 32;
 const DEMO_PASSWORD_LENGTH = 16;
 const DEMO_PROFILE_ID_LENGTH = 16;
+// Generated audio: 16-bit mono PCM in a WAV file
+const AUDIO_SAMPLE_RATE = 8000;
+const AUDIO_BYTES_PER_SAMPLE = 2;
+const WAV_HEADER_LENGTH = 44;
+const AUDIO_AMPLITUDE = 0.3 * 0x7fff;
+const VOICE_DURATION_S = 3;
+const VOICE_FREQUENCY = 220;
+// Syllables of the voice note, per second
+const VOICE_SYLLABLE_RATE = 4;
+const TUNE_NOTES = [262, 294, 330, 349, 392, 440, 494, 523];
+const TUNE_NOTE_DURATION_S = 0.5;
+const WAVEFORM_LENGTH = 48;
+// Generated video: a ball crossing a frame, recorded from a canvas
+const VIDEO_WIDTH = 480;
+const VIDEO_HEIGHT = 270;
+const VIDEO_DURATION_MS = 2000;
+const VIDEO_FPS = 30;
+const VIDEO_BALL_RADIUS = 40;
+const GIF_SIZE = 240;
+const VIDEO_MIME_TYPE = 'video/mp4';
 
 type DemoMessage = Omit<NewMessageRecord, 'conversationId' | 'receivedAt' | 'body' | 'dataMessage' | 'kind'> & {
   kind?: NewMessageRecord['kind'];
@@ -96,6 +117,15 @@ export async function seedDemo(store: SignalStore, db: MessageDb) {
   ];
   const previewPhoto = await createDemoPhoto('demo-preview', drawLake);
   const sticker = await createDemoSticker();
+  const voiceNote = await createDemoVoiceNote();
+  const tune = await createDemoAttachment('demo-tune', createWav(createTuneSamples()), {
+    fileName: 'Scale.wav', audioDurationSeconds: TUNE_NOTES.length * TUNE_NOTE_DURATION_S,
+  });
+  const guide = await createDemoAttachment('demo-guide', createPdf('Trail guide: 10 km loop, start at 10am'), {
+    fileName: 'Trail guide.pdf',
+  });
+  const video = await createDemoVideo('demo-video', VIDEO_WIDTH, VIDEO_HEIGHT, { fileName: 'Hike.mp4' });
+  const gif = await createDemoVideo('demo-gif', GIF_SIZE, GIF_SIZE, { flags: AttachmentPointer_Flags.GIF });
 
   const me = crypto.randomUUID();
   const alice = crypto.randomUUID();
@@ -422,6 +452,30 @@ export async function seedDemo(store: SignalStore, db: MessageDb) {
         fileName: 'report.pdf',
       }] },
     }],
+    [bobChat, {
+      authorAci: bob,
+      sentAt: now - 289 * MINUTE,
+      isOutgoing: false,
+      readAt: now,
+      dataMessage: { attachments: [voiceNote] },
+    }],
+    [bobChat, {
+      authorAci: bob, sentAt: now - 288 * MINUTE, isOutgoing: false, readAt: now, dataMessage: { attachments: [tune] },
+    }],
+    [bobChat, {
+      authorAci: bob,
+      sentAt: now - 287 * MINUTE,
+      isOutgoing: false,
+      readAt: now,
+      dataMessage: { body: 'The guide, as promised', attachments: [guide] },
+    }],
+    ...(video ? [[bobChat, {
+      authorAci: bob, sentAt: now - 286 * MINUTE, isOutgoing: false, readAt: now,
+      dataMessage: { body: 'Clip from the hike', attachments: [video] },
+    }] satisfies [ConversationRecord, DemoMessage]] : []),
+    ...(gif ? [[bobChat, {
+      authorAci: bob, sentAt: now - 285 * MINUTE, isOutgoing: false, readAt: now, dataMessage: { attachments: [gif] },
+    }] satisfies [ConversationRecord, DemoMessage]] : []),
     [carolChat, {
       authorAci: carol, sentAt: now - 20 * MINUTE, isOutgoing: false, dataMessage: { body: 'Did you see the photos?' },
     }],
@@ -900,18 +954,140 @@ async function createDemoPhoto(
 ) {
   const canvas = new OffscreenCanvas(width, height);
   draw(canvas.getContext('2d')!, width, height);
-  const blob = await canvas.convertToBlob({ type: PHOTO_MIME_TYPE });
+  return createDemoAttachment(cdnKey, await canvas.convertToBlob({ type: PHOTO_MIME_TYPE }), { width, height });
+}
+
+/** An attachment whose bytes are cached, so it shows without a download */
+async function createDemoAttachment(
+  cdnKey: string, blob: Blob, fields: MessageInitShape<typeof AttachmentPointerSchema> = {},
+) {
   const pointer = create(AttachmentPointerSchema, {
     attachmentIdentifier: { case: 'cdnKey', value: cdnKey },
     cdnNumber: 3,
-    contentType: PHOTO_MIME_TYPE,
+    contentType: blob.type,
     key: getRandomBytes(64),
     size: blob.size,
-    width,
-    height,
+    ...fields,
   });
   await saveAttachmentBlob(pointer, blob);
   return pointer;
+}
+
+/** A voice note of a hum that rises and falls in syllables, with its waveform */
+function createDemoVoiceNote() {
+  const samples = new Float32Array(VOICE_DURATION_S * AUDIO_SAMPLE_RATE).map((_, i) => {
+    const time = i / AUDIO_SAMPLE_RATE;
+    const envelope = Math.abs(Math.sin(Math.PI * VOICE_SYLLABLE_RATE * time));
+    return envelope * Math.sin(2 * Math.PI * VOICE_FREQUENCY * time);
+  });
+  const chunkLength = Math.floor(samples.length / WAVEFORM_LENGTH);
+  const waveform = Uint8Array.from({ length: WAVEFORM_LENGTH }, (_, i) => (
+    Math.round(0xff * Math.max(...samples.subarray(i * chunkLength, (i + 1) * chunkLength).map(Math.abs)))
+  ));
+  return createDemoAttachment('demo-voice', createWav(samples), {
+    flags: AttachmentPointer_Flags.VOICE_MESSAGE, audioDurationSeconds: VOICE_DURATION_S, audioWaveform: waveform,
+  });
+}
+
+/** A major scale, one note after another */
+function createTuneSamples() {
+  const noteLength = TUNE_NOTE_DURATION_S * AUDIO_SAMPLE_RATE;
+  return new Float32Array(TUNE_NOTES.length * noteLength).map((_, i) => {
+    const frequency = TUNE_NOTES[Math.floor(i / noteLength)];
+    const decay = 1 - (i % noteLength) / noteLength;
+    return decay * Math.sin((2 * Math.PI * frequency * i) / AUDIO_SAMPLE_RATE);
+  });
+}
+
+/** Samples from -1 to 1 as a WAV file */
+function createWav(samples: Float32Array) {
+  const dataLength = samples.length * AUDIO_BYTES_PER_SAMPLE;
+  const view = new DataView(new ArrayBuffer(WAV_HEADER_LENGTH + dataLength));
+  const writeText = (offset: number, text: string) => {
+    [...text].forEach((char, i) => view.setUint8(offset + i, char.charCodeAt(0)));
+  };
+  // The RIFF header and the format chunk of PCM audio, at their fixed offsets
+  writeText(0, 'RIFF');
+  view.setUint32(4, WAV_HEADER_LENGTH - 8 + dataLength, true);
+  writeText(8, 'WAVEfmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, AUDIO_SAMPLE_RATE, true);
+  view.setUint32(28, AUDIO_SAMPLE_RATE * AUDIO_BYTES_PER_SAMPLE, true);
+  view.setUint16(32, AUDIO_BYTES_PER_SAMPLE, true);
+  view.setUint16(34, 8 * AUDIO_BYTES_PER_SAMPLE, true);
+  writeText(36, 'data');
+  view.setUint32(40, dataLength, true);
+  samples.forEach((sample, i) => {
+    view.setInt16(WAV_HEADER_LENGTH + i * AUDIO_BYTES_PER_SAMPLE, Math.round(sample * AUDIO_AMPLITUDE), true);
+  });
+  return new Blob([view.buffer], { type: 'audio/wav' });
+}
+
+/** A one-page PDF with a line of text */
+function createPdf(text: string) {
+  const content = `BT /F1 24 Tf 72 720 Td (${text}) Tj ET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R '
+    + '/Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let pdf = '%PDF-1.4\n';
+  const offsets = objects.map((object, i) => {
+    const offset = pdf.length;
+    pdf += `${i + 1} 0 obj\n${object}\nendobj\n`;
+    return offset;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  pdf += offsets.map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('');
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return new Blob([pdf], { type: 'application/pdf' });
+}
+
+/**
+ * A short MP4 of a ball crossing the frame, recorded from a canvas; `undefined` where the browser cannot record MP4,
+ * since Signal sends no other video type
+ */
+async function createDemoVideo(
+  cdnKey: string, width: number, height: number, fields: MessageInitShape<typeof AttachmentPointerSchema>,
+) {
+  if (!MediaRecorder.isTypeSupported(VIDEO_MIME_TYPE)) return undefined;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d')!;
+  const recorder = new MediaRecorder(canvas.captureStream(VIDEO_FPS), { mimeType: VIDEO_MIME_TYPE });
+  const chunks: Blob[] = [];
+  recorder.ondataavailable = (e) => chunks.push(e.data);
+  const stopped = new Promise((resolve) => {
+    recorder.onstop = resolve;
+  });
+  const startedAt = performance.now();
+  const drawFrame = () => {
+    const progress = Math.min((performance.now() - startedAt) / VIDEO_DURATION_MS, 1);
+    drawSunset(context, width, height);
+    context.fillStyle = '#c0392b';
+    context.beginPath();
+    context.arc(progress * width, height / 2, VIDEO_BALL_RADIUS, 0, 2 * Math.PI);
+    context.fill();
+    if (progress < 1) {
+      requestAnimationFrame(drawFrame);
+    } else {
+      recorder.stop();
+    }
+  };
+  drawFrame();
+  recorder.start();
+  await stopped;
+
+  const blob = new Blob(chunks, { type: VIDEO_MIME_TYPE });
+  return createDemoAttachment(cdnKey, blob, { width, height, ...fields });
 }
 
 function drawTrailMap(context: OffscreenCanvasRenderingContext2D) {
@@ -956,7 +1132,8 @@ function drawLake(context: OffscreenCanvasRenderingContext2D) {
   context.fillRect(0, LAKE_TOP, PHOTO_WIDTH, PHOTO_HEIGHT - LAKE_TOP);
 }
 
-function drawSunset(context: OffscreenCanvasRenderingContext2D, width: number, height: number) {
+function drawSunset(
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, width: number, height: number) {
   const gradient = context.createLinearGradient(0, 0, 0, height);
   gradient.addColorStop(0, '#2c3e70');
   gradient.addColorStop(1, '#f39c4a');
