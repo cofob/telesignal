@@ -17,7 +17,6 @@ import {getCollectibleName} from '@appManagers/utils/gifts/getCollectibleName';
 import {PeerTitleTsx} from '@components/peerTitleTsx';
 import classNames from '@helpers/string/classNames';
 import {StickerTsx} from '@components/wrappers/sticker';
-import showBoostPopup from './boost';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 
@@ -46,10 +45,6 @@ export default function showStarGiftWearPopup(options: {
     promise.then(() => {
       setShow(false);
     }).catch((err: ApiError) => {
-      if(err.type === 'BOOSTS_REQUIRED') {
-        showBoostPopup(peerId);
-        return;
-      }
       toastNew({langPackKey: 'Error.AnError'});
     });
   };

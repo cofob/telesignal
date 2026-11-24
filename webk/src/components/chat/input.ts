@@ -4079,7 +4079,7 @@ export default class ChatInput {
         if(result) {
           foundHelpers.add(this.mentionsHelper);
         }
-      } else if(!foundHelpers.size && this.chat.appSettings.emoji.suggest) { // emoji
+      } else if(!foundHelpers.size && firstChar !== '/' && this.chat.appSettings.emoji.suggest) { // emoji
         query = query.replace(/^\s*/, '');
         // * skip when the input ends with an emoji entity — regular emoji is handled by the
         // * emoticon-suggestion path above, custom emoji needs no suggestions at all

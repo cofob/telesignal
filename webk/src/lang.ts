@@ -1048,12 +1048,6 @@ const lang = {
   'MyStories.ShowArchive': 'Show Archive',
   'Story.ReplyPlaceholder': 'Reply Privately...',
   'Story.CommentPlaceholder': 'Reply to Group...',
-  'Story.CommentsRestricted': 'Comments restricted',
-  'Story.BoostToUnrestrict': 'Boost the group %1$s to remove messaging restrictions. Your boosts will help **%2$s** to unlock new features.',
-  'Story.BoostToUnrestrict.Times': {
-    'one_value': '**%d** time',
-    'other_value': '**%d** times'
-  },
   'Story.StealthModeConfirm.Title': 'You are in Stealth Mode now',
   'Story.StealthModeConfirm.Text': 'If you send a reply or reaction, the creator of the story will also see you in the list of viewers.',
   'Story.ReactionsHint.LongTap': 'Long tap for more reactions',
@@ -1128,47 +1122,8 @@ const lang = {
   'AllSubscribers': 'All Subscribers',
   'OnlyNewSubscribers': 'Only New Subscribers',
   'Ends': 'Ends',
-  'BoostsViaGifts.Title': 'Boosts via Gifts',
-  'BoostsViaGifts.CreateSubtitle': 'winners are chosen randomly',
-  'BoostsViaGifts.Prepaid': 'Prepaid Giveaways',
-  'BoostsViaGifts.PrepaidSubtitle': {
-    'one_value': '%d subscription for %s',
-    'other_value': '%d subscriptions for %s'
-  },
-  'BoostsViaGifts.Quantity': 'Quantity of prizes',
-  'BoostsViaGifts.QuantitySubtitle': 'Choose how many Premium subscriptions to give away and boosts to receive. For larger volumes, use [fragment-com.invalid](https://fragment-com.invalid).',
-  'BoostsViaGifts.Channels': 'Channels included in the giveaway',
-  'BoostsViaGifts.ChannelSubscription': {
-    'one_value': 'this channel will receive %d boost',
-    'other_value': 'this channel will receive %d boosts'
-  },
-  'BoostsViaGifts.Users': 'Users eligible for the giveaway',
-  'BoostsViaGifts.UsersSubtitle': 'Choose if you want to limit the giveaway only to those who joined the channel after the giveaway started or to users from specific countries.',
-  'BoostsViaGifts.End': 'Date when giveaway ends',
-  'BoostsViaGifts.EndSubtitle': {
-    'one_value': 'Choose when %d subscriber of your channel will receive TeleSignal Premium.',
-    'other_value': 'Choose when %d subscribers of your channel will be randomly selected to receive TeleSignal Premium.'
-  },
-  'BoostsViaGifts.Stars.EndSubtitle': {
-    'one_value': 'Choose when %d subscriber of your channel will receive Stars.',
-    'other_value': 'Choose when %d subscribers of your channel will be randomly selected to receive Stars.'
-  },
-  'BoostsViaGifts.Duration': 'Duration of premium subscriptions',
-  'BoostsViaGifts.DurationSubtitle': 'You can review the list of features and terms of use for TeleSignal Premium [here]().',
-  'BoostsViaGifts.Start': 'START GIVEAWAY',
-  'BoostsViaGifts.InvalidEndDate': 'Please choose an end date within the allowed range.',
-  'Boost.EnableStoriesFor': 'Enable Stories For',
-  'Boost.DescriptionJustReachedLevel1': 'This channel reached **Level 1** and can now post stories.',
-  'Boost.DescriptionJustReachedLevel': 'This channel reached **Level %1$d** and can now post %2$s per day.',
-  'Boost.DescriptionJustReachedLevel1.Group': 'This group reached **Level 1** and can now post stories.',
-  'Boost.DescriptionJustReachedLevel.Group': 'This group reached **Level %1$d** and can now post %2$s per day.',
-  'Boost.StoriesCount': {
-    'one_value': '**%d** story',
-    'other_value': '**%d** stories'
-  },
   // 'Boost.Already': 'Already Boosted',
   // 'Boost.AlreadyDescription': 'You are already boosting this channel.',
-  'Boost.Replace': 'Reassign Boost',
   'Yes': 'Yes',
   'AboveMessage': 'Show Above the Message',
   'BelowMessage': 'Show Below the Message',
@@ -1234,28 +1189,6 @@ const lang = {
   },
   'AddChannels': 'Add Channels',
   'Chart.Tooltip.All': 'All',
-  'BoostsViaGifts.ShowWinners': 'Show Winners',
-  'BoostsViaGifts.ShowWinnersSubtitle': 'Choose whether to make the list of winners public when the giveaway ends.',
-  'BoostsViaGifts.AdditionalPrizeLabel': 'Enter Your Prize',
-  'BoostsViaGifts.AdditionalPrizes': 'Additional Prizes',
-  'BoostsViaGifts.AdditionalPrizesSubtitle': 'All prizes: %s',
-  'BoostsViaGifts.AdditionalPrizesSubtitleOff': 'Turn this on if you want to give the winners your own prizes in addition to TeleSignal Premium subscriptions.',
-  'BoostsViaGifts.AdditionalPrizesDetailed': {
-    'one_value': '**%d** TeleSignal Premium subscription for %s',
-    'other_value': '**%d** TeleSignal Premium subscriptions for %s'
-  },
-  'BoostsViaGifts.AdditionalPrizesDetailedWith': {
-    'one_value': '**%d** %s with TeleSignal Premium subscription for %s',
-    'other_value': '**%d** %s with TeleSignal Premium subscriptions for %s'
-  },
-  'BoostsViaGifts.AdditionalStarsPrizesDetailed': {
-    'one_value': '**%1$d** Star.',
-    'other_value': '**%1$d** Stars.'
-  },
-  'BoostsViaGifts.AdditionalStarsPrizesDetailedWith': {
-    'one_value': '**%d** %s with %1$d Star.',
-    'other_value': '**%d** %s with %1$d Stars.'
-  },
   'Giveaway.AlsoPrizes': '**%s** also included **%d** **%s** in the prizes. %s',
   'Giveaway.AlsoPrizes2': {
     'one_value': 'Admins of the channel are responsible for delivering this prize.',
@@ -1276,7 +1209,6 @@ const lang = {
     'one_value': '**Winner Selected!**',
     'other_value': '**Winners Selected!**'
   },
-  'BoostingGiveawayResultsMsgAllWinnersReceivedLinks': 'All winners received gift links in private messages.',
   'Giveaway.Results.Subtitle': {
     'one_value': '%1$d winner of the **[Giveaway]()** was randomly selected by TeleSignal.',
     'other_value': '%1$d winners of the **[Giveaway]()** were randomly selected by TeleSignal.'
@@ -1339,25 +1271,6 @@ const lang = {
     'one_value': '%2$s subscription',
     'other_value': '%2$s subscriptions'
   },
-  'BoostsExpiration': {
-    'one_value': 'boost expires on %2$s',
-    'other_value': 'boosts expire on %2$s'
-  },
-  'Boost.GetMoreBoosts': {
-    'one_value': 'To boost **%2$s**, get **%1$d** more boost by gifting **TeleSignal Premium** to a friend.',
-    'other_value': 'To boost **%2$s**, get **%1$d** more boosts by gifting **TeleSignal Premium** to a friend.'
-  },
-  'Boost.Reassign.Description': 'To boost **%1$s**, reassign a previous boost or %2$s to a friend to get %3$s.',
-  'Boost.GiftPremium': '**[gift TeleSignal Premium]()**',
-  'Boost.Additional': {
-    'one_value': '**%1$d** additional boost',
-    'other_value': '**%1$d** additional boosts'
-  },
-  'Boost.Reassign': {
-    'one_value': 'Reassign Boost',
-    'other_value': 'Reassign Boosts'
-  },
-  'Boost.Reassign.Wait': 'Wait until the boost is available or get %s by gifting a **[TeleSignal Premium]()** subscription.',
   'Search.Empty': 'There were no results for "**%@**". Try a new search.',
   'Search.EmptyFrom': 'There were no messages from **%@**.',
   'Search.EmptyHashtag': 'There were no results for "%@". Try another hashtag.',
@@ -1812,9 +1725,7 @@ const lang = {
   'InviteViaLink.Premium.Subtitle2': 'You can send an invite link to the group in a private message instead.',
   'InviteViaLink.Premium.Subscribe': 'Subscribe to TeleSignal Premium',
   'ChannelAutotranslation': 'Auto-Translate Messages',
-  'ChannelAutotranslationLevelMin': 'Your channel needs to reach Level %d to enable auto-translation. [Boost channel]().',
-  'ChannelAutotranslation.BoostTitle': 'Autotranslation of Messages',
-  'ChannelAutotranslation.BoostDescription': 'Your channel needs to reach **Level %d** to enable autotranslation of messages.',
+  'ChannelAutotranslationLevelMin': 'Your channel needs to reach Level %d to enable auto-translation.',
   'Translate': 'Translate',
   'TranslationBarHidden': 'The translation bar is now hidden for this chat.',
   'TranslationBarHiddenChannel': 'The translation bar is now hidden for this channel.',
@@ -1936,9 +1847,6 @@ const lang = {
   'UserPermissions.Duration.Custom': 'Custom',
   'Set': 'Set',
   'UserPermissions.RestrictedBy': 'Restricted by %s on %s',
-  'DoNotRestrictBoosters': 'Do Not Restrict Boosters',
-  'DoNotRestrictBoostersCaption': 'Turn this on to always allow users who boosted your group to send messages and media.',
-  'DoNotRestrictBoostersCaptionOn': 'Choose how many boosts a user must give to the group to bypass restrictions on sending messages.',
   'CantBoostChat': 'Sorry, you can\'t boost this group or channel.',
   'UserBoostedGroup': {
     'one_value': '**%s** boosted the group %s times',
@@ -3518,8 +3426,6 @@ const lang = {
   'StoryUnpinnedFromPosts': 'Story removed from the channel page',
   'ProfileStories': 'Posts',
   'BoostsLevel': 'Level %d',
-  'BoostChannel': 'Boost Channel',
-  'BoostGroup': 'Boost Group',
   'ChannelNeedBoostsDescriptionLevel1': 'This channel needs %s to enable stories. Help make it possible!',
   'GroupNeedBoostsDescriptionLevel1': 'This group needs %s to enable stories. Help make it possible!',
   'HelpUpgradeChannel': 'Help upgrade this channel',
@@ -3535,7 +3441,6 @@ const lang = {
     'one_value': '**%d** more boost',
     'other_value': '**%d** more boosts'
   },
-  'BoostsMaxLevelReached': 'Maximum Level Reached',
   'YouBoostedChannel': 'You boosted the channel',
   'YouBoostedGroup': 'You boosted the group',
   'BoostingGiveawayJustStarted': '%s just started a giveaway of TeleSignal Premium subscriptions to its followers.',
@@ -3634,16 +3539,6 @@ const lang = {
   'BoostingNoRecipient': 'No recipient',
   'BoostingUseLink': 'Use Link',
   'BoostingPremium': 'TeleSignal Premium',
-  'BoostingStars': 'TeleSignal Stars',
-  'BoostingStarsQuantityPrizes': 'Number of winners',
-  'BoostingStarsQuantityPrizesInfo': 'Choose how many winners you want to distribute stars among.',
-  'BoostingStarsGiveawayAdditionPrizeHint': 'Turn this on if you want to give the winners your own prizes in addition to Stars.',
-  'BoostingGetMoreBoosts2': 'Get more boosts and subscribers for your channel by giving away prizes.',
-  'BoostingStarsOptions': 'Stars to distribute',
-  'BoostingStarOptionPerUser': {
-    'other_value': '%d per user'
-  },
-  'BoostingStarsOptionsInfo': 'Choose how many stars to give away and how many boosts to receive for 1 year.',
   'BoostingStarsGiveawayJustStarted': {
     'one_value': '%2$s just started a giveaway of %1$d Star to its followers.',
     'other_value': '%2$s just started a giveaway of %1$d Stars to its followers.'
@@ -3652,7 +3547,6 @@ const lang = {
   'FollowersChartTitle': 'Followers',
   'InteractionsChartTitle': 'Interactions',
   'EnabledNotifications': 'Enabled Notifications',
-  'Statistics': 'Statistics',
   'StatisticOverview': 'Overview',
   'ViewsPerPost': 'Views Per Post',
   'SharesPerPost': 'Shares Per Post',
@@ -3671,26 +3565,10 @@ const lang = {
     'one_value': '%1$d recipient',
     'other_value': '%1$d recipients'
   },
-  'BoostingFromAllCountries': 'from all countries',
-  'BoostingFromCountriesCount': {
-    'one_value': 'from %1$d country',
-    'other_value': 'from %1$d countries'
-  },
   'HideAd': 'Hide',
   'SponsoredMessageRecommended': 'recommended',
-  'BoostingSelectCountry': 'Select Countries',
-  'BoostingSelectUpToWarningCountriesPlural': {
-    'one_value': 'You can select up to %1$d country.',
-    'other_value': 'You can select up to %1$d countries.'
-  },
-  'BoostingSelectUpToWarningChannelsPlural': {
-    'one_value': 'You can select up to %1$d channel.',
-    'other_value': 'You can select up to %1$d channels.'
-  },
   'ReplyTo': 'Reply to %s',
   'ReplyToQuote': 'Reply to quote by %s',
-  'BoostingGiveawayPrivateChannel': 'Channel is Private',
-  'BoostingGiveawayPrivateChannelWarning': 'Are you sure you want to add a private channel? Users won\'t be able to join it without an invite link.',
   'ReplyToAnotherChat': 'Reply in Another Chat',
   'DoNotReply': 'Do Not Reply',
   'DoNotQuote': 'Do Not Quote',
@@ -3793,55 +3671,14 @@ const lang = {
   'UnlockSimilar': 'Unlock more channels',
   'MoreSimilar': 'More Channels',
   'MessageNotFound': 'Message doesn\'t exist',
-  'Boosts': 'Boosts',
-  'BoostingSelectPaidGiveaway': 'Select a giveaway you already paid for to set it up.',
-  'BoostsLevel2': 'Level',
   'PremiumSubscribers': 'Premium subscribers',
-  'BoostsExisting': 'Active Boosts',
-  'BoostsToLevel': 'Boosts to level up',
   'NoBoostersHint': 'No users currently boost your channel',
   'LinkForBoosting': 'Link for boosting',
-  'BoostingShareThisLink': 'Share this link with your subsсribers to get more boosts.',
-  'BoostingGetBoostsViaGifts': 'Get Boosts via Gifts',
-  'BoostingGetMoreBoosts': 'Get more boosts for your channel by gifting Premium to your subscribers.',
-  'BoostingBoostsCount': {
-    'one_value': '%1$d Boost',
-    'other_value': '%1$d Boosts'
-  },
-  'BoostingGiftsCount': {
-    'one_value': '%1$d Gift',
-    'other_value': '%1$d Gifts'
-  },
-  'BoostingUnclaimed': 'Unclaimed',
-  'BoostingToBeDistributed': 'To be distributed',
-  'BoostingShortMonths': '%1$dm',
   'BoostingGiveaway': 'Giveaway',
-  'BoostingShowMoreBoosts': {
-    'one_value': 'Show %1$d More Boost',
-    'other_value': 'Show %1$d More Boosts'
-  },
-  'BoostingShowMoreGifts': {
-    'one_value': 'Show %1$d More Gifted Boost',
-    'other_value': 'Show %1$d More Gifted Boosts'
-  },
-  'BoostingRecipientWillBeSelected': 'The recipient will be selected when the giveaway ends.',
   'BoostingLinkNotActivated': 'This link hasn\'t been activated yet.',
   'BoostingOnlyRecipientCode': 'Only the recipient can see the link.',
-  'BoostingStartGiveawayConfirmTitle': 'Start Giveaway',
-  'BoostingStartGiveawayConfirmText': 'Are you sure you want to start the giveaway now?',
   'Start': 'Start',
   'ChannelNeedBoostsDescriptionForNewFeatures': '**%1$s** needs %2$s to unlock new features.',
-  'BoostingMoreBoostsNeeded': 'More Boosts Needed',
-  'BoostingRemoveBoostFrom': 'Remove your boost from',
-  'BoostingReassignedFromPlural': {
-    'one_value': '%1$d boost reassigned from %2$s',
-    'other_value': '%1$d boosts reassigned from %2$s'
-  },
-  'BoostingFromOtherChannel': {
-    'one_value': '%d other channel',
-    'other_value': '%d other channels'
-  },
-  'BoostingAvailableIn': 'available in %1$s',
   'HideReadTime': 'Hide Read Time',
   'HideReadTimeInfo': 'Hide the time when you read messages from people who can\'t see your last seen. If you turn this on, their read time will also be hidden from you (unless you are a Premium user).\n\nThis setting does not affect group chats.',
   'PrivacyLastSeenPremium': 'Subscribe to TeleSignal Premium',
@@ -5468,9 +5305,7 @@ const lang = {
   'GroupEmojiPack.Remove': 'Remove Group Emoji Pack',
   'GroupEmojiPack.Updated': 'Group emoji pack updated',
   'GroupEmojiPack.Removed': 'Group emoji pack removed',
-  'GroupEmojiPack.LevelMin': 'Your group needs to reach Level %d to set a group emoji pack. [Boost group]().',
-  'GroupEmojiPack.BoostTitle': 'Enable emoji pack',
-  'GroupEmojiPack.BoostDescription': 'Your group needs to reach **Level %d** to set emoji pack.',
+  'GroupEmojiPack.LevelMin': 'Your group needs to reach Level %d to set a group emoji pack.',
   'Stickers.SuggestStickers': 'Suggest Stickers by Emoji',
   'Stickers.Trending': 'Trending Stickers',
   'ShareModal.Search.Placeholder': 'Share to...',
@@ -5736,7 +5571,6 @@ const lang = {
   'Premium.Offset.AlreadyHave': 'You already have TeleSignal Premium.',
   'GiftLink.UseSuccess': 'You successfully activated gift link.',
   'Giveaway.Type.Specific.Modal.SelectUsers': 'Select Users',
-  'GroupStats.Title': 'Group Statistics',
   'Chat.SendJoinRequest.Info': 'You will be able to send messages once the admins approve your request.',
   'ChatEmpty.BusinessIntro.How': '**%@** added the message above for all empty chats. [How?]()',
   'Chat.Translate.Menu.To': 'Choose Another Language',

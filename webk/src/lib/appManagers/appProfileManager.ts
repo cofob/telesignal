@@ -1438,20 +1438,6 @@ export class AppProfileManager extends AppManager {
     );
   }
 
-  public canViewStatistics(peerId: PeerId) {
-    if(peerId.isUser()) return false;
-
-    const chatId = peerId.toChatId();
-    const chatFull = this.getCachedFullChat(chatId);
-    if(!chatFull) return false;
-
-    return !!(
-      (chatFull as ChatFull.channelFull).stats_dc &&
-      (chatFull as ChatFull.channelFull).pFlags.can_view_stats
-      /*  && this.appChatsManager.hasRights(chatId, 'view_statistics') */
-    );
-  }
-
   public refreshPeerSettings(peerId: PeerId) {
     delete this.peerSettings[peerId];
     return callbackify(this.getPeerSettings(peerId, true), (peerSettings) => {

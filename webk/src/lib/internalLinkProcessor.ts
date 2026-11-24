@@ -27,7 +27,6 @@ import shake from '@helpers/dom/shake';
 import showPremiumPopup from '@components/popups/premium';
 import getPremiumLinkRef from '@helpers/getPremiumLinkRef';
 import rootScope from '@lib/rootScope';
-import showBoostPopup from '@components/popups/boost';
 import showGiftLinkPopup from '@components/popups/giftLink';
 import showStarsPopup, {showGiftStarsPicker} from '@components/popups/stars';
 import showSendGiftPopup from '@components/popups/sendGift';
@@ -358,7 +357,6 @@ export class InternalLinkProcessor {
     type K1 = {thread?: string, comment?: string, t?: string, option?: string, single?: string};
     type K2 = {thread?: string, comment?: string, start?: string, startgroup?: string, startchannel?: string, admin?: string, t?: string, text?: string, option?: string, single?: string, game?: string, free?: string};
     type K5 = {story?: string};
-    type K6 = {boost?: string};
     type K7 = {voicechat?: string, videochat?: string, livestream?: string};
     type K8 = {text?: string, free?: string};
 
@@ -369,7 +367,7 @@ export class InternalLinkProcessor {
     //   pathnameParams: [string, string?],
     //   uriParams: {comment?: number}
       pathnameParams: ['c', string, string] | [string, string?],
-      uriParams: K1 | K2 | K5 | K6 | K7 | K8
+      uriParams: K1 | K2 | K5 | K7 | K8
     }>({
       name: 'im',
       callback: async({pathnameParams, uriParams, element, masked}) => {
@@ -385,13 +383,6 @@ export class InternalLinkProcessor {
             _: INTERNAL_LINK_TYPE.VOICE_CHAT,
             domain: pathnameParams[0],
             ...uriParams
-          };
-        } else if('boost' in uriParams || pathnameParams?.[0] === 'boost') {
-          const channel = pathnameParams?.[0] === 'c' ? pathnameParams[1] : (uriParams as any).c;
-          link = {
-            _: INTERNAL_LINK_TYPE.BOOST,
-            domain: channel ? undefined : ('boost' in uriParams ? pathnameParams[0] : pathnameParams[1]),
-            channel
           };
         } else if(pathnameParams?.[1] === 's') {
           link = {
@@ -572,34 +563,6 @@ export class InternalLinkProcessor {
           return this.processInternalLink(link);
         }
       });
-    });
-
-    // tg://boost?channel=123 tg://boost?domain=username
-    addAnchorListener<{
-      uriParams: {
-        channel?: string,
-        domain?: string
-      }
-    }>({
-      name: 'boost',
-      protocol: 'tg',
-      callback: ({uriParams}) => {
-        const link = this.makeLink(INTERNAL_LINK_TYPE.BOOST, uriParams);
-        return this.processInternalLink(link);
-      }
-    });
-
-    // t.me/boost/adasdasd
-    addAnchorListener<{pathnameParams: ['boost', string]}>({
-      name: 'boost',
-      callback: ({pathnameParams}) => {
-        const link: InternalLink = {
-          _: INTERNAL_LINK_TYPE.BOOST,
-          domain: pathnameParams[1]
-        };
-
-        return this.processInternalLink(link);
-      }
     });
 
     // tg://premium_offer?ref=premium tg://premium_offer
@@ -1580,16 +1543,6 @@ export class InternalLinkProcessor {
     });
   };
 
-  public processBoostLink = async(link: InternalLink.InternalLinkBoost) => {
-    let peerId = link.channel ? link.channel.toPeerId(true) : undefined;
-    if(peerId === undefined) {
-      const chat = await this.managers.appUsersManager.resolveUsername(link.domain) as Chat;
-      peerId = chat.id.toPeerId(true);
-    }
-
-    showBoostPopup(peerId);
-  };
-
   public processPremiumFeaturesLink = async(link: InternalLink.InternalLinkPremiumFeatures) => {
     if(rootScope.premium) {
       toastNew({langPackKey: 'Premium.Offset.AlreadyHave'});
@@ -1769,7 +1722,6 @@ export class InternalLinkProcessor {
       [INTERNAL_LINK_TYPE.INVOICE]: this.processInvoiceLink,
       [INTERNAL_LINK_TYPE.ADD_LIST]: this.processListLink,
       [INTERNAL_LINK_TYPE.STORY]: this.processStoryLink,
-      [INTERNAL_LINK_TYPE.BOOST]: this.processBoostLink,
       [INTERNAL_LINK_TYPE.PREMIUM_FEATURES]: this.processPremiumFeaturesLink,
       [INTERNAL_LINK_TYPE.GIFT_CODE]: this.processGiftCodeLink,
       [INTERNAL_LINK_TYPE.STARS_TOPUP]: this.processStarsTopupLink,

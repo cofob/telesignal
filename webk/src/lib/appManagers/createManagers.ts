@@ -46,8 +46,6 @@ import AppThemesManager from '@appManagers/appThemesManager';
 import AppUsernamesManager from '@appManagers/appUsernamesManager';
 import AppChatInvitesManager from '@appManagers/appChatInvitesManager';
 import AppStoriesManager from '@appManagers/appStoriesManager';
-import AppBoostsManager from '@appManagers/appBoostsManager';
-import AppStatisticsManager from '@appManagers/appStatisticsManager';
 import AppTranslationsManager from '@appManagers/appTranslationsManager';
 import AppGifsManager from '@appManagers/appGifsManager';
 import {ActiveAccountNumber} from '@lib/accounts/types';
@@ -114,8 +112,6 @@ export default function createManagers(
     appUsernamesManager: new AppUsernamesManager,
     appChatInvitesManager: new AppChatInvitesManager,
     appStoriesManager: new AppStoriesManager,
-    appBoostsManager: new AppBoostsManager,
-    appStatisticsManager: new AppStatisticsManager,
     appTranslationsManager: new AppTranslationsManager,
     appGifsManager: new AppGifsManager,
     appGiftsManager: new AppGiftsManager,

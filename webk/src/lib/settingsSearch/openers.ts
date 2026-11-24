@@ -31,7 +31,6 @@ export const NON_NAVIGABLE_SECTIONS = new Set([
   'AppSharedFolderTab',
   'AppAddMembersTab',
   'AppChangeLoginEmailTab',
-  // one weekday of the business-hours schedule, and the zone picker it hands its choice back to
   // the debugging tools under the version line, kept out of the way like every client's debug menu
   'AppExperimentalTab'
 ]);
