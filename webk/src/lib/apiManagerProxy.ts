@@ -705,7 +705,6 @@ class ApiManagerProxy extends MTProtoMessagePort {
       count: null,
       _maxId: undefined,
       maxOutId: undefined,
-      replyMarkup: undefined,
       readMaxId: undefined,
       readOutboxMaxId: undefined,
       triedToReadMaxId: undefined
@@ -744,7 +743,6 @@ class ApiManagerProxy extends MTProtoMessagePort {
 
   public onLanguageChange = (language: string) => {
     rootScope.managers.all.networkerFactory.setLanguage(language);
-    rootScope.managers.appAttachMenuBotsManager.onLanguageChange();
   };
 
   public sendEnvironment() {

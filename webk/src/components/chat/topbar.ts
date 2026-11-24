@@ -629,21 +629,6 @@ export default class ChatTopbar {
       onClick: onBoostClick,
       verify: async() => this.chat.isMegagroup
     }, {
-      icon: 'bots',
-      text: 'Settings',
-      onClick: () => {
-        // [ ] Bot with paid stars?
-        this.managers.appMessagesManager.sendText({peerId: this.peerId, threadId: this.chat.threadId, text: '/settings'});
-      },
-      verify: async() => {
-        try {
-          const attachMenuBot = await this.managers.appAttachMenuBotsManager.getAttachMenuBot(this.peerId.toUserId());
-          return !!attachMenuBot?.pFlags?.has_settings;
-        } catch(err) {
-          return false;
-        }
-      }
-    }, {
       icon: 'premium_translate',
       text: 'Translate',
       onClick: () => {
@@ -766,15 +751,6 @@ export default class ChatTopbar {
 
   public addContact() {
     addContact(this.peerId, this.appSidebarRight);
-  }
-
-  /** Bot we manage — opens the same tab as the profile's edit button. */
-  public editBot() {
-    if(!this.appSidebarRight.isTabExists(hotReloadGuard.tabs.AppEditBotTab)) {
-      this.appSidebarRight.createTab(hotReloadGuard.tabs.AppEditBotTab).open(this.peerId);
-
-      this.appSidebarRight.toggleSidebar(true);
-    }
   }
 
   public blockUser(showReport?: boolean, showDelete?: boolean, onConfirmed?: (promise: Promise<any>) => void) {
@@ -922,10 +898,6 @@ export default class ChatTopbar {
 
       const callback = this.plates.actions.set(peerId, settings);
       callback();
-    });
-
-    this.listenerSetter.add(rootScope)('chat_automation_update', (connectedBot) => {
-      this.plates.automation.handleConnectedBotUpdate(connectedBot?.bot_id as UserId);
     });
 
     this.listenerSetter.add(rootScope)('right_sidebar_toggle', () => {

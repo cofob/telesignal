@@ -1,5 +1,5 @@
 import copy from '@helpers/object/copy';
-import {Message, MessageMedia} from '@layer';
+import {Message} from '@layer';
 import {hasRichMessageSpoilers} from '@lib/richMessage';
 import countEmojiOnly from '@lib/richTextProcessor/countEmojiOnly';
 

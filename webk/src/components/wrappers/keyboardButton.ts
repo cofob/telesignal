@@ -16,9 +16,7 @@ import {makeMediaSize} from '@helpers/mediaSize';
 import ReplyMarkupLayout from '@components/chat/bubbleParts/replyMarkupLayout';
 import classNames from '@helpers/string/classNames';
 import confirmationPopup from '@components/confirmationPopup';
-import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
-import {wrapFormattedDuration} from './wrapDuration';
-import formatDuration from '@helpers/formatDuration';
+import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {
   AnyButtonType,
   ButtonBackground,
@@ -176,24 +174,6 @@ function getButtonTypeHandler({
       break;
     }
 
-    case 'buttonTypeSimpleWebView':
-    case 'inlineButtonTypeWebView': {
-      result.classNames.push('is-web-view');
-
-      result.onClick = () => {
-        const toggle = toggleDisability([buttonEl], true);
-        chat.openWebApp({
-          botId,
-          url: type.url,
-          isSimpleWebView: type._ === 'buttonTypeSimpleWebView',
-          buttonText: label
-        }).finally(() => {
-          toggle();
-        });
-      };
-      break;
-    }
-
     case 'buttonTypeRequestPhone': {
       result.classNames.push('is-request-phone');
 
@@ -241,25 +221,6 @@ function getButtonTypeHandler({
             chat.appImManager.openUrl(callbackAnswer.url, true);
           }
         });
-      };
-
-      break;
-    }
-
-    case 'inlineButtonTypeGame': {
-      result.classNames.push('is-game');
-
-      result.onClick = () => {
-        if(!message) return;
-        // Inline-sent game messages are not re-rendered after the server confirms.
-        // The bubble's data-mid is patched in place — re-read it so we use the
-        // server mid instead of the captured temp one.
-        const bubble = findUpClassName(buttonEl, 'bubble');
-        const currentMid = bubble && +bubble.dataset.mid;
-        const target = (currentMid && currentMid !== message.mid ?
-          chat.getMessageByPeer(message.peerId, currentMid) as Message.message :
-          undefined) || message;
-        chat.appImManager.playGame(target);
       };
 
       break;

@@ -20,13 +20,15 @@ import focusInput from '@helpers/dom/focusInput';
 import liteMode from '@helpers/liteMode';
 import {CROSS_FADE_KEYFRAMES} from '@helpers/dom/crossfadeContent';
 import {EASING_Y} from '@components/chat/bubbleShape';
-import {KEYBOARD_DURATION, KEYBOARD_FADE_IN} from '@components/chat/replyKeyboard';
 import {appState} from '@stores/appState';
 import I18n, {i18n} from '@lib/langPack';
 import Modes from '@config/modes';
 import noop from '@helpers/noop';
 import styles from '@components/chat/themeChooser.module.scss';
 
+// * Android's keyboard time (AdjustPanLayoutHelper.keyboardDuration), in its curve (`EASING_Y`)
+const KEYBOARD_DURATION = 250;
+const KEYBOARD_FADE_IN = 200;
 // * how long the preview may stand in for an applied theme the chat has not received yet
 const APPLY_SYNC_TIMEOUT = 3000;
 // * how long the panel may wait for its strip to be drawn before it comes without it
@@ -358,8 +360,6 @@ export function openChatThemeChooser(chat: Chat) {
       // * another picker may be up by now
       if(!chat.themeChooser) {
         chatInput.classList.remove('is-choosing-theme');
-        // * closed, the bot's keyboard is back - but not on the way to another peer, whose keyboard it is not
-        if(animate && shown) chat.input.onThemeChooserChange(false);
       }
       if(Modes.a11y && hadFocus) focusInput(chat.input.messageInput);
     };
@@ -414,14 +414,12 @@ export function openChatThemeChooser(chat: Chat) {
     clearTimeout(showTimeout);
     container.classList.remove(styles.pending);
     chatInput.classList.add('is-choosing-theme');
-    const keyboardWasOpen = chat.input.onThemeChooserChange(true);
     // * the composer stays on screen to turn into it: hidden for the measure below, it would come back with its
     // * button's icons playing their way in from the start
-    const swapping = !keyboardWasOpen && canAnimate('animations');
+    const swapping = canAnimate('animations');
     if(swapping) chatInput.classList.add('is-swapping-theme-chooser');
 
-    // * measured once as it opens, the composer's room handed over in one go; in place of the composer and a bot's
-    // * keyboard both it fades in where it stands, about as tall as they were
+    // * measured once as it opens, the composer's room handed over in one go
     panelHeight = container.offsetHeight;
     const motion = swapping && canAnimate('motion');
     chat.setBottomPanelHeight(panelHeight, motion ? KEYBOARD_DURATION : undefined);
@@ -430,8 +428,6 @@ export function openChatThemeChooser(chat: Chat) {
       opening.finished.then(() => {
         if(swap === opening) opening.end();
       });
-    } else if(keyboardWasOpen && canAnimate('animations')) {
-      container.animate(CROSS_FADE_KEYFRAMES, {duration: KEYBOARD_FADE_IN});
     }
 
     resizeObserver.observe(container);

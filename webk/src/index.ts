@@ -80,7 +80,6 @@ import {IS_DESKTOP_APP, setupDesktopApp} from '@lib/signal/desktopApp';
 //   })();
 // }
 
-
 IMAGE_MIME_TYPES_SUPPORTED_PROMISE.then((mimeTypes) => {
   mimeTypes.forEach((mimeType) => {
     IMAGE_MIME_TYPES_SUPPORTED.add(mimeType);
@@ -392,10 +391,9 @@ function mountTestDcBadge() {
   showIconLibrary();
 };
 
-// The popup sandbox, over a running app (`?popups=1` boots straight into it instead). The bare
 // `import.meta.env.DEV` is deliberate: only a `false` literal at the call site makes rolldown drop
 // the dynamic import before chunking. The authorized preview is a dev server, so it is covered, and
-// the bundle it builds for a remote device (`VITE_PREVIEW`, a literal too) keeps both sandboxes for
+// the bundle it builds for a remote device (`VITE_PREVIEW`, a literal too) keeps the sandbox for
 // Settings → Experimental; a production build has neither.
 if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
   // the bubbles of the open chat, put in any state by click: the module, once loaded, puts its own opener in place of
@@ -679,7 +677,6 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
 
       await fontsPromise;
       console.timeLog(TIME_LABEL, 'await fontsPromise');
-
 
       await doubleRaf();
       pageChatsEl.classList.add('main-screen-entering');

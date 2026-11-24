@@ -26,7 +26,7 @@ import LazyLoadQueue from '@components/lazyLoadQueue';
 import ListenerSetter from '@helpers/listenerSetter';
 import showChatToast from '@components/chat/chatToast';
 import {AudioElement, DeferredMediaElement, isAudioElement} from '@components/audio';
-import {ChannelParticipant, Chat as MTChat, ChatParticipant, Document, Game, Message, MessageEntity,  MessageMedia,  MessageReplyHeader, Photo, PhotoSize, ReactionCount, SponsoredMessage, User, UserFull, WebPage, WebPageAttribute, Reaction, DocumentAttribute, InputStickerSet, TextWithEntities, FactCheck, WebDocument, MessageExtendedMedia, PeerSettings, LangPackString, ForumTopic, MessageAction, StarGift} from '@layer';
+import {ChannelParticipant, Chat as MTChat, ChatParticipant, Document, Message, MessageEntity, MessageMedia, MessageReplyHeader, Photo, PhotoSize, ReactionCount, SponsoredMessage, User, UserFull, WebPage, WebPageAttribute, Reaction, DocumentAttribute, InputStickerSet, TextWithEntities, FactCheck, WebDocument, MessageExtendedMedia, PeerSettings, LangPackString, ForumTopic, MessageAction, StarGift} from '@layer';
 import {BOT_START_PARAM, NULL_PEER_ID, REPLIES_PEER_ID, SEND_WHEN_ONLINE_TIMESTAMP, SERVICE_PEER_ID, STARS_CURRENCY} from '@appManagers/constants';
 import {FocusDirection, ScrollStartCallbackDimensions} from '@helpers/fastSmoothScroll';
 import useHeavyAnimationCheck, {getHeavyAnimationPromise, dispatchHeavyAnimationEvent, interruptHeavyAnimation} from '@hooks/useHeavyAnimationCheck';
@@ -1129,7 +1129,6 @@ export default class ChatBubbles {
     // this.chat.log.error('Bubbles construction');
 
     this.listenerSetter = new ListenerSetter();
-
 
     // --- scroll preservation across viewport reflows (window/PiP-window resize, PiP pop-in/out) ---
     this.saveReflowScrollDebounced = debounce(this.saveReflowScroll, 200, false, true);
@@ -4082,7 +4081,6 @@ export default class ChatBubbles {
       return;
     }
 
-
     const timeEffect = findUpClassName(target, 'time-effect');
     if(timeEffect) {
       fireMessageEffectByBubble({timeEffect, bubble, e, scrollable: this.scrollable});
@@ -4387,11 +4385,6 @@ export default class ChatBubbles {
                 inputInvoice,
                 isReceipt: true
               });
-            }
-          } else if(target.classList.contains('is-game-link')) {
-            const gameMessage = await this.managers.appMessagesManager.getMessageByPeer(peerId.toPeerId(), +mid);
-            if(gameMessage?._ === 'message') {
-              this.chat.appImManager.playGame(gameMessage as Message.message);
             }
           } else {
             this.chat.appImManager.setInnerPeer({
@@ -11372,133 +11365,6 @@ export default class ChatBubbles {
                     container: box,
                     middleware
                   });
-                }
-              },
-              clickable: true
-            });
-          });
-
-          break;
-        }
-
-        case 'messageMediaGame': {
-          noAttachmentDivNeeded = true;
-          context.attachmentDiv = undefined;
-
-          const game = (context.messageMedia as MessageMedia.messageMediaGame).game as Game.game;
-          if(!game || game._ !== 'game') {
-            break;
-          }
-
-          processedWebPage = true;
-          context.mediaRequiresMessageDiv = true;
-          bubble.classList.add('has-webpage', 'game');
-
-          const photo = game.photo?._ === 'photo' ? game.photo as Photo.photo : undefined;
-          const doc = game.document as MyDocument;
-          const props: Parameters<typeof WebPageBox>[0] = {};
-
-          let preview: HTMLDivElement;
-          if(photo || doc) {
-            preview = document.createElement('div');
-            props.media = {
-              content: preview,
-              position: 'top'
-            };
-          }
-
-          if(doc) {
-            if(doc.type === 'gif' || doc.type === 'video') {
-              bubble.classList.add('video');
-              wrapVideo({
-                doc,
-                container: preview,
-                message: message as Message.message,
-                boxWidth: mediaSizes.active.webpage.width,
-                boxHeight: mediaSizes.active.webpage.height,
-                lazyLoadQueue: this.lazyLoadQueue,
-                middleware,
-                isOut,
-                group: this.chat.animationGroup,
-                loadPromises,
-                autoDownload: this.chat.autoDownload,
-                noInfo: true,
-                observer: this.observer,
-                onLoad: this.onVideoLoad,
-                setShowControlsOn: bubble
-              });
-            } else {
-              const docDiv = await wrapDocument({
-                message: message as Message.message,
-                middleware: bubble.middlewareHelper.get(),
-                autoDownloadSize: this.chat.autoDownload.file,
-                lazyLoadQueue: this.lazyLoadQueue,
-                loadPromises,
-                sizeType: 'documentName',
-                searchContext: {
-                  useSearch: false,
-                  peerId: this.peerId,
-                  inputFilter: {_: 'inputMessagesFilterEmpty'}
-                },
-                fontSize: this.chat.appSettings.messagesTextSize
-              });
-              preview.append(docDiv);
-              props.media.hasDocument = true;
-            }
-          } else if(photo) {
-            bubble.classList.add('photo');
-            wrapPhoto({
-              photo,
-              message,
-              container: preview,
-              boxWidth: mediaSizes.active.webpage.width,
-              boxHeight: mediaSizes.active.webpage.height,
-              isOut,
-              lazyLoadQueue: this.lazyLoadQueue,
-              middleware,
-              loadPromises,
-              autoDownloadSize: this.chat.autoDownload.photo
-            });
-          }
-
-          props.name = {
-            content: i18n('AttachGame')
-          };
-
-          if(game.title) {
-            props.title = wrapRichText(game.title, {noLinks: true, noLinebreaks: true});
-          }
-
-          if(game.description) {
-            props.text = wrapRichText(game.description, {noLinks: true});
-          }
-
-          props.footer = {
-            content: i18n('Bot.Game.Play')
-          };
-
-          createRoot((dispose) => {
-            middleware.onDestroy(dispose);
-            WebPageBox({
-              ...props,
-              ref: (box) => {
-                this.webPageClickCallbacks.set(box, (e) => {
-                  cancelEvent(e);
-                  // After an inline send confirms, the bubble's data-mid is
-                  // patched in place but the closure's `message` still has the
-                  // temp mid — re-read from the DOM so we hit the server mid.
-                  const currentMid = +bubble.dataset.mid;
-                  const captured = message as Message.message;
-                  const target = (currentMid && currentMid !== captured.mid ?
-                    this.chat.getMessageByPeer(captured.peerId, currentMid) as Message.message :
-                    undefined) || captured;
-                  this.chat.appImManager.playGame(target);
-                });
-
-                if(timeSpan) {
-                  insertBeforeBubbleTime(timeSpan, box);
-                } else {
-                  messageDiv.append(box);
                 }
               },
               clickable: true
