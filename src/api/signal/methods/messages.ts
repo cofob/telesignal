@@ -28,7 +28,7 @@ import type {
 } from '../../types';
 import { ApiMessageEntityTypes, MESSAGE_DELETED } from '../../types';
 
-import { LOCAL_MESSAGES_LIMIT, SEND_MESSAGE_ACTION_INTERVAL } from '../../../config';
+import { LOCAL_MESSAGES_LIMIT, RE_LINK_TEMPLATE, SEND_MESSAGE_ACTION_INTERVAL } from '../../../config';
 import { LONG_TEXT_CONTENT_TYPE } from '../../../lib/signal/messages/MessageProcessor';
 import { getActivePinnedMessages } from '../../../lib/signal/messages/pinnedMessages';
 import {
@@ -44,7 +44,7 @@ import { buildCollectionByKey, omit, omitUndefined } from '../../../util/iterate
 import { getServerTime } from '../../../util/serverTime';
 import { buildBodyRanges } from '../builders/bodyRanges';
 import { getIsChatListed } from '../builders/chats';
-import { parseAttachmentMediaId } from '../builders/media';
+import { buildMessageMedia, parseAttachmentMediaId } from '../builders/media';
 import {
   buildApiMessageWithPoll, createUserResolver, getIsMessageHidden,
 } from '../builders/messages';
@@ -152,9 +152,9 @@ type SearchMessagesResult = {
 const EMPTY_SEARCH_RESULT: SearchMessagesResult = { messages: [], totalCount: 0, userStatusesById: {} };
 
 /**
- * Messages of a chat whose text contains `query`, newest first, from before `offsetId`, and only those of `fromPeer`
- * when it is set; with `fromPeer`, an empty query finds all of the sender's messages. Signal keeps no search index, so
- * the stored text is read; the shared media of a chat has no search yet and comes back empty.
+ * Messages of a chat of the search type whose text contains `query`, newest first, from before `offsetId`, and only
+ * those of `fromPeer` when it is set. The shared media types (`SHARED_MEDIA_SEARCH_TYPES`) and a sender search take an
+ * empty query. Signal keeps no search index, so the stored messages are read.
  */
 export async function searchMessagesInChat({
   peer, type, query = '', limit, offsetId, fromPeer,
@@ -170,22 +170,27 @@ export async function searchMessagesInChat({
   minDate?: number;
   maxDate?: number;
 }): Promise<SearchMessagesResult> {
-  const isSenderSearch = Boolean(fromPeer) && !query;
-  if (type !== 'text' || (!isSenderSearch && query.length < MIN_SEARCH_QUERY_LENGTH)) return EMPTY_SEARCH_RESULT;
+  if (!getIsSearchSupported(type, query, Boolean(fromPeer))) return EMPTY_SEARCH_RESULT;
 
   const conversation = await getConversationByPeerId(peer.id);
   // A sender filter names a user, whose conversation id is the ACI of the user's messages
   const senderConversation = fromPeer ? await getConversationByPeerId(fromPeer.id) : undefined;
   if (!conversation || (fromPeer && !senderConversation)) return EMPTY_SEARCH_RESULT;
 
-  return buildSearchResult(await scanTextMatches({
-    scope: conversation.id, conversations: [conversation], query, limit, offsetId, senderAci: senderConversation?.id,
+  return buildSearchResult(await scanMessages({
+    scope: conversation.id,
+    conversations: [conversation],
+    type,
+    query,
+    limit,
+    offsetId,
+    senderAci: senderConversation?.id,
   }));
 }
 
 /**
- * Messages of every listed chat whose text contains `query`, newest first, from before `offsetId`; the
- * `nextOffsetId` of a result continues the search with the next page.
+ * Messages of every listed chat of the search type whose text contains `query`, newest first, from before `offsetId`;
+ * the `nextOffsetId` of a result continues the search with the next page.
  */
 export async function searchMessagesGlobal({
   type, query = '', limit, offsetId,
@@ -202,17 +207,21 @@ export async function searchMessagesGlobal({
   maxDate?: number;
 }): Promise<SearchMessagesResult> {
   const selfAci = getCurrentAccount()?.aci;
-  if (!selfAci || type !== 'text' || query.length < MIN_SEARCH_QUERY_LENGTH) return EMPTY_SEARCH_RESULT;
+  if (!selfAci || !getIsSearchSupported(type, query)) return EMPTY_SEARCH_RESULT;
 
   const conversations = (await db.getConversations()).filter((conversation) => (
     getIsChatListed(conversation, selfAci)
   ));
-  return buildSearchResult(await scanTextMatches({
-    scope: GLOBAL_SEARCH_SCOPE, conversations, query, limit, offsetId,
+  return buildSearchResult(await scanMessages({
+    scope: GLOBAL_SEARCH_SCOPE, conversations, type, query, limit, offsetId,
   }));
 }
 
 const MIN_SEARCH_QUERY_LENGTH = 2;
+// The shared media of a chat: photos and videos, files, links, music and voice messages with round videos
+const SHARED_MEDIA_SEARCH_TYPES = new Set<string>(['media', 'documents', 'links', 'audio', 'voice']);
+const LINK_REGEX = new RegExp(RE_LINK_TEMPLATE, 'i');
+const SHARED_MEDIA_COUNT_BATCH_SIZE = 200;
 /** Records looked at per search call, which bounds its work; the search goes on from its cursor */
 const SEARCH_SCAN_LIMIT = 1000;
 /** Records read from a chat at a time, as the search walks the chats back in time together */
@@ -244,23 +253,33 @@ type SearchScan = {
 };
 
 /**
- * The messages whose text has `query`, newest first, from before `offsetId`, and only those of `senderAci` when it is
- * set. The chats are walked together, the newest record of any of them next, so every record newer than the cursor
- * has been looked at when the walk stops. The walk ends after `limit` matches or `SEARCH_SCAN_LIMIT` records. `cursor`
- * is the id to continue from, and it is `undefined` once no record is left.
+ * Whether a search has an answer: text needs a query of `MIN_SEARCH_QUERY_LENGTH`, except when it lists a sender's
+ * messages, and shared media takes an empty query or one of that length
  */
-async function scanTextMatches({
-  scope, conversations, query, limit, offsetId, senderAci,
+function getIsSearchSupported(type: string, query: string, isSenderSearch?: boolean) {
+  if (type === 'text') return query.length >= MIN_SEARCH_QUERY_LENGTH || (isSenderSearch && !query);
+  return SHARED_MEDIA_SEARCH_TYPES.has(type) && (!query || query.length >= MIN_SEARCH_QUERY_LENGTH);
+}
+
+/**
+ * The messages of the search type whose text has `query`, newest first, from before `offsetId`, and only those of
+ * `senderAci` when it is set. The chats are walked together, the newest record of any of them next, so every record
+ * newer than the cursor has been looked at when the walk stops. The walk ends after `limit` matches or
+ * `SEARCH_SCAN_LIMIT` records. `cursor` is the id to continue from, and it is `undefined` once no record is left.
+ */
+async function scanMessages({
+  scope, conversations, type, query, limit, offsetId, senderAci,
 }: {
   scope: string;
   conversations: ConversationRecord[];
+  type: string;
   query: string;
   limit: number;
   offsetId?: number;
   senderAci?: string;
 }): Promise<SearchScan> {
   const needle = query.toLowerCase();
-  const searchKey = [scope, senderAci ?? '', needle].join('\n');
+  const searchKey = [scope, type, senderAci ?? '', needle].join('\n');
   const chats: SearchChat[] = conversations.map((conversation) => ({
     conversation, buffer: [], before: offsetId || Number.MAX_SAFE_INTEGER, isExhausted: false,
   }));
@@ -279,7 +298,7 @@ async function scanTextMatches({
     scanned++;
     lastRead = record.id;
     const isMatch = !getIsMessageHidden(record) && (!senderAci || record.authorAci === senderAci)
-      && Boolean(record.body?.toLowerCase().includes(needle));
+      && getIsSearchMatch(record, type, needle);
     if (isMatch) matches.push({ record, conversation: newest.conversation });
   }
 
@@ -294,6 +313,88 @@ async function scanTextMatches({
     if (lastMatchId) rememberSearchCount(`${searchKey}\n${lastMatchId}`, matchCount);
   }
   return { matches, matchCount, cursor };
+}
+
+/** Whether a message has the text of the search and, for shared media, is of its type */
+function getIsSearchMatch(record: MessageRecord, type: string, needle: string) {
+  if (needle && !record.body?.toLowerCase().includes(needle)) return false;
+  if (type === 'text') return true;
+
+  const kind = getSharedMediaKind(record);
+  return type === 'media' ? kind.isPhoto || kind.isVideo : Boolean(kind[SHARED_MEDIA_KIND_KEYS[type]]);
+}
+
+const SHARED_MEDIA_KIND_KEYS: Record<string, keyof SharedMediaKind> = {
+  documents: 'isDocument',
+  links: 'isLink',
+  audio: 'isAudio',
+  voice: 'isVoice',
+};
+
+type SharedMediaKind = {
+  isPhoto?: boolean;
+  isVideo?: boolean;
+  isDocument?: boolean;
+  isLink?: boolean;
+  isAudio?: boolean;
+  isVoice?: boolean;
+};
+
+/**
+ * What shared media a message is: a link in its text, and its photo, video, file, music or voice; view-once media is
+ * none of them
+ */
+function getSharedMediaKind(record: MessageRecord): SharedMediaKind {
+  const isLink = Boolean(record.body && LINK_REGEX.test(record.body));
+  if (!record.dataMessage) return { isLink };
+
+  const dataMessage = fromBinary(DataMessageSchema, record.dataMessage);
+  if (dataMessage.isViewOnce) return { isLink };
+  const {
+    photo, video, document, audio, voice,
+  } = buildMessageMedia(record, dataMessage);
+  return {
+    isLink,
+    isPhoto: Boolean(photo),
+    isVideo: Boolean(video && !video.isRound),
+    isDocument: Boolean(document),
+    isAudio: Boolean(audio),
+    isVoice: Boolean(voice || video?.isRound),
+  };
+}
+
+/**
+ * How many messages of a chat are each kind of shared media, for clients that show the counts on their tabs. Signal
+ * keeps no index, so the whole chat is read.
+ */
+export async function fetchSharedMediaCounts({ chat }: { chat: ApiChat }) {
+  const conversation = await getConversationByPeerId(chat.id);
+  if (!conversation) return undefined;
+
+  const counts: Record<keyof SharedMediaKind, number> = {
+    isPhoto: 0, isVideo: 0, isDocument: 0, isLink: 0, isAudio: 0, isVoice: 0,
+  };
+  let before = Number.MAX_SAFE_INTEGER;
+  for (;;) {
+    const records = await db.getMessages(conversation.id, SHARED_MEDIA_COUNT_BATCH_SIZE, before);
+    for (const record of records) {
+      if (getIsMessageHidden(record)) continue;
+      const kind = getSharedMediaKind(record);
+      for (const key of Object.keys(counts) as (keyof SharedMediaKind)[]) {
+        if (kind[key]) counts[key]++;
+      }
+    }
+    if (records.length < SHARED_MEDIA_COUNT_BATCH_SIZE) break;
+    before = records[records.length - 1].id;
+  }
+  return {
+    photos: counts.isPhoto,
+    videos: counts.isVideo,
+    documents: counts.isDocument,
+    links: counts.isLink,
+    audio: counts.isAudio,
+    voice: counts.isVoice,
+  };
 }
 
 /** Reads the next batch of a chat's records into its buffer, unless the buffer holds records or the chat is read */

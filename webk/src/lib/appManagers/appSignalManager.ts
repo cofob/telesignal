@@ -40,6 +40,7 @@ import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
+import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import makeError from '@helpers/makeError';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
@@ -192,12 +193,9 @@ export default class AppSignalManager extends AppManager {
       'messages.getMessages': emptyMessages,
       'messages.search': (params) => this.searchMessages(params),
       'messages.searchGlobal': (params) => this.searchGlobal(params),
-      // * shared media and pinned messages are not ported yet: they answer with nothing, as for a new chat
+      // * Signal has no threads or saved dialogs: they answer with nothing, as for a new chat
       'messages.getReplies': emptyMessages,
       'messages.getSavedHistory': emptyMessages,
-      'messages.getSearchCounters': (params: MethodDeclMap['messages.getSearchCounters']['req']) => {
-        return params.filters.map((filter) => ({_: 'messages.searchCounter', pFlags: {}, filter, count: 0}));
-      },
       'messages.receivedMessages': () => [],
       'messages.getAllDrafts': emptyUpdates,
       'messages.getAttachMenuBots': () => ({_: 'attachMenuBots', hash: 0, bots: [], users: []}),
@@ -236,7 +234,8 @@ export default class AppSignalManager extends AppManager {
       ...buildChatMethodHandlers(host),
       ...buildGroupMethodHandlers(host),
       ...buildUserMethodHandlers(host),
-      ...buildPinnedMessageHandlers(host)
+      ...buildPinnedMessageHandlers(host),
+      ...buildSharedMediaHandlers(host)
     };
   }
 
@@ -559,7 +558,7 @@ export default class AppSignalManager extends AppManager {
     }
   }
 
-  /** The text search of a chat and its pinned messages, which the other filters (media) do not have yet */
+  /** The text and shared media search of a chat, and its pinned messages */
   private async searchMessages(params: MethodDeclMap['messages.search']['req']) {
     const peerId = this.getInputPeerId(params.peer);
     if(peerId && params.filter?._ === 'inputMessagesFilterPinned') {
@@ -568,11 +567,12 @@ export default class AppSignalManager extends AppManager {
     }
 
     const fromPeerId = params.from_id ? this.getInputPeerId(params.from_id) : undefined;
-    if(!peerId || params.filter?._ !== 'inputMessagesFilterEmpty' || (!params.q && !fromPeerId)) return emptySearchResult();
+    const type = getSearchType(params.filter);
+    if(!peerId || !type) return emptySearchResult();
 
     const result: SignalSearchResult = await this.call('searchMessagesInChat', {
       peer: {id: toSignalPeerId(peerId)},
-      type: 'text',
+      type,
       query: params.q,
       limit: params.limit,
       offsetId: params.offset_id || undefined,
@@ -581,12 +581,13 @@ export default class AppSignalManager extends AppManager {
     return this.buildSearchResult(result);
   }
 
-  /** The text search of all listed chats; `next_rate` carries the offset of the next page */
+  /** The text and shared media search of all listed chats; `next_rate` carries the offset of the next page */
   private async searchGlobal(params: MethodDeclMap['messages.searchGlobal']['req']) {
-    if(params.filter?._ !== 'inputMessagesFilterEmpty' || !params.q) return emptySearchResult();
+    const type = getSearchType(params.filter);
+    if(!type) return emptySearchResult();
 
     const result: SignalSearchResult = await this.call('searchMessagesGlobal', {
-      type: 'text',
+      type,
       query: params.q,
       limit: params.limit,
       offsetId: params.offset_rate || params.offset_id || undefined
