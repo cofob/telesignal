@@ -34,6 +34,8 @@ export function buildMediaMethodHandlers(host: SignalMethodHost): SignalMethodHa
     'messages.getAllStickers': () => getAllStickers(host),
     'messages.getFeaturedStickers': () => getFeaturedStickers(host),
     'messages.getRecentStickers': () => getRecentStickers(host),
+    'messages.saveRecentSticker': (params) => saveRecentSticker(host, params),
+    'messages.clearRecentStickers': () => host.call('clearRecentStickers'),
     'messages.getStickerSet': ({stickerset}) => getStickerSet(host, stickerset),
     'messages.installStickerSet': ({stickerset}) => setStickerSetInstalled(host, stickerset, true),
     'messages.uninstallStickerSet': ({stickerset}) => setStickerSetInstalled(host, stickerset, false),
@@ -107,6 +109,16 @@ async function getRecentStickers(host: SignalMethodHost) {
     stickers: stickers.map((sticker) => buildStickerDocument(sticker, date)),
     dates: stickers.map(() => date)
   };
+}
+
+/**
+ * A sticker leaves the recent ones. Web K saves a sticker it sends, which the provider's send already put first, as
+ * in Signal Desktop.
+ */
+async function saveRecentSticker(host: SignalMethodHost, params: MethodDeclMap['messages.saveRecentSticker']['req']) {
+  if(!params.unsave) return true;
+  if(params.id._ !== 'inputDocument') throw makeError('SIGNAL_METHOD_UNSUPPORTED' as ErrorType);
+  return Boolean(await host.call('removeRecentSticker', {sticker: {id: String(params.id.id)}}));
 }
 
 /** A pack by the id and key, or the short name, that its links and stickers name */

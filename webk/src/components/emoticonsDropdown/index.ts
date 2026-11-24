@@ -79,7 +79,7 @@ const renderEmojiDropdownElement = (): HTMLDivElement => {
     ['search justify-self-start', 'search', -1, 'Search'],
     ['emoji', 'smile', 0, 'Emoji'],
     ['stickers', 'stickers_face', 1, 'AccDescr.Stickers'],
-    ['gifs', 'gifs', 2, 'AccDescr.Gifs'],
+    // * TeleSignal: no GIF tab, as Signal's GIF search goes to a third party
     ['delete justify-self-end', 'deleteleft', -1, 'AccDescr.DeleteLastCharacter']
   ];
   const d = div.firstElementChild as HTMLDivElement;
@@ -275,8 +275,7 @@ export class EmoticonsDropdown extends DropdownHover {
     if(!this.tabsToRender.length) {
       this.tabsToRender = [
         new EmojiTab({managers: this.managers, preloaderDelay: 200}),
-        new StickersTab(this.managers),
-        new GifsTab({managers: this.managers})
+        new StickersTab(this.managers)
       ];
     }
 
