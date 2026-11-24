@@ -474,34 +474,6 @@ export class AppNotificationsManager extends AppManager {
     return sound?._ === 'notificationSoundNone';
   }
 
-  /**
-   * {@link isPeerLocalSoundOff}, with everything it reads asked for first
-   */
-  public async isPeerSoundOff(options: {peerId: PeerId, threadId?: number}) {
-    // * a thread that is no forum's topic (comments) has the chat's settings, as mutePeer and playback have them
-    if(!(options = this.validatePeerSettings({...options}))) return false;
-
-    const {peerId, threadId} = options;
-    await Promise.all([
-      this.getNotifyPeerTypeSettings(),
-      this.getNotifySettings(this.appPeersManager.getInputNotifyPeerById({peerId})),
-      threadId && this.getNotifySettings(this.appPeersManager.getInputNotifyPeerById({peerId, threadId}))
-    ]);
-
-    return this.isPeerLocalSoundOff({peerId, threadId});
-  }
-
-  /**
-   * tdesktop's "Disable sound" / "Enable sound": the chat's or the topic's own sound becomes none, or the default
-   */
-  public setPeerSoundOff(options: {peerId: PeerId, threadId?: number}, off: boolean) {
-    if(!(options = this.validatePeerSettings({...options}))) return;
-
-    return this.editNotifySettings(this.appPeersManager.getInputNotifyPeerById(options), {
-      sound: {_: off ? 'notificationSoundNone' : 'notificationSoundDefault'}
-    });
-  }
-
   public getContactSignUpNotification(): Promise<boolean> {
     if(this.notifyContactsSignUp) return this.notifyContactsSignUp;
     const promise: Promise<boolean> = this.notifyContactsSignUp = this.invokeAfterReset(() => {

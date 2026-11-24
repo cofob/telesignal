@@ -65,8 +65,8 @@ export function buildGroupMethodHandlers(host: SignalMethodHost): SignalMethodHa
 }
 
 /**
- * Waits for a change of a group and rejects when the provider refused it (it answers `undefined` and reports the
- * reason as an error update, which Web K shows)
+ * Waits for a change of a group or of a chat's timer and rejects when the provider refused it: it answers `undefined`
+ * only after reporting the reason as an error update, which Web K shows
  */
 async function applyGroupChange(promise: Promise<unknown>) {
   if(await promise === undefined) throw makeReportedError(GROUP_CHANGE_ERROR);
@@ -166,13 +166,17 @@ async function editChatAdmin(host: SignalMethodHost, chatId: number, inputUser: 
 
 async function editChatTitle(host: SignalMethodHost, chatId: number, title: string) {
   const chat = getGroupOf(host, chatId);
-  if(chat) await host.call('updateChatTitle', chat, title);
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  await applyGroupChange(host.call('updateChatTitle', chat, title));
   return emptyUpdates();
 }
 
 async function editChatAbout(host: SignalMethodHost, peer: any, about: string) {
   const chat = getSignalChatOf(host, unwrapInputPeer(peer));
-  if(chat) await host.call('updateChatAbout', chat, about);
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  await applyGroupChange(host.call('updateChatAbout', chat, about));
   return true;
 }
 
@@ -210,8 +214,13 @@ function takeUploadedFile(inputFile: {id: string, parts: number, name?: string})
   return new File(blobParts, inputFile.name ?? 'avatar.jpg', {type: 'image/jpeg'});
 }
 
-/** Keeps a part of an avatar upload; an upload over the group server's limit is dropped and refused */
+/**
+ * Keeps a part of an avatar upload; an upload over the group server's limit is dropped and refused. The first part of
+ * a new upload drops the uploads that no avatar took, which Web K left: it sends one avatar at a time.
+ */
 function saveFilePart(fileId: string, filePart: number, bytes: Uint8Array) {
+  if(filePart === 0 && !uploadedParts.has(fileId)) uploadedParts.clear();
+
   const upload = uploadedParts.get(fileId) ?? {parts: new Map<number, Uint8Array>(), size: 0};
   upload.size += bytes.length - (upload.parts.get(filePart)?.length ?? 0);
   if(upload.size > GROUP_AVATAR_MAX_SIZE) {
@@ -330,7 +339,10 @@ async function hideChatJoinRequest(host: SignalMethodHost, peer: any, inputUser:
 
 async function hideAllChatJoinRequests(host: SignalMethodHost, peer: any, isApproved: boolean) {
   const chat = getSignalChatOf(host, unwrapInputPeer(peer));
-  if(chat) await host.call('hideAllChatJoinRequests', {peer: chat, isApproved});
+  if(!chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
+
+  // * the provider answers `true` when no request is left, as for the requests it answered
+  await applyGroupChange(host.call('hideAllChatJoinRequests', {peer: chat, isApproved}));
   return emptyUpdates();
 }
 

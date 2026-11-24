@@ -477,6 +477,7 @@ const lang = {
   'Signal.Username.LinkResetDone': 'Username link reset',
   'Signal.Username.Delete': 'Delete Username',
   'Signal.Username.DeleteConfirm': '%s will be removed and may be taken by someone else. Your username link and QR code will stop working.',
+  'Signal.Error.ChatChangeFailed': 'The chat could not be updated. Check your connection and try again.',
   'Signal.Error.GroupChangeFailed': 'The group could not be updated. Check your connection and try again.',
   'Signal.Error.GroupTitleTooLong': 'Group names can be up to 32 characters long.',
   'Signal.Error.GroupDescriptionTooLong': 'Group descriptions can be up to 480 characters long.',
@@ -2582,12 +2583,6 @@ const lang = {
   'Calendar.SelectedDays': {
     'one_value': '%1$d day selected',
     'other_value': '%1$d days selected'
-  },
-  'Calendar.ClearHistory': 'Clear History',
-  'Calendar.ClearHistory.Confirm': 'Are you sure you want to delete all messages for the %1$@?',
-  'Calendar.ClearHistory.SelectedDays': {
-    'one_value': 'selected day',
-    'other_value': 'selected %1$d days'
   },
   'Weeks': {
     'one_value': '%1$d week',

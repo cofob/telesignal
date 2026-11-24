@@ -73,7 +73,6 @@ const LANG_KEY_MAP: {[key in ActionKey]?: LangPackKey} = {
   add_contact: 'AddContact',
   autoarchived: 'Unarchive',
   block_contact: 'BlockUser',
-  report_spam: 'DeleteReportSpam',
   share_contact: 'ShareMyPhoneNoCaps',
   reopen_topic: 'RestartTopic',
   set_bot_photo: 'SetProfilePhoto',
@@ -239,11 +238,7 @@ export default function createChatActionsPlate(
   }, {
     key: 'block_contact',
     onClick: () => {
-      topbar.blockUser(
-        peerSettingsActions.some((action) => action.key === 'report_spam'),
-        true,
-        (promise) => freeze(promise)
-      );
+      topbar.blockUser(false, true, (promise) => freeze(promise));
     },
     danger: true
   }, {
@@ -273,33 +268,12 @@ export default function createChatActionsPlate(
       });
       freeze(promise);
     }
-  }, {
-    key: 'report_spam',
-    onClick: async() => {
-      const peerId = currentPeerId;
-      if(peerId.isUser()) {
-        actions.find((action) => action.key === 'block_contact').onClick();
-      } else {
-        await confirmationPopup({
-          titleLangKey: 'Chat.Confirm.ReportSpam.Header',
-          descriptionLangKey: await managers.appPeersManager.isBroadcast(peerId) ?
-            'Chat.Confirm.ReportSpam.Channel' :
-            'Chat.Confirm.ReportSpam.Group',
-          button: {langKey: 'ReportChat'}
-        });
-
-        // * the report goes first: it names messages of the chat, which leaving keeps no longer
-        const promise = managers.appMessagesManager.reportSpam(peerId)
-        .then(() => managers.appChatsManager.leave(peerId.toChatId()));
-        freeze(promise);
-      }
-    },
-    danger: true
   }];
 
   /** The answer to a message request; the bar goes once the provider has sent it, and stays when it could not */
   const respondToMessageRequest = (promise: Promise<unknown>) => freeze(promise.catch((err: ApiError) => {
-    if(err?.type !== 'MIDDLEWARE') toastNew({langPackKey: 'Signal.Error.RequestResponseFailed'});
+    // * a failure that the provider reported is shown already
+    if(err?.type !== 'MIDDLEWARE' && !err?.handled) toastNew({langPackKey: 'Signal.Error.RequestResponseFailed'});
   }));
 
   const messageRequestActions: ActionDef[] = [{

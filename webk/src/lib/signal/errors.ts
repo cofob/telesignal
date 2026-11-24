@@ -10,6 +10,7 @@ import makeError from '@helpers/makeError';
 // * `src/util/getReadableErrorText.ts`
 const ERROR_LANG_KEYS: Record<string, LangPackKey> = {
   SIGNAL_GROUP_CHANGE_FAILED: 'Signal.Error.GroupChangeFailed',
+  SIGNAL_CHAT_CHANGE_FAILED: 'Signal.Error.ChatChangeFailed',
   SIGNAL_GROUP_TITLE_TOO_LONG: 'Signal.Error.GroupTitleTooLong',
   SIGNAL_GROUP_DESCRIPTION_TOO_LONG: 'Signal.Error.GroupDescriptionTooLong',
   SIGNAL_GROUP_LAST_ADMIN: 'Signal.Error.GroupLastAdmin',

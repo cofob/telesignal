@@ -155,20 +155,6 @@ defineStories('Confirmations', [
   {
     id: 'mute/peer',
     title: 'Mute chat',
-    managers: {
-      appNotificationsManager: {isPeerSoundOff: () => false}
-    },
-    open: async(ctx) => {
-      const {default: showMutePopup} = await import('@components/popups/mute');
-      showMutePopup(ctx.peer('private'));
-    }
-  },
-  {
-    id: 'mute/peer-sound-off',
-    title: 'Mute chat — its sound off',
-    managers: {
-      appNotificationsManager: {isPeerSoundOff: () => true}
-    },
     open: async(ctx) => {
       const {default: showMutePopup} = await import('@components/popups/mute');
       showMutePopup(ctx.peer('private'));

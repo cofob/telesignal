@@ -82,7 +82,8 @@ const ChatRequests: Component = () => {
       try {
         await managers.appChatsManager.hideAllChatJoinRequests(chatId, approved);
       } catch(err) {
-        toastNew({langPackKey: 'Error.AnError'});
+        // * TeleSignal: a refusal of the provider was shown with its reason
+        if(!(err as ApiError)?.handled) toastNew({langPackKey: 'Error.AnError'});
         return;
       } finally {
         setHidingAll(false);

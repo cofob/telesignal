@@ -159,6 +159,15 @@ sends the message as a `signal_error` event from `rootScope`, and `appImManager`
 likely cause is that the component reads DOM globals when its module loads, which a worker lacks; this is not
 verified. Any new UI call from a manager needs the same event route.
 
+## Web K does not show a chat again that came back while Web K was closed
+
+In Web K, the message request of Dave from the demo was deleted (bar «Delete»), then `signalDev.seedDemo()` on Web A
+wrote it again while Web K was closed. Web A lists Dave again, but Web K, reloaded twice, does not: the dialog stays
+out of its chat list in that browser profile (verified in Chromium with a persistent profile). The suspected cause
+is Web K's own cache of the chat list (the state loader), which keeps the deletion and asks the adapter only for what
+it lacks; this is not verified. A chat that a person deletes in Web K and that gets a new message while Web K is
+closed may stay hidden the same way.
+
 ## Telegram-only entries still show in Web K
 
 Several Telegram-only entries remain outside the chat list and groups, and were seen while checking them: the

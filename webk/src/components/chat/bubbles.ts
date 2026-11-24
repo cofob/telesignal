@@ -4122,38 +4122,11 @@ export default class ChatBubbles {
       for(const timestamp in this.dateMessages) {
         const d = this.dateMessages[timestamp];
         if(d.div === bubble) {
-          // TeleSignal: Signal has no deletion of a chat's messages by date, so the range pick is not offered
-          const {peerId} = this.chat;
-          const canDeleteDays = false;
+          // TeleSignal: Signal has no deletion of a chat's messages by date, so the picker only jumps to a date
           showDatePickerPopup({
             initDate: new Date(+timestamp),
             onPick: this.onDatePick,
-            peerId,
-            canMultiSelect: canDeleteDays,
-            // When revoke is allowed, swap the multi-select primary action
-            // to a danger "Clear History" that gates on a confirmation.
-            multiSelectAction: canDeleteDays ? {
-              langKey: 'Calendar.ClearHistory',
-              isDanger: true,
-              callback: async(fromTs, toTs) => {
-                const dayCount = Math.round((toTs - fromTs) / 86400);
-                await confirmationPopup({
-                  descriptionLangKey: 'Calendar.ClearHistory.Confirm',
-                  descriptionLangArgs: [
-                    i18n('Calendar.ClearHistory.SelectedDays', [dayCount])
-                  ],
-                  button: {langKey: 'Delete', isDanger: true}
-                });
-
-                this.managers.appMessagesManager.flushHistory({
-                  peerId,
-                  justClear: true,
-                  revoke: true,
-                  minDate: fromTs,
-                  maxDate: toTs
-                });
-              }
-            } : undefined
+            peerId: this.chat.peerId
           });
           break;
         }

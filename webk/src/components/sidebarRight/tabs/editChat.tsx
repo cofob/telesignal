@@ -43,11 +43,6 @@ import {appSettings} from '@stores/appSettings';
 import type {AppEditChatTab} from '@components/solidJsTabs/tabs';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
-// * TeleSignal: Signal's limits of a group's name and description in characters (`GROUP_TITLE_MAX_GRAPHEMES` and
-// * `GROUP_DESCRIPTION_MAX_GRAPHEMES` of `src/lib/signal/groups/buildGroupChange.ts`, after Signal Android)
-const GROUP_TITLE_MAX_LENGTH = 32;
-const GROUP_DESCRIPTION_MAX_LENGTH = 480;
-
 const PERMISSION_FLAGS = [
   'send_stickers',
   'send_polls',
@@ -426,7 +421,8 @@ function EditChatForm(props: {
       tab.close();
     } catch(error) {
       console.error('edit chat error', error);
-      toastNew({langPackKey: 'Error.AnError'});
+      // * TeleSignal: a refusal of the provider was shown with its reason
+      if(!(error as ApiError)?.handled) toastNew({langPackKey: 'Error.AnError'});
     } finally {
       setSaving(false);
     }
@@ -636,12 +632,12 @@ function EditChatForm(props: {
         </Portal>
       </Show>
 
+      {/* TeleSignal: Signal limits the name and description in graphemes, which the provider checks on saving */}
       <Section noDelimiter caption="PeerInfo.SetAboutDescription">
         <div class="input-wrapper">
           <InputFieldTsx
             label={isBroadcast() ? 'EnterChannelName' : 'CreateGroup.NameHolder'}
             name="chat-name"
-            maxLength={GROUP_TITLE_MAX_LENGTH}
             required
             value={title()}
             onRawInput={setTitle}
@@ -650,7 +646,6 @@ function EditChatForm(props: {
           <InputFieldTsx
             label="DescriptionPlaceholder"
             name="chat-description"
-            maxLength={GROUP_DESCRIPTION_MAX_LENGTH}
             withLinebreaks
             value={about()}
             onRawInput={setAbout}
