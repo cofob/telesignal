@@ -11,6 +11,8 @@
 import type {
   Chat,
   Dialog,
+  HelpPeerColors,
+  HelpPeerColorSet,
   InputDialogPeer,
   InputPeer,
   InputUser,
@@ -60,6 +62,7 @@ import makeError from '@helpers/makeError';
 import {storeSignalWebPages} from '@lib/signal/media';
 import {buildOutgoingMedia} from '@lib/signal/outgoingMedia';
 import noop from '@helpers/noop';
+import {ColorRgb, hexToRgb, mixColors, rgbaToHexa} from '@helpers/color';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
 import tsNow from '@helpers/tsNow';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
@@ -84,6 +87,8 @@ const DIALOGS_PAGE_LIMIT = 100;
 const LOCAL_ID_STEP = 1e-4;
 // * a sent message replaces its local one in Web K once the engine stored it, which takes no network round trip
 const SEND_TIMEOUT_MS = 60e3;
+const WHITE_RGB: ColorRgb = [255, 255, 255];
+const DARK_PEER_COLOR_WEIGHT = 0.5;
 
 let provider: Promise<typeof import('@signal-app/provider')>;
 
@@ -201,6 +206,26 @@ export default class AppSignalManager extends AppManager {
     return this.call(name, ...args);
   }
 
+  /**
+   * Signal's avatar colours as the peer colours, which also colour names and reply bars. At night a
+   * name is mixed halfway toward white, as Web A does (`--color-peer-accent` in `_common.scss`)
+   */
+  private async getPeerColors(): Promise<HelpPeerColors.helpPeerColors> {
+    const {colors} = await this.call<{colors: Record<number, {colors: string[]}>}>('fetchPeerColors');
+    const toColorSet = (hex: string): HelpPeerColorSet => ({_: 'help.peerColorSet', colors: [parseInt(hex.slice(1), 16)]});
+    return {
+      _: 'help.peerColors',
+      hash: 1,
+      colors: Object.entries(colors).map(([colorId, {colors: [hex]}]) => ({
+        _: 'help.peerColorOption',
+        pFlags: {},
+        color_id: +colorId,
+        colors: toColorSet(hex),
+        dark_colors: toColorSet(rgbaToHexa(mixColors(hexToRgb(hex), WHITE_RGB, DARK_PEER_COLOR_WEIGHT)))
+      }))
+    };
+  }
+
   private async call<T = any>(name: string, ...args: any[]): Promise<T> {
     const {callApi} = await getProvider();
     return callApi(name, ...args);
@@ -217,7 +242,7 @@ export default class AppSignalManager extends AppManager {
       'help.getConfig': () => this.getConfig(),
       'help.getAppConfig': () => ({_: 'help.appConfig', hash: 1, config: {_: 'jsonObject', value: []}}),
       'help.getNearestDc': () => ({_: 'nearestDc', country: '', this_dc: 2, nearest_dc: 2}),
-      'help.getPeerColors': () => ({_: 'help.peerColors', hash: 1, colors: []}),
+      'help.getPeerColors': () => this.getPeerColors(),
       'help.getPeerProfileColors': () => ({_: 'help.peerColors', hash: 1, colors: []}),
       'help.getTimezonesList': () => ({_: 'help.timezonesList', timezones: [], hash: 0}),
       'help.getPromoData': () => ({_: 'help.promoDataEmpty', expires: now() + 86400}),
@@ -286,10 +311,16 @@ export default class AppSignalManager extends AppManager {
       ...buildSharedMediaHandlers(host),
       ...buildPollHandlers(host),
       ...buildCallLogHandlers(host),
-      ...buildMentionHandlers(host, ({messages, users}) => {
-        const builtUsers = users.map(buildUser);
-        this.appUsersManager.saveApiUsers(builtUsers);
-        return {messages: messages.map(this.buildMessage), users: builtUsers};
+      ...buildMentionHandlers(host, {
+        buildMessages: ({messages, users}) => {
+          const builtUsers = users.map(buildUser);
+          this.appUsersManager.saveApiUsers(builtUsers);
+          return {messages: messages.map(this.buildMessage), users: builtUsers};
+        },
+        getIsReadHere: (peerId, mid) => {
+          const message = this.appMessagesManager.getMessageByPeer(peerId, mid);
+          return !!message && !message.pFlags.media_unread;
+        }
       }),
       ...buildAccountMethodHandlers(host),
       ...buildMediaMethodHandlers(host),
@@ -862,6 +893,10 @@ export default class AppSignalManager extends AppManager {
       case 'updateConnectionState':
         this.onConnectionState(update.connectionState);
         break;
+      case 'updateDeviceDeauthorized':
+        // * the link screen of a start that follows the removal in this worker tells why
+        this.rootScope.dispatchEvent('signal_deauthorized', update.reason);
+        break;
       case 'updateServerTimeOffset':
         // * the managers compare server dates (story expiry) by the clock of Signal's servers, as Web A's `getServerTime`
         this.timeManager.timeOffset = update.serverTimeOffset;
@@ -973,6 +1008,11 @@ export default class AppSignalManager extends AppManager {
       backupRestore: update.backupRestore
     };
     this.rootScope.dispatchEvent('signal_auth_state', this.authState);
+    // * a slot at a sign-in step holds no account
+    if(update.authorizationState !== 'authorizationStateReady') {
+      this.isAuthorized = false;
+      this.authorizedUserId = undefined;
+    }
 
     if(update.authorizationState === 'authorizationStateWaitQrCode' && update.qrCode) {
       this.linkCode = {url: update.qrCode.token, expires: update.qrCode.expires};
@@ -984,6 +1024,11 @@ export default class AppSignalManager extends AppManager {
 
   /** The chat connection of the engine, which Web K shows as the connection of its main data center */
   private onConnectionState(state: string) {
+    // * the engine breaks the connection only once the server stopped accepting this device (`handleDeauthorized`)
+    if(state === 'connectionStateBroken' && this.isAuthorized) {
+      this.onDeauthorized();
+    }
+
     const status = state === 'connectionStateReady' ? ConnectionStatus.Connected : (
       state === 'connectionStateBroken' ? ConnectionStatus.Closed : ConnectionStatus.Connecting
     );
@@ -996,6 +1041,18 @@ export default class AppSignalManager extends AppManager {
       isFileDownload: false,
       isFileUpload: false
     });
+  }
+
+  /**
+   * The server stopped accepting this device and the engine removed the account: the slot logs out, as Web A's
+   * `signOut` on `connectionStateBroken` does, and the link screen tells why
+   */
+  private async onDeauthorized() {
+    this.isAuthorized = false;
+    this.authorizedUserId = undefined;
+    const reason = await this.call('fetchDeauthorizationReason').catch(noop);
+    if(reason) this.rootScope.dispatchEvent('signal_deauthorized', reason);
+    await this.apiManager.logOut();
   }
 
   /** The account is linked and its session runs: the user it shows from now on is ours */

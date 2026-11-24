@@ -8,7 +8,7 @@ export default async function emptyPlaceholder({
   title,
   description,
   hide,
-  assetName = 'UtyanSearch',
+  assetName = 'Search',
   width = 140,
   height = 140,
   isFullSize

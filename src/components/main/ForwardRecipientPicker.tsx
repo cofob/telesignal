@@ -5,6 +5,7 @@ import { getActions, getGlobal, withGlobal } from '../../global';
 
 import type { ForwardTarget } from '../../types';
 
+import { FORWARD_CHATS_MAX } from '../../config';
 import { getChatTitle, getUserFirstOrLastName } from '../../global/helpers';
 import { selectChat, selectTabState, selectUser } from '../../global/selectors';
 import buildClassName from '../../util/buildClassName';
@@ -147,6 +148,10 @@ const ForwardRecipientPicker = ({
     setSelectedIds(ids);
   });
 
+  const handleMaxSelected = useLastCallback(() => {
+    showNotification({ message: { key: 'ForwardChatsLimit', variables: { count: FORWARD_CHATS_MAX } } });
+  });
+
   const handleForwardToMultiple = useLastCallback(() => {
     if (!selectedIds.length) return;
 
@@ -279,10 +284,12 @@ const ForwardRecipientPicker = ({
       title={lang('ShareWith')}
       searchPlaceholder={lang('Search')}
       isMultiSelect={isMultiSelect}
+      maxSelectedCount={FORWARD_CHATS_MAX}
       footer={footerContent}
       viewportFooter={viewportFooter}
       onSelectRecipient={handleSelectRecipient}
       onSelectedIdsChange={handleSelectedIdsChange}
+      onMaxSelected={handleMaxSelected}
       onClose={handleClose}
       onCloseAnimationEnd={unmarkIsShown}
       isNativeDialog

@@ -293,7 +293,7 @@ type WatchDownloadProgressArgs<T> = {
   cancel: () => void;
 };
 
-// * TeleSignal: the attach menu's items that Signal has: photos and videos, files and polls
+// * TeleSignal: the attach menu's items that Signal has: photos and videos, files, polls and contacts
 const SIGNAL_ATTACH_ACTIONS: Set<RichMessageAttachMenuAction> = new Set(['visualMedia', 'document', 'poll', 'contact']);
 
 export default class ChatInput {

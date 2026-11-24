@@ -8,6 +8,7 @@ import type {AppReactionsManager} from '@appManagers/appReactionsManager';
 import type {MessagesStorageKey} from '@appManagers/appMessagesManager';
 import type {AppAvatarsManager, PeerPhotoSize} from '@appManagers/appAvatarsManager';
 import rootScope, {BroadcastEvents} from '@lib/rootScope';
+import {rememberDeauthorization} from '@lib/signal/deauthorization';
 import webpWorkerController from '@lib/webp/webpWorkerController';
 import DEBUG, {MOUNT_CLASS_TO} from '@config/debug';
 import {isLogBufferEnabled} from '@lib/debug/logsBuffer';
@@ -645,6 +646,9 @@ class ApiManagerProxy extends MTProtoMessagePort {
     window.addEventListener('online', () => {
       rootScope.managers.networkerFactory.forceReconnectTimeout();
     });
+
+    // * TeleSignal: the reason comes before the log out that reloads the page (@lib/signal/deauthorization)
+    rootScope.addEventListener('signal_deauthorized', rememberDeauthorization);
 
     rootScope.addEventListener('logging_out', async({accountNumber, migrateTo}) => {
       // * TeleSignal: what the page keeps of the slot goes first, while its storages are on

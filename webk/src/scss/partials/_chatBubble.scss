@@ -573,7 +573,6 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     border-start-end-radius: var(--border-start-end-radius);
     border-end-start-radius: var(--border-end-start-radius);
     border-end-end-radius: var(--border-end-end-radius);
-    box-shadow: 0 1px 2px 0 rgba(16, 35, 47, .15);
     position: relative;
     // display: flex;
     // flex-direction: column-reverse;
@@ -2150,9 +2149,9 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     text-decoration: underline;
   }
 
-  // in a dark theme an outgoing message's links are as white as its text: every kind of them is told
-  // apart by its underline, as iOS does it
-  .night &.is-out .message a:not(.peer-title):not(.rich-button-link) {
+  // an outgoing message's links are as white as its text: every kind of them is told apart by its underline,
+  // as iOS does it
+  &.is-out .message a:not(.peer-title):not(.rich-button-link) {
     text-decoration: underline;
   }
 
@@ -3841,6 +3840,9 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
 
 .bubble.is-out {
   flex-direction: row-reverse;
+  --primary-text-color: var(--message-out-text-color);
+  --secondary-text-color: var(--message-out-secondary-text-color);
+  color: var(--primary-text-color);
   --message-background-color: var(--message-out-background-color);
   --light-message-background-color: var(--light-message-out-background-color);
   --light-filled-message-background-color: var(--light-filled-message-out-background-color);
@@ -4643,4 +4645,40 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     height: 200px;
     cursor: pointer;
   }
+}
+
+// * Signal's look, as Web A's Signal theme (DESIGN.md "Signal theme", `MessageList.scss`, `Message.scss`):
+// * bubbles have no tail, and a bubble that could have one keeps the rounded corner of one that cannot
+.bubble.can-have-tail {
+  &.is-group-last, &.is-forced-rounded {
+    .bubble-tail {
+      display: none;
+    }
+
+    &.is-in {
+      --border-end-start-radius: #{$bubble-border-radius-big} !important;
+    }
+
+    &.is-out {
+      --border-end-end-radius: #{$bubble-border-radius-big} !important;
+    }
+  }
+}
+
+// * Service messages and dates are plain secondary text (Signal Desktop `.SystemMessage`); the date stuck over the
+// * messages keeps its chip
+.bubble.service:not(.is-sticky) .service-msg {
+  color: var(--secondary-text-color);
+  background-color: transparent;
+
+  a {
+    color: inherit;
+  }
+}
+
+// * The unread divider is a rule with its label under it (Signal Desktop `.module-last-seen-indicator`)
+.bubble.is-first-unread:before {
+  color: var(--primary-text-color);
+  background-color: transparent;
+  border-top: 1px solid var(--border-color);
 }

@@ -362,101 +362,10 @@ ul.chatlist {
       }
     }
 
+    // * The open chat is a gray row that keeps its regular colours, as Web A's Signal theme (`Chat.scss`)
     @include respond-to(not-handhelds) {
       &.active {
-        --background: var(--primary-color) !important;
-        //background: var(--light-secondary-text-color);
-
-        .row-subtitle,
-        .row-title,
-        //.user-title:after,
-        .user-title,
-        .message-status,
-        .premium-icon,
-        .verified-icon,
-        .sending-status-icon,
-        .dialog-subtitle-ico {
-          color: #fff !important;
-        }
-
-        .avatar-stories-svg-circle {
-          stroke: #fff !important;
-        }
-
-        .badge-fake {
-          color: #fff;
-          border-color: #fff;
-        }
-
-        .primary-text,
-        .danger {
-          color: #fff !important;
-        }
-
-        .dialog-muted-icon {
-          color: rgba(255, 255, 255, .7);
-        }
-
-        .peer-title-direct-badge,
-        &.is-pinned .dialog-title-details .dialog-time-pill {
-          color: white;
-          background-color: rgba(255, 255, 255, .2);
-        }
-
-        // * with the stronger contrast asked for, the time's pill darkens the accent rather than
-        // * lightening it, so the white time keeps the contrast the accent was corrected for
-        :where(.high-contrast) &.is-pinned .dialog-title-details .dialog-time-pill {
-          background-color: rgba(0, 0, 0, .15);
-        }
-
-        // * a tag turns over as the badges do, white with the accent in it - Desktop's active tag
-        .folder-tag {
-          color: var(--primary-color);
-          background-color: #fff;
-        }
-
-        .verified-icon {
-          &-background {
-            fill: #fff !important;
-          }
-
-          &-check {
-            // fill: var(--primary-color) !important;
-            visibility: hidden;
-          }
-        }
-
-        .dialog-avatar.is-online:after,
-        .dialog-group-call-icon {
-          background-color: #fff;
-          border-color: var(--primary-color);
-        }
-
-        .dialog-group-call-icon-bar {
-          background-color: var(--primary-color);
-        }
-
-        .badge.unread,
-        .mention,
-        .dialog-subtitle-badge-reaction,
-        .dialog-subtitle-badge-pollvote,
-        .dialog-subtitle-badge-bot-app {
-          background-color: #fff !important;
-          color: var(--primary-color);
-        }
-
-        // * its focus ring goes around it, on the accent of the row
-        .dialog-subtitle-badge-bot-app {
-          outline-color: #fff;
-        }
-
-        // .badge.avatar-badge {
-        //   border-color: var(--background);
-        // }
-
-        .peer-typing-container {
-          --color: #fff;
-        }
+        --background: var(--message-background-color) !important;
       }
     }
   }

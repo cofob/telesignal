@@ -1,4 +1,4 @@
-import {getHexColorFromTelegramColor, hexToRgb, hexaToHsla} from '@helpers/color';
+import {getHexColorFromTelegramColor, hexToRgb} from '@helpers/color';
 import clamp from '@helpers/number/clamp';
 import crc32 from '@helpers/number/crc32';
 import themeController from '@helpers/themeController';
@@ -34,34 +34,17 @@ export function getPeerAvatarColorById(peerId: UserId | ChatId) {
   return DialogColors[getPeerColorIndexById(peerId)];
 }
 
+// * Signal's avatar colours, by the colour index of a user or chat (Signal Desktop `AvatarColors` in
+// * `ts/types/Colors.std.ts`): the `--peer-avatar-<name>-*` slots of base.scss
+const SIGNAL_AVATAR_COLORS = ['A100', 'A110', 'A120', 'A130', 'A140', 'A150', 'A160', 'A170', 'A180', 'A190', 'A200', 'A210'];
+
 export function getPeerAvatarColorByPeer(peer: Chat | User) {
-  let idx = getPeerColorIndexByPeer(peer);
+  const idx = getPeerColorIndexByPeer(peer);
   if(idx === -1) {
     return;
   }
 
-  let color = DialogColors[idx];
-  if(!color) {
-    const fgColor = DialogColorsFg[idx];
-    if(!fgColor) {
-      return getPeerAvatarColorById(peer.id);
-    }
-
-    const hsla = hexaToHsla(fgColor[0]);
-    const hue = hsla.h;
-
-    if(hue >= 345 || hue < 29) idx = 0; // red
-    else if(hue < 67) idx = 1; // orange
-    else if(hue < 140) idx = 3; // green
-    else if(hue < 199) idx = 4; // cyan
-    else if(hue < 234) idx = 5; // blue
-    else if(hue < 301) idx = 2; // violet
-    else idx = 6; // pink
-
-    color = DialogColors[idx];
-  }
-
-  return color;
+  return SIGNAL_AVATAR_COLORS[idx] ?? getPeerAvatarColorById(peer.id);
 }
 
 export function getPeerColorIndexByPeer(peer: Chat | User) {

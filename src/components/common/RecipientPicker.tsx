@@ -39,12 +39,15 @@ export type OwnProps = {
   isNativeDialog?: boolean;
   shouldFilterInviteable?: boolean;
   isMultiSelect?: boolean;
+  // How many recipients a multiple selection takes; a further one calls `onMaxSelected` instead
+  maxSelectedCount?: number;
   withFolders?: boolean;
   footer?: TeactNode;
   viewportFooter?: TeactNode;
   loadMore?: NoneToVoidFunction;
   onSelectRecipient: (peerId: string) => void;
   onSelectedIdsChange?: (ids: string[]) => void;
+  onMaxSelected?: NoneToVoidFunction;
   onClose: NoneToVoidFunction;
   onCloseAnimationEnd?: NoneToVoidFunction;
 };
@@ -80,12 +83,14 @@ const RecipientPicker = ({
   orderedFolderIds,
   shouldFilterInviteable,
   isMultiSelect,
+  maxSelectedCount,
   withFolders,
   footer,
   viewportFooter,
   loadMore,
   onSelectRecipient,
   onSelectedIdsChange,
+  onMaxSelected,
   onClose,
   onCloseAnimationEnd,
 }: OwnProps & StateProps) => {
@@ -139,6 +144,8 @@ const RecipientPicker = ({
   const handleToggleSelection = useLastCallback((peerId: string) => {
     if (selectedIds.includes(peerId)) {
       handleRemoveSelected(peerId);
+    } else if (maxSelectedCount && selectedIds.length >= maxSelectedCount) {
+      onMaxSelected?.();
     } else {
       updateSelectedIds([...selectedIds, peerId]);
     }

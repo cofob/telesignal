@@ -53,3 +53,20 @@ $menu-height: 3rem;
 // background — a table's header cell, a plain rich button. A bubble sets both to its own; the
 // composer reads the chat's, so it matches an incoming bubble.
 $message-shade-color: color-mix(in srgb, var(--message-status-color) 10%, var(--message-background-color));
+
+// Signal's avatar colours by name (`AVATAR_COLORS` of `src/api/signal/builders/users.ts`, Signal Desktop
+// `AvatarColors`): the `data-color` that `getPeerAvatarColorByPeer` gives a user or chat
+$signal-avatar-colors: (
+  "A100": #3838f5,
+  "A110": #1251d3,
+  "A120": #086da0,
+  "A130": #067906,
+  "A140": #661aff,
+  "A150": #9f00f0,
+  "A160": #b8057c,
+  "A170": #be0404,
+  "A180": #836b01,
+  "A190": #7d6f40,
+  "A200": #4f4f6d,
+  "A210": #5c5c5c
+);
