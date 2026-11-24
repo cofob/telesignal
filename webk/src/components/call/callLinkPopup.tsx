@@ -2,7 +2,7 @@ import {createSignal, Show} from 'solid-js';
 import CallLogo from '@components/call/callLogo';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import classNames from '@helpers/string/classNames';
-import {DelimiterWithText} from '@components/chat/giveaway';
+import {DelimiterWithText} from '@components/delimiterWithText';
 import MediaHeader from '@components/mediaHeader';
 import PopupElement, {createPopup} from '@components/popups/indexTsx';
 import shareUrlToPeers from '@components/popups/shareUrl';

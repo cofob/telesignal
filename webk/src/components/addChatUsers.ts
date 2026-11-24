@@ -3,7 +3,7 @@ import {Chat, MissingInvitee, User} from '@layer';
 import {FormatterArguments, LangPackKey, i18n, join} from '@lib/langPack';
 import rootScope from '@lib/rootScope';
 import Button from '@components/button';
-import {DelimiterWithText} from '@components/chat/giveaway';
+import {DelimiterWithText} from '@components/delimiterWithText';
 import showPeerPopup, {PopupPeerButtonCallbackCheckboxes, PopupPeerCheckboxOptions} from '@components/popups/peer';
 import showPickUserPopup from '@components/popups/pickUser';
 import SidebarSlider from '@components/slider';

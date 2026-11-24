@@ -3,7 +3,7 @@ import PopupElement, {createPopup} from '@components/popups/indexTsx';
 import {LangPackKey, i18n} from '@lib/langPack';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import apiManagerProxy from '@lib/apiManagerProxy';
-import {DelimiterWithText} from '@components/chat/giveaway';
+import {DelimiterWithText} from '@components/delimiterWithText';
 import wrapLocalSticker from '@components/wrappers/localSticker';
 import liteMode from '@helpers/liteMode';
 import {toastNew} from '@components/toast';

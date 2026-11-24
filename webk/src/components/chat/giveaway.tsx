@@ -11,6 +11,7 @@ import AppSelectPeers from '@components/appSelectPeers';
 import confirmationPopup from '@components/confirmationPopup';
 import wrapLocalSticker from '@components/wrappers/localSticker';
 import {For, JSX} from 'solid-js';
+import {DelimiterWithText} from '@components/delimiterWithText';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import showGiftLinkPopup from '@components/popups/giftLink';
 import classNames from '@helpers/string/classNames';
@@ -19,21 +20,6 @@ import {IconTsx} from '@components/iconTsx';
 import {setPeerColorToElement} from '@components/peerColors';
 
 export {default as getGiftAssetName} from '@helpers/getGiftAssetName';
-
-export function DelimiterWithText(props: {
-  langKey: LangPackKey,
-  class?: string,
-  /** For a caller that dresses the label itself — the stars pill, say. */
-  textClass?: string
-}) {
-  return (
-    <span class={classNames('delimiter-with-text', props.class)}>
-      <span class="delimiter-with-text-stripe" />
-      <span class={props.textClass}>{i18n(props.langKey)}</span>
-      <span class="delimiter-with-text-stripe" />
-    </span>
-  );
-}
 
 export async function onGiveawayClick(message: Message.message) {
   const giveaway = message.media as MessageMedia.messageMediaGiveaway | MessageMedia.messageMediaGiveawayResults;

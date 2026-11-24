@@ -2,7 +2,7 @@ import PopupElement, {createPopup} from '@components/popups/indexTsx';
 import {i18n} from '@lib/langPack';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import {StarsBalance} from '@components/stars/starsAmount';
-import {DelimiterWithText} from '@components/chat/giveaway';
+import {DelimiterWithText} from '@components/delimiterWithText';
 import {createEffect, createMemo, createSignal, For, on, onCleanup} from 'solid-js';
 import {easeOutCircApply} from '@helpers/easing/easeOutCirc';
 import Row from '@components/rowTsx';

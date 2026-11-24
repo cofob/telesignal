@@ -224,7 +224,7 @@ import namedPromises from '@helpers/namedPromises';
 import {getCurrentNewMediaPopup} from '@components/popups/newMedia';
 import showStarGiftInfoPopup from '@components/popups/starGiftInfo';
 import {StarGiftBubble, UniqueStarGiftWebPageBox} from '@components/chat/bubbles/starGift';
-import {PremiumGiftBubble} from '@components/chat/bubbles/premiumGift';
+import {ServiceStickerBubble} from '@components/chat/bubbles/serviceStickerBubble';
 import {ChatThemeGiftBubble} from '@components/chat/bubbles/chatThemeGift';
 import {ChatWallPaperBubble} from '@components/chat/bubbles/chatWallPaper';
 import {UnknownUserBubble} from '@components/chat/bubbles/unknownUser';
@@ -9461,7 +9461,7 @@ export default class ChatBubbles {
             subtitle = i18n(isSent ? 'ActionGiftStarsSubtitle' : 'ActionGiftStarsSubtitleYou', [await wrapPeerTitle({peerId: message.peerId})]);
           }
 
-          this.wrapSomeSolid(() => PremiumGiftBubble({
+          this.wrapSomeSolid(() => ServiceStickerBubble({
             lottieOptions: {
               middleware
             },
@@ -9515,7 +9515,7 @@ export default class ChatBubbles {
 
           const assetName = getGiftAssetName(action.days);
 
-          this.wrapSomeSolid(() => PremiumGiftBubble({
+          this.wrapSomeSolid(() => ServiceStickerBubble({
             lottieOptions: {middleware},
             assetName,
             title,
@@ -9780,7 +9780,7 @@ export default class ChatBubbles {
               wrapRichText(action.message.text, {entities: action.message.entities}) :
               i18n('ActionGiftPremiumSubtitle2');
 
-          this.wrapSomeSolid(() => PremiumGiftBubble({
+          this.wrapSomeSolid(() => ServiceStickerBubble({
             lottieOptions: {middleware},
             assetName,
             title,
@@ -9818,7 +9818,7 @@ export default class ChatBubbles {
           else if(amountNum > 10) idx = 1;
           else idx = 0;
 
-          this.wrapSomeSolid(() => PremiumGiftBubble({
+          this.wrapSomeSolid(() => ServiceStickerBubble({
             lottieOptions: {middleware},
             sticker: stickers.documents[idx] as MyDocument,
             title: formatNanoton(action.crypto_amount, 9) + ' ' + GRAM_CURRENCY_SYMBOL,

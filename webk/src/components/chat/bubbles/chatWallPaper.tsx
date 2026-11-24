@@ -5,7 +5,7 @@ import themeController from '@helpers/themeController';
 import useBaseTheme from '@hooks/useBaseTheme';
 import classNames from '@helpers/string/classNames';
 import {useFullPeer} from '@stores/fullPeers';
-import {PremiumGiftBubble} from '@components/chat/bubbles/premiumGift';
+import {ServiceStickerBubble} from '@components/chat/bubbles/serviceStickerBubble';
 import {isSameWallPaper} from '@components/chat/chatTheme';
 import styles from '@components/chat/bubbles/chatWallPaper.module.scss';
 
@@ -79,7 +79,7 @@ export function ChatWallPaperBubble(props: {
   onCleanup(() => shown && drop(shown));
 
   return (
-    <PremiumGiftBubble
+    <ServiceStickerBubble
       media={<div ref={thumb} class={classNames(styles.thumb, onClick && styles.clickable)} aria-hidden="true" onClick={onClick} />}
       subtitle={props.text}
       buttonText={props.isOut || !actions ? undefined : i18n(isRemovable() ? 'Remove' : 'ViewWallpaperAction')}
