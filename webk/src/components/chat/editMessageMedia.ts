@@ -49,7 +49,8 @@ export function canEditMediaWithEditor(media: MessageMedia) {
  * pass `appMessagesManager.canEditMessage`.
  */
 export function canEditMessageMediaWithEditor(message: Message.message | null | undefined) {
-  return getMediaTypeForMessage(message) === 'media' && canEditMediaWithEditor(message.media);
+  // * TeleSignal: an edit of a Signal message changes only its text
+  return false;
 }
 
 /** How every entry point into that flow labels itself. */

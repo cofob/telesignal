@@ -553,6 +553,8 @@ export default class AppSignalManager extends AppManager {
   }
 
   private async editMessage(params: MethodDeclMap['messages.editMessage']['req']) {
+    // * an edit of a Signal message changes only its text
+    if(params.media) throw makeError('MEDIA_EDIT_UNSUPPORTED' as ErrorType);
     const peerId = this.getInputPeerId(params.peer);
     await this.call('editMessage', {
       chat: {id: toSignalPeerId(peerId)},
