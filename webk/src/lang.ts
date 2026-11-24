@@ -6874,7 +6874,6 @@ const lang = {
   'Experimental.HideNonContactLinks': 'Hide Links from Non-Contacts',
   'Experimental.HideNonContactLinks.Subtitle': 'Even where the server does not ask to',
   'Experimental.Tools': 'Developer Tools',
-  'Experimental.PopupSandbox': 'Popup Sandbox',
   'Experimental.BubbleSandbox': 'Bubble Sandbox',
   'Experimental.IconLibrary': 'Icon Library',
   'Experimental.CopyDebugInfo': 'Copy Debug Info',

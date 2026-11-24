@@ -54,7 +54,7 @@ const BOOT_IMPORTS = ['src/pages/bootstrapIm.ts', 'src/pages/mountAuthFlow.tsx',
   'src/lang.ts', 'src/langSign.ts', 'src/countries.ts', 'src/vendor/fastBlur.js'];
 
 // what-if: modules no longer imported by app code, only from the root (--cut a,b — registered at startup instead)
-const CUT_ROOTS = new Set([PAGE_ENTRY, 'src/pages/bootstrapIm.ts', 'src/lib/solidjs/hotReloadGuardValue.ts', 'src/components/popupSandbox/index.ts']);
+const CUT_ROOTS = new Set([PAGE_ENTRY, 'src/pages/bootstrapIm.ts', 'src/lib/solidjs/hotReloadGuardValue.ts']);
 let cutTo = new Set();
 
 const isAppModule = (f) => f.startsWith('src/') && !f.startsWith('src/vendor/') && !TEST_FILE.test(f);
