@@ -67,6 +67,7 @@ import useHasFoldersSidebar, {useIsSidebarCollapsed} from '@stores/foldersSideba
 import appNavigationController from '@components/appNavigationController';
 import {preventCrossTabDynamicImportDeadlock} from '@helpers/preventDeadlock';
 import appChatBackground from '@components/chat/bubbles/chatBackground';
+import {IS_DESKTOP_APP, setupDesktopApp} from '@lib/signal/desktopApp';
 
 // import commonStateStorage from '@lib/commonStateStorage';
 // import { STATE_INIT } from '@config/state';
@@ -426,6 +427,7 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
   listenForLinkPress();
   setRootClasses();
   if(Modes.test) mountTestDcBadge();
+  if(IS_DESKTOP_APP) setupDesktopApp();
 
   // ?popups=1 — the popup sandbox: every popup, opened by click with mock data and no session.
   // It has to take over here, before the session is restored and the auth flow starts.

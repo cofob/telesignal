@@ -163,13 +163,11 @@ fn handle_icon_click(app: &AppHandle, only_open: bool) {
       // Update icon with notification count
       if let Some(state) = app.try_state::<AppState>()
         && let Ok(app_state) = state.lock()
-        && app_state.notification_count > 0
       {
-        crate::tray::set_notifications_count(
-          &webview_window,
-          app_state.notification_count,
-          app_state.is_muted,
-        );
+        let (amount, is_muted) = app_state.total();
+        if amount > 0 {
+          crate::tray::set_notifications_count(&webview_window, amount, is_muted);
+        }
       }
     }
     return;

@@ -33,6 +33,7 @@ import {MainBroadcastChannelEvents, unversionedMainBroadcastChannelName} from '@
 import objectUrlRegistry from '@lib/mainWorker/objectUrlRegistry';
 import SharedObjectUrlCache, {getSharedObjectURLCacheStats, resetSharedObjectURLCaches} from '@lib/mainWorker/sharedObjectUrlCache';
 import TabIntervals from '@lib/mainWorker/tabIntervals';
+import {offerNativeTransportPort, releaseNativeTransportSource} from '@lib/signal/nativeTransport';
 
 
 const log = logger('MTPROTO');
@@ -234,6 +235,10 @@ port.addMultipleEventsListeners({
   serviceWorkerPort: (payload, source, event) => {
     appManagersManager.onServiceWorkerPort(event);
     port.invokeVoid('receivedServiceMessagePort', undefined, source);
+  },
+
+  nativeTransportPort: (payload, source, event) => {
+    offerNativeTransportPort(source, event.ports[0]);
   },
 
   updateObjectURLPins: (updates, source) => {
@@ -456,6 +461,7 @@ const onTabDisconnect = (source: MessageEventSource) => {
   tabIntervals.releaseSource(source);
   appTabsManager.deleteTab(source);
   autoLockControls.removeTab(source);
+  releaseNativeTransportSource(source);
 };
 
 // Auto-listen only when actually running inside a Worker context.

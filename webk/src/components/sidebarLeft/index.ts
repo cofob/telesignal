@@ -111,6 +111,8 @@ import isCommunity from '@appManagers/utils/communities/isCommunity';
 import {openEmojiStatusPicker} from '@components/sidebarLeft/emojiStatusPicker';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import verifyMenuItem from '@helpers/verifyMenuItem';
+import type {Update} from '@tauri-apps/plugin-updater';
+import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 
 
 type SearchInitResult = {
@@ -152,6 +154,7 @@ export class AppSidebarLeft extends SidebarSlider {
   private searchTriggerWhenCollapsed: HTMLElement;
 
   private updateBtn: HTMLElement;
+  private desktopUpdate: Update;
   private hasUpdate: boolean;
 
   private onResize: () => void;
@@ -230,6 +233,17 @@ export class AppSidebarLeft extends SidebarSlider {
 
     attachClickEvent(this.updateBtn, () => {
       if(this.updateBtn.classList.contains('is-hidden')) {
+        return;
+      }
+
+      // * TeleSignal: the desktop app installs its update and starts again
+      if(this.desktopUpdate) {
+        this.updateBtn.classList.add('is-hidden');
+        import('@lib/signal/desktopIm').then(({installDesktopUpdate}) => installDesktopUpdate(this.desktopUpdate)).catch((err) => {
+          console.error('Failed to install the update', err);
+          this.updateBtn.classList.remove('is-hidden');
+          toastNew({langPackKey: 'Signal.Desktop.UpdateFailed'});
+        });
         return;
       }
 
@@ -387,7 +401,16 @@ export class AppSidebarLeft extends SidebarSlider {
 
     this.initNavigation();
 
-    {
+    // * TeleSignal: the desktop app bundles this page and updates through its updater, as Web A's `LeftMain` does
+    if(IS_DESKTOP_APP) {
+      import('@lib/signal/desktopIm').then(({watchDesktopUpdates}) => watchDesktopUpdates((update) => {
+        this.desktopUpdate = update;
+        this.hasUpdate = true;
+        if(!this.newBtnMenu.classList.contains('is-hidden')) {
+          this.updateBtn.classList.remove('is-hidden');
+        }
+      }));
+    } else {
       const CHECK_UPDATE_INTERVAL = 1800e3;
       const checkUpdateInterval = setInterval(() => {
         fetch('version', {cache: 'no-cache'})

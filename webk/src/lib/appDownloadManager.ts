@@ -22,6 +22,7 @@ import isWebFileLocation from '@appManagers/utils/webFiles/isWebFileLocation';
 import {MIME_TYPE_EXTENSION_MAP} from '@environment/mimeTypeMap';
 import {isObjectURL} from '@helpers/objectUrlUtils';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
+import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 
 export type ResponseMethodBlob = 'blob';
 export type ResponseMethodJson = 'json';
@@ -382,7 +383,8 @@ export class AppDownloadManager {
 
   // * a save streamed to the disk by the service worker, named '<file>_download' (else a plain download of the file)
   private canSaveViaServiceWorker() {
-    return !IS_MOBILE_SAFARI && !!apiManagerProxy.serviceMessagePort;
+    // * TeleSignal: the desktop app refuses the webview's downloads, also from `tauri dev`, and saves the files itself
+    return !IS_MOBILE_SAFARI && !IS_DESKTOP_APP && !!apiManagerProxy.serviceMessagePort;
   }
 
   /**

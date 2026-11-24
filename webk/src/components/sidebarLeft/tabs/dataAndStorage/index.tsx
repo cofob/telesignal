@@ -13,6 +13,8 @@ import {SliderSuperTabEventableConstructable} from '@components/sliderTab';
 import {useAppSettings} from '@stores/appSettings';
 import {StorageQuota, StorageQuotaControls} from './storageQuota';
 import {SignalProxySection} from './signalProxy';
+import {DesktopDownloadsSection} from '../desktopAppSettings';
+import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import {type AppDataAndStorageTab} from '@components/solidJsTabs/tabs';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
@@ -126,6 +128,7 @@ const DataAndStorage: Component = () => {
       </Section>
       <StorageQuota controlsRef={(localControls) => controls = localControls} />
       <SignalProxySection />
+      {IS_DESKTOP_APP && <DesktopDownloadsSection />}
     </>
   );
 };
