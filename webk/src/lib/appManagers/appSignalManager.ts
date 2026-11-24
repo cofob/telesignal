@@ -40,7 +40,7 @@ import {DEFAULT_REACTION_EMOJIS, buildReaction, toSignalReaction} from '@lib/sig
 import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
 import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
-import {buildMediaMethodHandlers} from '@lib/signal/mediaMethods';
+import {buildMediaMethodHandlers, getSharedMediaSearchType} from '@lib/signal/mediaMethods';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import makeError from '@helpers/makeError';
 import {storeSignalWebPages} from '@lib/signal/media';
@@ -188,12 +188,9 @@ export default class AppSignalManager extends AppManager {
       'messages.getMessages': emptyMessages,
       'messages.search': (params) => this.searchMessages(params),
       'messages.searchGlobal': (params) => this.searchGlobal(params),
-      // * shared media and pinned messages are not ported yet: they answer with nothing, as for a new chat
+      // * threads and saved messages are not ported yet: they answer with nothing, as for a new chat
       'messages.getReplies': emptyMessages,
       'messages.getSavedHistory': emptyMessages,
-      'messages.getSearchCounters': (params: MethodDeclMap['messages.getSearchCounters']['req']) => {
-        return params.filters.map((filter) => ({_: 'messages.searchCounter', pFlags: {}, filter, count: 0}));
-      },
       'messages.receivedMessages': () => [],
       'messages.getAllDrafts': emptyUpdates,
       'messages.getAttachMenuBots': () => ({_: 'attachMenuBots', hash: 0, bots: [], users: []}),
@@ -628,12 +625,14 @@ export default class AppSignalManager extends AppManager {
   /** The text search of a chat, which the other filters (media, pinned messages) do not have yet */
   private async searchMessages(params: MethodDeclMap['messages.search']['req']) {
     const peerId = this.getInputPeerId(params.peer);
-    if(!peerId || params.filter?._ !== 'inputMessagesFilterEmpty' || !params.q) return emptySearchResult();
+    // * a text search, or the shared media of a tab, which has no query
+    const type = params.filter._ === 'inputMessagesFilterEmpty' ? 'text' : getSharedMediaSearchType(params.filter);
+    if(!peerId || !type || (type === 'text') !== Boolean(params.q)) return emptySearchResult();
 
     const result: SignalSearchResult = await this.call('searchMessagesInChat', {
       peer: {id: toSignalPeerId(peerId)},
-      type: 'text',
-      query: params.q,
+      type,
+      query: params.q || undefined,
       limit: params.limit,
       offsetId: params.offset_id || undefined
     });
