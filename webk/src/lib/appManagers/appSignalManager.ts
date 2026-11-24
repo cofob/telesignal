@@ -786,6 +786,10 @@ export default class AppSignalManager extends AppManager {
     // * the polls of messages come with them or as entities, before the messages are built
     rememberPolls(update.polls ?? (update.poll ? [update.poll] : undefined));
     switch(update['@type']) {
+      case 'updateNotificationProfiles':
+        // * the profile that is on changes by its schedule too (`lib/signal/notificationProfiles`)
+        this.rootScope.dispatchEvent('signal_notification_profiles', update.state);
+        break;
       case 'updateBackupSettings':
         // * a backup under way reports its steps, which the backup settings show (`tabs/backups`)
         this.rootScope.dispatchEvent('signal_backup_settings', update.settings);

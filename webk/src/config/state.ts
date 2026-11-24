@@ -119,7 +119,9 @@ export type StateSettings = {
     suggested: boolean,
     volume: number, // [0..1]
     novibrate?: boolean,
-    nopreview?: boolean
+    nopreview?: boolean,
+    // * TeleSignal: no notifications of pinned messages (Web A's `shouldNotifyAboutPinnedMessages` off)
+    nopinned?: boolean
   },
   nightTheme?: boolean, // ! DEPRECATED
   timeFormat: 'h12' | 'h23',

@@ -192,7 +192,10 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
   const fromId = message.senderId ? buildPeer(message.senderId) : undefined;
   const pFlags: Message.message['pFlags'] = {
     out: message.isOutgoing || undefined,
-    pinned: message.isPinned || undefined
+    pinned: message.isPinned || undefined,
+    // * a mention of us, which notifies in a muted chat and through a notification profile that allows mentions; a pin
+    // * of our message carries it too
+    mentioned: message.isMentioned || undefined
   };
 
   const {action} = message.content;
