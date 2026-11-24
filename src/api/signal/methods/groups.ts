@@ -286,6 +286,11 @@ export async function editExportedChatInvite({
   return { oldInvite: isRevoked ? { ...oldInvite, isRevoked: true } : newInvite, newInvite };
 }
 
+/** Turns the group link off; turned on again (`exportChatInvite`), the same link works again */
+export function disableChatInvite({ peer }: { peer: ApiChat }) {
+  return changeGroup(peer, buildInviteLinkChange({ isEnabled: false }));
+}
+
 /** Revoked links are not kept, so there is nothing to delete */
 export function deleteExportedChatInvite() {
   return Promise.resolve(true as const);

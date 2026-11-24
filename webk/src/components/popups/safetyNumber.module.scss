@@ -1,0 +1,17 @@
+// The code sits on a white card in every theme, so it stays scannable
+.card {
+  width: 11rem;
+  height: 11rem;
+  margin: 0 auto 1rem;
+  border-radius: 1rem;
+  background-color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.qr {
+  width: 10rem !important;
+  height: 10rem !important;
+}

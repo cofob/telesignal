@@ -12,6 +12,10 @@ import tsNow from '@helpers/tsNow';
 
 // * the error of a pin refused by the list's limit, as Web K shows it (`READABLE_ERROR_KEYS` of Web K)
 const PINNED_LIMIT_ERROR = 'PINNED_DIALOGS_TOO_MUCH';
+// * the error of an answer to a message request that did not go out
+const REQUEST_RESPONSE_ERROR = 'SIGNAL_REQUEST_RESPONSE_FAILED';
+// * the error of a request that Signal cannot honour, as the adapter answers methods it lacks
+const UNSUPPORTED_ERROR = 'SIGNAL_METHOD_UNSUPPORTED';
 
 export function buildChatMethodHandlers(host: SignalMethodHost): SignalMethodHandlers {
   return {
@@ -19,12 +23,15 @@ export function buildChatMethodHandlers(host: SignalMethodHost): SignalMethodHan
     'folders.editPeerFolders': ({folder_peers}) => editPeerFolders(host, folder_peers),
     'account.updateNotifySettings': ({peer, settings}) => updateNotifySettings(host, peer, settings),
     'messages.markDialogUnread': ({peer, unread}) => markDialogUnread(host, unwrapInputPeer(peer), !!unread),
-    'messages.deleteHistory': ({peer}) => deleteHistory(host, unwrapInputPeer(peer)),
+    'messages.deleteHistory': ({peer, just_clear, min_date, max_date}) => (
+      deleteHistory(host, unwrapInputPeer(peer), !!just_clear || min_date !== undefined || max_date !== undefined)
+    ),
     'contacts.block': ({id}) => setBlocked(host, id, true),
     'contacts.unblock': ({id}) => setBlocked(host, id, false),
     'contacts.getBlocked': ({offset, limit}) => getBlocked(host, offset, limit),
     'messages.getPeerSettings': ({peer}) => getPeerSettings(host, peer),
-    'messages.hidePeerSettingsBar': ({peer}) => hidePeerSettingsBar(host, peer)
+    'messages.hidePeerSettingsBar': ({peer}) => hidePeerSettingsBar(host, peer),
+    'messages.reportSpam': ({peer}) => reportSpam(host, peer)
   };
 }
 
@@ -83,10 +90,12 @@ async function markDialogUnread(host: SignalMethodHost, peer: InputPeer, unread:
 }
 
 /**
- * Deletes the chat from this device and our other devices. Signal has no partial clearing of a chat, so Web K's
- * "Clear history" is not offered for Signal chats; a deletion removes the chat from the list as well.
+ * Deletes the chat from this device and our other devices. Signal has no partial clearing of a chat, so a request
+ * to keep the chat (`just_clear`) or to delete a date range is refused instead of deleting the whole chat.
  */
-async function deleteHistory(host: SignalMethodHost, peer: InputPeer) {
+async function deleteHistory(host: SignalMethodHost, peer: InputPeer, isPartial: boolean) {
+  if(isPartial) throw makeError(UNSUPPORTED_ERROR as ErrorType);
+
   const chat = getSignalChatOf(host, peer);
   if(chat) {
     await host.call('deleteHistory', {chat});
@@ -96,11 +105,10 @@ async function deleteHistory(host: SignalMethodHost, peer: InputPeer) {
 
 async function setBlocked(host: SignalMethodHost, id: InputPeer, isBlocked: boolean) {
   const chat = getSignalChatOf(host, id);
-  if(!chat) return false;
-
   // * the provider's block answers the message request too, and its users come back as updates first
-  const isApplied = await host.call(isBlocked ? 'blockUser' : 'unblockUser', {user: chat});
-  return isApplied ? true : false;
+  const isApplied = chat && await host.call(isBlocked ? 'blockUser' : 'unblockUser', {user: chat});
+  if(!isApplied) throw makeError(REQUEST_RESPONSE_ERROR as ErrorType);
+  return true;
 }
 
 /**
@@ -145,11 +153,21 @@ async function getPeerSettings(host: SignalMethodHost, peer: InputPeer) {
   };
 }
 
-/** Closing the bar of a message request accepts the request, as the provider does */
+/**
+ * Accepts a message request, as the provider's `hidePeerSettingsBar` does: our profile key, read receipts and typing
+ * go to the chat from then on. The close button of Web K's bar only hides it on this tab (`chat/actions.tsx`).
+ */
 async function hidePeerSettingsBar(host: SignalMethodHost, peer: InputPeer) {
   const chat = getSignalChatOf(host, peer);
-  if(chat) {
-    await host.call('hidePeerSettingsBar', chat);
-  }
+  const isApplied = chat && await host.call('hidePeerSettingsBar', chat);
+  if(!isApplied) throw makeError(REQUEST_RESPONSE_ERROR as ErrorType);
+  return true;
+}
+
+/** Reports a message request as spam, which Signal answers for the chat on our other devices as well */
+async function reportSpam(host: SignalMethodHost, peer: InputPeer) {
+  const chat = getSignalChatOf(host, peer);
+  const isApplied = chat && await host.call('reportSpam', chat);
+  if(!isApplied) throw makeError(REQUEST_RESPONSE_ERROR as ErrorType);
   return true;
 }

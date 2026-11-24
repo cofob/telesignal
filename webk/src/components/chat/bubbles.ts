@@ -4122,11 +4122,9 @@ export default class ChatBubbles {
       for(const timestamp in this.dateMessages) {
         const d = this.dateMessages[timestamp];
         if(d.div === bubble) {
-          // Multi-select range only makes sense when the user can actually
-          // delete messages on both sides — otherwise the range pick is a
-          // dead-end UI.
-          const {peerId, threadId, monoforumThreadId} = this.chat;
-          const canDeleteDays = peerId.isUser() && !threadId && !monoforumThreadId;
+          // TeleSignal: Signal has no deletion of a chat's messages by date, so the range pick is not offered
+          const {peerId} = this.chat;
+          const canDeleteDays = false;
           showDatePickerPopup({
             initDate: new Date(+timestamp),
             onPick: this.onDatePick,
