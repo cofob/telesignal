@@ -162,6 +162,7 @@ import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import idleController from '@helpers/idleController';
 import getFileMimeType from '@helpers/files/getFileMimeType';
 import Icon from '@components/icon';
+import createSignalSendIcon from '@components/signalSendIcon';
 import {setBadgeCount} from '@helpers/setBadgeContent';
 import createBadge from '@helpers/createBadge';
 import deepEqual from '@helpers/object/deepEqual';
@@ -1771,10 +1772,8 @@ export default class ChatInput {
 
     this.btnSend = this.createButtonIcon();
     this.btnSend.classList.add('btn-circle', 'btn-send', 'animated-button-icon');
-    // * the plane is the Telegram logo, which is not mirrored anywhere else: as a send button it
-    // * flies along the line (`.icon-mirror`), not the clock or the check that take its place
     const icons: [Icon, string, string?][] = [
-      ['logo', 'send', 'icon-mirror'],
+      ['logo', 'send'],
       ['schedule', 'schedule'],
       ['check', 'edit'],
       ['microphone_filled', 'record'],
@@ -1783,6 +1782,8 @@ export default class ChatInput {
       ['stop', 'stop']
     ];
     this.btnSend.append(...icons.map(([name, type, mirror]) => Icon(name, 'animated-button-icon-icon', 'btn-send-icon-' + type, ...(mirror ? [mirror] : []))));
+    // * TeleSignal: Web A's send arrow (`src/assets/font-icons/new-send.svg`) in place of Telegram's plane
+    this.btnSend.querySelector('.btn-send-icon-send').replaceChildren(createSignalSendIcon());
     // * the sparkles of a request the AI editor makes on what is sent, round the plane or the clock
     this.aiSendSparkles = (['send', 'schedule'] as const).map((icon) => ({
       icon,
