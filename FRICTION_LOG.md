@@ -42,10 +42,11 @@ hidden start itself was tried under Xvfb, a missing tray host was not. Detecting
 whether `org.kde.StatusNotifierWatcher` has an owner, which needs `zbus` (in the tree through `notify-rust`) as a
 direct dependency; the start could then stay visible without one.
 
-## The demo account has no downloadable document and no file with a risky name
+## The demo account has no file with a risky name
 
-`seedDemo` (`src/lib/signal/dev/seedDemo.ts`) draws its photos into the attachment cache, but the one document in it,
-`report.pdf`, is marked unavailable. In the desktop app the Open confirmation for a dangerous type (`.exe`, `.sh`,
+`seedDemo` (`src/lib/signal/dev/seedDemo.ts`) draws its photos and generates a voice note, a WAV file, `Trail guide.pdf`,
+a video and a GIF into the attachment cache; `report.pdf` is marked unavailable. The generated files were not tried in
+the desktop app. In the desktop app the Open confirmation for a dangerous type (`.exe`, `.sh`,
 ...), the document click that opens a saved file and the "moved or deleted" answer for a document cannot be tried
 without a linked account. Only photos could be saved and opened in the Xvfb run; the confirmation is covered by unit
 tests of `is_file_dangerous` alone, and its native dialog was not shown.
@@ -180,6 +181,29 @@ Several Telegram-only entries remain outside the chat list and groups, and were 
 Telegram paper-plane icon on the send button, and the community section code in the group editor, which never renders for Signal
 groups. The entries that this area hid are listed in `docs/signal/ITERATIONS.md`, section 11; the code behind them is
 still there, to be removed with the Telegram code.
+
+## Web K shows no download progress until the whole attachment is decrypted
+
+Web K downloads a file part by part through `upload.getFile` (`webk/src/lib/signal/mediaMethods.ts`), and each part
+calls the provider's `downloadMedia` with a byte range. The first part makes the provider fetch and decrypt the whole
+attachment from the CDN (`fetchAttachmentBlob` in `src/api/signal/media/attachments.ts`) without a progress callback,
+since a callback cannot cross the worker call; the progress bar then jumps from zero to the end, and a cancel stops only
+the remaining parts, not the CDN download. Verified by reading the code; the demo account has every file cached.
+
+## The demo account shows no avatars and no sticker packs
+
+Avatars are downloaded from the CDN on every request (`fetchAvatar` in `src/api/signal/methods/media.ts`), and sticker
+packs (installed, featured, a pack opened from a sticker) are read from Signal's CDN, so none of them shows with the
+demo account, which never connects. Web K's avatar downloads, its sticker panel, the pack popup and sending a sticker
+from a pack were checked only by reading the code.
+
+## Web A offers media spoilers and uploads that Signal does not have
+
+Web A's attachment modal (`src/components/middle/composer/AttachmentModal.tsx`) offers «Hide with spoiler», but the
+provider ignores `shouldSendAsSpoiler` and Signal has no media spoilers. Its size check uses Telegram's limit
+(`MAX_UPLOAD_SIZE` in `src/limits.ts`, about 2 GB), while Signal accepts 100 MiB (Signal Android
+`RemoteConfig.maxAttachmentSizeBytes`), so a larger file uploads until the server answers 413. Web K hides the spoiler
+and rejects larger files while they upload (`webk/src/lib/signal/outgoingMedia.ts`).
 
 ## Group changes cannot be exercised with the demo account
 

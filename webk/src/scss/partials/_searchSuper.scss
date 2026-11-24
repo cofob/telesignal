@@ -183,6 +183,21 @@
     .grid-item {
       overflow: hidden;
 
+      // * TeleSignal: a video without a still (`grid-item-no-thumb` in appSearchSuper.ts)
+      &.grid-item-no-thumb {
+        background-color: var(--light-secondary-text-color);
+      }
+
+      &-no-thumb-icon {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: var(--secondary-text-color);
+      }
+
       // * the global focus ring is painted under the positioned thumbnail (`.grid-item-media`) and never seen:
       // * an overlay above it draws the ring instead, the way the wallpapers' grid does (`.background-item`)
       :where(.a11y) &:focus-visible {

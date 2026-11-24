@@ -68,6 +68,128 @@ export type SignalReactions = {
   recentReactions?: {peerId: string, reaction: SignalReaction, isOwn?: boolean, addedDate: number}[]
 };
 
+export type SignalThumbnail = {dataUri: string, width: number, height: number};
+
+export type SignalPhoto = {
+  mediaType: 'photo',
+  id: string,
+  date: number,
+  thumbnail?: SignalThumbnail,
+  sizes: {type: string, width: number, height: number}[],
+  size?: number,
+  isUnavailable?: true
+};
+
+export type SignalVideo = {
+  mediaType: 'video',
+  id: string,
+  mimeType: string,
+  duration: number,
+  fileName: string,
+  width?: number,
+  height?: number,
+  isGif?: true,
+  thumbnail?: SignalThumbnail,
+  size: number,
+  isUnavailable?: true
+};
+
+export type SignalDocument = {
+  mediaType: 'document',
+  id?: string,
+  fileName: string,
+  size: number,
+  timestamp?: number,
+  mimeType: string,
+  thumbnail?: SignalThumbnail,
+  isUnavailable?: true
+};
+
+export type SignalAudio = {
+  mediaType: 'audio',
+  id: string,
+  size: number,
+  mimeType: string,
+  fileName: string,
+  duration: number,
+  performer?: string,
+  title?: string,
+  isUnavailable?: true
+};
+
+export type SignalVoice = {
+  mediaType: 'voice',
+  id: string,
+  duration: number,
+  waveform?: number[],
+  size: number,
+  isUnavailable?: true
+};
+
+export type SignalSticker = {
+  mediaType: 'sticker',
+  id: string,
+  stickerSetInfo: {id: string, accessHash: string} | {shortName: string} | {isMissing: true},
+  emoji?: string,
+  isLottie: boolean,
+  isVideo: boolean,
+  width?: number,
+  height?: number,
+  size?: number,
+  isUnavailable?: true
+};
+
+export type SignalAlbumItem = {photo?: SignalPhoto, video?: SignalVideo};
+
+/** A file of a message the app sends, which the provider uploads (the provider's `ApiAttachment`) */
+export type SignalAttachment = {
+  blobUrl: string,
+  filename: string,
+  mimeType: string,
+  size: number,
+  quick?: {width: number, height: number, duration?: number},
+  voice?: {duration: number, waveform: number[]},
+  audio?: {duration: number, title?: string, performer?: string},
+  shouldSendAsFile?: true,
+  shouldSendAsGif?: true,
+  uniqueId: string
+};
+
+export type SignalStickerSet = {
+  id: string,
+  accessHash: string,
+  title: string,
+  shortName: string,
+  count: number,
+  installedDate?: number,
+  covers?: SignalSticker[],
+  stickers?: SignalSticker[],
+  packs?: Record<string, SignalSticker[]>
+};
+
+export type SignalContact = {
+  mediaType: 'contact',
+  firstName: string,
+  lastName: string,
+  phoneNumber: string,
+  userId: string,
+  vcard?: string
+};
+
+/** A link preview of a message, sent with the message as an `updateEntities` of `webPages` */
+export type SignalWebPage = {
+  mediaType: 'webpage',
+  webpageType: 'full' | 'pending' | 'empty',
+  id: string,
+  url: string,
+  hash: number,
+  displayUrl: string,
+  siteName?: string,
+  title?: string,
+  description?: string,
+  photo?: SignalPhoto
+};
+
 export type SignalMessage = {
   id: number,
   chatId: string,
@@ -77,13 +199,16 @@ export type SignalMessage = {
   content: {
     text?: SignalFormattedText,
     action?: SignalMessageAction,
-    photo?: unknown,
-    video?: unknown,
-    document?: unknown,
-    sticker?: unknown,
-    voice?: unknown,
-    audio?: unknown,
-    contact?: unknown,
+    photo?: SignalPhoto,
+    video?: SignalVideo,
+    document?: SignalDocument,
+    sticker?: SignalSticker,
+    voice?: SignalVoice,
+    audio?: SignalAudio,
+    contact?: SignalContact,
+    // Several photos and videos of one message, each item one of them
+    album?: {mediaType: 'album', items: SignalAlbumItem[]},
+    webPage?: {id: string},
     pollId?: string
   },
   replyInfo?: {

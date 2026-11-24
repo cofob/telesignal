@@ -8,7 +8,6 @@ import LazyLoadQueue from '@components/lazyLoadQueue';
 import Scrollable, {ScrollableX} from '@components/scrollable';
 import StickyIntersector from '@components/stickyIntersector';
 import EmojiTab, {EmojiTabCategory, getEmojiFromElement} from '@components/emoticonsDropdown/tabs/emoji';
-import GifsTab from '@components/emoticonsDropdown/tabs/gifs';
 import StickersTab from '@components/emoticonsDropdown/tabs/stickers';
 import {MOUNT_CLASS_TO} from '@config/debug';
 import {hotListen} from '@helpers/hotModule';
@@ -79,7 +78,7 @@ const renderEmojiDropdownElement = (): HTMLDivElement => {
     ['search justify-self-start', 'search', -1, 'Search'],
     ['emoji', 'smile', 0, 'Emoji'],
     ['stickers', 'stickers_face', 1, 'AccDescr.Stickers'],
-    ['gifs', 'gifs', 2, 'AccDescr.Gifs'],
+    // * TeleSignal: no GIF tab, as Signal's GIF search goes to a third party
     ['delete justify-self-end', 'deleteleft', -1, 'AccDescr.DeleteLastCharacter']
   ];
   const d = div.firstElementChild as HTMLDivElement;
@@ -275,8 +274,7 @@ export class EmoticonsDropdown extends DropdownHover {
     if(!this.tabsToRender.length) {
       this.tabsToRender = [
         new EmojiTab({managers: this.managers, preloaderDelay: 200}),
-        new StickersTab(this.managers),
-        new GifsTab({managers: this.managers})
+        new StickersTab(this.managers)
       ];
     }
 
@@ -299,14 +297,10 @@ export class EmoticonsDropdown extends DropdownHover {
 
     this.searchButton = this.element.querySelector('.emoji-tabs-search');
     this.listenerSetter.add(this.searchButton)('click', () => {
-      if(this.tabId === this.getTab(StickersTab)?.tabId) {
-        if(!hotReloadGuard.appSidebarRight.isTabExists(hotReloadGuard.tabs.AppStickersTab)) {
-          hotReloadGuard.appSidebarRight.createTab(hotReloadGuard.tabs.AppStickersTab).open();
-        }
-      } else {
-        if(!hotReloadGuard.appSidebarRight.isTabExists(hotReloadGuard.tabs.AppGifsTab)) {
-          hotReloadGuard.appSidebarRight.createTab(hotReloadGuard.tabs.AppGifsTab).open();
-        }
+      // * TeleSignal: the stickers are the one tab with a search, as there is no GIF tab
+      if(this.tabId === this.getTab(StickersTab)?.tabId &&
+        !hotReloadGuard.appSidebarRight.isTabExists(hotReloadGuard.tabs.AppStickersTab)) {
+        hotReloadGuard.appSidebarRight.createTab(hotReloadGuard.tabs.AppStickersTab).open();
       }
     });
 
@@ -459,8 +453,7 @@ export class EmoticonsDropdown extends DropdownHover {
     }
 
     const rights: {[tabId: number]: ChatRights} = {
-      ...(this.getTab(StickersTab) && {[this.getTab(StickersTab).tabId]: 'send_stickers'}),
-      ...(this.getTab(GifsTab) && {[this.getTab(GifsTab).tabId]: 'send_gifs'})
+      ...(this.getTab(StickersTab) && {[this.getTab(StickersTab).tabId]: 'send_stickers'})
     };
 
     const action = rights[id];
