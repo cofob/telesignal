@@ -45,6 +45,7 @@ import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
+import type {SignalAuthState} from '@lib/signal/registrationTypes';
 import makeError from '@helpers/makeError';
 import noop from '@helpers/noop';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
@@ -79,6 +80,7 @@ export default class AppSignalManager extends AppManager {
   private isStarted: boolean;
   private isAuthorized: boolean;
   private restarting: Promise<void>;
+  private authState: SignalAuthState;
   private pendingSends: Map<number, PendingSend> = new Map();
   // * the `random_id` of each forwarded copy by its local id, until the engine stores the copy
   private pendingForwardCopies: Map<number, string> = new Map();
@@ -690,6 +692,9 @@ export default class AppSignalManager extends AppManager {
 
   private handleUpdate(update: SignalApiUpdate) {
     switch(update['@type']) {
+      case 'updateAuthorizationError':
+        this.rootScope.dispatchEvent('signal_auth_error', update.errorKey);
+        break;
       case 'updateAuthorizationState':
         this.onAuthorizationState(update);
         break;
@@ -771,7 +776,19 @@ export default class AppSignalManager extends AppManager {
     }
   }
 
+  /** The sign-in step the engine is at, for the link and registration screens (`pages/signalRegistration`) */
+  public getAuthState() {
+    return this.authState;
+  }
+
   private onAuthorizationState(update: SignalApiUpdate) {
+    this.authState = {
+      state: update.authorizationState,
+      codeInfo: update.codeInfo,
+      backupRestore: update.backupRestore
+    };
+    this.rootScope.dispatchEvent('signal_auth_state', this.authState);
+
     if(update.authorizationState === 'authorizationStateWaitQrCode' && update.qrCode) {
       this.linkCode = {url: update.qrCode.token, expires: update.qrCode.expires};
       this.rootScope.dispatchEvent('signal_link_code', this.linkCode);
