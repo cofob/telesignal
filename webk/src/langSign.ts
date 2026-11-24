@@ -1,8 +1,6 @@
 const lang = {
-  'Login.Title': 'Sign in to TeleSignal',
   'Login.PhoneLabel': 'Phone Number',
   'Login.PhoneLabelInvalid': 'Phone Number Invalid',
-  'Login.StartText': 'Please confirm your country code\nand enter your phone number.',
   'Login.Code.SentSms': 'We have sent you an SMS\nwith the code.',
   'Login.Code.SentInApp': 'We have sent you a message in TeleSignal\nwith the code.',
   'Login.Code.SentCall': 'We will call you and dictate\nthe code.',
@@ -72,8 +70,6 @@ const lang = {
   'Login.QR.Help2': 'Go to **Settings** > **Linked devices** > **Link new device**',
   'Login.QR.Help3': 'Point your phone at this screen to scan the code',
   'Login.QR.Cancel': 'Log in by phone number >',
-  'Login.QR.Login': 'Log in by QR Code >',
-  'Login.QR.Subtitle': 'Scan the code with Signal on your phone',
   // the link target stays empty on purpose: tweb's formatter takes the anchor from the arguments
   // for `[]()`, while a `%1$@` inside the target makes it start looking at argument 1 and crash
   // on the missing one (the macOS string this came from substitutes the url into the target)

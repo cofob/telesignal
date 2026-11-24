@@ -6473,6 +6473,7 @@ export default class ChatInput {
         title = new PeerTitle({
           peerId: message.fromId,
           dialog: false,
+          onlyFirstName: true,
           fromName: !peerId ? getFwdFromName((message as Message.message).fwd_from) : undefined
         }).element;
 

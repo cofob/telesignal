@@ -69,6 +69,8 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
 - Theme: the day and night palettes (`src/helpers/themeController.ts`), bubbles, service messages, the composer and
   the chat list follow Web A's Signal theme; avatars use Signal's colours. `public/assets/tgs/Search.json` and
   `Flame.json` are Web A's `Search.tgs` and `Flame.tgs`, unpacked, in place of `UtyanSearch` and `UtyanDisappear`.
+  `public/assets/img/telesignal-logo.svg` is Web A's `src/assets/telesignal-logo.svg`; the auth screens have Web A's layout, and
+  the notifications banner of the chat list is replaced by Web A's permission request on the first click or key press.
 
 ## Updating
 

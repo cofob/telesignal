@@ -63,6 +63,8 @@ export type NotifyOptions = Partial<{
 
 export type NotificationSettings = StateSettings['notifications'];
 
+const PERMISSION_GESTURE_EVENTS = ['click', 'keydown'] as const;
+
 const SHOW_NOTIFICATIONS_FOR_OTHER_ACCOUNT = false;
 
 // * push loc_key prefix of a reaction to our own story ('REACT_STORY', 'REACT_STORY_HIDDEN')
@@ -820,9 +822,11 @@ export class UiNotificationsManager {
       return false;
     }
 
-    // if('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-    //   window.addEventListener('click', this.requestPermission);
-    // }
+    // * As Web A (`initMain`): the permission is asked with the first click or key press, which most browsers need for
+    // * the prompt, while desktop notifications are on
+    if(!IS_DESKTOP_APP && 'Notification' in window && Notification.permission === 'default') {
+      PERMISSION_GESTURE_EVENTS.forEach((event) => window.addEventListener(event, this.requestPermission));
+    }
 
     // * not on beforeunload: the page can ask there to be stayed on (a call), and would stay with them cleared
     try {
@@ -1090,10 +1094,18 @@ export class UiNotificationsManager {
     delete this.soundsPlayed[tag];
   }
 
-  // private requestPermission = () => {
-  //   Notification.requestPermission();
-  //   window.removeEventListener('click', this.requestPermission);
-  // };
+  private requestPermission = () => {
+    PERMISSION_GESTURE_EVENTS.forEach((event) => window.removeEventListener(event, this.requestPermission));
+    if(!this.settings.desktop || Notification.permission !== 'default') {
+      return;
+    }
+
+    Notification.requestPermission().then((permission) => {
+      if(permission === 'granted') {
+        this.onPushConditionsChange();
+      }
+    });
+  };
 
   public testSound(volume: number) {
     this.audioAssetPlayer.playWithThrottle({name: 'notification', volume}, 1000);

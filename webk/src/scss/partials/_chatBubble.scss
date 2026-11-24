@@ -2144,13 +2144,9 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
 
   // * mini player section end
 
-  // a rich message's link button is drawn as a button
-  .anchor-url:not(.rich-button-link) {
-    text-decoration: underline;
-  }
-
   // an outgoing message's links are as white as its text: every kind of them is told apart by its underline,
-  // as iOS does it
+  // as iOS does it; an incoming message's are in the link colour without one (Web A's Signal theme). A rich
+  // message's link button is drawn as a button
   &.is-out .message a:not(.peer-title):not(.rich-button-link) {
     text-decoration: underline;
   }
@@ -3756,6 +3752,8 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
 }
 
 .bubble.is-in {
+  // * the app's links, which are lighter than the accent at night (Web A's Signal theme)
+  --link-color: var(--message-link-color);
   --border-start-start-radius: #{$bubble-border-radius-medium};
   --border-start-end-radius: #{$bubble-border-radius-big};
   --border-end-end-radius: #{$bubble-border-radius-big};
@@ -4665,9 +4663,9 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
   }
 }
 
-// * Service messages and dates are plain secondary text (Signal Desktop `.SystemMessage`); the date stuck over the
-// * messages keeps its chip
-.bubble.service:not(.is-sticky) .service-msg {
+// * On a plain background service messages and dates are plain secondary text (Signal Desktop `.SystemMessage`); the
+// * date stuck over the messages keeps its chip, and a pattern or a picture keeps them all on chips, as in Web A
+.has-plain-chat-background .bubble.service:not(.is-sticky) .service-msg {
   color: var(--secondary-text-color);
   background-color: transparent;
 

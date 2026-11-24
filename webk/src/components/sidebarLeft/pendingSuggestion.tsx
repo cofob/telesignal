@@ -5,7 +5,6 @@ import RippleElement from '@components/rippleElement';
 import createBirthdaySuggestions from '@components/sidebarLeft/birthdaySuggestions';
 import createEmailSetupSuggestion from '@components/sidebarLeft/emailSetupSuggestion';
 import createFrozenSuggestion from '@components/sidebarLeft/frozenSuggestion';
-import createNotificationsSuggestion from '@components/sidebarLeft/notificationsSuggestion';
 import createPasskeySetupSuggestion from '@components/sidebarLeft/passkeySetupSuggestion';
 import type {PendingSuggestionController} from '@components/sidebarLeft/pendingSuggestionController';
 import styles from '@components/sidebarLeft/pendingSuggestion.module.scss';
@@ -110,7 +109,6 @@ export function renderPendingSuggestion(toElement: HTMLElement) {
     const birthdaySuggestions = createBirthdaySuggestions();
     const suggestions: Record<PendingSuggestionType, PendingSuggestionController> = {
       frozen: createFrozenSuggestion(),
-      notifications: createNotificationsSuggestion(),
       passkey: createPasskeySetupSuggestion(),
       birthdayContacts: birthdaySuggestions.contacts,
       birthdaySetup: birthdaySuggestions.setup
@@ -125,7 +123,6 @@ export function renderPendingSuggestion(toElement: HTMLElement) {
 
       const type = selectPendingSuggestion({
         frozen: suggestions.frozen.available(),
-        notifications: suggestions.notifications.available(),
         passkey: suggestions.passkey.available(),
         birthdayContacts: suggestions.birthdayContacts.available(),
         birthdaySetup: suggestions.birthdaySetup.available()
