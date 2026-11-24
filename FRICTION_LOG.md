@@ -222,13 +222,14 @@ switch in place remains: `apiManagerProxy.switchAccount` and `resetAccountMirror
 of about twenty modules, and the `notifyAllAccounts` routing of notifications to tabs of other accounts, which only
 work when one worker serves every account. Removing them means checking each listener for work it does at startup too.
 
-## A Web A tab keeps its own copy of the shared settings that Web K changes
+## Web K's session writes reach Web A's passcode vault only on a lock and a log out
 
-Web K saves the proxy servers into Web A's shared state in IndexedDB (`tt-shared-state`, `webk/src/lib/signal/proxySettings.ts`)
-and restarts its own engine with them. A Web A tab that is open meanwhile holds the shared state in memory and in
-its shared worker (`src/global/shared/sharedStateConnector.ts`), so it shows the old servers until it reloads, and its
-next cache write (`forceUpdateSharedStateCache`) can put the old values back. Not reproduced; it follows from the
-code. A change event between the frontends, or Web A reading the record again on focus, would close it.
+With a passcode, Web K's page storage writes the account slots into the in-memory session store of Web A's vault
+(`webk/src/lib/localStorage.ts`, `src/util/passcode/sessionStore.ts`), but only a lock (`lockSignalPasscode`) and a log
+out (`webk/src/lib/signal/logOutPage.ts`) write that store into the vault and tell the other tabs, as Web A's
+`updateSessionStorage` does after every write. A slot that Web K links or renames while the vault is open is then lost
+if every tab closes before a lock. Follows from the code; not reproduced. Refreshing the vault after Web K's session
+writes, as Web A does, would close it.
 
 ## Every Web K page load reports page errors with no message
 

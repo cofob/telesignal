@@ -205,6 +205,12 @@ export function setupCaching() {
   addCallback(updateCacheThrottled);
 }
 
+/** Writes the state a last time, when this tab caches it, and writes nothing more until the page reloads */
+export function stopCaching() {
+  updateCacheForced();
+  clearCaching();
+}
+
 export function clearCaching() {
   isCaching = false;
   removeCallback(updateCacheThrottled);

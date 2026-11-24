@@ -18,6 +18,7 @@ import sessionStorage from '@lib/sessionStorage';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import {IDB} from '@lib/files/idb';
 import noop from '@helpers/noop';
+import pause from '@helpers/schedulers/pause';
 import ApiManagerMethods from '@appManagers/apiManagerMethods';
 import tsNow from '@helpers/tsNow';
 import AccountController from '@lib/accounts/accountController';
@@ -36,9 +37,11 @@ import globalRootScope from '@lib/rootScope';
 
 // * the data center Web K's code expects every account to have; nothing connects to it
 const SIGNAL_DC_ID = 2 as TrueDcId;
+// * how long a log out waits for the engine to unlink the device: Web A's `API_DESTROY_TIMEOUT_MS`
+const ENGINE_LOG_OUT_TIMEOUT_MS = 3000;
 
 export class ApiManager extends ApiManagerMethods {
-  private loggingOut: boolean;
+  private loggingOut: Promise<void>;
   private updatesProcessor: (obj: any) => void;
 
   constructor() {
@@ -86,28 +89,24 @@ export class ApiManager extends ApiManagerMethods {
 
   /**
    * Logs the account of this slot out, as Web A's sign-out does (`signOut` in `src/global/actions/api/initial.ts`): the
-   * engine unlinks the device and forgets the account, then the slot and this client's data of it go. The slot stays
-   * linked until the engine's data is gone, so that a log out cut short leaves no linked slot without its account or
-   * account without its slot; a wipe that fails rejects, and the slot stays for another try. The slots of the other
-   * accounts keep their numbers: the engine's stores are named by them (`getEngineStoreName`).
+   * engine unlinks the device and forgets the account, waited for as long as Web A waits, then the engine's data, the
+   * slot and this client's data of it go. The slot stays linked until the engine's data is gone; a wipe that fails
+   * rejects, and the slot stays for another try. A log out asked for again while one runs is that same one. The slots
+   * of the other accounts keep their numbers: the engine's stores are named by them (`getEngineStoreName`).
    */
-  public async logOut(migrateAccountTo?: ActiveAccountNumber) {
-    if(this.loggingOut) {
-      return;
-    }
-
-    this.loggingOut = true;
-
-    const accountNumber = this.getAccountNumber();
-    try {
-      // * the unlink request is answered or has failed before the data goes, which a worker terminated earlier would cut
-      await this.appSignalManager.logOut().catch(noop);
-      // * the engine may not have run in this worker, such as before the passcode was entered
-      await clearSignalLocalData();
-    } catch(err) {
-      this.loggingOut = false;
+  public logOut(migrateAccountTo?: ActiveAccountNumber) {
+    return this.loggingOut ??= this.runLogOut(migrateAccountTo).catch((err) => {
+      this.loggingOut = undefined;
       throw err;
-    }
+    });
+  }
+
+  private async runLogOut(migrateAccountTo?: ActiveAccountNumber) {
+    const accountNumber = this.getAccountNumber();
+    // * a tunnel that hangs does not keep the log out from going on, as in Web A (`API_DESTROY_TIMEOUT_MS`)
+    await Promise.race([this.appSignalManager.logOut().catch(noop), pause(ENGINE_LOG_OUT_TIMEOUT_MS)]);
+    // * the engine may not have run in this worker, such as before the passcode was entered, or not have finished
+    await clearSignalLocalData();
 
     await AccountController.whenUpdated(accountNumber);
     const totalAccounts = await AccountController.getTotalAccounts();

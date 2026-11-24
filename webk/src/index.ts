@@ -48,7 +48,7 @@ import MEDIA_MIME_TYPES_SUPPORTED from '@environment/mediaMimeTypesSupport';
 import {doubleRaf} from '@helpers/schedulers';
 import {getCurrentAccount} from '@lib/accounts/getCurrentAccount';
 import AccountController from '@lib/accounts/accountController';
-import {getSignalLockState} from '@lib/signal/passcode';
+import {getSignalLockState, listenSignalPasscodeChannel} from '@lib/signal/passcode';
 import {getSignalStartArgs} from '@lib/signal/proxySettings';
 import {showSignalLockScreen} from '@components/signalLockScreen';
 import {changeAccount} from '@lib/accounts/changeAccount';
@@ -477,6 +477,8 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
     await I18n.getCacheLangPackAndApply();
     await showSignalLockScreen();
   }
+
+  listenSignalPasscodeChannel();
 
   console.time(TIME_LABEL);
 

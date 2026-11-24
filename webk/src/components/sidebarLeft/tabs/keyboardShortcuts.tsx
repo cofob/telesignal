@@ -1,4 +1,4 @@
-import {createSignal, For, Show, JSX} from 'solid-js';
+import {createResource, createSignal, For, Show, JSX} from 'solid-js';
 import Row from '@components/rowTsx';
 import Section from '@components/section';
 import I18n, {i18n, LangPackKey} from '@lib/langPack';
@@ -6,7 +6,7 @@ import {IS_APPLE} from '@environment/userAgent';
 import {useAppSettings} from '@stores/appSettings';
 import InlineSelect from '@components/inlineSelect';
 import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
-import {LOCK_SCREEN_SHORTCUT_KEYS} from '@appManagers/utils/useLockScreenShortcut';
+import {getLockScreenCombos} from '@appManagers/utils/useLockScreenShortcut';
 import styles from './keyboardShortcuts.module.scss';
 
 
@@ -255,15 +255,33 @@ const MediaEditorSection = () => (
 );
 
 // * the lock of Web A's passcode, which is set in the A version (`useLockScreenShortcut`)
-const OtherSection = () => (
-  <Section name="KeyboardShortcuts.Section.Other">
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.LockPasscode"
-      hint={isSignalPasscodeEnabled() ? undefined : 'KeyboardShortcuts.Hint.LockPasscodeNotSet'}
-      keys={<KeyCombo keys={LOCK_SCREEN_SHORTCUT_KEYS} />}
-    />
-  </Section>
-);
+// * the lock of Web A's passcode, with Web A's combos (`useLockScreenShortcut`); the passcode is set in the A version
+const OtherSection = () => {
+  const [combos] = createResource(getLockScreenCombos);
+  // * as the keys of this tab are written: Ctrl shows as ⌘ on Apple's systems, so a combo there may show twice
+  const keys = () => {
+    const shown = (combos() || []).map((combo) => combo.split('+').map((key) => key.length > 1 ? key.toLowerCase() : key.toUpperCase()));
+    return shown.filter((combo, index) => shown.findIndex((other) => labelsOf(other) === labelsOf(combo)) === index);
+  };
+
+  return (
+    <Section name="KeyboardShortcuts.Section.Other">
+      <ShortcutRow
+        action="KeyboardShortcuts.Action.LockPasscode"
+        hint={isSignalPasscodeEnabled() ? undefined : 'KeyboardShortcuts.Hint.LockPasscodeNotSet'}
+        keys={
+          <Show when={keys().length} fallback={<span class={styles.or}>—</span>}>
+            <KeyAlternatives combos={keys()} />
+          </Show>
+        }
+      />
+    </Section>
+  );
+};
+
+function labelsOf(keys: string[]) {
+  return keys.map(labelFor).join('+');
+}
 
 const KeyboardShortcutsTab = () => (
   <>

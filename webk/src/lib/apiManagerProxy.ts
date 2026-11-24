@@ -58,6 +58,7 @@ import I18n from '@lib/langPack';
 import {NOTIFICATION_BADGE_PATH} from '@config/notifications';
 import {createAppURLForAccount} from '@lib/accounts/createAppURLForAccount';
 import {getSignalWorkerName} from '@lib/signal/accountSlot';
+import {clearLoggedOutSlotOnPage} from '@lib/signal/logOutPage';
 import {setAppSettingsSilent} from '@stores/appSettings';
 import {batch} from 'solid-js';
 import createNotificationImage from '@helpers/createNotificationImage';
@@ -644,7 +645,12 @@ class ApiManagerProxy extends MTProtoMessagePort {
       rootScope.managers.networkerFactory.forceReconnectTimeout();
     });
 
-    rootScope.addEventListener('logging_out', ({accountNumber, migrateTo}) => {
+    rootScope.addEventListener('logging_out', async({accountNumber, migrateTo}) => {
+      // * TeleSignal: what the page keeps of the slot goes first, while its storages are on
+      if(accountNumber) {
+        await clearLoggedOutSlotOnPage(accountNumber).catch((err) => this.log.error('slot clean-up failed', err));
+      }
+
       // const toClear: CacheStorageDbName[] = ['cachedFiles', 'cachedStreamChunks'];
       Promise.all([
         toggleStorages(false, true),

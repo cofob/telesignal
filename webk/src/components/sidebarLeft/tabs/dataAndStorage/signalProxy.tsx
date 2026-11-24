@@ -15,16 +15,16 @@ type ProxyKey = keyof SignalProxySettings;
 export function SignalProxySection() {
   const [settings, setSettings] = createSignal<SignalProxySettings>({});
 
-  onMount(async() => {
+  // * read again after every save: a save whose engine restart failed has stored the URL all the same
+  const load = async() => {
     setSettings(await getSignalProxySettings().catch((): SignalProxySettings => ({})));
-  });
+  };
+
+  onMount(load);
 
   const getHost = (url: string) => new URL(url).host;
 
-  const openForm = async(key: ProxyKey) => {
-    const url = await showSignalProxyPopup(key, settings()[key]);
-    setSettings((prev) => ({...prev, [key]: url}));
-  };
+  const openForm = (key: ProxyKey) => showSignalProxyPopup(key, settings()[key], load);
 
   return (
     <Section name="SignalProxySection">

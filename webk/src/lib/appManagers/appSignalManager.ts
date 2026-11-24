@@ -42,6 +42,7 @@ import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} 
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import {getSignalWorkerAccountNumber} from '@lib/signal/accountSlot';
 import makeError from '@helpers/makeError';
+import noop from '@helpers/noop';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
 import tsNow from '@helpers/tsNow';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
@@ -73,6 +74,7 @@ export default class AppSignalManager extends AppManager {
   private linkCode: SignalLinkCode;
   private isStarted: boolean;
   private isAuthorized: boolean;
+  private restarting: Promise<void>;
   private pendingSends: Map<number, PendingSend> = new Map();
   private localIdCounter = 0;
   private handlers: {[method in keyof MethodDeclMap]?: MethodHandler};
@@ -98,13 +100,20 @@ export default class AppSignalManager extends AppManager {
     await initApi(this.onUpdate, {...args, userAgent: navigator.userAgent});
   }
 
-  /** Starts the engine again with new arguments, such as other proxy servers, as Web A's `reconnectApi` does */
-  public async restart(args: Omit<SignalInitialArgs, 'userAgent'>) {
-    if(this.isStarted) {
-      await this.call('destroy', true);
-    }
+  /**
+   * Starts the engine again with new arguments, such as other proxy servers, as Web A's `reconnectApi` does. Restarts
+   * run one after another, so the last one asked for is the one the engine ends with.
+   */
+  public restart(args: Omit<SignalInitialArgs, 'userAgent'>) {
+    const restarting = (this.restarting || Promise.resolve()).catch(noop).then(async() => {
+      if(this.isStarted) {
+        await this.call('destroy', true);
+      }
 
-    await this.start(args);
+      await this.start(args);
+    });
+    this.restarting = restarting;
+    return restarting;
   }
 
   public getLinkCode() {

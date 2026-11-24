@@ -33,6 +33,7 @@ import createNotificationImage from '@helpers/createNotificationImage';
 import {getMiddleware, MiddlewareHelper} from '@helpers/middleware';
 import {FOLDER_ID_ALL} from '@appManagers/constants';
 import {StateSettings} from '@config/state';
+import {getIsSignalVaultLocked} from '@lib/signal/passcode';
 import {useAppSettings} from '@stores/appSettings';
 import {unwrap} from 'solid-js/store';
 import AudioAssetPlayer from '@helpers/audioAssetPlayer';
@@ -430,6 +431,12 @@ export class UiNotificationsManager {
   }
 
   public async buildNotification(payload: NotificationBuildTaskPayload) {
+    // * TeleSignal: nothing of the account is shown while Web A's vault is locked, or this tab is on its way to the lock
+    // * screen (`listenSignalPasscodeChannel`)
+    if(await getIsSignalVaultLocked()) {
+      return;
+    }
+
     if('story' in payload) {
       return this.buildStoryNotification(payload);
     }
@@ -458,7 +465,6 @@ export class UiNotificationsManager {
     let notificationMessage: string;
     let wrappedMessage = false;
 
-    // * TeleSignal: a locked vault (Web A's passcode) reloads every tab onto the lock screen, so nothing notifies then
     if(peerTypeNotifySettings.show_previews) {
       if(message._ === 'message' && message.fwd_from && fwdCount > 1) {
         notificationMessage = I18n.format('Notifications.Forwarded', true, [fwdCount]);
@@ -939,7 +945,8 @@ export class UiNotificationsManager {
   public async notify(data: NotifyOptions, pushData: PushNotificationObject) {
     this.log('notify', data, idleController.isIdle, this.notificationsUiSupport, this.stopped);
 
-    if(this.stopped) {
+    // * the vault may have been locked while the notification was built
+    if(this.stopped || await getIsSignalVaultLocked()) {
       return;
     }
 
