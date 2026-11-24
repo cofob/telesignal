@@ -175,16 +175,20 @@ closed may stay hidden the same way.
 ## Telegram-only features remain in Web K's code behind hidden entry points
 
 The TON wallet, the interactive widgets, the empty-column tips, the popup sandbox, channel creation, the channel
-direct-messages settings, bot creation and the sponsored message explainer are removed. The rest of the Telegram-only
-features are only unreachable, and form one cluster: Stars, gifts, Premium, payments and boosts
-(`src/components/stars`, `stargifts`, `premium`, `popups/payment*`, `popups/star*`, `popups/*gift*`, `popups/boost*`,
-`popups/premium.tsx`, `popups/limit.ts`) are about 130 files that 44 files outside them import, among them
-`bubbles.ts`, `input.ts`, `reaction.ts`, `appImManager.ts`, `hotReloadGuard.ts`, `internalLinkProcessor.ts` and the
-stories viewer, which imports `openBoosts.ts` and `sidebarRight/tabs/statistics.tsx`. Business (`sidebarLeft/tabs/
-business*`, `chatAutomation`, `appBusinessManager`), bots and Mini Apps (`appAttachMenuBotsManager`, `webApp.tsx`,
-`inlineHelper.ts`, `keyboardButton.ts`, `editBot.tsx`), communities and forums follow the same pattern. Deleting a
-cluster means editing every importer, several of which other work edits at the same time. About 140 `.invalid` links
-of these features remain in `src`; the strings that Signal chats can show point to Signal on the phone instead.
+direct-messages settings, the sponsored message explainer, business features and chat automation, and bots and Mini
+Apps are removed. What remains of bots are inline buttons in messages (`keyboardButton.ts`, `replyMarkupLayout`, URL
+authorization) and the bot command cache that ephemeral messages read (`appProfileManager`, `appMessagesManager`);
+`_chat.scss` and other shared stylesheets keep the bot keyboard's and bot commands' rules, and the layout keeps
+`--chat-input-keyboard-height` at 0. Stars, gifts, Premium, payments and boosts (`src/components/stars`, `stargifts`,
+`premium`, `popups/payment*`, `popups/star*`, `popups/*gift*`, `popups/boost*`, `popups/premium.tsx`,
+`popups/limit.ts`) are about 130 files that 44 files outside them import, among them `bubbles.ts`, `input.ts`,
+`reaction.ts`, `appImManager.ts`, `hotReloadGuard.ts`, `internalLinkProcessor.ts` and the stories viewer, which imports
+`openBoosts.ts` and `sidebarRight/tabs/statistics.tsx`. Communities are 60 files that 21 files outside them import,
+among them the chat list's `dialogs.ts`, `sortedDialogList.ts`, `archiveDialog.tsx`, `appDialogsManager.ts` and
+`dialogsContextMenu.ts`. Forums are not a separate cluster: 199 `isForum` checks in 35 files, forum topics in
+`dialogsStorage` and topic thread ids run through the same chat, history and dialog code Signal chats use, so removing
+them means reworking that code rather than deleting importers. About 140 `.invalid` links of these features remain in
+`src`; the strings that Signal chats can show point to Signal on the phone instead.
 
 ## Web A calls Note to Self «Your Cloud Storage»
 
