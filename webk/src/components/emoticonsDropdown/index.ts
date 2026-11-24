@@ -9,6 +9,7 @@ import Scrollable, {ScrollableX} from '@components/scrollable';
 import StickyIntersector from '@components/stickyIntersector';
 import EmojiTab, {EmojiTabCategory, getEmojiFromElement} from '@components/emoticonsDropdown/tabs/emoji';
 import StickersTab from '@components/emoticonsDropdown/tabs/stickers';
+import {ChatType} from '@components/chat/chatType';
 import {MOUNT_CLASS_TO} from '@config/debug';
 import {hotListen} from '@helpers/hotModule';
 import findUpClassName from '@helpers/dom/findUpClassName';
@@ -428,6 +429,11 @@ export class EmoticonsDropdown extends DropdownHover {
 
     const ret = super.init();
     this.init = undefined;
+    // * TeleSignal: a field set before the tabs were built (a story's reply field) has its tabs set now
+    if(this._chatInput) {
+      this.checkRights();
+    }
+
     return ret;
   }
 
@@ -482,6 +488,17 @@ export class EmoticonsDropdown extends DropdownHover {
     actions.forEach((action, idx) => {
       this.rights[action] = rights[idx];
     });
+
+    // * TeleSignal: a story reply is text or an emoji reaction, so the reply field of a story offers no stickers
+    const isStoryReply = this.chatInput.chat.type === ChatType.Stories;
+    if(isStoryReply) {
+      this.rights.send_stickers = false;
+    }
+
+    const stickersTab = this.getTab(StickersTab);
+    if(stickersTab) {
+      this.tabsEl?.children[stickersTab.tabId + 1]?.classList.toggle('hide', isStoryReply);
+    }
 
     if(this.init) {
       return;

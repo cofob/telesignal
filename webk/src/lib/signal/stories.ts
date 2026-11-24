@@ -11,7 +11,6 @@ import type {
   MessageMedia,
   MethodDeclMap,
   PeerStories,
-  RecentStory,
   StoryItem,
   StoryView,
   StoryViews,
@@ -44,10 +43,12 @@ export function buildStoryMethodHandlers(host: SignalMethodHost): SignalMethodHa
     'stories.getAllStories': (params: MethodDeclMap['stories.getAllStories']['req']) => getAllStories(host, params),
     'stories.getPeerStories': ({peer}: MethodDeclMap['stories.getPeerStories']['req']) => getPeerStories(host, peer),
     'stories.getStoriesByID': ({peer, id}: MethodDeclMap['stories.getStoriesByID']['req']) => getStoriesById(host, peer, id),
-    'stories.getPeerMaxIDs': ({id}: MethodDeclMap['stories.getPeerMaxIDs']['req']) => getPeerMaxIds(host, id),
-    'stories.readStories': ({peer, max_id}: MethodDeclMap['stories.readStories']['req']) => readStories(host, peer, max_id),
-    // * a view is counted by its read receipt (`stories.readStories`)
-    'stories.incrementStoryViews': () => true,
+    // * `stories.getPeerMaxIDs` is not answered: Web K polls only peers outside the feed (`canPollPeerStories`: users
+    // * with a status, channels), and Signal peers have no status and no channels; the feed carries every story
+    // * `stories.readStories` moves the read mark here only: Signal views each story the viewer showed, which the
+    // * viewer names in `stories.incrementStoryViews`, as Web A's `viewStory` does
+    'stories.readStories': () => [] as number[],
+    'stories.incrementStoryViews': ({peer, id}: MethodDeclMap['stories.incrementStoryViews']['req']) => viewStories(host, peer, id),
     'stories.getStoriesViews': ({peer, id}: MethodDeclMap['stories.getStoriesViews']['req']) => getStoriesViews(host, peer, id),
     'stories.getStoryViewsList': (params: MethodDeclMap['stories.getStoryViewsList']['req']) => getStoryViewsList(host, params),
     'stories.sendReaction': (params: MethodDeclMap['stories.sendReaction']['req']) => sendReaction(host, params),
@@ -126,34 +127,15 @@ async function getStoriesById(host: SignalMethodHost, inputPeer: any, ids: numbe
   };
 }
 
-/** The newest story of each peer, from the feed of shown and hidden stories */
-async function getPeerMaxIds(host: SignalMethodHost, inputPeers: any[]): Promise<RecentStory[]> {
-  const [shown, hidden] = await Promise.all([false, true].map((isHidden) => (
-    host.call<{peerStories: Record<string, SignalPeerStories>} | undefined>('fetchAllStories', {isHidden: isHidden || undefined})
-  )));
-  return inputPeers.map((inputPeer) => {
-    const peerId = getPeerRef(host, inputPeer)?.id;
-    const stories = peerId && (shown?.peerStories[peerId] ?? hidden?.peerStories[peerId]);
-    const maxId = stories?.orderedIds[stories.orderedIds.length - 1];
-    return {_: 'recentStory', pFlags: {}, max_id: maxId};
-  });
-}
-
-/** Views the stories up to `maxId` that are not viewed yet; each sends a viewed receipt if story view receipts are on */
-async function readStories(host: SignalMethodHost, inputPeer: any, maxId: number) {
+/** Views the stories the viewer showed; each sends a viewed receipt if story view receipts are on, and a viewed sync */
+async function viewStories(host: SignalMethodHost, inputPeer: any, ids: number[]) {
   const peer = getPeerRef(host, inputPeer);
-  const result: {stories: Record<number, SignalTypeStory>, lastReadStoryId?: number} | undefined = peer &&
-    await host.call('fetchPeerStories', {peer});
-  if(!result) return [];
-
-  const ids = Object.keys(result.stories).map(Number)
-  .filter((id) => id <= maxId && id > (result.lastReadStoryId ?? 0))
-  .sort((a, b) => a - b);
+  if(!peer) return false;
   for(const storyId of ids) {
     await host.call('markStoryRead', {peer, storyId});
   }
 
-  return ids;
+  return true;
 }
 
 async function getStoriesViews(host: SignalMethodHost, inputPeer: any, ids: number[]) {
@@ -221,8 +203,8 @@ async function sendReaction(host: SignalMethodHost, params: MethodDeclMap['stori
 }
 
 /**
- * Replies to a story with text: privately to its author, or in its group, as Signal sends it. The provider reports a
- * reply it could not send as an error update, which the adapter shows; a 1:1 reply comes back as a message of the chat.
+ * Replies to a story with text: privately to its author, or in its group, as Signal sends it. A reply that was not sent
+ * fails the request, which leaves Web K's copy failed, to send again; a 1:1 reply comes back as a message of the chat.
  */
 export async function sendStoryReply(
   host: SignalMethodHost,
@@ -233,12 +215,13 @@ export async function sendStoryReply(
   const peer = getPeerRef(host, replyTo.peer);
   if(!peer || !params.message) throw makeError(UNSUPPORTED_ERROR as ErrorType);
 
-  await host.call('sendMessage', {
+  const isSent = await host.call<true | undefined>('sendMessage', {
     chat: peer,
     text: params.message,
     entities,
     replyInfo: {type: 'story', peerId: peer.id, storyId: replyTo.story_id}
   });
+  if(!isSent) throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
   return {_: 'updates', updates: [] as Update[], users: [] as User[], chats: [] as Chat[], date: tsNow(true), seq: 0};
 }
 

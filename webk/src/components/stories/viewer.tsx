@@ -2238,7 +2238,8 @@ const Stories = (props: {
     let lastId: number;
     createEffect(() => {
       const story = currentStory();
-      if(props.pinned && untrack(() => isExpired())) viewedStories.add(story.id);
+      // * Signal views exactly the stories shown, each with its own receipt (`stories.incrementStoryViews`)
+      viewedStories.add(story.id);
       readDebounced(lastId = story.id);
     });
 

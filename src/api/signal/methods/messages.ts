@@ -629,10 +629,8 @@ export function sendMessageLocal(params: SendMessageParams) {
  * clients send them; other grouped files go one per message.
  */
 export async function sendMessage(params: SendMessageParams, onProgress?: ApiOnProgress) {
-  if (params.replyInfo?.type === 'story') {
-    await sendStoryReply(params);
-    return;
-  }
+  // A story reply resolves with `true` once it went out, so Web K can keep a failed one to send again
+  if (params.replyInfo?.type === 'story') return sendStoryReply(params);
 
   // The composer sends the items of an album one after another, so each joins the album before its upload starts
   const albumItem = getIsAlbumItem(params) ? joinAlbum(params) : undefined;
@@ -643,16 +641,16 @@ export async function sendMessage(params: SendMessageParams, onProgress?: ApiOnP
     // An item without a local message leaves the album, so the others are not held back
     if (albumItem && !localMessage) await settleAlbumItem(albumItem);
   }
-  if (!localMessage) return;
+  if (!localMessage) return undefined;
   if (albumItem) {
     await uploadAlbumItem(albumItem, localMessage, onProgress);
-    return;
+    return undefined;
   }
 
   const conversation = await getConversationByPeerId(localMessage.chatId);
   if (!conversation) {
     markLocalMessageFailed(localMessage);
-    return;
+    return undefined;
   }
   clearOutgoingTyping(conversation.id);
 
@@ -661,9 +659,10 @@ export async function sendMessage(params: SendMessageParams, onProgress?: ApiOnP
     init = await buildDataMessage(params, onProgress);
   } catch (err) {
     if (!onProgress?.isCanceled) markLocalMessageFailed(localMessage, err);
-    return;
+    return undefined;
   }
   await sendWithLocalMessage(conversation, init, localMessage);
+  return undefined;
 }
 
 export async function editMessage({
@@ -1012,28 +1011,30 @@ async function sendWithLocalMessage(
 
 /**
  * Replies to the story open in the story viewer, or reacts to it with the emoji of a reaction message. Private replies
- * arrive in the chat as stored messages; group story replies stay with the story.
+ * arrive in the chat as stored messages; group story replies stay with the story. Resolves with `true` once it was sent.
  */
 async function sendStoryReply({
   replyInfo, text, entities, isReaction, attachment, attachments, sticker, gif, audio, poll, dice, contact, story,
   richMessage,
 }: SendMessageParams) {
-  if (replyInfo?.type !== 'story') return;
+  if (replyInfo?.type !== 'story') return undefined;
   // Signal story replies are text or an emoji reaction
   const hasOtherContent = Boolean(
     attachment || attachments?.length || sticker || gif || audio || poll || dice || contact || story || richMessage,
   );
   if (!text || hasOtherContent) {
     sendError(SEND_ERROR);
-    return;
+    return undefined;
   }
 
   try {
     const reply = isReaction ? { emoji: text } : await buildOutgoingBody({ text, entities });
     await processor.sendStoryReply(replyInfo.storyId, reply);
+    return true;
   } catch (err) {
     logError(err);
     sendError(SEND_ERROR);
+    return undefined;
   }
 }
 

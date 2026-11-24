@@ -795,6 +795,10 @@ export default class AppSignalManager extends AppManager {
       case 'updateConnectionState':
         this.onConnectionState(update.connectionState);
         break;
+      case 'updateServerTimeOffset':
+        // * the managers compare server dates (story expiry) by the clock of Signal's servers, as Web A's `getServerTime`
+        this.timeManager.timeOffset = update.serverTimeOffset;
+        break;
       case 'error': {
         // * a change the provider refused (a group change offline, a pin over the list's limit) says so here
         const langPackKey = getErrorLangKey(update.error?.message);

@@ -254,7 +254,7 @@ export default class AppStoriesManager extends AppManager {
   }
 
   private checkExpired() {
-    const now = tsNow(true);
+    const now = this.timeManager.getServerTime();
     let item: ExpiringItem;
     while(item = this.expiring[0]) {
       if(item.timestamp > now) {
@@ -2271,7 +2271,8 @@ export default class AppStoriesManager extends AppManager {
   }
 
   public isStoryExpired(story: StoryItem.storyItemSkipped | StoryItem.storyItem) {
-    return story.expire_date <= tsNow(true);
+    // * by the server's clock: the device's can be off (Web A's `getServerTime`)
+    return story.expire_date <= this.timeManager.getServerTime();
   }
 
   /**

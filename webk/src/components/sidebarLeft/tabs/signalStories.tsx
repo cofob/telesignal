@@ -82,13 +82,19 @@ const SignalStories: Component = () => {
     });
   };
 
-  const onAudienceChange = (value: MyStoryAudience) => {
+  // * the radios show the saved audience: a choice shows once it is saved, and one whose people picker was closed, or
+  // * whose save failed, goes back (the form is drawn anew, as a radio keeps its own checked state)
+  const [audienceFormKey, setAudienceFormKey] = createSignal(0);
+  const resetAudienceForm = () => setAudienceFormKey((key) => key + 1);
+
+  const onAudienceChange = async(value: MyStoryAudience) => {
     if(value === 'all') {
-      saveList({...myStory(), isBlockList: true, memberIds: []});
-      return;
+      await saveList({...myStory(), isBlockList: true, memberIds: []});
+    } else {
+      chooseAudiencePeople(value);
     }
 
-    chooseAudiencePeople(value);
+    resetAudienceForm();
   };
 
   const createList = () => {
@@ -170,15 +176,17 @@ const SignalStories: Component = () => {
 
       <Show when={settings() && !settings().areStoriesDisabled && myStory()}>
         <Section name="SignalStory.MyStory" caption="SignalStories.MyStoryInfo">
-          <RadioFormTsx<MyStoryAudience>
-            selected={audience()}
-            onChange={onAudienceChange}
-            values={[
-              {value: 'all', langPackKey: 'SignalStory.MyStoryAllConnections'},
-              {value: 'except', langPackKey: 'SignalStories.AllExcept', subtitle: audience() === 'except' ? countLabel() : undefined},
-              {value: 'only', langPackKey: 'SignalStories.OnlyShare', subtitle: audience() === 'only' ? countLabel() : undefined}
-            ]}
-          />
+          <Show keyed when={audienceFormKey() + 1}>
+            <RadioFormTsx<MyStoryAudience>
+              selected={audience()}
+              onChange={onAudienceChange}
+              values={[
+                {value: 'all', langPackKey: 'SignalStory.MyStoryAllConnections'},
+                {value: 'except', langPackKey: 'SignalStories.AllExcept', subtitle: audience() === 'except' ? countLabel() : undefined},
+                {value: 'only', langPackKey: 'SignalStories.OnlyShare', subtitle: audience() === 'only' ? countLabel() : undefined}
+              ]}
+            />
+          </Show>
           <Show when={audience() !== 'all'}>
             <Row clickable={() => chooseAudiencePeople(audience() as Exclude<MyStoryAudience, 'all'>)}>
               <Row.Icon icon="user" />

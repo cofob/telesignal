@@ -288,12 +288,3 @@ pages through a small cache of recent cursors, so a client that jumps to an offs
 count of that page alone. Web K's shared media tab counters come from `fetchSharedMediaCounts`, which reads a whole chat once
 and keeps the counts until a message of the chat changes. An index of message text and attachment kinds in `MessageDb`,
 kept by `MessageProcessor`, would make all three exact and bounded.
-
-## Web K cannot tell whether a story reply was sent
-
-A text reply to a story goes through the provider's `sendMessage` with a story `replyInfo`
-(`src/api/signal/methods/messages.ts`, `sendStoryReply`), which resolves with `undefined` whether the reply went out or
-not, and reports a failure only as an `error` update. Web K's adapter (`sendStoryReply` in `webk/src/lib/signal/stories.ts`)
-therefore treats every reply as sent and drops Web K's pending copy (`cancelPendingMessage`); a reply that failed shows
-the error toast but no failed message to send again. Emoji reactions use `sendStoryReaction`, which does report a failure.
-
