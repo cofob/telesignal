@@ -1,4 +1,4 @@
-import type {Message, StickerSet, Update, NotifyPeer, PeerNotifySettings, PollResults, Poll, WebPage, GroupCall, GroupCallParticipant, ReactionCount, MessagePeerReaction, PhoneCall, Config, Reaction, AttachMenuBot, PeerSettings, StoryItem, PeerStories, SavedDialog, SavedReactionTag, InputSavedStarGift, LangPackDifference, StarsAmount, MessageEntity, HelpPromoData, StoriesStealthMode, StoryAlbum, GlobalPrivacySettings, ConnectedBot} from '@layer';
+import type {Message, StickerSet, Update, NotifyPeer, PeerNotifySettings, PollResults, Poll, WebPage, GroupCall, GroupCallParticipant, ReactionCount, MessagePeerReaction, PhoneCall, Config, Reaction, PeerSettings, StoryItem, PeerStories, SavedDialog, SavedReactionTag, InputSavedStarGift, LangPackDifference, StarsAmount, MessageEntity, HelpPromoData, StoriesStealthMode, StoryAlbum, GlobalPrivacySettings, ConnectedBot} from '@layer';
 import type {Dialog, ForumTopic, MessagesStorageKey, MyEphemeralMessage, MyMessage} from '@appManagers/appMessagesManager';
 import type {MyDialogFilter} from '@lib/storages/filters';
 import type {AnyDialog, Folder} from '@lib/storages/dialogs';
@@ -60,8 +60,6 @@ export type BroadcastEvents = {
   'user_auth': UserAuth,
   'user_full_update': UserId,
 
-  'attach_menu_bot': AttachMenuBot,
-
   'emoji_status_change': void,
 
   /** `threadId` scopes the change to one forum topic; absent = the whole peer. */
@@ -99,7 +97,6 @@ export type BroadcastEvents = {
 
   'history_append': {storageKey: MessagesStorageKey, message: MyMessage},
   'history_update': {storageKey: MessagesStorageKey, message: MyMessage, tempId?: number, sequential?: boolean},
-  'history_reply_markup': {peerId: PeerId},
   'history_multiappend': MyMessage,
   // 'history_delete': {peerId: PeerId, msgs: Map<number, {savedPeerId?: PeerId}>},
   'history_delete': {peerId: PeerId, msgs: Set<number>},
@@ -238,9 +235,6 @@ export type BroadcastEvents = {
   'logging_out': {accountNumber?: ActiveAccountNumber, migrateTo?: ActiveAccountNumber},
 
   'payment_sent': {peerId: PeerId, mid: number, receiptMessage: Message.messageService},
-
-  'web_view_result_sent': Long,
-  'join_chat_webview_decision': Update.updateJoinChatWebViewDecision,
 
   'premium_toggle': boolean,
   'premium_toggle_private': {isNew: boolean, isPremium: boolean},

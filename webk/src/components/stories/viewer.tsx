@@ -328,15 +328,12 @@ const StoryInput = (props: {
   input.confirmSending = props.confirmSending;
   props.setChatInput(input);
   input.excludeParts = {
-    replyMarkup: true,
     scheduled: true,
     downButton: true,
     reply: true,
     forwardOptions: true,
     mentionButton: true,
     attachMenu: true,
-    commandsHelper: true,
-    botCommands: true,
     emoticons: IS_MOBILE
   };
   input.globalMentions = true;

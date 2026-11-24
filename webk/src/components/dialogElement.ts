@@ -2,11 +2,9 @@ import {PINNED_DIALOG_CLASS_NAME} from '@components/dialogsPinnedReorder';
 import attachDialogFolderTags, {DialogFolderTags, DialogFolderTagsContext} from '@components/folderTags/dialogFolderTags';
 import rootScope from '@lib/rootScope';
 import type {ActiveAccountNumber} from '@lib/accounts/types';
-import Button from '@components/button';
 import SetTransition from '@components/singleTransition';
 import liteMode from '@helpers/liteMode';
 import sequentialDom from '@helpers/sequentialDom';
-import Modes from '@config/modes';
 import PeerTitle from '@components/peerTitle';
 import I18n from '@lib/langPack';
 import findUpTag from '@helpers/dom/findUpTag';
@@ -27,7 +25,6 @@ import {isForumTopic, isSavedDialog} from '@appManagers/utils/dialogs/isDialog';
 import {ChatType} from '@components/chat/chatType';
 import {BADGE_TRANSITION_TIME} from '@components/autonomousDialogList/constants';
 import {setRollingText} from '@components/animatedCounter';
-import {createUniqueId} from 'solid-js';
 
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
@@ -55,7 +52,6 @@ export type DialogDom = {
   reactionsBadge?: HTMLElement,
   pollVotesBadge?: HTMLElement,
   /** opens a bot's main mini app without opening the chat */
-  botAppButton?: HTMLElement,
   lastMessageSpan: HTMLSpanElement,
   containerEl: HTMLElement,
   listEl: HTMLElement,
@@ -207,7 +203,6 @@ export type DialogElementBadgeState = {
   mentions: boolean,
   reactions: boolean,
   pollVotes: boolean,
-  botApp?: boolean,
   transitionDuration?: number
 };
 
@@ -229,8 +224,6 @@ export interface DialogElement extends RowTsxController {}
 export class DialogElement {
   public dom: DialogDom;
   public isMainList: boolean;
-  /** what the row last saw of its bot's main mini app - `user_update` redraws it on a change */
-  public hasBotMainApp: boolean;
   public middlewareHelper: MiddlewareHelper;
   public folderTags?: DialogFolderTags;
   private peerTitle: PeerTitle;
@@ -547,33 +540,11 @@ export class DialogElement {
     this.dom.subtitleEl.append(badge);
   }
 
-  public createBotAppButton() {
-    if(this.dom.botAppButton) return;
-    const button = this.dom.botAppButton = Button(
-      `dialog-subtitle-badge badge badge-${BADGE_SIZE} btn-color-primary dialog-subtitle-badge-bot-app`,
-      {text: 'Open', noRipple: true, asDiv: !Modes.a11y}
-    );
-    // * every such button says "Open" - it is the bot's name that tells them apart
-    const {titleSpan} = this.dom;
-    titleSpan.id ||= createUniqueId();
-    button.setAttribute('aria-describedby', titleSpan.id);
-    // * the list opens the chat on a press anywhere in the row (setListClickListener), but not on this
-    button.dataset.dialogListAction = 'true';
-    button.addEventListener('click', (e) => {
-      cancelEvent(e); // * the row is a link
-      const peerId = this.dom.listEl.dataset.peerId.toPeerId();
-      // * turning the confirmation down rejects, and leaves nothing to do
-      hotReloadGuard.appImManager.openWebApp({botId: peerId.toUserId(), main: true, peerId}).catch(noop);
-    });
-    this.dom.subtitleEl.append(button);
-  }
-
   public setBadgeState(options: DialogElementBadgeState) {
     const transitionDuration = options.transitionDuration || 0;
     this.setMuted(options.muted, transitionDuration);
 
     const previous = this.lastBadgeState;
-    const botApp = !!options.botApp;
 
     // * `toggleBadgeByKey` writes what it toggles into the very state `previous` is
     const wasVisible = {
@@ -586,8 +557,7 @@ export class DialogElement {
       unreadAvatarBadge: !!this.dom.unreadAvatarBadge,
       mentionsBadge: !!this.dom.mentionsBadge,
       reactionsBadge: !!this.dom.reactionsBadge,
-      pollVotesBadge: !!this.dom.pollVotesBadge,
-      botAppButton: !!this.dom.botAppButton
+      pollVotesBadge: !!this.dom.pollVotesBadge
     };
 
     const states: Array<[DialogElementBadgeKey, boolean]> = [
@@ -595,8 +565,7 @@ export class DialogElement {
       ['unreadAvatarBadge', options.unreadAvatar],
       ['mentionsBadge', options.mentions],
       ['reactionsBadge', options.reactions],
-      ['pollVotesBadge', options.pollVotes],
-      ['botAppButton', botApp]
+      ['pollVotesBadge', options.pollVotes]
     ];
 
     // * a badge leaves the subtitle from where it stands, out of its flow (`holdBadgesInPlace`)
@@ -618,7 +587,6 @@ export class DialogElement {
     if(options.mentions) this.createMentionsBadge();
     if(options.reactions) this.createReactionsBadge();
     if(options.pollVotes) this.createPollVotesBadge();
-    if(botApp) this.createBotAppButton();
 
     // * one made just now goes in, and so do one that waited out of the row and was sent away before
     // * it came in, and one called back on its way out (`holdBadgesInPlace`) - where badges leave, or
@@ -696,7 +664,6 @@ export class DialogElement {
       mentionsBadge: options.mentions,
       reactionsBadge: options.reactions,
       pollVotesBadge: options.pollVotes,
-      botAppButton: botApp,
       unreadText: options.unreadText,
       unreadCount: options.unreadCount,
       unreadMention: options.unreadMention,
@@ -771,7 +738,7 @@ export class DialogElement {
   }
 
   public toggleBadgeByKey(
-    key: Extract<keyof DialogDom, 'unreadBadge' | 'unreadAvatarBadge' | 'mentionsBadge' | 'reactionsBadge' | 'pollVotesBadge' | 'botAppButton'>,
+    key: Extract<keyof DialogDom, 'unreadBadge' | 'unreadAvatarBadge' | 'mentionsBadge' | 'reactionsBadge' | 'pollVotesBadge'>,
     hasBadge: boolean,
     justCreated: boolean,
     batch?: boolean

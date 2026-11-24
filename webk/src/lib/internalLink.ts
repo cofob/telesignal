@@ -11,8 +11,6 @@ export enum INTERNAL_LINK_TYPE {
   USER_PHONE_NUMBER,
   INVOICE,
   EMOJI_SET,
-  ATTACH_MENU_BOT,
-  WEB_APP,
   ADD_LIST,
   STORY,
   BOOST,
@@ -42,8 +40,6 @@ export type InternalLink =
   InternalLink.InternalLinkUserPhoneNumber |
   InternalLink.InternalLinkInvoice |
   InternalLink.InternalLinkEmojiSet |
-  InternalLink.InternalLinkAttachMenuBot |
-  InternalLink.InternalLinkWebApp |
   InternalLink.InternalLinkAddList |
   InternalLink.InternalLinkStory |
   InternalLink.InternalLinkBoost |
@@ -131,24 +127,6 @@ export namespace InternalLink {
   export interface InternalLinkEmojiSet {
     _: INTERNAL_LINK_TYPE.EMOJI_SET,
     set: string
-  }
-
-  export interface InternalLinkAttachMenuBot {
-    _: INTERNAL_LINK_TYPE.ATTACH_MENU_BOT,
-    startattach?: string,
-    choose?: TelegramChoosePeerType,
-    attach?: string,
-    domain?: string,
-    nestedLink?: InternalLink
-  }
-
-  export interface InternalLinkWebApp {
-    _: INTERNAL_LINK_TYPE.WEB_APP,
-    domain: string,
-    appname: string,
-    startapp?: string,
-    masked?: boolean,
-    mode?: 'compact' | 'fullscreen'
   }
 
   export interface InternalLinkAddList {
@@ -265,8 +243,6 @@ export type InternalLinkTypeMap = {
   [INTERNAL_LINK_TYPE.USER_PHONE_NUMBER]: InternalLink.InternalLinkUserPhoneNumber,
   [INTERNAL_LINK_TYPE.INVOICE]: InternalLink.InternalLinkInvoice,
   [INTERNAL_LINK_TYPE.EMOJI_SET]: InternalLink.InternalLinkEmojiSet,
-  [INTERNAL_LINK_TYPE.ATTACH_MENU_BOT]: InternalLink.InternalLinkAttachMenuBot,
-  [INTERNAL_LINK_TYPE.WEB_APP]: InternalLink.InternalLinkWebApp,
   [INTERNAL_LINK_TYPE.ADD_LIST]: InternalLink.InternalLinkAddList,
   [INTERNAL_LINK_TYPE.STORY]: InternalLink.InternalLinkStory,
   [INTERNAL_LINK_TYPE.BOOST]: InternalLink.InternalLinkBoost,

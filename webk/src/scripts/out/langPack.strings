@@ -34,13 +34,6 @@
 "ChatAutomation.NewChats" = "New Chats";
 "ChatAutomation.Stop" = "Stop";
 "ChatAutomation.ViaBotTooltip" = "Only you can see that this message was sent by the bot.";
-"EditBot.Title" = "Edit Bot";
-"EditBot.Username.Caption" = "This username cannot be edited.";
-"EditBot.Buttons.Caption" = "Use [@BotFather](https://t-me.invalid/botfather) to manage this bot.";
-"EditBot.Buttons.Intro" = "Edit Intro";
-"EditBot.Buttons.Commands" = "Edit Commands";
-"EditBot.Buttons.Settings" = "Change Bot Settings";
-"SetProfilePhoto" = "Set Profile Photo";
 "ExceptionModal.Search.Placeholder" = "Add exception...";
 "SharedFolder.CreateLink" = "Create a New Link";
 "SharedFolder.Description" = "Give your friends and colleagues access to the entire folder including all of its groups and channels where you have the necessary rights.";
@@ -87,7 +80,6 @@
 "Chat.Input.Record.Voice" = "Voice Message";
 "Chat.Input.Record.Video" = "Video Message";
 "Chat.Input.Record.VideoLimitReached" = "Maximum video message length reached";
-"Chat.BotCommands" = "Bot commands";
 "Chat.Input.ExpandEditor" = "Expand message editor";
 "Chat.Quote.FullText" = "Full quote";
 "Chat.Input.CollapseEditor" = "Collapse message editor";
@@ -696,7 +688,6 @@
 "Deactivated.LoadFailed.Subtitle" = "Part of the app could not be downloaded. Check your connection.\nClick anywhere to reload this tab.";
 "Discussion.Set.PrivateChannel" = "Any member of this group will be able to see messages in the channel.";
 "Discussion.Set.PrivateGroup" = "Anyone from the channel will be able to see messages in this group.";
-"General.Keyboard" = "Keyboard";
 "General.SendShortcut.Enter" = "Send by Enter";
 "General.SendShortcut.CtrlEnter" = "Send by %s + Enter";
 "General.SendShortcut.NewLine.ShiftEnter" = "New line by Shift + Enter";
@@ -1016,12 +1007,7 @@
 "Story.ContainsStickers_one" = "This story contains stickers from **%d pack**.";
 "Story.ContainsStickers_other" = "This story contains stickers from **%d packs**.";
 "Popup.OpenInGoogleMaps" = "Open in Google Maps?";
-"WebApp.WriteAccess.Title" = "Allow Sending Messages";
-"WebApp.WriteAccess.Description" = "Allow %s to send messages?";
 "ActionBotAllowedRequest" = "You allowed this bot to message you when you accepted its request.";
-"WebApp.Disclaimer.Check" = "I agree to the **[Terms of Use]()**";
-"WebApp.AttachRemove.SuccessAll" = "\"%@\" removed from all your menus.";
-"WebApp.AttachRemove.SuccessSide" = "\"%@\" removed from your side menu.";
 "AdminRights.ManageMessages" = "Manage Messages";
 "AdminRights.ManageStories" = "Manage Stories";
 "AdminRights.PostStories" = "Post Stories";
@@ -1274,9 +1260,6 @@
 "SimilarBots.Unlock_one" = "Subscribe to **[TeleSignal Premium]()** to unlock up to **%1$d** similar bot.";
 "SimilarBots.Unlock_other" = "Subscribe to **[TeleSignal Premium]()** to unlock up to **%1$d** similar bots.";
 "MoreSimilarBotsButton" = "Show More Apps";
-"ProfileBotPreviewTab" = "Preview";
-"BotPreviews.SubtitleCount_one" = "%d preview";
-"BotPreviews.SubtitleCount_other" = "%d previews";
 "Reactions.Tag.Description" = "Tag the message with an emoji for quick search";
 "Reaction.Tag.From" = "This tag is from **%s pack**.";
 "Reactions.Tag.PremiumHint" = "Organize your Note to Self with tags\nfor quicker access. **[Learn more…]()**";
@@ -1527,15 +1510,8 @@
 "Stars.Subscription.RestoreCaption" = "You have already paid for this subscription until %s.";
 "Stars.Subscription.Restore" = "RESUME SUBSCRIPTION";
 "Stars.Subscribe.Need" = "Buy **Stars** and use them to subscribe to channels.";
-"MiniApps.OpenApp" = "Open App";
 "InAppBrowser.Minimize" = "Minimize";
 "InAppBrowser.Restore" = "Restore";
-"MiniApps.Apps" = "Apps you use";
-"MiniApps.AppsSearch" = "Apps";
-"MiniApps.AppsMore" = "Show more";
-"MiniApps.AppsLess" = "Show less";
-"MiniApps.Popular" = "Popular Apps";
-"MiniApps.Search" = "Search Apps";
 "MiniApps.Collapsed.One" = "%s";
 "MiniApps.Collapsed.Two" = "%s & %s";
 "MiniApps.Collapsed.Many_other" = "%2$s & %1$d Other";
@@ -1879,7 +1855,6 @@
 "AccDescrIVTable" = "Table";
 "AccDescrIVFormula" = "Formula";
 "UnsupportedAttachment" = "Unsupported attachment";
-"Bot.Game.Play" = "PLAY";
 "Bot" = "bot";
 "ChannelMegaJoined" = "You joined this group";
 "EnterChannelName" = "Channel name";
@@ -2894,7 +2869,6 @@
 "OpenGroup2" = "Open Group";
 "BotWebViewOpenBot" = "Open Bot";
 "BotWebViewReloadPage" = "Reload Page";
-"BotWebViewDeleteBot" = "Remove from Menu";
 "SelectChat" = "Select Chat";
 "BotOpenPageTitle" = "Open page";
 "BotOpenPageMessage" = "**%1$s** would like to open its web app to proceed.\n\nIt will be able to access your **IP address** and basic device info.";
@@ -3138,11 +3112,7 @@
 "SavedStories" = "Posted Stories";
 "ArchivedStories" = "Archived Stories";
 "StoryViewLocation" = "View Location";
-"BotWebAppDisclaimerSubtitle" = "You are about to use a mini app operated by an independent party **not affiliated with TeleSignal**. You must agree to the Terms of Use for mini apps to continue.";
 "TermsOfUse" = "Terms of Use";
-"WebAppDisclaimerUrl" = "https://telegram-org.invalid/tos/mini-apps";
-"BotWebViewStartPermission" = "To launch this web app, you will connect to its website.";
-"BotWebAppInstantViewOpen" = "Launch";
 "BotAttachMenuShortcatAddedAttachAndSide" = "**%s** shortcuts added in attachment menu and side menu.";
 "BotAttachMenuShortcatAddedSide" = "**%s** shortcut added in side menu.";
 "BotAttachMenuShortcatAddedAttach" = "**%s** shortcut added in attachment menu.";
@@ -3493,7 +3463,6 @@
 "GroupRequestDeclinedChannel" = "Your request to join the channel was declined.";
 "GroupRequestSent" = "You will be added to the group once an admin approves your request.";
 "GroupRequestSentChannel" = "You will be added to the channel once its admins approve your request.";
-"WebAppGuardDisclaimerText" = "**%1$s** uses **%2$s** to welcome new members. You must agree to the [Terms of Use]() of mini apps to continue.";
 "GuardBotProcessJoinRequests" = "Process Join Requests";
 "GuardBotProcessJoinRequestsInfo" = "Allow this bot to approve new members using its own interfaces, such as captchas.";
 "GuardBotEnableMembersText" = "New members will now need approval from **%s** before they can send messages in this group";
@@ -4185,7 +4154,6 @@
 "StarGiftDropOriginalDetailsText" = "Do you want to permanently remove the description from this collectible?";
 "ActionGiftStarsTitle_one" = "%d Star";
 "ActionGiftStarsTitle_other" = "%d Stars";
-"SearchAppsExamples" = "Examples";
 "TelegramStarsGift" = "Gift Stars to Friends";
 "StarsSentText_one" = "You reacted with **%d** star.";
 "StarsSentText_other" = "You reacted with **%d** stars.";
@@ -5015,8 +4983,6 @@
 "CallSettings.CameraUnavailable" = "Camera is unavailable. Check camera access and try again.";
 "CallSettings.AcceptCalls" = "Accept calls on this device";
 "CallSettings.AcceptCalls.Caption" = "Turn off to stop receiving incoming calls and group video chats on this device.";
-"WebApp.AttachRemove.Success" = "\"%@\" removed from your attachment menu.";
-"WebApp.InstallBot" = "Install Bot";
 "Premium.Boarding.Double.Title" = "Doubled Limits";
 "Premium.Boarding.Double.Info" = "Up to %1$@ channels, %2$@ folders, %3$@ pins, %4$@ public links and more.";
 "Premium.Boarding.FileSize.Title" = "Unlimited Cloud Storage";
@@ -5262,11 +5228,6 @@
 "BotLocationAccessText" = "**%s** requests access to your location. You can revoke this access anytime on the profile page of **%s**.";
 "BotPrivacyPolicy" = "Bot Privacy Policy";
 "BotProfileOpenApp" = "Open App";
-"PeerInfo.AppFooter" = "By launching this mini app, you agree to the [Terms of Service for Mini Apps](https://telegram-org.invalid/privacy).";
-"PeerInfo.AppFooterAdmin" = "By publishing this mini app, you agree to the [TeleSignal Terms of Service for Developers](https://telegram-org.invalid/privacy).";
-"BotAllowAccessTo" = "Allow access to";
-"BotAllowAccessToEmojiStatus" = "Emoji status";
-"BotAllowAccessToLocation" = "Geolocation";
 "BotDownloadPromptTitle" = "Download file";
 "BotDownloadPromptText" = "**%s** is asking to download a file with name **%s**";
 "BotDownloadPromptManual" = "Failed to download the file directly. Click \"Confirm\" to open the file in a new tab.";
@@ -5326,11 +5287,6 @@
 "SensitiveChannel" = "This channel contains sensitive content suitable only for adults.";
 "RestrictedUser" = "This user is restricted";
 "RestrictedChat" = "This chat is restricted";
-"AgeVerification.Title" = "Age Verification";
-"AgeVerification.Text" = "To access such content, you must confirm that you are at least 18 years old as required by local laws.\n\nThis is a one-time process using your phone's camera. Your selfie will not be stored by TeleSignal.";
-"AgeVerification.TextGB" = "To access such content, you must confirm that you are at least 18 years old as required by UK law.\n\nThis is a one-time process using your phone's camera. Your selfie will not be stored by TeleSignal.";
-"AgeVerification.Action" = "Verify my age";
-"AgeVerification.Failed" = "Sorry, you can't view 18+ content.";
 "ChannelDirectMessages.Badge" = "Direct";
 "ChannelDirectMessages.Manage" = "Direct Messages";
 "ChannelDirectMessages.ViewChats" = "View Chats";

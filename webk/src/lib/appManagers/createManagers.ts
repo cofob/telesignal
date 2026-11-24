@@ -41,13 +41,11 @@ import AppStateManager from '@appManagers/appStateManager';
 import filterUnique from '@helpers/array/filterUnique';
 import AppWebDocsManager from '@appManagers/appWebDocsManager';
 import AppPaymentsManager from '@appManagers/appPaymentsManager';
-import AppAttachMenuBotsManager from '@appManagers/appAttachMenuBotsManager';
 import AppSeamlessLoginManager from '@appManagers/appSeamlessLoginManager';
 import AppThemesManager from '@appManagers/appThemesManager';
 import AppUsernamesManager from '@appManagers/appUsernamesManager';
 import AppChatInvitesManager from '@appManagers/appChatInvitesManager';
 import AppStoriesManager from '@appManagers/appStoriesManager';
-import AppBotsManager from '@appManagers/appBotsManager';
 import AppBoostsManager from '@appManagers/appBoostsManager';
 import AppStatisticsManager from '@appManagers/appStatisticsManager';
 import AppTranslationsManager from '@appManagers/appTranslationsManager';
@@ -111,13 +109,11 @@ export default function createManagers(
     appStateManager: stateManager,
     appWebDocsManager: new AppWebDocsManager,
     appPaymentsManager: new AppPaymentsManager,
-    appAttachMenuBotsManager: new AppAttachMenuBotsManager,
     appSeamlessLoginManager: new AppSeamlessLoginManager,
     appThemesManager: new AppThemesManager,
     appUsernamesManager: new AppUsernamesManager,
     appChatInvitesManager: new AppChatInvitesManager,
     appStoriesManager: new AppStoriesManager,
-    appBotsManager: new AppBotsManager,
     appBoostsManager: new AppBoostsManager,
     appStatisticsManager: new AppStatisticsManager,
     appTranslationsManager: new AppTranslationsManager,

@@ -27,7 +27,7 @@ import Modes from '@config/modes';
 import appNavigationController, {USE_NAVIGATION_API} from '@components/appNavigationController';
 import {AppPrivateSearchTab} from '@components/solidJsTabs/tabs';
 import I18n, {i18n, join, LangPackKey} from '@lib/langPack';
-import {ChatFull, Game, Message, MessageAction, MessageMedia, SendMessageAction, User, Chat as MTChat, UrlAuthResult, WallPaper, Config, AttachMenuBot, InputChannel, HelpPeerColors, MessageEntity, SponsoredMessage, InputGroupCall} from '@layer';
+import {ChatFull, Message, MessageAction, MessageMedia, SendMessageAction, User, Chat as MTChat, UrlAuthResult, WallPaper, Config, InputChannel, HelpPeerColors, MessageEntity, SponsoredMessage, InputGroupCall} from '@layer';
 import PeerTitle from '@components/peerTitle';
 import {PopupPeerCheckboxOptions} from '@components/popups/peer';
 import blurActiveElement from '@helpers/dom/blurActiveElement';
@@ -124,7 +124,6 @@ import internalLinkProcessor from '@lib/internalLinkProcessor';
 import {INTERNAL_LINK_TYPE} from '@lib/internalLink';
 import {createStoriesViewerWithPeer} from '@components/stories/viewer';
 import type {CustomEmojiRendererElement} from '@lib/customEmoji/renderer';
-import type {ChatInviteJoinWebView} from '@appManagers/appChatsManager';
 import {Middleware} from '@helpers/middleware';
 import lottieLoader from '@lib/lottie/lottieLoader';
 import wrapStickerAnimation, {emojiAnimationContainer} from '@components/wrappers/stickerAnimation';
@@ -135,11 +134,9 @@ import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId'
 import {findUpAvatar} from '@components/avatarNew';
 import safePlay from '@helpers/dom/safePlay';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
-import {RequestWebViewOptions} from '@appManagers/appAttachMenuBotsManager';
-import showWebAppPopup from '@components/popups/webApp';
 import {setMyPeerColor, setPeerColors} from '@appManagers/utils/peers/getPeerColorById';
 import {PENDING_PAID_REACTIONS, savedReactionTags} from '@components/chat/reactions';
-import {setAppState, useAppState} from '@stores/appState';
+import {setAppState} from '@stores/appState';
 import rtmpCallsController, {RtmpCallInstance} from '@lib/calls/rtmpCallsController';
 import openRtmpCallViewer from '@lib/calls/openRtmpCallViewer';
 import {
@@ -156,13 +153,11 @@ import showChatToast from '@components/chat/chatToast';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import showPremiumPopup from '@components/popups/premium';
 import safeWindowOpen from '@helpers/dom/safeWindowOpen';
-import {openWebAppInAppBrowser, openGameInAppBrowser} from '@components/browser';
 import {createProxiedManagersForAccount} from '@lib/getProxiedManagers';
 import {getAccountSession, getCurrentAccount, getManagersSession, isSessionLeaving} from '@lib/accounts/getCurrentAccount';
 import type {ActiveAccountNumber} from '@lib/accounts/types';
 import ChatBackgroundStore from '@lib/chatBackgroundStore';
 import useLockScreenShortcut from '@appManagers/utils/useLockScreenShortcut';
-import IS_WEB_APP_BROWSER_SUPPORTED from '@environment/webAppBrowserSupport';
 import createChatAudio, {ChatAudioController} from '@components/chat/audio';
 import AudioAssetPlayer from '@helpers/audioAssetPlayer';
 import {useAppSettings} from '@stores/appSettings';
@@ -234,13 +229,6 @@ export type ChatSetInnerPeerOptions = Modify<ChatSetPeerOptions, {
   peerId: PeerId,
   type?: ChatType
 }>;
-
-type JoinChatFlow = {
-  active: boolean,
-  isWebAppOpen: boolean,
-  queryIds: Set<string>,
-  pendingWebViewUrl?: string
-};
 
 export type JoinConferenceOptions = {
   /**
@@ -332,7 +320,6 @@ export class AppImManager extends EventListenerBase<{
   private chatsCovering = new WeakMap<HTMLElement, () => boolean>();
   private chatsSelectTabDebounced: () => void;
 
-  private joinChatFlowsByQueryId = new Map<string, JoinChatFlow>();
   private callTransitions = callTransitionCoordinator;
 
   private topbarCall: TopbarCallController;
@@ -438,41 +425,6 @@ export class AppImManager extends EventListenerBase<{
       this.dispatchEvent('premium_toggle', isPremium);
     };
     rootScope.addEventListener('premium_toggle', onPremiumToggle);
-
-    rootScope.addEventListener('join_chat_webview_decision', (update) => {
-      const flow = this.joinChatFlowsByQueryId.get(String(update.query_id));
-      if(!flow) {
-        return;
-      }
-
-      if(update.result._ === 'joinChatBotResultWebView') {
-        if(!flow.isWebAppOpen) {
-          flow.pendingWebViewUrl = update.result.url;
-        }
-
-        return;
-      }
-
-      const hadOpenWebApp = flow.isWebAppOpen;
-      this.closeJoinChatFlow(flow);
-
-      const peerId = getPeerId(update.peer);
-      const peer = apiManagerProxy.getPeer(peerId);
-      // the chat is unknown on an invite-link join that was declined or queued, so the toast must
-      // not depend on its title — like the official clients, only the group/channel wording differs
-      const isBroadcast = (peer as MTChat.channel)?._ === 'channel' && !!(peer as MTChat.channel).pFlags.broadcast;
-      const langPackKey: LangPackKey = update.result._ === 'joinChatBotResultApproved' ?
-        (isBroadcast ? 'GroupRequestApprovedChannel' : 'GroupRequestApproved') :
-        update.result._ === 'joinChatBotResultDeclined' ?
-          (isBroadcast ? 'GroupRequestDeclinedChannel' : 'GroupRequestDeclined') :
-          (isBroadcast ? 'GroupRequestSentChannel' : 'GroupRequestSent');
-
-      toastNew({langPackKey});
-      if(hadOpenWebApp && update.result._ === 'joinChatBotResultApproved' && peer) {
-        // `open` (not `setInnerPeer`) so a forum lands on its topics tab, like PopupJoinChatInvite
-        void this.open({peerId});
-      }
-    });
 
     onPremiumToggle(rootScope.premium);
     this.managers.rootScope.getPremium().then(onPremiumToggle);
@@ -1079,71 +1031,6 @@ export class AppImManager extends EventListenerBase<{
     }).catch(noop);
   }
 
-  public async confirmBotWebViewInner({
-    botId,
-    requestWriteAccess,
-    showDisclaimer
-  }: Parameters<AppImManager['confirmBotWebView']>[0]) {
-    const peerId = botId.toPeerId();
-    if(showDisclaimer) {
-      const checkbox: Parameters<typeof confirmationPopup>[0]['checkbox'] = {
-        text: 'WebApp.Disclaimer.Check',
-        textArgs: [wrapRichText(I18n.format('WebAppDisclaimerUrl', true))]
-      };
-
-      return confirmationPopup({
-        titleLangKey: 'TermsOfUse',
-        descriptionLangKey: 'BotWebAppDisclaimerSubtitle',
-        checkbox,
-        button: {
-          langKey: 'Continue',
-          onlyWithCheckbox: checkbox
-        }
-      });
-    }
-
-    return confirmationPopup({
-      title: await wrapPeerTitle({peerId}),
-      descriptionLangKey: 'BotWebViewStartPermission',
-      checkbox: requestWriteAccess ? {
-        text: 'OpenUrlOption2',
-        textArgs: [await wrapPeerTitle({peerId})],
-        checked: true
-      } : undefined,
-      button: {
-        langKey: 'BotWebAppInstantViewOpen'
-      },
-      peerId
-    });
-  }
-
-  public async pushBotIdAsConfirmed(botId: BotId) {
-    const [appState, setAppState] = useAppState();
-    if(appState.confirmedWebViews.includes(botId)) {
-      return;
-    }
-
-    await setAppState('confirmedWebViews', [...appState.confirmedWebViews, botId]);
-  }
-
-  public async confirmBotWebView(options: {
-    botId: BotId,
-    requestWriteAccess?: boolean,
-    ignoreConfirmedState?: boolean,
-    showDisclaimer?: boolean
-  }): Promise<boolean> {
-    const [appState] = useAppState();
-    if(
-      options.ignoreConfirmedState ||
-      options.showDisclaimer ||
-      !appState.confirmedWebViews.includes(options.botId)
-    ) {
-      const haveWriteAccess = await this.confirmBotWebViewInner(options);
-      await this.pushBotIdAsConfirmed(options.botId);
-      return haveWriteAccess;
-    }
-  }
-
   // public async requestBotAttachPermission(botId: BotId, requestWriteAccess?: boolean) {
   //   const peerId = botId.toPeerId();
   //   return confirmationPopup({
@@ -1161,309 +1048,6 @@ export class AppImManager extends EventListenerBase<{
   //     titleLangKey: 'AddBot'
   //   });
   // }
-
-  public async toggleBotInAttachMenu(
-    botId: BotId,
-    enable: boolean,
-    attachMenuBot?: AttachMenuBot
-  ) {
-    const managers = bindManagersToSession(this.managers);
-    attachMenuBot ??= await managers.appAttachMenuBotsManager.getAttachMenuBot(botId);
-
-    if(!!attachMenuBot.pFlags.inactive === !enable) {
-      return attachMenuBot;
-    }
-
-    if(attachMenuBot.pFlags.inactive) {
-      // const haveWriteAccess = await this.requestBotAttachPermission(botId, attachMenuBot.pFlags.request_write_access);
-      await this.confirmBotWebViewInner({botId, showDisclaimer: true});
-      await this.pushBotIdAsConfirmed(botId);
-      const haveWriteAccess = true;
-
-      await managers.appAttachMenuBotsManager.toggleBotInAttachMenu(botId, true, haveWriteAccess);
-      // installed
-      delete attachMenuBot.pFlags.inactive;
-
-      toastNew({
-        langPackKey: attachMenuBot.pFlags.show_in_attach_menu && attachMenuBot.pFlags.show_in_side_menu ?
-          'BotAttachMenuShortcatAddedAttachAndSide' : (
-            attachMenuBot.pFlags.show_in_attach_menu ?
-              'BotAttachMenuShortcatAddedAttach' :
-              'BotAttachMenuShortcatAddedSide'
-          ),
-        langPackArguments: [wrapEmojiText(attachMenuBot.short_name)]
-      });
-    } else {
-      await managers.appAttachMenuBotsManager.toggleBotInAttachMenu(botId, false);
-      attachMenuBot.pFlags.inactive = true;
-
-      toastNew({
-        langPackKey: attachMenuBot.pFlags.show_in_attach_menu && attachMenuBot.pFlags.show_in_side_menu ?
-          'WebApp.AttachRemove.SuccessAll' : (
-            attachMenuBot.pFlags.show_in_attach_menu ?
-              'WebApp.AttachRemove.Success' :
-              'WebApp.AttachRemove.SuccessSide'
-          ),
-        langPackArguments: [wrapEmojiText(attachMenuBot.short_name)]
-      });
-    }
-
-    return attachMenuBot;
-  }
-
-  // the guard-bot disclaimer names both the chat and the bot, and is shown on every join attempt
-  // (the mini app gets to see the user before they are a member) — same as tdesktop's forced confirmation
-  public async confirmGuardBotWebView({botId, chatTitle}: {botId: BotId, chatTitle: string}) {
-    const peerId = botId.toPeerId(false);
-    return confirmationPopup({
-      titleLangKey: 'TermsOfUse',
-      descriptionLangKey: 'WebAppGuardDisclaimerText',
-      descriptionLangArgs: [
-        chatTitle,
-        await getPeerTitle({peerId, plainText: true}),
-        wrapRichText(I18n.format('WebAppDisclaimerUrl', true))
-      ],
-      button: {
-        langKey: 'BotWebAppInstantViewOpen'
-      },
-      peerId
-    });
-  }
-
-  public async openWebApp(options: Partial<RequestWebViewOptions> & {
-    onClose?: () => void,
-    joinChat?: {
-      queryId: Long,
-      flow: JoinChatFlow,
-      chatTitle: string
-    }
-  }) {
-    const managers = bindManagersToSession(this.managers);
-    options.botId ??= options.attachMenuBot?.bot_id;
-    options.themeParams ??= {
-      _: 'dataJSON',
-      data: JSON.stringify(themeController.getThemeParamsForWebView())
-    };
-
-    const onClose = options.onClose;
-    const joinChat = options.joinChat;
-    delete options.onClose; // to avoid passing it to the worker
-    delete options.joinChat;
-
-    if(
-      !joinChat &&
-      !options.attachMenuBot/*  &&
-      (options.fromAttachMenu || options.fromSideMenu) */
-    ) {
-      try {
-        options.attachMenuBot = await managers.appAttachMenuBotsManager.getAttachMenuBot(options.botId);
-      } catch(err) {}
-    }
-
-    if(!options.noConfirmation) {
-      if(joinChat) {
-        await this.confirmGuardBotWebView({
-          botId: options.botId,
-          chatTitle: joinChat.chatTitle
-        });
-        await this.pushBotIdAsConfirmed(options.botId);
-      } else {
-        const attachMenuBot = options.attachMenuBot;
-        let needDisclaimer: boolean;
-        if(options.fromSideMenu) {
-          if(attachMenuBot?.pFlags?.side_menu_disclaimer_needed) {
-            needDisclaimer = true;
-          } else {
-            await this.pushBotIdAsConfirmed(options.botId);
-          }
-        } else {
-          const user = apiManagerProxy.getUser(options.botId);
-          needDisclaimer = user.pFlags.bot_attach_menu && attachMenuBot?.pFlags?.inactive;
-        }
-
-        if(needDisclaimer) {
-          await this.toggleBotInAttachMenu(options.botId, true, attachMenuBot);
-        } else {
-          await this.confirmBotWebView({
-            botId: options.botId
-          });
-        }
-      }
-    }
-
-    if(joinChat && !joinChat.flow.active) {
-      return;
-    }
-
-    try {
-      // * what tells one opened app from another: the same app asked for again is shown, not opened twice
-      // * an empty start parameter or url (a `?startapp` link) is none, as an omitted one is
-      const cacheKeyArr: (string | number)[] = [options.botId, options.startParam || undefined, options.url || undefined];
-      if(options.fromBotMenu || options.fromSideMenu || options.main) {
-        cacheKeyArr.push('main');
-      } else if(!options.isSimpleWebView && !options.app && !joinChat) {
-        // * an attach-menu or keyboard app answers into the chat (and topic) it was asked in: requestWebView's peer
-        // * and query_id. Asked from another chat it is another app, or its answer would go to the first chat - tdesktop
-        // * keys them by thread too
-        cacheKeyArr.push('peer', options.peerId, options.threadId);
-      }
-      if(joinChat) {
-        cacheKeyArr.push('join', joinChat.queryId);
-      }
-
-      const cacheKey = JSON.stringify(cacheKeyArr); // * a url holds '-' too: joined, it could pass for another key
-
-      const webViewResultUrl = joinChat ?
-        await managers.appChatInvitesManager.requestChatJoinWebView(joinChat.queryId, options.themeParams) :
-        await managers.appAttachMenuBotsManager.requestWebView(options as RequestWebViewOptions);
-      if(joinChat && !joinChat.flow.active) {
-        return;
-      }
-
-      if(joinChat && webViewResultUrl.query_id !== undefined) {
-        this.addJoinChatQueryId(joinChat.flow, webViewResultUrl.query_id);
-      }
-      if(joinChat?.flow.pendingWebViewUrl) {
-        webViewResultUrl.url = joinChat.flow.pendingWebViewUrl;
-        joinChat.flow.pendingWebViewUrl = undefined;
-      }
-
-      const joinChatQueryIds = joinChat ?
-        [joinChat.queryId, webViewResultUrl.query_id].filter((queryId) => queryId !== undefined) :
-        undefined;
-      const webAppOnClose = joinChat ? () => {
-        try {
-          onClose?.();
-        } finally {
-          this.closeJoinChatFlow(joinChat.flow);
-        }
-      } : onClose;
-
-      const webAppOptions: Parameters<typeof openWebAppInAppBrowser>[0] = {
-        webViewResultUrl,
-        webViewOptions: options as RequestWebViewOptions,
-        attachMenuBot: options.attachMenuBot,
-        cacheKey,
-        onClose: webAppOnClose,
-        joinChat: joinChatQueryIds ? {queryIds: joinChatQueryIds} : undefined
-      };
-      if(joinChat) {
-        joinChat.flow.isWebAppOpen = true;
-      }
-
-      if(!IS_WEB_APP_BROWSER_SUPPORTED || options.forcePopup) {
-        showWebAppPopup(webAppOptions);
-      } else {
-        await openWebAppInAppBrowser(webAppOptions);
-      }
-    } catch(err) {
-      if(joinChat) {
-        joinChat.flow.isWebAppOpen = false;
-      }
-
-      if((err as ApiError).type === 'PEER_ID_INVALID' && options.attachMenuBot) {
-        toastNew({
-          langPackKey: 'BotAlreadyAddedToAttachMenu'
-        });
-      } else if(joinChat) {
-        throw err;
-      }
-    }
-  }
-
-  public async openJoinChatWebView({botId, queryId, peerId}: ChatInviteJoinWebView, chatTitle?: string) {
-    const flow = this.createJoinChatFlow(queryId);
-    if(!flow) {
-      return;
-    }
-
-    // an invite-link join has no chat yet, so the title comes from the invite the caller showed
-    chatTitle ??= peerId ? await getPeerTitle({peerId, plainText: true, useManagers: true}) : '';
-
-    try {
-      await this.openWebApp({
-        botId,
-        peerId: peerId ?? botId.toPeerId(false),
-        joinChat: {queryId, flow, chatTitle}
-      });
-    } catch(err) {
-      const type = (err as ApiError)?.type;
-      if(type) {
-        toast(type);
-      }
-    } finally {
-      if(!flow.isWebAppOpen) {
-        this.closeJoinChatFlow(flow);
-      }
-    }
-  }
-
-  private createJoinChatFlow(queryId: Long) {
-    if(this.joinChatFlowsByQueryId.has(String(queryId))) {
-      return;
-    }
-
-    const flow: JoinChatFlow = {
-      active: true,
-      isWebAppOpen: false,
-      queryIds: new Set()
-    };
-    this.addJoinChatQueryId(flow, queryId);
-    return flow;
-  }
-
-  private addJoinChatQueryId(flow: JoinChatFlow, queryId: Long) {
-    const key = String(queryId);
-    flow.queryIds.add(key);
-    this.joinChatFlowsByQueryId.set(key, flow);
-  }
-
-  private closeJoinChatFlow(flow: JoinChatFlow) {
-    if(!flow.active) {
-      return;
-    }
-
-    flow.active = false;
-    flow.isWebAppOpen = false;
-    for(const queryId of flow.queryIds) {
-      if(this.joinChatFlowsByQueryId.get(queryId) === flow) {
-        this.joinChatFlowsByQueryId.delete(queryId);
-      }
-    }
-  }
-
-  public async playGame(message: Message.message) {
-    const media = message.media as MessageMedia.messageMediaGame;
-    const game = media?.game as Game.game;
-    if(game?._ !== 'game') {
-      return;
-    }
-
-    const managers = bindManagersToSession(this.managers);
-    try {
-      const callbackAnswer = await managers.appInlineBotsManager.callbackButtonClick(
-        message.peerId,
-        message.mid,
-        undefined,
-        true
-      );
-      if(!callbackAnswer?.url) {
-        return;
-      }
-      openGameInAppBrowser({
-        game,
-        message,
-        url: callbackAnswer.url
-      });
-
-      // * the chat sees that a game is being played, as tdesktop shows it (api_bot.cpp) - a channel's
-      // * readers excepted
-      const {peerId} = message;
-      if(!(await managers.appPeersManager.isBroadcast(peerId))) {
-        managers.appMessagesManager.setTyping(peerId, {_: 'sendMessageGamePlayAction'});
-      }
-    } catch(err) {}
-  }
 
   public handleUrlAuth(options: {
     peerId?: PeerId,
@@ -3654,7 +3238,6 @@ export class AppImManager extends EventListenerBase<{
 
     // * paid reactions still in their undo delay are dropped, as a reload drops them
     PENDING_PAID_REACTIONS.forEach((pending) => pending.abortController.abort());
-    new Set(this.joinChatFlowsByQueryId.values()).forEach((flow) => this.closeJoinChatFlow(flow));
     this.prevTab = undefined;
     this.chatPositions = {};
     this.lastOpenedPeerId = NULL_PEER_ID;

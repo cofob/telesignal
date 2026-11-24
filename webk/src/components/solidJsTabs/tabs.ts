@@ -442,12 +442,6 @@ export const AppChatAdministratorsTab =
     getComponentModule: () => import('../sidebarRight/tabs/chatAdministrators')
   });
 
-export const AppEditBotTab =
-  scaffoldSolidJSTab<PeerId>({
-    title: 'EditBot.Title',
-    getComponentModule: () => import('../sidebarRight/tabs/editBot')
-  });
-
 export const AppEditContactTab =
   scaffoldSolidJSTab<PeerId>({
     title: 'Edit',

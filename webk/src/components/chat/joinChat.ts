@@ -5,7 +5,6 @@ import apiManagerProxy from '@lib/apiManagerProxy';
 import {type AppImManager} from '@lib/appImManager';
 import type {AppManagers} from '@lib/managers';
 import rootScope from '@lib/rootScope';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 
 export default async function joinChat(options: {
@@ -19,14 +18,11 @@ export default async function joinChat(options: {
 
   try {
     const isChannel = await managers.appChatsManager.isChannel(chatId);
-    const result = await handleChannelsTooMuch(() => {
+    await handleChannelsTooMuch(() => {
       return isChannel ?
         managers.appChatsManager.joinChannel(chatId) :
         managers.appChatsManager.addChatUser(chatId, rootScope.myId);
     });
-    if(result?._ === 'chatInviteJoinWebView') {
-      void (options.appImManager ?? hotReloadGuard.appImManager).openJoinChatWebView(result);
-    }
   } catch(error) {
     const chat = apiManagerProxy.getChat(chatId);
     const isBroadcast = (

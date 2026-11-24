@@ -3,7 +3,7 @@ import showSharedFolderInvitePopup from '@components/popups/sharedFolderInvite';
 import showJoinChatInvitePopup from '@components/popups/joinChatInvite';
 import {createPaymentPopup} from '@components/popups/payment';
 import confirmOpenUrl from '@components/popups/confirmOpenUrl';
-import {showPickUser3Popup, showSharingPicker2Popup} from '@components/popups/pickUser';
+import {showSharingPicker2Popup} from '@components/popups/pickUser';
 import showStickersPopup from '@components/popups/stickers';
 import {toastNew, hideToast} from '@components/toast';
 import {MOUNT_CLASS_TO} from '@config/debug';
@@ -14,10 +14,9 @@ import {PROXY_LINK_TYPES} from '@lib/richTextProcessor/wrapUrl';
 import assumeType from '@helpers/assumeType';
 import findUpAttribute from '@helpers/dom/findUpAttribute';
 import findUpClassName from '@helpers/dom/findUpClassName';
-import {User, AttachMenuPeerType, MessagesBotApp, BotApp, ChatlistsChatlistInvite, Chat, InputInvoice} from '@layer';
+import {User, ChatlistsChatlistInvite, Chat, InputInvoice} from '@layer';
 import {i18n, LangPackKey, _i18n} from '@lib/langPack';
 import {PHONE_NUMBER_REG_EXP} from '@lib/richTextProcessor';
-import {isWebAppNameValid} from '@lib/richTextProcessor/validators';
 import appImManager, {JoinConferenceOptions} from '@lib/appImManager';
 import {makeFullMid} from '@appManagers/utils/messages/fullMid';
 import {INTERNAL_LINK_TYPE, InternalLinkTypeMap, InternalLink} from '@lib/internalLink';
@@ -34,7 +33,6 @@ import showStarsPopup, {showGiftStarsPicker} from '@components/popups/stars';
 import showSendGiftPopup from '@components/popups/sendGift';
 import showMyQrCodePopup from '@components/popups/myQrCode';
 import showSendGiftPicker from '@components/popups/sendGiftPicker';
-import type {RequestWebViewOptions} from '@appManagers/appAttachMenuBotsManager';
 import {prefetchStars} from '@stores/stars';
 import {getMiddleware} from '@helpers/middleware';
 import anchorCallback from '@helpers/dom/anchorCallback';
@@ -359,8 +357,6 @@ export class InternalLinkProcessor {
 
     type K1 = {thread?: string, comment?: string, t?: string, option?: string, single?: string};
     type K2 = {thread?: string, comment?: string, start?: string, startgroup?: string, startchannel?: string, admin?: string, t?: string, text?: string, option?: string, single?: string, game?: string, free?: string};
-    type K3 = {startattach?: string, attach?: string, choose?: TelegramChoosePeerType};
-    type K4 = {startapp?: string, mode?: 'compact' | 'fullscreen'};
     type K5 = {story?: string};
     type K6 = {boost?: string};
     type K7 = {voicechat?: string, videochat?: string, livestream?: string};
@@ -373,7 +369,7 @@ export class InternalLinkProcessor {
     //   pathnameParams: [string, string?],
     //   uriParams: {comment?: number}
       pathnameParams: ['c', string, string] | [string, string?],
-      uriParams: K1 | K2 | K3 | K4 | K5 | K6 | K7 | K8
+      uriParams: K1 | K2 | K5 | K6 | K7 | K8
     }>({
       name: 'im',
       callback: async({pathnameParams, uriParams, element, masked}) => {
@@ -437,16 +433,6 @@ export class InternalLinkProcessor {
             t: uriParams.t,
             single: uriParams.single
           };
-        } else if(pathnameParams[1] ? isWebAppNameValid(pathnameParams[1]) : (uriParams as K4).startapp !== undefined) {
-          assumeType<K4>(uriParams);
-          link = {
-            _: INTERNAL_LINK_TYPE.WEB_APP,
-            domain: pathnameParams[0],
-            appname: pathnameParams[1],
-            startapp: uriParams.startapp,
-            masked,
-            mode: uriParams.mode
-          };
         } else {
           assumeType<K2>(uriParams);
           const thread = 'thread' in uriParams ? uriParams.thread : pathnameParams[2] && pathnameParams[1];
@@ -467,15 +453,6 @@ export class InternalLinkProcessor {
             single: uriParams.single,
             game: uriParams.game,
             free: uriParams.free
-          };
-        }
-
-        if('startattach' in uriParams || 'attach' in uriParams) {
-          assumeType<K3>(uriParams);
-          link = {
-            _: INTERNAL_LINK_TYPE.ATTACH_MENU_BOT,
-            nestedLink: link,
-            ...uriParams
           };
         }
 
@@ -509,12 +486,6 @@ export class InternalLinkProcessor {
         comment?: string,
         phone?: string,
         t?: string,
-        attach?: string,
-        startattach?: string,
-        choose?: TelegramChoosePeerType,
-        appname?: string,
-        startapp?: string,
-        compact?: string,
         story?: string,
         single?: string,
         free?: string
@@ -532,22 +503,11 @@ export class InternalLinkProcessor {
           link = this.makeLink(INTERNAL_LINK_TYPE.USER_PHONE_NUMBER, uriParams as Required<typeof uriParams>);
         } else if(uriParams.domain === 'telegrampassport') {
 
-        } else if((uriParams.appname || uriParams.startapp) !== undefined) {
-          link = this.makeLink(INTERNAL_LINK_TYPE.WEB_APP, {
-            masked,
-            ...uriParams as Required<typeof uriParams>
-          });
         } else {
           link = this.makeLink(INTERNAL_LINK_TYPE.MESSAGE, {
             ...uriParams,
             stack: appImManager.getStackFromElement(element)
           });
-        }
-
-        if(uriParams.attach !== undefined || uriParams.startattach !== undefined) {
-          const nestedLink = link;
-          link = this.makeLink(INTERNAL_LINK_TYPE.ATTACH_MENU_BOT, uriParams as Required<typeof uriParams>);
-          link.nestedLink = nestedLink;
         }
 
         return this.processInternalLink(link);
@@ -1553,127 +1513,6 @@ export class InternalLinkProcessor {
     });
   };
 
-  public processAttachMenuBotLink = async(link: InternalLink.InternalLinkAttachMenuBot) => {
-    const botUsername = link.attach || link.domain || (link.nestedLink as InternalLink.InternalLinkMessage).domain;
-    const user = await this.managers.appUsersManager.resolveUserByUsername(botUsername).catch(() => undefined as User.user);
-
-    let processInternalLinkResult: any;
-    if(link.attach !== undefined) {
-      processInternalLinkResult = this.processInternalLink(link.nestedLink);
-    }
-
-    let errorLangPackKey: LangPackKey;
-    if(!user) {
-      errorLangPackKey = 'Alert.UserDoesntExists';
-    } else if(!user.pFlags.bot_attach_menu) {
-      errorLangPackKey = 'BotCantAddToAttachMenu';
-    }/*  else if(user.pFlags.attach_menu_enabled) {
-      errorLangPackKey = 'BotAlreadyAddedToAttachMenu';
-    } */
-
-    if(errorLangPackKey) {
-      toastNew({langPackKey: errorLangPackKey});
-      return;
-    }
-
-    processInternalLinkResult && await processInternalLinkResult;
-    const attachMenuBot = await appImManager.toggleBotInAttachMenu(user.id, true);
-
-    if(link.choose) {
-      type ChooseType = typeof link['choose'];
-      const choose = link.choose.split('+') as ChooseType[];
-      const verifyMap: {
-        [type in ChooseType]: AttachMenuPeerType['_']
-      } = {
-        bots: 'attachMenuPeerTypeBotPM',
-        users: 'attachMenuPeerTypePM',
-        groups: 'attachMenuPeerTypeChat',
-        channels: 'attachMenuPeerTypeBroadcast'
-      };
-
-      const filteredTypes = choose.filter((type) => {
-        const peerTypePredicate = verifyMap[type];
-        return attachMenuBot.peer_types.some((peerType) => peerType._ === peerTypePredicate);
-      });
-
-      const chosenPeerId = await showPickUser3Popup(filteredTypes);
-      await appImManager.setInnerPeer({peerId: chosenPeerId});
-    }
-
-    appImManager.chat.openWebApp({attachMenuBot, startParam: link.startattach});
-  };
-
-  public processWebAppLink = async(link: InternalLink.InternalLinkWebApp) => {
-    const managers = bindManagersToSession(this.managers);
-    const user = await managers.appUsersManager.resolveUserByUsername(link.domain).catch(() => undefined as User.user);
-    if(!user) {
-      toastNew({langPackKey: 'Alert.UserDoesntExists'});
-      return;
-    }
-
-    const botId = user.id;
-    const commonOptions: Partial<RequestWebViewOptions> = {
-      compact: link.mode === 'compact',
-      fullscreen: link.mode === 'fullscreen',
-      startParam: link.startapp,
-      botId
-    };
-
-    if(!link.appname) {
-      if(!user.pFlags.bot_has_main_app) {
-        toastNew({langPackKey: 'Alert.BotAppDoesntExist'});
-        return;
-      }
-
-      if(link.masked) {
-        await appImManager.confirmBotWebViewInner({
-          botId
-        });
-      }
-
-      appImManager.chat.openWebApp({
-        ...commonOptions,
-        main: true
-      });
-
-      return;
-    }
-
-    let messagesBotApp: MessagesBotApp;
-    try {
-      messagesBotApp = await managers.appAttachMenuBotsManager.getBotApp(botId, link.appname);
-    } catch(err) {
-      if((err as ApiError).type === 'BOT_APP_INVALID') {
-        toastNew({langPackKey: 'Alert.BotAppDoesntExist'});
-        return;
-      } else {
-        throw err;
-      }
-    }
-
-    const attachMenuBot = user.pFlags.bot_attach_menu && await appImManager.toggleBotInAttachMenu(botId, true);
-
-    let haveWriteAccess: boolean;
-    if(attachMenuBot) {
-
-    } else if(link.masked || messagesBotApp.pFlags.inactive) {
-      haveWriteAccess = await appImManager.confirmBotWebViewInner({
-        botId,
-        requestWriteAccess: messagesBotApp.pFlags.request_write_access,
-        showDisclaimer: user.pFlags.bot_attach_menu && messagesBotApp.pFlags.inactive
-      });
-    }
-
-    appImManager.chat.openWebApp({
-      ...commonOptions,
-      attachMenuBot,
-      writeAllowed: haveWriteAccess,
-      app: messagesBotApp.app as BotApp.botApp,
-      noConfirmation: !attachMenuBot,
-      hasSettings: messagesBotApp.pFlags.has_settings
-    });
-  };
-
   public processListLink = async(link: InternalLink.InternalLinkAddList) => {
     let chatlistInvite: ChatlistsChatlistInvite;
     try {
@@ -1928,8 +1767,6 @@ export class InternalLinkProcessor {
       [INTERNAL_LINK_TYPE.VOICE_CHAT]: this.processVoiceChatLink,
       [INTERNAL_LINK_TYPE.USER_PHONE_NUMBER]: this.processUserPhoneNumberLink,
       [INTERNAL_LINK_TYPE.INVOICE]: this.processInvoiceLink,
-      [INTERNAL_LINK_TYPE.ATTACH_MENU_BOT]: this.processAttachMenuBotLink,
-      [INTERNAL_LINK_TYPE.WEB_APP]: this.processWebAppLink,
       [INTERNAL_LINK_TYPE.ADD_LIST]: this.processListLink,
       [INTERNAL_LINK_TYPE.STORY]: this.processStoryLink,
       [INTERNAL_LINK_TYPE.BOOST]: this.processBoostLink,

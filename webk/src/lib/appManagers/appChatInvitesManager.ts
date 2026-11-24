@@ -20,10 +20,7 @@ export default class AppChatInvitesManager extends AppManager {
 
   protected after() {
     this.apiUpdatesManager.addMultipleEventsListeners({
-      updatePendingJoinRequests: this.onUpdatePendingJoinRequests,
-      updateJoinChatWebViewDecision: (update) => {
-        this.rootScope.dispatchEvent('join_chat_webview_decision', update);
-      }
+      updatePendingJoinRequests: this.onUpdatePendingJoinRequests
     });
   }
 

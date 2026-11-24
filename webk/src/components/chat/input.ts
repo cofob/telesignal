@@ -38,8 +38,6 @@ import {
   WebPage,
   Message,
   UserFull,
-  AttachMenuPeerType,
-  BotMenuButton,
   MessageMedia,
   InputReplyTo,
   Chat as MTChat,
@@ -89,13 +87,10 @@ import getRichValueWithCaret from '@helpers/dom/getRichValueWithCaret';
 import classifyInputKeyup from '@helpers/dom/classifyInputKeyup';
 import isPlausibleEmojiQuery from '@components/chat/isPlausibleEmojiQuery';
 import EmojiHelper from '@components/chat/emojiHelper';
-import CommandsHelper from '@components/chat/commandsHelper';
 import AutocompleteHelperController from '@components/chat/autocompleteHelperController';
 import AutocompleteHelper from '@components/chat/autocompleteHelper';
 import MentionsHelper from '@components/chat/mentionsHelper';
 import fixSafariStickyInput from '@helpers/dom/fixSafariStickyInput';
-import ReplyKeyboard from '@components/chat/replyKeyboard';
-import InlineHelper from '@components/chat/inlineHelper';
 import debounce, {DebounceReturnType} from '@helpers/schedulers/debounce';
 import {putPreloader} from '@components/putPreloader';
 import SetTransition from '@components/singleTransition';
@@ -112,7 +107,6 @@ import {getAppWindow, getOverlayRoot} from '@helpers/appWindow';
 import findUpTag from '@helpers/dom/findUpTag';
 import toggleDisability from '@helpers/dom/toggleDisability';
 import callbackify from '@helpers/callbackify';
-import ChatBotCommands from '@components/chat/botCommands';
 import copy from '@helpers/object/copy';
 import getEmojiEntityFromEmoji from '@lib/richTextProcessor/getEmojiEntityFromEmoji';
 import mergeEntities from '@lib/richTextProcessor/mergeEntities';
@@ -140,7 +134,6 @@ import RichInputHandler from '@helpers/dom/richInputHandler';
 import draftsAreEqual from '@appManagers/utils/drafts/draftsAreEqual';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import {ObjectURLScope} from '@helpers/objectUrlScope';
-import getAttachMenuBotIcon from '@appManagers/utils/attachMenuBots/getAttachMenuBotIcon';
 import type {RichMessageValidationResult} from '@appManagers/utils/richMessage/validateRichMessage';
 import forEachReverse from '@helpers/array/forEachReverse';
 import {MARKDOWN_ENTITIES} from '@lib/richTextProcessor';
@@ -156,7 +149,6 @@ import getPeerActiveUsernames from '@appManagers/utils/peers/getPeerActiveUserna
 import getChatMembershipAction from '@appManagers/utils/chats/getChatMembershipAction';
 import replaceContent from '@helpers/dom/replaceContent';
 import getTextWidth from '@helpers/canvas/getTextWidth';
-import {FontFull} from '@config/font';
 import {ChatType} from './chatType';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import idleController from '@helpers/idleController';
@@ -185,7 +177,6 @@ import splitStringByLength from '@helpers/string/splitStringByLength';
 import PaidMessagesInterceptor, {PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import asyncThrottle from '@helpers/schedulers/asyncThrottle';
 import focusInput from '@helpers/dom/focusInput';
-import {setDirection} from '@helpers/dom/setInnerHTML';
 import showChecklistPopup from '@components/popups/checklist';
 import assumeType from '@helpers/assumeType';
 import {formatFullSentTime} from '@helpers/date';
@@ -231,7 +222,6 @@ import verifyMenuItem from '@helpers/verifyMenuItem';
 import toastError from '@components/toastError';
 
 const HOT_CHAT_INPUTS = import.meta.hot ? [] as ChatInput[] : null;
-let botCommandsListId = 0;
 
 // * a medium in the field still uploading: what would go without it is refused, saying why
 function showMediaUploadingError(editor: ChatInputEditor) {
@@ -385,16 +375,12 @@ export default class ChatInput {
       onHeightChange: (height) => {this.messageInputNaturalHeight = height; this.notifyChatInputHeight();},
       onExpandedChange: (expanded) => {
         if(!expanded) {
-          // * once the field has shrunk back, if it does (`canShowReplyKeyboard`, `onResizeEnd`)
-          this.replyKeyboard?.resume();
           return;
         }
 
         this.emoticonsDropdown?.toggle(false);
-        this.replyKeyboard?.suspend();
         this.autocompleteHelperController?.hideOtherHelpers();
       },
-      onResizeEnd: () => this.replyKeyboard?.resume(),
       onReadOnlyClick: () => toastNew({langPackKey: this.chat.isTemporaryThread ? 'WaitForTopicCreation' : POSTING_NOT_ALLOWED_MAP.send_plain}),
       onChooseMedia: (selection, action) => {void this.onAttachClick(false, true, true, selection, false, action);},
       ref: (field) => {this.richMessageInput = field; this.messageInput = field.input;}
@@ -436,13 +422,10 @@ export default class ChatInput {
   /** @internal — used by ChatInput input state */
   public btnToggleEmoticons: HTMLButtonElement;
 
-  private btnToggleReplyMarkup: HTMLButtonElement;
   public btnSendContainer: HTMLDivElement;
   /** layer 229: a bot is streaming text into this chat/topic and lets us stop it */
   private streamStoppable = false;
   private sendBtnIcon: ChatSendBtnIcon;
-
-  private replyKeyboard: ReplyKeyboard;
 
   public attachMenu: InstanceType<typeof AttachMenuButton>;
   private attachMenuButtons: ChatInputAttachMenuButton[];
@@ -545,10 +528,6 @@ export default class ChatInput {
   // collaborator (extracted from ChatInput). The `recording` getter below
   // forwards to it.
   private recordingController: ChatRecording;
-  // * a tap on the field is taking focus away on its way to give it back (`attachMessageInputListeners`)
-  private blurringByTap = false;
-  // * the saved draft on its way back into the field, as the chat opens (`updateMessageInput`)
-  private draftRestoring: Promise<unknown>;
 
   // private scrollTop = 0;
   // private scrollOffsetTop = 0;
@@ -565,14 +544,11 @@ export default class ChatInput {
   public autocompleteHelperController: AutocompleteHelperController;
   private stickersHelper: StickersHelper;
   private emojiHelper: EmojiHelper;
-  private commandsHelper: CommandsHelper;
   private mentionsHelper: MentionsHelper;
-  private inlineHelper: InlineHelper;
   // * lowercased usernames known to be guest bots (bot_guestchat). a leading @guestbot in the
   // * composer is a plain, sendable message, not an inline query — this cache keeps typing flicker-free
   private knownGuestBots: Set<string> = new Set();
   // * the inline query asked for last: only its end, whichever way it ends, stops the composer's spinner
-  private inlineQueryGeneration = 0;
   /** @internal — used by ChatRecording */
   public listenerSetter: ListenerSetter;
   private middlewareHelper: MiddlewareHelper;
@@ -592,8 +568,6 @@ export default class ChatInput {
   private goPollVoteBtn: HTMLButtonElement;
   private goPollVoteUnreadBadge: HTMLElement;
   private btnScheduled: HTMLButtonElement;
-
-  private btnPreloader: HTMLButtonElement;
 
   private saveDraftDebounced: DebounceReturnType<() => void>;
   private suppressDraftSyncForUnsupportedRichMessage = false;
@@ -627,13 +601,6 @@ export default class ChatInput {
   private fakeWrapperTo: HTMLElement;
   private toggleControlButtonDisability: () => void;
 
-  private botCommandsToggle: HTMLElement;
-  private botCommands: ChatBotCommands;
-  private botCommandsIcon: HTMLElement;
-  private botCommandsView: HTMLElement;
-  private botMenuButton: BotMenuButton.botMenuButton;
-  private hasBotCommands: boolean;
-
   // private activeContainer: HTMLElement;
 
   private sendAs: ChatSendAs;
@@ -657,21 +624,18 @@ export default class ChatInput {
 
   public excludeParts: Partial<{
     scheduled: boolean,
-    replyMarkup: boolean,
     downButton: boolean,
     reply: boolean,
     forwardOptions: boolean,
     mentionButton: boolean,
-    botCommands: boolean,
     attachMenu: boolean,
-    commandsHelper: boolean,
     emoticons: boolean
   }>;
   public globalMentions: boolean;
 
   public onFileSelection: (promise: Promise<File[]>) => void;
 
-  private hasOffset: {type: 'commands' | 'as', forwards: boolean};
+  private hasOffset: {type: 'as', forwards: boolean};
   private canForwardStory: boolean;
   private processingDraftMessage: DraftMessage.draftMessage;
 
@@ -688,10 +652,8 @@ export default class ChatInput {
   public suggestedPost: SuggestedPostPayload;
   private inputHelperNavigationItem: NavigationItem;
   private placeholderParamsMiddlewareHelper: MiddlewareHelper;
-  // * what the field says while empty (`getPlaceholderParams`), and a bot keyboard's words said instead
+  // * what the field says while empty (`getPlaceholderParams`)
   private placeholderParams: Parameters<ChatInput['updateMessageInputPlaceholder']>[0];
-  private keyboardPlaceholder: string;
-  private keyboardPlaceholderElement: HTMLElement;
 
   private savedReplyToPollOption?: {
     msgId: number;
@@ -1196,186 +1158,11 @@ export default class ChatInput {
     });
   }
 
-  private constructReplyMarkup() {
-    this.btnToggleReplyMarkup = this.createButtonIcon('botcom toggle-reply-markup float hide', {noRipple: true, ariaLabel: 'General.Keyboard'});
-    this.replyKeyboard = new ReplyKeyboard({
-      // * under the field, which it lifts
-      appendTo: this.chatInput,
-      listenerSetter: this.listenerSetter,
-      managers: this.managers,
-      btnHover: this.btnToggleReplyMarkup,
-      chatInput: this,
-      middleware: this.middlewareHelper.get()
-    });
-    this.listenerSetter.add(this.replyKeyboard)('open', () => {
-      this.btnToggleReplyMarkup.classList.add('active');
-      if(this.emoticonsDropdown?.isActive()) this.emoticonsDropdown.toggle(false);
-      // * one under the field is out of it at once, closed now or still fading (it is no more active then, but laid
-      // * out for its time): the two would stand one on another, the field on both
-      const element = this.emoticonsDropdown?.getElement();
-      if(element?.classList.contains('is-under') && this.emoticonsDropdown.chatInput === this) element.style.display = 'none';
-      this.updateReplyMarkupToggle();
-      this.updateKeyboardPlaceholder();
-    });
-    this.listenerSetter.add(this.replyKeyboard)('close', () => {
-      this.btnToggleReplyMarkup.classList.remove('active');
-      this.updateReplyMarkupToggle();
-      this.updateKeyboardPlaceholder();
-    });
-    // * a language applied over the bot's words puts the field's own back: the bot's go there again
-    this.listenerSetter.add(rootScope)('language_apply', () => {
-      if(this.keyboardPlaceholder) this.updateKeyboardPlaceholder();
-    });
-  }
-
-  // * the keyboard's button goes with an empty field, like the other side buttons - but not while the
-  // * keyboard is open, or nothing would close it; and a keyboard that is not to be closed has none
-  public updateReplyMarkupToggle(isInputEmpty = this.isInputEmpty()) {
-    this.btnToggleReplyMarkup?.classList.toggle(
-      'show',
-      (isInputEmpty || this.replyKeyboard.isActive()) &&
-        !this.replyKeyboard.isPermanent() &&
-        this.chat.type !== ChatType.Scheduled &&
-        !this.isWelcomeComposer
-    );
-  }
-
-  /**
-   * Whether the bot's keyboard may stand under the field: the field is there - a view with one (not Recent Actions or
-   * a static preview), not given way to a control, expanded or on its way back from it (held at a height of its own,
-   * which the keyboard is not in), hidden or locked by a recording - and not among scheduled messages, which have the
-   * chat's keyboard but no button for it: a press of it would send at once
-   */
-  public canShowReplyKeyboard() {
-    return !this.chat.noInput &&
-      this.chat.type !== ChatType.Scheduled &&
-      !this.recording &&
-      !this.fakeWrapperTo &&
-      !this.messageInputExpanded &&
-      !this.chatInput.classList.contains('is-message-input-resizing') &&
-      !this.chatInput.classList.contains('is-choosing-theme') &&
-      !this.chatInput.classList.contains('is-hidden');
-  }
-
-  /** And whether it may open by itself (`ReplyKeyboard.autoShow`): not over what the user writes, edits, or has saved */
-  public canShowReplyKeyboardItself() {
-    return this.canShowReplyKeyboard() && !this.draftRestoring && this.isInputEmpty() && !this.editMsgId;
-  }
-
   /** The field takes focus with its caret at the end, a touch device's too (a keyboard user's focus, given back) */
   public focusMessageInput() {
     const editor = getChatInputEditor(this.messageInput);
     if(editor) editor.focusAtEnd(true);
     else this.messageInput.focus();
-  }
-
-  /** A recording takes the field's place (`ChatRecording`): the bot's keyboard goes while it lasts, and comes back */
-  public onRecordingChange(recording: boolean) {
-    if(recording) this.replyKeyboard?.suspend();
-    else this.replyKeyboard?.resume();
-  }
-
-  /**
-   * The theme picker takes the place of the field and of the bot's keyboard under it (`openChatThemeChooser`), as in
-   * tdesktop: the keyboard goes at once while it is up - true if it was open - and comes back once it is closed
-   */
-  public onThemeChooserChange(open: boolean) {
-    if(!open) {
-      this.replyKeyboard?.resume();
-      return false;
-    }
-
-    const wasOpen = !!this.replyKeyboard?.isActive();
-    this.replyKeyboard?.suspend(false);
-    return wasOpen;
-  }
-
-  private constructBotCommands() {
-    this.botCommands = new ChatBotCommands(this.rowsWrapper, this, this.managers);
-    this.botCommands.container.id = `chat-bot-commands-${++botCommandsListId}`;
-    this.botCommands.container.setAttribute('aria-hidden', 'true');
-    this.botCommandsToggle = document.createElement('div');
-    this.botCommandsToggle.classList.add('new-message-bot-commands');
-    this.botCommandsToggle.setAttribute('role', 'button');
-    this.botCommandsToggle.setAttribute('aria-label', I18n.format('Chat.BotCommands', true));
-    if(Modes.a11y) this.botCommandsToggle.tabIndex = -1;
-    this.botCommandsToggle.append(Icon('webview', 'new-message-bot-commands-view-icon'));
-
-    const scaler = document.createElement('div');
-    scaler.classList.add('new-message-bot-commands-icon-scale');
-
-    const icon = this.botCommandsIcon = document.createElement('div');
-    icon.classList.add('animated-menu-icon', 'animated-menu-close-icon');
-    scaler.append(icon);
-
-    this.botCommandsView = document.createElement('div');
-    this.botCommandsView.classList.add('new-message-bot-commands-view');
-    // * the bot's own words: cut at their own end, whatever the interface's direction
-    setDirection(this.botCommandsView);
-    this.botCommandsToggle.append(scaler, this.botCommandsView);
-
-    let webViewTempId = 0, waitingForWebView = false;
-    attachClickEvent(this.botCommandsToggle, (e) => {
-      cancelEvent(e);
-      if(this.hasOffset?.type !== 'commands' || !this.hasOffset.forwards) {
-        return;
-      }
-
-      const botId = this.chat.peerId.toUserId();
-      const {botMenuButton} = this;
-      if(botMenuButton) {
-        if(waitingForWebView) {
-          return;
-        }
-
-        const tempId = ++webViewTempId;
-        waitingForWebView = true;
-
-        Promise.resolve().then(() => {
-          if(webViewTempId !== tempId) {
-            return;
-          }
-
-          return this.chat.openWebApp({
-            botId,
-            url: botMenuButton.url,
-            buttonText: botMenuButton.text,
-            fromBotMenu: true
-          });
-        }).finally(() => {
-          if(webViewTempId === tempId) {
-            waitingForWebView = false;
-          }
-        });
-        return;
-      }
-
-      const middleware = this.getMiddleware();
-      const isShown = icon.classList.contains('state-back');
-      if(isShown) {
-        this.botCommands.toggle(true);
-        // icon.classList.remove('state-back');
-      } else {
-        this.botCommands.setUserId(botId, middleware);
-        // icon.classList.add('state-back');
-      }
-    }, {listenerSetter: this.listenerSetter});
-
-    this.botCommands.addEventListener('visible', () => {
-      icon.classList.add('state-back');
-      this.botCommands.container.removeAttribute('aria-hidden');
-      if(!this.botMenuButton) {
-        this.botCommandsToggle.setAttribute('aria-expanded', 'true');
-      }
-    });
-
-    this.botCommands.addEventListener('hiding', () => {
-      icon.classList.remove('state-back');
-      this.botCommands.container.setAttribute('aria-hidden', 'true');
-      if(!this.botMenuButton) {
-        this.botCommandsToggle.setAttribute('aria-expanded', 'false');
-      }
-    });
   }
 
   private constructRecorder() {
@@ -1428,14 +1215,6 @@ export default class ChatInput {
 
     if(!this.excludeParts.scheduled) {
       this.constructScheduledButton();
-    }
-
-    if(!this.excludeParts.replyMarkup) {
-      this.constructReplyMarkup();
-    }
-
-    if(!this.excludeParts.botCommands) {
-      this.constructBotCommands();
     }
 
     // const getSendMediaRights = () => Promise.all([this.chat.canSend('send_photos'), this.chat.canSend('send_videos')]).then(([photos, videos]) => ({photos, videos}));
@@ -1673,58 +1452,12 @@ export default class ChatInput {
       onOpenBefore: this.excludeParts.attachMenu ? undefined : async() => {
         attachMenuEditorSelection = this.messageInputEditor?.captureSelection();
         const richMessageEditorExpanded = this.messageInputExpanded;
-        const attachMenuBots = (
-          this.chat.isMonoforum ||
-          this.isWelcomeComposer ||
-          this.editMsgId ||
-          !canShowAttachMenuAction('attachBot', richMessageEditorExpanded)
-        ) ? [] : await this.managers.appAttachMenuBotsManager.getAttachMenuBots();
         const buttons = attachMenuButtons.filter((button) => (
           canShowAttachMenuAction(
             button.richMessageAction,
             richMessageEditorExpanded
           )
         ));
-        const attachMenuBotsButtons = attachMenuBots.filter((attachMenuBot) => {
-          return attachMenuBot.pFlags.show_in_attach_menu;
-        }).map((attachMenuBot) => {
-          const icon = getAttachMenuBotIcon(attachMenuBot);
-          const button: typeof buttons[0] = {
-            richMessageAction: 'attachBot',
-            regularText: wrapEmojiText(attachMenuBot.short_name),
-            onClick: () => {
-              this.chat.openWebApp({attachMenuBot, fromAttachMenu: true});
-            },
-            iconDoc: icon?.icon as MyDocument,
-            verify: async() => {
-              let found = false;
-
-              const verifyMap: {
-                [type in AttachMenuPeerType['_']]: () => boolean | Promise<boolean>
-              } = {
-                attachMenuPeerTypeSameBotPM: () => this.chat.peerId.toUserId() === attachMenuBot.bot_id,
-                attachMenuPeerTypeBotPM: () => this.chat.isBot,
-                attachMenuPeerTypePM: () => this.chat.peerId.isUser(),
-                attachMenuPeerTypeChat: () => this.chat.isAnyGroup,
-                attachMenuPeerTypeBroadcast: () => this.chat.isBroadcast
-              };
-
-              for(const peerType of attachMenuBot.peer_types) {
-                const verify = verifyMap[peerType._];
-                found = await verify();
-                if(found) {
-                  break;
-                }
-              }
-
-              return found;
-            }
-          };
-
-          return button;
-        });
-
-        buttons.splice(buttons.length, 0, ...attachMenuBotsButtons);
         this.attachMenuButtons.splice(0, this.attachMenuButtons.length, ...buttons);
       },
       onOpen: () => {
@@ -1752,9 +1485,8 @@ export default class ChatInput {
     this.fileInput.multiple = true;
     this.fileInput.style.display = 'none';
 
-    this.richMessageInput.mountAccessories([this.botCommandsToggle, this.attachMenu].filter(Boolean), [
+    this.richMessageInput.mountAccessories([this.attachMenu].filter(Boolean), [
       this.btnScheduled,
-      this.btnToggleReplyMarkup,
       this.btnSuggestPost,
       this.btnAutoDeletePeriod,
       this.btnSendGift,
@@ -1771,9 +1503,7 @@ export default class ChatInput {
     // * emoji helper positions itself above the stickers panel and hides on stickers scroll
     this.emojiHelper.addSibling(this.stickersHelper);
     this.emojiHelper.attachStickersHelper(this.stickersHelper);
-    if(!this.excludeParts.commandsHelper) this.commandsHelper = new CommandsHelper(this.rowsWrapper, this.autocompleteHelperController, this, this.managers);
     this.mentionsHelper = new MentionsHelper(this.rowsWrapper, this.autocompleteHelperController, this, this.managers);
-    this.inlineHelper = new InlineHelper(this.rowsWrapper, this.autocompleteHelperController, this.chat, this.managers);
     this.rowsWrapper.append(this.newMessageWrapper);
 
     this.btnCancelRecord = this.createButtonIcon('bin_filled btn-circle btn-record-cancel chat-input-secondary-button chat-secondary-button', {ariaLabel: 'Delete'});
@@ -1910,7 +1640,6 @@ export default class ChatInput {
           createEffect(() => {
             const shouldBeTop = windowSize.height >= 570 && windowSize.width > 600;
             this.emoticonsDropdown.getElement().classList.toggle('is-under', !shouldBeTop);
-            if(!shouldBeTop && this.emoticonsDropdown.isActive()) this.emoticonsDropdown.chatInput.onEmoticonsUnder();
           });
         });
       }
@@ -2404,10 +2133,6 @@ export default class ChatInput {
 
     this.fakeWrapperTo = neededFakeContainer;
 
-    // * the field gives way to a control (selection, Start, Unblock...): the keyboard goes with it, and comes back with it
-    if(forwards) this.replyKeyboard?.suspend();
-    else this.replyKeyboard?.resume();
-
     const duration = animate ? 200 : 0;
     SetTransition({
       element: this.inputContainer,
@@ -2631,24 +2356,10 @@ export default class ChatInput {
 
   private onEmoticonsOpen = () => {
     this.onEmoticonsToggle(true);
-    // * the panel is every chat's: this field's only when it opens over it
-    if(this.emoticonsDropdown.chatInput === this && this.emoticonsDropdown.getElement().classList.contains('is-under')) {
-      this.onEmoticonsUnder();
-    }
   };
-
-  /**
-   * The emoji panel open under this field - opened there, or moved there by the window's size: the bot's keyboard, which
-   * stands there too, is out of it at once, or the field would stand on both meanwhile
-   */
-  public onEmoticonsUnder() {
-    this.replyKeyboard?.suspend(false);
-  }
 
   private onEmoticonsClose = () => {
     this.onEmoticonsToggle(false);
-    // * a bot keyboard that came while the user had it open: once it is closed, which it is after the event
-    if(this.emoticonsDropdown.chatInput === this) queueMicrotask(() => this.replyKeyboard?.resume());
   };
 
   // * the emoji panel the user has open over or under this field: the panel is every chat's
@@ -2957,8 +2668,6 @@ export default class ChatInput {
     if(this.chat && !this.chat.peerId) {
       this.chatInput.classList.add('hide');
       this.goDownBtn.classList.add('hide');
-      // * with the field it stood under, and what closed it with it
-      this.replyKeyboard?.toggle(false, false, false);
     }
 
     cancelSelection();
@@ -3201,11 +2910,9 @@ export default class ChatInput {
     const {
       forwardElements,
       btnScheduled,
-      replyKeyboard,
       sendMenu,
       goDownBtn,
       chatInput,
-      botCommandsToggle,
       attachMenu
     } = this;
 
@@ -3300,24 +3007,8 @@ export default class ChatInput {
         this.updateOffset(null, false, true);
       }
 
-      if(botCommandsToggle) {
-        this.hasBotCommands = undefined;
-        this.botMenuButton = undefined;
-        this.botCommands.toggle(true, undefined, true);
-        this.updateBotCommandsToggle(true);
-        botCommandsToggle.remove();
-        if(isBot) {
-          const result = ackedPeerFull.result;
-          callbackify(result, (userFull) => {
-            if(!middleware()) return;
-            this.updateBotCommands(userFull as UserFull.userFull, !(result instanceof Promise));
-          });
-        }
-      }
-
       previousSendAs?.destroy();
       setSendAsCallback?.();
-      replyKeyboard?.setPeer(peerId);
       sendMenu?.setPeerParams({peerId, isPaid: !!this.chat.starsAmount});
       this.stopAiSendStyle?.();
       this.aiStyledContent = undefined;
@@ -3454,10 +3145,8 @@ export default class ChatInput {
 
       this.botStartBtn.classList.toggle('hide', haveSomethingInControl);
 
-      // * the saved draft, back in the field
-      let draftRestored: Promise<unknown>;
       if(this.messageInput) {
-        draftRestored = this.updateMessageInput(
+        this.updateMessageInput(
           canSend || haveSomethingInControl,
           canSendPlain && !this.chat.isTemporaryThread,
           placeholderParams,
@@ -3486,9 +3175,6 @@ export default class ChatInput {
       const applyLayout = () => {
         this.messageInputField?.measureHeight(undefined, true);
         this._center(neededFakeContainer, false);
-        // * the chat opens with its bot's keyboard, as on iOS and Android: at once, as the rest of it - once a draft
-        // * it has is in the field, over which it does not
-        if(replyKeyboard) Promise.resolve(draftRestored).then(() => middleware() && replyKeyboard.autoShow(false), noop);
       };
       if(options.deferInputLayout) options.deferInputLayout(applyLayout);
       else applyLayout();
@@ -3582,74 +3268,6 @@ export default class ChatInput {
     this.btnSendGift.classList.toggle('hide', isBot || !this.shouldShowGiftButton(userFull, globalPrivacy));
   }
 
-  private updateBotCommands(userFull: UserFull.userFull, skipAnimation?: boolean) {
-    const botInfo = userFull.bot_info;
-    const menuButton = botInfo?.menu_button;
-    this.hasBotCommands = !!botInfo?.commands?.length;
-    this.botMenuButton = menuButton?._ === 'botMenuButton' ? menuButton : undefined;
-    if(this.botMenuButton && this.botCommandsIcon.classList.contains('state-back')) {
-      this.botCommands.toggle(true);
-    }
-    replaceContent(this.botCommandsView, this.botMenuButton ? wrapEmojiText(this.botMenuButton.text) : '');
-    this.botCommandsToggle.setAttribute(
-      'aria-label',
-      this.botMenuButton?.text || I18n.format('Chat.BotCommands', true)
-    );
-    if(this.botMenuButton) {
-      this.botCommandsToggle.removeAttribute('aria-haspopup');
-      this.botCommandsToggle.removeAttribute('aria-controls');
-      this.botCommandsToggle.removeAttribute('aria-expanded');
-    } else {
-      this.botCommandsToggle.setAttribute('aria-haspopup', 'listbox');
-      this.botCommandsToggle.setAttribute('aria-controls', this.botCommands.container.id);
-      this.botCommandsToggle.setAttribute(
-        'aria-expanded',
-        '' + this.botCommandsIcon.classList.contains('state-back')
-      );
-    }
-    this.botCommandsIcon.classList.toggle('hide', !!this.botMenuButton);
-    this.botCommandsView.classList.toggle('hide', !this.botMenuButton);
-    this.botCommandsToggle.classList.toggle('is-view', !!this.botMenuButton);
-    this.updateBotCommandsToggle(skipAnimation);
-  }
-
-  private updateBotCommandsToggle(skipAnimation?: boolean) {
-    const {botCommandsToggle, hasBotCommands, botMenuButton} = this;
-
-    const isNeeded = !!(hasBotCommands || botMenuButton);
-
-    const isInputEmpty = this.isInputEmpty();
-    const show = isNeeded && (isInputEmpty || !!botMenuButton);
-    if(Modes.a11y) botCommandsToggle.tabIndex = show ? 0 : -1;
-    botCommandsToggle.setAttribute('aria-hidden', '' + !show);
-    if(!isNeeded) {
-      if(!botCommandsToggle.parentElement) {
-        return;
-      }
-
-      botCommandsToggle.remove();
-    }
-
-    const forwards = show;
-    const useRafs = botCommandsToggle.parentElement ? 0 : 2;
-
-    if(botMenuButton && isInputEmpty) {
-      // the text, which iOS keeps to half the panel less 60pt so the field stays usable on a phone, then the padding,
-      // the icon and its margin
-      const width = Math.ceil(getTextWidth(botMenuButton.text, FontFull));
-      this.newMessageWrapper.style.setProperty('--commands-size', `calc(min(${width}px, 50vw - 60px) + ${24 + 20 + 6}px)`);
-    } else {
-      // this.newMessageWrapper.style.setProperty('--commands-size', `38px`);
-      this.newMessageWrapper.style.removeProperty('--commands-size');
-    }
-
-    if(!botCommandsToggle.parentElement) {
-      this.newMessageWrapper.prepend(botCommandsToggle);
-    }
-
-    this.updateOffset('commands', forwards, skipAnimation, useRafs, true);
-  }
-
   public async getPlaceholderParams(canSend?: boolean, peerState?: {
     isBroadcast: boolean,
     isBroadcastGroup: boolean,
@@ -3659,23 +3277,17 @@ export default class ChatInput {
     canSend ??= await this.chat.canSend('send_plain');
     const {peerId, threadId, isForum, type} = this.chat;
     let key: LangPackKey, args: FormatterArguments, inputStarsCountEl: HTMLElement;
-    // * where the field only asks for a message, a bot's keyboard may ask in its words (`updateKeyboardPlaceholder`) - not
-    // * over what it cannot take, what it is for instead (a template, a thread to choose) or what a message costs, which
-    // * is said before it is sent (Android)
-    let yieldsToKeyboard = false;
     if(!canSend) {
       key = 'Channel.Persmission.MessageBlock';
     } else if(type === ChatType.Welcome) {
       key = 'WelcomeMessages.Placeholder';
     } else if(threadId && !isForum && !peerId.isUser()) {
       key = 'Comment';
-      yieldsToKeyboard = true;
     } else if(
       (peerState ? peerState.isBroadcast : await this.managers.appPeersManager.isBroadcast(peerId)) ||
       (peerState ? peerState.isBroadcastGroup : await this.managers.appPeersManager.isBroadcastGroup(peerId))
     ) {
       key = 'ChannelBroadcast';
-      yieldsToKeyboard = true;
     } else if(this.chat.isMonoforum && this.chat.canManageDirectMessages) {
       key = this.inputState.store.isSuggestingUneditablePostChange ?
         'ChannelDirectMessages.CantChangeSuggestedPostMessage' :
@@ -3689,7 +3301,6 @@ export default class ChatInput {
       (peerState ? peerState.isAnonymousSending : await this.managers.appMessagesManager.isAnonymousSending(peerId))
     ) {
       key = 'SendAnonymously';
-      yieldsToKeyboard = true;
     } else if(type === ChatType.Stories && !this.chat.starsAmount) {
       // * a reply that costs Stars shows its price below instead, over the stealth mode countdown too:
       // * as Android has it, what a message costs is said before it is sent
@@ -3711,8 +3322,6 @@ export default class ChatInput {
       } else {
         key = 'Message';
       }
-
-      yieldsToKeyboard = true;
     } else if(this.chat.starsAmount) {
       key = 'PaidMessages.MessageForStars';
       const starsElement = document.createElement('span');
@@ -3722,17 +3331,15 @@ export default class ChatInput {
       args = [starsElement];
     } else {
       key = 'Message';
-      yieldsToKeyboard = true;
     }
 
-    return {key, args, inputStarsCountEl, yieldsToKeyboard};
+    return {key, args, inputStarsCountEl};
   }
 
   public updateMessageInputPlaceholder(params: {
     key: LangPackKey,
     args?: FormatterArguments,
-    inputStarsCountEl?: HTMLElement,
-    yieldsToKeyboard?: boolean
+    inputStarsCountEl?: HTMLElement
   }) {
     // console.warn('[input] update placeholder');
     // const i = I18n.weakMap.get(this.messageInput) as I18n.IntlElement;
@@ -3744,17 +3351,13 @@ export default class ChatInput {
     const oldKey = i.key;
     const oldArgs = i.args;
     this.placeholderParams = params;
-    this.updateKeyboardPlaceholder();
+    this.applyPlaceholderParams();
 
     return {oldKey, oldArgs};
   }
 
-  /**
-   * The field's placeholder: its own words, or a bot's keyboard's while they apply (`ReplyKeyboard.getPlaceholder`),
-   * as desktop and Android have them - not while a message is edited, nor where the field says more than that it asks
-   * for a message (`yieldsToKeyboard`). The field's own wait under the bot's as the placeholder's, put back once they go
-   */
-  public updateKeyboardPlaceholder() {
+  /** The field's placeholder, as its params say (`getPlaceholderParams`) */
+  public applyPlaceholderParams() {
     const element = this.messageInputField?.placeholder;
     const i = element && I18n.weakMap.get(element) as I18n.IntlElement;
     const params = this.placeholderParams;
@@ -3762,25 +3365,11 @@ export default class ChatInput {
       return;
     }
 
-    const {key, args = [], inputStarsCountEl, yieldsToKeyboard} = params;
-    const text = yieldsToKeyboard && !this.editMsgId ?
-      this.replyKeyboard?.getPlaceholder(this.replyToMsgId, this.replyToPeerId) :
-      undefined;
-    if(text) {
-      i.key = key;
-      i.args = args;
-      const span = this.keyboardPlaceholderElement ??= document.createElement('span');
-      // * the bot's words, in their own direction
-      span.dir = 'auto';
-      if(text !== this.keyboardPlaceholder) span.replaceChildren(wrapEmojiText(text));
-      if(span.parentElement !== element) element.replaceChildren(span);
-    } else if(this.keyboardPlaceholder) {
-      i.update({key, args});
-    } else if(!i.compareAndUpdateBool({key, args})) {
+    const {key, args = [], inputStarsCountEl} = params;
+    if(!i.compareAndUpdateBool({key, args})) {
       return;
     }
 
-    this.keyboardPlaceholder = text;
     this.inputState.set({inputStarsCountEl});
   }
 
@@ -3809,11 +3398,10 @@ export default class ChatInput {
     placeholderParams: Parameters<ChatInput['updateMessageInputPlaceholder']>[0],
     text?: string,
     entities?: MessageEntity[]
-  ): Promise<unknown> | undefined {
+  ) {
     const {chatInput, messageInput} = this;
     const isHidden = chatInput.classList.contains('is-hidden');
     const willBeHidden = !canSend;
-    if(willBeHidden) this.replyKeyboard?.toggle(false);
     if(isHidden !== willBeHidden) {
       chatInput.classList.add('no-transition');
       chatInput.classList.toggle('is-hidden', !canSend);
@@ -3822,7 +3410,6 @@ export default class ChatInput {
     }
 
     const isEditingAndLocked = canSend && !canSendPlain && this.restoreInputLock;
-    let draftRestored: Promise<unknown>;
 
     !isEditingAndLocked && this.updateMessageInputPlaceholder(placeholderParams);
 
@@ -3843,13 +3430,7 @@ export default class ChatInput {
       if(text) {
         this.managers.appDraftsManager.setDraft(this.chat.peerId, undefined, text, entities);
       }
-      // * a keyboard that comes meanwhile does not open by itself over the field it is restored to
-      // * (`canShowReplyKeyboardItself`): the chat's opening asks once it is there
-      const restoring = this.draftRestoring = draftRestored = this.setDraft(undefined, false);
-      const restored = () => {
-        if(this.draftRestoring === restoring) this.draftRestoring = undefined;
-      };
-      restoring.then(restored, restored);
+      this.setDraft(undefined, false);
 
       if(!messageInput.innerHTML) {
         this.messageInputField.measureHeight(undefined, true);
@@ -3857,7 +3438,6 @@ export default class ChatInput {
     }
 
     this.updateSendBtn();
-    return draftRestored;
   }
 
   private notifyChatInputHeight() {
@@ -3882,8 +3462,6 @@ export default class ChatInput {
   private attachMessageInputListeners() {
     if(IS_TOUCH_SUPPORTED) {
       attachClickEvent(this.messageInput, (e) => {
-        this.replyKeyboard?.giveWayToDeviceKeyboard();
-
         if(this.emoticonsDropdown.isActive()) {
           this.emoticonsDropdown.toggle(false);
           blurActiveElement();
@@ -3893,39 +3471,10 @@ export default class ChatInput {
         }
 
         if(!this.chat.isStandalone) {
-          // * the blur it makes on the way is not the device's keyboard going (`focusout` below): the tap brings it
-          this.blurringByTap = true;
-          try {
-            this.appImManager.selectTab(APP_TABS.CHAT); // * set chat tab for album orientation
-          } finally {
-            this.blurringByTap = false;
-          }
+          this.appImManager.selectTab(APP_TABS.CHAT); // * set chat tab for album orientation
         }
         // this.saveScroll();
       }, {listenerSetter: this.listenerSetter});
-
-      // * the device's keyboard put away with the field still focused (Android's back, which blurs nothing - the window
-      // * keeps its size, the visual viewport alone grows): the bot's comes back in its place, as on a blur (`focusout`
-      // * below). Told from a zoom and a turn of the screen by the same scale and window
-      const viewport = window.visualViewport;
-      if(viewport) {
-        // * grown from its lowest since, over as many resizes as the keyboard takes to go
-        let lowest = viewport.height, {scale} = viewport, windowHeight = window.innerHeight;
-        this.listenerSetter.add(viewport)('resize', () => {
-          if(viewport.scale !== scale || window.innerHeight !== windowHeight) {
-            lowest = viewport.height;
-            ({scale} = viewport);
-            windowHeight = window.innerHeight;
-            return;
-          }
-
-          lowest = Math.min(lowest, viewport.height);
-          if(viewport.height - lowest > windowHeight / 4) {
-            lowest = viewport.height;
-            if(this.messageInput.contains(document.activeElement)) this.replyKeyboard?.autoShow();
-          }
-        });
-      }
 
       /* this.listenerSetter.add(window)('resize', () => {
         this.restoreScroll();
@@ -3982,9 +3531,6 @@ export default class ChatInput {
       // this.updateSendBtn();
 
       this.onFocusChange?.(false);
-      // * the device's keyboard gone, the bot's comes back in its place if it would open by itself - a persistent
-      // * one always does (iOS, Android)
-      if(IS_TOUCH_SUPPORTED && !this.blurringByTap) this.replyKeyboard?.autoShow();
     });
   }
 
@@ -4186,7 +3732,6 @@ export default class ChatInput {
     this.ephemeralComposer = ephemeralComposer;
     this.chatInput?.classList.toggle('is-ephemeral-composer', ephemeralComposer);
     this.btnSendContainer?.classList.toggle('is-ephemeral-composer', ephemeralComposer);
-    this.replyKeyboard?.setEphemeralMode(ephemeralComposer);
     if(this.fileInput) {
       this.fileInput.multiple = !ephemeralComposer;
     }
@@ -4199,11 +3744,6 @@ export default class ChatInput {
         undefined,
         this.chat.threadId
       );
-    }
-
-    if(ephemeralComposer && this.inlineHelper) {
-      this.inlineHelper.toggle(true, true);
-      this.checkInlineAutocomplete('', false);
     }
   }
 
@@ -4266,12 +3806,6 @@ export default class ChatInput {
         this.lastTimeType = time;
         this.managers.appMessagesManager.setTyping(this.chat.peerId, {_: 'sendMessageTypingAction'}, undefined, this.chat.threadId);
       }
-
-      this.botCommands?.toggle(true);
-    }
-
-    if(this.botCommands) {
-      this.updateBotCommandsToggle();
     }
 
     if(isUserInput) this.acceptUserEditOverUnsupportedRichMessageDraft();
@@ -4545,10 +4079,6 @@ export default class ChatInput {
         if(result) {
           foundHelpers.add(this.mentionsHelper);
         }
-      } else if(!foundHelpers.size && !matches[1] && firstChar === '/') { // commands
-        if(this.commandsHelper && await this.commandsHelper.checkQuery(query, this.chat.peerId)) {
-          foundHelpers.add(this.commandsHelper);
-        }
       } else if(!foundHelpers.size && this.chat.appSettings.emoji.suggest) { // emoji
         query = query.replace(/^\s*/, '');
         // * skip when the input ends with an emoji entity — regular emoji is handled by the
@@ -4567,19 +4097,6 @@ export default class ChatInput {
       }
     }
 
-    // a welcome message cannot be an inline bot's result (desktop turns inline bots off there)
-    const noInline = this.ephemeralComposer || this.isWelcomeComposer;
-    let canSendInline: boolean;
-    if(!noInline && !foundHelpers.size) {
-      canSendInline = await this.chat.canSend('send_inline');
-    }
-
-    const inlineResult = !noInline &&
-      this.checkInlineAutocomplete(value, canSendInline, foundHelpers.values().next().value);
-    if(inlineResult === this.inlineHelper) {
-      foundHelpers.add(this.inlineHelper);
-    }
-
     this.autocompleteHelperController.hideOtherHelpers(foundHelpers);
   }
 
@@ -4587,90 +4104,6 @@ export default class ChatInput {
   // * everywhere except broadcast channels and monoforums
   private canSendGuestChat() {
     return !this.chat.isBroadcast && !this.chat.isMonoforum;
-  }
-
-  private checkInlineAutocomplete(value: string, canSendInline: boolean, foundHelper?: AutocompleteHelper): AutocompleteHelper {
-    let needPlaceholder = false;
-
-    const setPreloaderShow = (show: boolean) => {
-      if(!this.btnPreloader) {
-        return;
-      }
-
-      if(show && !canSendInline) {
-        show = false;
-      }
-
-      SetTransition({
-        element: this.btnPreloader,
-        className: 'show',
-        forwards: show,
-        duration: 400
-      });
-    };
-
-    const allowGuestChat = this.canSendGuestChat();
-    if(!foundHelper) {
-      const inlineMatch = value.match(/^@([a-zA-Z\\d_]{3,32})\s/);
-      // * a leading @guestbot is not an inline query — it's a plain, sendable guest-chat message,
-      // * so keep the composer in normal send mode instead of opening the inline results panel
-      if(inlineMatch && !(allowGuestChat && this.knownGuestBots.has(inlineMatch[1].toLowerCase()))) {
-        const username = inlineMatch[1];
-        const query = value.slice(inlineMatch[0].length);
-        needPlaceholder = inlineMatch[0].length === value.length;
-
-        foundHelper = this.inlineHelper;
-
-        if(!this.btnPreloader) {
-          this.btnPreloader = this.createButtonIcon('none btn-preloader float show disable-hover', {noRipple: true});
-          this.btnPreloader.tabIndex = -1;
-          this.btnPreloader.setAttribute('aria-hidden', 'true');
-          putPreloader(this.btnPreloader, true);
-          this.inputMessageContainer.parentElement.insertBefore(this.btnPreloader, this.inputMessageContainer.nextSibling);
-        } else {
-          setPreloaderShow(true);
-        }
-
-        // * a query a newer one replaced (skipped by the debounce, or answered late) leaves the spinner to that one;
-        // * the last one stops it however it ends, a failed answer (BOT_RESPONSE_TIMEOUT, no inline mode) included
-        const generation = ++this.inlineQueryGeneration;
-        const hidePreloader = () => {
-          if(generation === this.inlineQueryGeneration) {
-            setPreloaderShow(false);
-          }
-        };
-
-        this.inlineHelper.checkQuery(this.chat.peerId, username, query, canSendInline, allowGuestChat).then(({user, renderPromise, guestChat}) => {
-          if(guestChat) {
-            // * a guest bot was resolved for the first time — remember it so the next keystroke
-            // * skips the inline path entirely, and drop back to normal send mode
-            this.knownGuestBots.add(username.toLowerCase());
-            needPlaceholder = false;
-            this.messageInputEditor?.setInlineBotPlaceholder();
-            hidePreloader();
-            return;
-          }
-
-          if(needPlaceholder && user.bot_inline_placeholder) {
-            this.messageInputEditor?.setInlineBotPlaceholder(user.bot_inline_placeholder);
-          }
-
-          renderPromise.then(hidePreloader, hidePreloader);
-        }).catch((err: ApiError) => {
-          hidePreloader();
-        });
-      }
-    }
-
-    if(!needPlaceholder) {
-      this.messageInputEditor?.setInlineBotPlaceholder();
-    }
-
-    if(foundHelper !== this.inlineHelper) {
-      setPreloaderShow(false);
-    }
-
-    return foundHelper;
   }
 
   public setShrinking(value?: boolean, classNames?: string[]) {
@@ -4816,14 +4249,9 @@ export default class ChatInput {
 
   /**
    * The user's own cancel of the helper - its button, its menu, Escape - not the app's clearing it (after a send, a
-   * message gone): a force reply's answer dropped so is not set again (`ReplyKeyboard.onReplyDropped`). A link's
-   * preview over the reply is what such a cancel takes away, the reply staying
+   * message gone): a link's preview over the reply is what such a cancel takes away, the reply staying
    */
   private onHelperCancelByUser = (e?: Event) => {
-    if(this.helperType === 'reply' && !this.willSendWebPage) {
-      this.replyKeyboard?.onReplyDropped(this.replyToMsgId, this.replyToPeerId);
-    }
-
     return this.onHelperCancel(e);
   };
 
@@ -5142,8 +4570,6 @@ export default class ChatInput {
     if(this.btnScheduled) {
       this.btnScheduled.classList.toggle('show', isInputEmpty && this.chat.type !== ChatType.Scheduled && !this.isWelcomeComposer);
     }
-
-    this.updateReplyMarkupToggle(isInputEmpty);
 
     if(this.btnSendGift) {
       this.btnSendGift.classList.toggle('show', isInputEmpty && !this.isWelcomeComposer);
@@ -6193,7 +5619,7 @@ export default class ChatInput {
         }
         this.editMsgId = mid;
         this.editMessage = message;
-        this.updateKeyboardPlaceholder();
+        this.applyPlaceholderParams();
         input = undefined;
         richMessage = undefined;
         // the limit plate steps aside for editing what is already there
@@ -6585,7 +6011,7 @@ export default class ChatInput {
       this.replyIsEphemeral = false;
     }
     this.updateEphemeralComposer();
-    this.updateKeyboardPlaceholder();
+    this.applyPlaceholderParams();
     this.center(true);
   }
 
@@ -6625,7 +6051,7 @@ export default class ChatInput {
 
     this.editMsgId = this.editMessage = undefined;
     this.helperType = this.helperFunc = undefined;
-    this.updateKeyboardPlaceholder();
+    this.applyPlaceholderParams();
     if(this.welcomeLimitReached) void this.center(true);
     this.setCurrentHover();
     this.saveDraftDebounced();

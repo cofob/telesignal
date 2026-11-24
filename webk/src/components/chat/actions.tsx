@@ -32,11 +32,10 @@ import noop from '@helpers/noop';
 type PeerSettingsKey = keyof PeerSettings['pFlags'];
 
 /**
- * `reopen_topic` and `set_bot_photo` are not peer settings — they mirror the two
- * sibling bars tdesktop stacks next to the contact status one (`TopicReopenBar`
- * and `ContactStatus::State::Type::SetBotPhoto`, `history_view_contact_status.cpp`).
+ * `reopen_topic` is not a peer setting — it mirrors the sibling bar tdesktop stacks next to the contact status
+ * one (`TopicReopenBar`, `history_view_contact_status.cpp`).
  */
-type ActionKey = PeerSettingsKey | 'reopen_topic' | 'set_bot_photo' | MessageRequestActionKey;
+type ActionKey = PeerSettingsKey | 'reopen_topic' | MessageRequestActionKey;
 
 /**
  * TeleSignal: the answers to a Signal message request, as Web A's `ChatReportPane` offers them. Signal's peer
@@ -75,28 +74,15 @@ const LANG_KEY_MAP: {[key in ActionKey]?: LangPackKey} = {
   block_contact: 'BlockUser',
   share_contact: 'ShareMyPhoneNoCaps',
   reopen_topic: 'RestartTopic',
-  set_bot_photo: 'SetProfilePhoto',
   request_accept: 'Signal.MessageRequest.Accept',
   request_delete: 'Signal.MessageRequest.Delete',
   request_block: 'Signal.MessageRequest.Block',
   request_report: 'Signal.MessageRequest.Report'
 };
 
-/**
- * Session state for the set-photo prompt, keyed by bot. tdesktop keeps the same two
- * fields on `BotInfo`, i.e. for as long as the session lives:
- * - `openedEmpty` — whether that bot's chat was empty the first time we opened it;
- *   only then is the prompt ever offered (`FinalizeSetBotPhotoFirstOpenState`).
- * - `hidden` — the prompt's cross, which dismisses it locally without touching the
- *   server-side settings bar.
- */
-const botPhotoPromptOpenedEmpty = new Map<PeerId, boolean>();
-const botPhotoPromptHidden = new Set<PeerId>();
 /** The message requests whose bar the cross hid on this tab: the cross does not answer the request */
 const messageRequestBarHidden = new Set<PeerId>();
 hotListen(import.meta.hot, rootScope, 'account_switched', () => {
-  botPhotoPromptOpenedEmpty.clear();
-  botPhotoPromptHidden.clear();
   messageRequestBarHidden.clear();
 });
 
@@ -218,7 +204,6 @@ export default function createChatActionsPlate(
   let isMessageRequest = false;
   let requestChatInfo: RequestChatInfo | undefined;
   let canReopenTopic = false;
-  let canSetBotPhoto = false;
 
   const freeze = async(promise: Promise<any>) => {
     setDisabled(true);
@@ -338,13 +323,6 @@ export default function createChatActionsPlate(
     }
   };
 
-  const setBotPhotoAction: ActionDef = {
-    key: 'set_bot_photo',
-    icon: 'cameraadd',
-    keepCase: true,
-    onClick: () => topbar.editBot()
-  };
-
   const showRequestChatInfoPopup = (info: RequestChatInfo) => {
     showPeerPopup('popup-confirmation', {
       titleLangKey: info.isBroadcast ? 'ChatWithAdminChannelTitle' : 'ChatWithAdminGroupTitle',
@@ -363,15 +341,6 @@ export default function createChatActionsPlate(
   };
 
   const onClose = () => {
-    // The set-photo prompt is ours alone: tdesktop's cross only sets `setBotPhotoHidden`,
-    // it never hides the server-side settings bar.
-    if(canSetBotPhoto && !peerSettingsActions.length) {
-      botPhotoPromptHidden.add(currentPeerId);
-      canSetBotPhoto = false;
-      applyState();
-      return;
-    }
-
     if(isMessageRequest) {
       messageRequestBarHidden.add(currentPeerId);
     } else if(currentPeerId !== undefined) {
@@ -414,16 +383,12 @@ export default function createChatActionsPlate(
       setCanClose(false);
       plate.setHidden(false);
     } else {
-      let list = canReopenTopic ? [reopenTopicAction, ...peerSettingsActions] : peerSettingsActions;
-      // tdesktop offers the set-photo prompt only when no peer setting claims the bar.
-      if(!list.length && canSetBotPhoto) {
-        list = [setBotPhotoAction];
-      }
+      const list = canReopenTopic ? [reopenTopicAction, ...peerSettingsActions] : peerSettingsActions;
 
       // * a message request has its four answers, as Web A shows them
       const visible = isMessageRequest ? list : list.slice(0, 2);
       setButtons(visible.length ? visible : undefined);
-      setCanClose(!!peerSettingsActions.length || canSetBotPhoto);
+      setCanClose(!!peerSettingsActions.length);
       plate.setHidden(!visible.length);
     }
 
@@ -456,51 +421,6 @@ export default function createChatActionsPlate(
     }
 
     canReopenTopic = value;
-    applyState();
-  };
-
-  /**
-   * Everything but "was the chat empty when first opened" is on the cached user, so a
-   * chat that can't possibly want the prompt costs no round-trip at all.
-   */
-  const isBotPhotoPromptPossible = (peerId: PeerId) => {
-    if(!peerId?.isUser() || botPhotoPromptHidden.has(peerId)) {
-      return false;
-    }
-
-    const user = apiManagerProxy.getUser(peerId.toUserId());
-    return !!user?.pFlags?.bot && !!user.pFlags.bot_can_edit && !user.photo;
-  };
-
-  const ackedCanSetBotPhoto = async(peerId: PeerId): Promise<AckedResult<boolean>> => {
-    if(!isBotPhotoPromptPossible(peerId)) {
-      return {cached: true, result: Promise.resolve(false)};
-    }
-
-    const remembered = botPhotoPromptOpenedEmpty.get(peerId);
-    if(remembered !== undefined) {
-      return {cached: true, result: Promise.resolve(remembered)};
-    }
-
-    const acked = await managers.acknowledged.appMessagesManager.getDialogOnly(peerId);
-    return {
-      cached: acked.cached,
-      result: acked.result.then((dialog) => {
-        const openedEmpty = !dialog?.top_message;
-        botPhotoPromptOpenedEmpty.set(peerId, openedEmpty);
-        return openedEmpty;
-      })
-    };
-  };
-
-  const refreshCanSetBotPhoto = () => {
-    const value = isBotPhotoPromptPossible(currentPeerId) &&
-      !!botPhotoPromptOpenedEmpty.get(currentPeerId);
-    if(canSetBotPhoto === value) {
-      return;
-    }
-
-    canSetBotPhoto = value;
     applyState();
   };
 
@@ -633,15 +553,6 @@ export default function createChatActionsPlate(
     }
   });
 
-  // Once the bot has a photo the prompt is done — tdesktop drops it on `Photo` updates.
-  listenerSetter.add(rootScope)('avatar_update', ({peerId}) => {
-    if(currentPeerId !== peerId) {
-      return;
-    }
-
-    refreshCanSetBotPhoto();
-  });
-
   const unsetOwn = (peerId: PeerId) => {
     currentPeerId = peerId;
     currentThreadId = undefined;
@@ -649,7 +560,6 @@ export default function createChatActionsPlate(
     peerSettingsActions = [];
     requestChatInfo = undefined;
     canReopenTopic = false;
-    canSetBotPhoto = false;
     setEmojiStatus(undefined);
     applyState();
   };
@@ -678,19 +588,17 @@ export default function createChatActionsPlate(
     const threadId = chat.threadId;
     return Promise.all([
       managers.acknowledged.appProfileManager.getPeerSettings(peerId),
-      ackedCanReopenTopic(peerId, threadId),
-      ackedCanSetBotPhoto(peerId)
-    ]).then(([peerSettingsAcked, canReopenAcked, canSetBotPhotoAcked]) => {
+      ackedCanReopenTopic(peerId, threadId)
+    ]).then(([peerSettingsAcked, canReopenAcked]) => {
       return {
-        cached: peerSettingsAcked.cached && canReopenAcked.cached && canSetBotPhotoAcked.cached,
+        cached: peerSettingsAcked.cached && canReopenAcked.cached,
         result: callbackify(
-          Promise.all([peerSettingsAcked.result, canReopenAcked.result, canSetBotPhotoAcked.result]),
-          ([peerSettings, canReopen, canSetPhoto]) => {
+          Promise.all([peerSettingsAcked.result, canReopenAcked.result]),
+          ([peerSettings, canReopen]) => {
             const setPeerSettings = set(peerId, peerSettings);
             return () => {
               currentThreadId = threadId;
               canReopenTopic = canReopen;
-              canSetBotPhoto = canSetPhoto;
               setPeerSettings();
             };
           }

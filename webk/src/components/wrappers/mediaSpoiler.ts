@@ -210,13 +210,11 @@ async function onSensitiveMediaSpoilerClick(options: {
   const [
     {default: useContentSettings},
     {default: confirmationPopup},
-    {default: createAgeVerification},
     {toastNew},
     {default: rootScope}
   ] = await Promise.all([
     import('@stores/contentSettings'),
     import('@components/confirmationPopup'),
-    import('@components/popups/ageVerification'),
     import('@components/toast'),
     import('@lib/rootScope')
   ]);
@@ -232,22 +230,6 @@ async function onSensitiveMediaSpoilerClick(options: {
   }
 
   const canChange = contentSettings.sensitiveCanChange();
-  // * the age comes first, by the server's word (a mark kept on this device could be set by anyone), and only an
-  // * account that may turn the filter off can get past it
-  if(contentSettings.needAgeVerification()) {
-    if(!canChange) {
-      toastNew({langPackKey: 'SensitiveContentUnavailable'});
-      return;
-    }
-
-    createAgeVerification().then((verified) => {
-      if(verified) {
-        clearSensitiveSpoilers();
-      }
-    });
-    return;
-  }
-
   // * an account that may not turn the filter off still opens one media at a time, with nothing to remember
   confirmationPopup({
     titleLangKey: '18Plus',
