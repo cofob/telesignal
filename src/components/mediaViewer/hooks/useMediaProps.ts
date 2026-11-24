@@ -79,17 +79,18 @@ export const useMediaProps = ({
     ApiMediaFormat.BlobUrl,
     delay,
   );
+  const localBlobUrl = media && 'blobUrl' in media ? media.blobUrl : undefined;
+  // Media with a local copy, such as opened view-once media whose original is erased, is not loaded again
   const {
     mediaData: fullMediaBlobUrl,
     loadProgress,
   } = useMediaWithLoadProgress(
-    getMediaOrAvatarHash(true),
+    localBlobUrl ? undefined : getMediaOrAvatarHash(true),
     undefined,
     media && getMediaFormat(media, 'full'),
     delay,
   );
 
-  const localBlobUrl = media && 'blobUrl' in media ? media.blobUrl : undefined;
   let bestImageData = (!isVideo && (localBlobUrl || fullMediaBlobUrl)) || previewBlobUrl || pictogramBlobUrl;
   const thumbDataUri = useBlurSync(!bestImageData && media && getMediaThumbUri(media));
   if (!bestImageData && origin !== MediaViewerOrigin.SearchResult) {

@@ -80,6 +80,12 @@ export async function fetchAttachmentBlob(pointer: AttachmentPointer, onProgress
   return download.promise;
 }
 
+/** Drops the in-memory copy of attachments that are erased, such as the media of an opened view-once message */
+export function forgetDownloadedAttachments(pointers: AttachmentPointer[]) {
+  const keys = new Set(pointers.map(getAttachmentCacheKey));
+  if (lastDownloaded && keys.has(lastDownloaded.key)) lastDownloaded = undefined;
+}
+
 export async function clearAttachmentCache() {
   lastDownloaded = undefined;
   await cacheApi.clear(ATTACHMENT_CACHE_NAME);
