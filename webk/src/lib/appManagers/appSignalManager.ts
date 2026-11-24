@@ -246,7 +246,8 @@ export default class AppSignalManager extends AppManager {
       'help.getPeerProfileColors': () => ({_: 'help.peerColors', hash: 1, colors: []}),
       'help.getTimezonesList': () => ({_: 'help.timezonesList', timezones: [], hash: 0}),
       'help.getPromoData': () => ({_: 'help.promoDataEmpty', expires: now() + 86400}),
-      'help.getCountriesList': () => ({_: 'help.countriesList', countries: [], hash: 0}),
+      // * the phone codes of the app's own list, which the page names in its language (`langPack`)
+      'help.getCountriesList': async() => (await import('@/countries')).default,
       'help.getPremiumPromo': () => Promise.reject(makeError(UNSUPPORTED_ERROR as ErrorType)),
       'updates.getState': () => ({_: 'updates.state', pts: 1, qts: 0, date: now(), seq: 1, unread_count: 0}),
       'updates.getDifference': () => ({_: 'updates.differenceEmpty', date: now(), seq: 1}),

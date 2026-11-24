@@ -90,6 +90,8 @@ import {useCurrentGroupCall} from '@components/groupCall/hooks';
 import {useCurrentRtmpCall} from '@components/rtmp/hooks';
 import addContact from '@components/addContact';
 import showMutePopup from '@components/popups/mute';
+import chatStyleStyles from '@components/peerProfileChatStyle.module.scss';
+import type {SignalChatStyle} from '@lib/signal/signalApi';
 import IS_CALL_SUPPORTED from '@environment/callSupport';
 
 keepMe(ripple);
@@ -794,6 +796,33 @@ PeerProfile.SafetyNumber = () => {
       <Row clickable={() => void showSafetyNumberPopup(context.peerId)}>
         <Row.Icon icon="key" />
         <Row.Title>{i18n('SafetyNumber.Row')}</Row.Title>
+      </Row>
+    </Show>
+  );
+};
+
+// * TeleSignal: the chat colour and wallpaper Signal keeps for the chat, shown only, as Web A's `ChatExtra`: they are
+// * not in the storage service, so they are not changed here
+PeerProfile.ChatStyle = () => {
+  const context = useContext(PeerProfileContext);
+  const {i18n} = useHotReloadGuard();
+  const chatStyle = () => (context.fullPeer as {signal_chat_style?: SignalChatStyle})?.signal_chat_style;
+
+  return (
+    <Show when={chatStyle()}>
+      <Row>
+        <Row.Icon icon="brush" />
+        <Row.Title>{i18n('Signal.ChatColor')}</Row.Title>
+        <Row.RightContent>
+          <span class={chatStyleStyles.swatches}>
+            <Show when={chatStyle().wallpaper}>
+              <span class={chatStyleStyles.swatch} style={{background: chatStyle().wallpaper}} />
+            </Show>
+            <Show when={chatStyle().bubbleColor}>
+              <span class={chatStyleStyles.swatch} style={{background: chatStyle().bubbleColor}} />
+            </Show>
+          </span>
+        </Row.RightContent>
       </Row>
     </Show>
   );
@@ -1961,6 +1990,7 @@ PeerProfile.MainSection = () => {
       <PeerProfile.Location />
       <PeerProfile.Bio />
       <PeerProfile.SafetyNumber />
+      <PeerProfile.ChatStyle />
       <PeerProfile.PeerId />
       <PeerProfile.Link />
       <PeerProfile.Birthday />

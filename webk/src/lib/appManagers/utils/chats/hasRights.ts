@@ -29,6 +29,12 @@ export default function hasRights(
     return false;
   }
 
+  // * TeleSignal: a Signal group we are no longer in (left, removed or ended) is a basic chat left, which leaves its
+  // * creator nothing either, as Web A's `isForbidden`
+  if(chat._ === 'chat' && chat.pFlags.left) {
+    return false;
+  }
+
   const isCheckingRightsForSelf = rights === undefined;
   if((chat as Chat.chat).pFlags.creator && isCheckingRightsForSelf/*  && action !== 'anonymous' */) {
     return true;

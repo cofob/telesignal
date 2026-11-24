@@ -28,6 +28,7 @@ if(import.meta.hot) import.meta.hot.accept();
 type Spec = Extract<CardSpec, {name: 'signIn'}>;
 
 const LOGO_SIZE = 160;
+const MIN_NUMBER_LENGTH = 7;
 
 /**
  * Card variant of `pageSignIn`: the phone number of a Signal registration, as Web A's `AuthPhoneNumber`. Country
@@ -85,7 +86,8 @@ export default function SignInCard(_props: {spec: Spec}) {
         overriding = false;
       }
 
-      setHasValidInput(!!(country || (telInputField.value.length - 1) > 1));
+      // * as Web A's `AuthPhoneNumber`: a number of at least seven digits, its country code included
+      setHasValidInput(telInputField.value.replace(/\D/g, '').length >= MIN_NUMBER_LENGTH);
       clearSignalAuthError();
     }
   });
