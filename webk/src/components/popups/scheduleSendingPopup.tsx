@@ -1,28 +1,9 @@
-import {createSignal, Show} from 'solid-js';
+import {createSignal} from 'solid-js';
 import showDatePickerPopup from '@components/popups/datePicker';
 import PopupElement from '@components/popups/indexTsx';
 import Button from '@components/buttonTsx';
-import Row from '@components/rowTsx';
-import InlineSelect from '@components/inlineSelect';
-import {IconTsx} from '@components/iconTsx';
-import I18n, {i18n} from '@lib/langPack';
-import {hideToast, toastNew} from '@components/toast';
-import anchorCallback from '@helpers/dom/anchorCallback';
+import I18n from '@lib/langPack';
 import {SEND_WHEN_ONLINE_TIMESTAMP} from '@appManagers/constants';
-import rootScope from '@lib/rootScope';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
-
-const DAY = 86400;
-const REPEAT_OPTIONS: {value: number, label: () => HTMLElement}[] = [
-  {value: 0, label: () => i18n('Never')},
-  {value: DAY, label: () => i18n('Schedule.Repeat.Daily')},
-  {value: 7 * DAY, label: () => i18n('Schedule.Repeat.Weekly')},
-  {value: 14 * DAY, label: () => i18n('Schedule.Repeat.Biweekly')},
-  {value: 30 * DAY, label: () => i18n('Schedule.Repeat.Monthly')},
-  {value: 91 * DAY, label: () => i18n('Schedule.Repeat.Every3Months')},
-  {value: 182 * DAY, label: () => i18n('Schedule.Repeat.Every6Months')},
-  {value: 365 * DAY, label: () => i18n('Schedule.Repeat.Yearly')}
-];
 
 export type ScheduleSendingPopupOptions = {
   initDate?: Date,
@@ -37,20 +18,14 @@ export type ScheduleSendingPopupOptions = {
 /**
  * Schedule-message variant of the date picker.
  *
- * Wraps {@link showDatePickerPopup} with two schedule-specific extras that
- * don't belong in the generic picker:
- *  - a "Repeat" row (premium-gated) that surfaces a recurring period selector
- *  - a "Send when online" secondary footer button that emits a sentinel
- *    {@link SEND_WHEN_ONLINE_TIMESTAMP}
+ * Wraps {@link showDatePickerPopup} with a schedule-specific extra that
+ * doesn't belong in the generic picker: a "Send when online" secondary footer
+ * button that emits a sentinel {@link SEND_WHEN_ONLINE_TIMESTAMP}
  *
  * The picker stays domain-agnostic; everything specific to scheduling
  * messages lives here.
  */
 export default function showScheduleSendingPopup(opts: ScheduleSendingPopupOptions): void {
-  // Plain mutable variable rather than a Solid signal — we only need to read
-  // it once at confirm time, and the RepeatRow component owns the reactive
-  // state internally for its own UI.
-  let selectedRepeatPeriod = opts.initRepeatPeriod || 0;
   let selectedSilent = !!opts.initSilent;
 
   showDatePickerPopup({
@@ -58,18 +33,12 @@ export default function showScheduleSendingPopup(opts: ScheduleSendingPopupOptio
     addMinutes: opts.addMinutes ?? (opts.initDate === undefined),
     withTime: true,
     onPick: (timestamp) => {
-      opts.onPick(timestamp, selectedRepeatPeriod || undefined, selectedSilent);
+      opts.onPick(timestamp, opts.initRepeatPeriod || undefined, selectedSilent);
     },
     headerActions: opts.canSendSilently === false ? undefined : () => (
       <SilentToggle
         initValue={selectedSilent}
         onChange={(value) => selectedSilent = value}
-      />
-    ),
-    bodyAfter: () => (
-      <RepeatRow
-        initValue={opts.initRepeatPeriod || 0}
-        onChange={(v) => selectedRepeatPeriod = v}
       />
     ),
     footerAfter: opts.canSendWhenOnline ? () => (
@@ -107,51 +76,3 @@ function SilentToggle(props: {initValue: boolean, onChange: (value: boolean) => 
   );
 }
 
-function RepeatRow(props: {initValue: number, onChange: (value: number) => void}) {
-  const [value, setValue] = createSignal(props.initValue);
-  const [selectOpen, setSelectOpen] = createSignal(false);
-  let rowEl: HTMLElement;
-
-  function onClick() {
-    if(!rootScope.premium) {
-      toastNew({
-        langPackKey: 'Schedule.Repeat.PremiumRequired',
-        langPackArguments: [
-          anchorCallback(() => {
-            hideToast();
-            hotReloadGuard.showPremiumPopup();
-          })
-        ]
-      });
-      return;
-    }
-    setSelectOpen((v) => !v);
-  }
-
-  return (
-    <Row
-      ref={rowEl}
-      clickable={onClick}
-      class="popup-schedule-repeat"
-    >
-      <Row.Title>{i18n('Schedule.Repeat')}</Row.Title>
-      <Row.RightContent>
-        <InlineSelect
-          value={value()}
-          onChange={(next: number) => {
-            setValue(next);
-            props.onChange(next);
-            setSelectOpen(false);
-          }}
-          options={REPEAT_OPTIONS}
-          parent={rowEl}
-          isOpen={selectOpen()}
-          onClose={() => setSelectOpen(false)}
-        />
-        <Show when={!rootScope.premium}>
-          <IconTsx icon="premium_lock" class="primary" />
-        </Show>
-      </Row.RightContent>
-    </Row>
-  );
-}

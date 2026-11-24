@@ -8,7 +8,6 @@ import rootScope from '@lib/rootScope';
 import {ButtonMenuItemOptionsVerifiable, ButtonMenuSync} from '@components/buttonMenu';
 import ChatContextMenu from '@components/chat/contextMenu';
 import {ChatReactionsMenu} from '@components/chat/reactionsMenu';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import type {ButtonMenuDirection} from '@components/buttonMenuToggle';
 import {getOverlayRoot} from '@helpers/appWindow';
 import {positionMenuTrigger} from '@helpers/positionMenu';
@@ -158,10 +157,6 @@ export default class SendMenu {
               }
 
               const stickerDocId = (reaction as Reaction.reactionCustomEmoji).document_id;
-              if(!rootScope.premium && !reactionsMenu.freeCustomEmoji.has(stickerDocId)) {
-                hotReloadGuard.showPremiumPopup({feature: 'premium_stickers'});
-                return;
-              }
 
               const availableEffects = await managers.appReactionsManager.getAvailableEffects();
               const availableEffect = availableEffects.find((effect) => effect.effect_sticker_id === stickerDocId);
