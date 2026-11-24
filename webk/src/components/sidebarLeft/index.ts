@@ -110,8 +110,6 @@ import isObject from '@helpers/object/isObject';
 import {useCollapsedCommunityDialogsKey} from '@stores/communities';
 import isCommunity from '@appManagers/utils/communities/isCommunity';
 import {openEmojiStatusPicker} from '@components/sidebarLeft/emojiStatusPicker';
-import IS_CONFERENCE_CALL_SUPPORTED from '@environment/conferenceCallSupport';
-import IS_CALL_SUPPORTED from '@environment/callSupport';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import verifyMenuItem from '@helpers/verifyMenuItem';
 
@@ -790,7 +788,8 @@ export class AppSidebarLeft extends SidebarSlider {
           this.createTab(AppCallsTab).open();
         });
       },
-      verify: () => IS_CALL_SUPPORTED || IS_CONFERENCE_CALL_SUPPORTED
+      // * TeleSignal: the call log of Signal, which lists calls without placing them
+      verify: () => true
     }, {
       id: 'settings',
       icon: 'settings',

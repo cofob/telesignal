@@ -27,6 +27,7 @@ const IS_CONFERENCE_CALL_ENABLED = true;
 const IS_RTC_SCRIPT_TRANSFORM_SUPPORTED =
   typeof (globalThis as {RTCRtpScriptTransform?: unknown}).RTCRtpScriptTransform === 'function';
 
-const IS_CONFERENCE_CALL_SUPPORTED = IS_CONFERENCE_CALL_ENABLED && IS_RTC_SCRIPT_TRANSFORM_SUPPORTED;
+// * TeleSignal: Signal has no Telegram conference calls
+const IS_CONFERENCE_CALL_SUPPORTED = false && IS_CONFERENCE_CALL_ENABLED && IS_RTC_SCRIPT_TRANSFORM_SUPPORTED;
 
 export default IS_CONFERENCE_CALL_SUPPORTED;

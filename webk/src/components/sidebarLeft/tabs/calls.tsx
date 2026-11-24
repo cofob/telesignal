@@ -18,9 +18,7 @@ import {PeerTitleTsx} from '@components/peerTitleTsx';
 import Row from '@components/rowTsx';
 import Section from '@components/section';
 import {GrowHeightReveal} from '@helpers/solid/animations';
-import showDeleteMessagesPopup from '@components/popups/deleteMessages';
 import confirmationPopup from '@components/confirmationPopup';
-import {ChatType} from '@components/chat/chatType';
 import {toastNew} from '@components/toast';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import {usePromiseCollector} from '@components/solidJsTabs/promiseCollector';
@@ -84,8 +82,7 @@ function CallStatusText(props: {group: CallLogGroup}) {
 }
 
 function CallRow(props: {
-  group: CallLogGroup,
-  onDelete: (group: CallLogGroup) => void
+  group: CallLogGroup
 }) {
   const isConference = () => props.group.conferenceMsgId !== undefined;
 
@@ -123,15 +120,11 @@ function CallRow(props: {
       role="button"
       tabIndex={0}
       contextMenu={{
+        // * TeleSignal: Signal deletes its call log whole (Clear call log), not one call at a time
         buttons: [{
           icon: 'message',
           text: 'Message.Context.Goto',
           onClick: showInChat
-        }, {
-          icon: 'delete',
-          className: 'danger',
-          text: 'Delete',
-          onClick: () => props.onDelete(props.group)
         }]
       }}
     >
@@ -319,21 +312,12 @@ const Calls = () => {
     promiseCollector.collect(promise);
   };
 
-  const deleteGroup = (group: CallLogGroup) => {
-    showDeleteMessagesPopup(
-      group.peerId,
-      group.mids.slice(),
-      ChatType.Chat
-    );
-  };
-
+  // * TeleSignal: Signal clears the log here and on our other devices, never for the other party
   const clearAll = async() => {
-    let revoke: boolean;
     try {
-      revoke = await confirmationPopup({
+      await confirmationPopup({
         titleLangKey: 'DeleteAllCalls',
         descriptionLangKey: 'DeleteAllCallsText',
-        checkbox: {text: 'DeleteCallsForEveryone'},
         button: {langKey: 'Delete', isDanger: true}
       });
     } catch{
@@ -341,7 +325,7 @@ const Calls = () => {
     }
 
     try {
-      await tab.managers.appMessagesManager.deletePhoneCallHistory(revoke);
+      await tab.managers.appMessagesManager.deletePhoneCallHistory();
     } catch(error) {
       log.error('clearing the call log failed', error);
       toastNew({langPackKey: 'Error.AnError'});
@@ -354,13 +338,8 @@ const Calls = () => {
     const buttonMenu = ButtonMenuToggle({
       icon: 'more',
       direction: 'bottom-left',
+      // * TeleSignal: without calls there is no speakers and camera setting
       buttons: [{
-        icon: 'settings',
-        text: 'AccountSettings.SpeakersAndCamera',
-        onClick: () => {
-          tab.slider.createTab(hotReloadGuard.tabs.AppSpeakersAndCameraTab).open();
-        }
-      }, {
         icon: 'delete',
         className: 'danger',
         text: 'DeleteAllCalls',
@@ -420,7 +399,7 @@ const Calls = () => {
       <Show when={groups.list.length}>
         <Section contentProps={{class: styles.list}}>
           <For each={groups.list}>{(group) => (
-            <CallRow group={group} onDelete={deleteGroup} />
+            <CallRow group={group} />
           )}</For>
         </Section>
       </Show>

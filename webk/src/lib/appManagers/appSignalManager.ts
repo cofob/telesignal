@@ -44,6 +44,7 @@ import {buildAccountMethodHandlers} from '@lib/signal/accountMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
+import {buildCallLogHandlers, fetchCallLogMessages} from '@lib/signal/callLog';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
 import {buildOutgoingPoll, buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
 import {buildMediaMethodHandlers} from '@lib/signal/mediaMethods';
@@ -279,6 +280,7 @@ export default class AppSignalManager extends AppManager {
       ...buildPinnedMessageHandlers(host),
       ...buildSharedMediaHandlers(host),
       ...buildPollHandlers(host),
+      ...buildCallLogHandlers(host),
       ...buildAccountMethodHandlers(host),
       ...buildMediaMethodHandlers(host)
     };
@@ -693,6 +695,7 @@ export default class AppSignalManager extends AppManager {
   /** The text and shared media search of a chat, and its pinned messages */
   private async searchMessages(params: MethodDeclMap['messages.search']['req']) {
     const peerId = this.getInputPeerId(params.peer);
+    if(params.filter?._ === 'inputMessagesFilterPhoneCalls') return fetchCallLogMessages(this.createMethodHost(), params);
     if(peerId && params.filter?._ === 'inputMessagesFilterPinned') {
       const messages = await fetchPinnedMessages(this.createMethodHost(), peerId);
       return this.buildSearchResult({messages, totalCount: messages.length});

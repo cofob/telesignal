@@ -385,7 +385,7 @@ function buildMessageAction(message: SignalMessage, getName: SignalNameResolver)
 }
 
 // * Web K tells incoming from outgoing calls by the message, and missed or declined ones by the reason
-function buildPhoneCallAction(isVideo: boolean, outcome: string): MessageAction.messageActionPhoneCall {
+export function buildPhoneCallAction(isVideo: boolean, outcome: string): MessageAction.messageActionPhoneCall {
   return {
     _: 'messageActionPhoneCall',
     pFlags: {video: isVideo || undefined},
