@@ -9,8 +9,8 @@ page's worker, in WebAssembly.
   running, and the tray icon or a second launch shows the window again. The tray menu quits the app. The unread
   count appears on the tray icon, the Dock icon (macOS), the taskbar button (Windows) and the launcher icon (Linux
   desktops with the Unity launcher API). Each window reports its own count (`set_notifications_count`), and the app
-  shows the sum, so that windows of different frontends or account slots do not replace each other's count; two
-  windows of the same account count it twice.
+  shows the sum on the tray icon and on every window's taskbar button, so that windows of different frontends or
+  account slots do not replace each other's count; two windows of the same account count it twice.
 - New messages show system notifications when the window is not focused and web notifications are on in Settings,
   Notifications; a click opens the chat. See [Desktop integration](#desktop-integration).
 - `sgnl://` links open the app and the page handles them like the links in messages (`src/util/signalLinks.ts`):
@@ -266,8 +266,8 @@ Web K (`/k/`) takes the same integration from `webk/src/lib/signal/desktopApp.ts
 downloads, the "Desktop app" settings (General) and "Ask where to save each file" (Data and Storage), Ctrl+Q with Web A's
 combo, Cmd+, opening its settings, the menu labels, the window title of the open chat (unless Web A's
 `canDisplayChatInTitle` is off) and the update check. Web K has no route for `sgnl:` links yet: it takes them and,
-after a confirmation, opens the A version with the newest one in its address (`#?tgaddr=`), which Web A opens as a
-Signal link. On macOS Web K uses the standard title bar (`mark_title_bar_overlay(false)`); Web A asks for the overlay
+after a confirmation (one at a time, for the newest link), opens the A version of the same account slot with that link
+in its address (`#?tgaddr=`), which Web A opens as a Signal link. The window title follows renames of the open chat. On macOS Web K uses the standard title bar (`mark_title_bar_overlay(false)`); Web A asks for the overlay
 again when it starts.
 
 ### Connection and theme

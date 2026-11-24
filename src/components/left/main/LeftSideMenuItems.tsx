@@ -101,7 +101,10 @@ const LeftSideMenuItems = ({
   });
 
   const handleSwitchToWebK = useLastCallback(() => {
-    window.location.href = new URL(WEB_K_PATH, window.location.href).href;
+    // The account slot (`?account=N`) stays the same in Web K
+    const url = new URL(WEB_K_PATH, window.location.href);
+    url.search = window.location.search;
+    window.location.href = url.href;
   });
 
   const handleAnimationLevelChange = useLastCallback((e: React.SyntheticEvent<HTMLElement>) => {

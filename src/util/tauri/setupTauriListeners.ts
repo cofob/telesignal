@@ -3,7 +3,7 @@ import { getActions } from '../../global';
 import { SettingsScreens } from '../../types';
 
 import { DEBUG } from '../../config';
-import { IS_MAC_OS, MouseButton } from '../browser/windowEnvironment';
+import { MouseButton } from '../browser/windowEnvironment';
 import { isDeepLink } from '../deepLinkParser';
 import { getLoggableError } from '../maskSensitiveText';
 import { isSgnlLink, parseSignalLink } from '../signalLinks';
@@ -39,10 +39,8 @@ export default function setupTauriListeners() {
   void listenToNativeEvents();
 
   // Web K leaves a macOS window on the standard title bar; the auth and lock screens expect the overlay before `Main`
-  // asks for it
-  if (IS_MAC_OS) {
-    window.tauri.markTitleBarOverlay(true).catch(() => undefined);
-  }
+  // asks for it. Elsewhere the call does nothing.
+  window.tauri.markTitleBarOverlay(true).catch(() => undefined);
 
   // Disable Backspace handling as back navigation
   document.addEventListener('keydown', (event: KeyboardEvent) => {

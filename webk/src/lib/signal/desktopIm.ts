@@ -15,6 +15,8 @@ import confirmationPopup from '@components/confirmationPopup';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {readWebASharedSettings, WebASharedSettings} from '@lib/signal/webAState';
 import noop from '@helpers/noop';
+import appNavigationController from '@components/appNavigationController';
+import {getWebAUrl} from '@lib/signal/frontend';
 
 // * a link that reached the app while this page shows (`tauri/src/deeplink.rs`)
 const DEEP_LINK_EVENT = 'deeplink';
@@ -24,6 +26,9 @@ const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 const APP_NAME = 'TeleSignal';
 
 let titlePeerId: PeerId;
+// * the newest link that waits for the user's answer, and whether the question is open
+let pendingLink: string;
+let isAskingForLink = false;
 
 export function startDesktopIm() {
   trackWindowTitle();
@@ -47,6 +52,10 @@ function trackWindowTitle() {
   };
 
   hotReloadGuard.appImManager.addEventListener('peer_changed', (chat: Chat) => update(chat.peerId));
+  // * a rename of the open chat
+  rootScope.addEventListener('peer_title_edit', ({peerId}) => {
+    if(peerId === titlePeerId) update(peerId);
+  });
   update(hotReloadGuard.appImManager.chat?.peerId);
 }
 
@@ -75,13 +84,15 @@ function sendMenuTranslations() {
 
 /**
  * The `sgnl:` links that launched the app or reached it since. Web A opens Signal links (`openSignalLink` in
- * `src/util/deeplink.ts`) and takes one from its address (`tgaddr`), so a link moves the window to the A version once
- * the user agrees.
+ * `src/util/deeplink.ts`) and takes one from its address (`tgaddr`), so a link moves the window to the A version, in
+ * the same account slot, once the user agrees. One question is open at a time, and it opens the newest link.
  */
 async function takeDeepLinks() {
   const urls = await invoke<string[]>('take_deep_links').catch((): string[] => []);
-  if(!urls.length) return;
+  if(urls.length) pendingLink = urls[urls.length - 1];
+  if(!pendingLink || isAskingForLink) return;
 
+  isAskingForLink = true;
   try {
     await confirmationPopup({
       titleLangKey: 'Signal.Desktop.LinkTitle',
@@ -89,11 +100,13 @@ async function takeDeepLinks() {
       button: {langKey: 'Signal.Desktop.LinkConfirm'}
     });
   } catch(err) {
+    pendingLink = undefined;
     return;
+  } finally {
+    isAskingForLink = false;
   }
 
-  // * Web A opens one link from its address, the newest that the app passed here
-  location.href = new URL('../a/#?tgaddr=' + encodeURIComponent(urls[urls.length - 1]), location.href).href;
+  appNavigationController.navigateToUrl(getWebAUrl('?tgaddr=' + encodeURIComponent(pendingLink)));
 }
 
 /**

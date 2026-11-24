@@ -68,6 +68,12 @@ function checkWorkerEntryImports(dir: string) {
   sources.forEach((source) => {
     for (const [, name] of source.matchAll(WORKER_URL_RE)) workerEntries.add(name);
   });
+  // Web K opens its main worker this way, so a build where none is found means that the pattern no longer matches
+  if (!workerEntries.size) {
+    // eslint-disable-next-line no-console
+    console.error('No worker URL found in Web K\'s build: update `WORKER_URL_RE` in `dev/build.ts`');
+    process.exit(1);
+  }
 
   const failures = scripts.flatMap((name) => [...sources.get(name)!.matchAll(RELATIVE_IMPORT_RE)]
     .map(([, imported]) => imported)
