@@ -9,7 +9,7 @@ import ChatContextMenu from '@components/chat/contextMenu';
 import ChatInput, {CHAT_INPUT_BASE_HEIGHT} from '@components/chat/input';
 import ChatSelection from '@components/chat/selection';
 import ChatTopbar from '@components/chat/topbar';
-import {NULL_PEER_ID, REPLIES_PEER_ID, SEND_PAID_WITH_STARS_DELAY, VERIFICATION_CODES_BOT_ID} from '@appManagers/constants';
+import {NULL_PEER_ID, REPLIES_PEER_ID, VERIFICATION_CODES_BOT_ID} from '@appManagers/constants';
 import getAutoDeleteUnavailablePeerIds from '@appManagers/utils/peers/getAutoDeleteUnavailablePeerIds';
 import mediaSizes, {ScreenSize} from '@helpers/mediaSizes';
 import ChatSearch from '@components/chat/search';
@@ -44,9 +44,7 @@ import {useFullPeer, type PeerFull} from '@stores/fullPeers';
 import {useAppConfig, useAppState} from '@stores/appState';
 import callbackify from '@helpers/callbackify';
 import useIsNightTheme from '@hooks/useIsNightTheme';
-import useStars, {setReservedStars} from '@stores/stars';
-import {getPendingPaidReactionKey, PENDING_PAID_REACTION_SENT_ABORT_REASON, PENDING_PAID_REACTIONS} from '@components/chat/reactions';
-import showUndoablePaidTooltip, {paidReactionLangKeys} from '@components/chat/undoablePaidTooltip';
+import useStars from '@stores/stars';
 import namedPromises from '@helpers/namedPromises';
 import {getCurrentNewMediaPopup} from '@components/popups/newMedia';
 import PriceChangedInterceptor from '@components/chat/priceChangedInterceptor';
@@ -1806,102 +1804,15 @@ export default class Chat extends EventListenerBase<{
   }
 
   public async sendReaction(options: SendReactionOptions) {
-    const isPaidReaction = options.reaction._ === 'reactionPaid';
-    const count = options.count ?? 1;
-    if(isPaidReaction) {
-      const key = getPendingPaidReactionKey(options.message as Message.message);
-      let pending = PENDING_PAID_REACTIONS.get(key);
-      const hadPending = !!pending;
-      const requiredStars = (pending ? pending.count() : 0) + count;
-      if(+this.stars() < requiredStars) {
-        if(pending) {
-          pending.abortController.abort();
-        }
-
-        hotReloadGuard.showStarsPopup({
-          itemPrice: count,
-          onTopup: () => {
-            this.sendReaction(options);
-          },
-          purpose: 'reaction',
-          peerId: this.peerId,
-          spendPurposePeerId: this.peerId
-        });
-
-        return;
-      }
-
-      if(!pending) {
-        const [count, setCount] = createSignal(0);
-        const [sendTime, setSendTime] = createSignal(0);
-        const abortController = new AbortController();
-        abortController.signal.addEventListener('abort', () => {
-          clearTimeout(pending.sendTimeout);
-          pending.setSendTime(0);
-          PENDING_PAID_REACTIONS.delete(key);
-
-          if(abortController.signal.reason !== PENDING_PAID_REACTION_SENT_ABORT_REASON) {
-            setReservedStars((reservedStars) => reservedStars - pending.count());
-          }
-
-          rootScope.dispatchEventSingle('messages_reactions', [{
-            message: this.getMessageByPeer(options.message.peerId, options.message.mid) as Message.message,
-            changedResults: [],
-            removedResults: []
-          }]);
-        });
-
-        PENDING_PAID_REACTIONS.set(key, pending = {
-          count,
-          setCount,
-          sendTime,
-          setSendTime,
-          sendTimeout: 0,
-          abortController
-        });
-      } else {
-        clearTimeout(pending.sendTimeout);
-      }
-
-      pending.setCount((_count) => _count + count);
-      pending.setSendTime(Date.now() + SEND_PAID_WITH_STARS_DELAY);
-      pending.sendTimeout = window.setTimeout(() => {
-        const count = pending.count();
-        pending.abortController.abort(PENDING_PAID_REACTION_SENT_ABORT_REASON);
-        this.managers.appReactionsManager.sendReaction({
-          ...options,
-          count
-        });
-      }, SEND_PAID_WITH_STARS_DELAY);
-
-      setReservedStars((reservedStars) => reservedStars + count);
-
-      if(!hadPending) {
-        showUndoablePaidTooltip({
-          titleCount: pending.count,
-          subtitleCount: pending.count,
-          sendTime: pending.sendTime,
-          onUndo: () => void pending.abortController.abort(),
-          ...paidReactionLangKeys
-        });
-      }
+    // * TeleSignal: Signal has no paid reactions
+    if(options.reaction._ === 'reactionPaid') {
+      return;
     }
 
-    const messageReactions = await this.managers.appReactionsManager.sendReaction({
+    await this.managers.appReactionsManager.sendReaction({
       ...options,
-      count: isPaidReaction ? 0 : count,
-      onlyReturn: isPaidReaction
+      count: options.count ?? 1
     });
-
-    if(isPaidReaction) {
-      const {message} = options;
-      message.reactions = messageReactions;
-      rootScope.dispatchEventSingle('messages_reactions', [{
-        message: message as Message.message,
-        changedResults: [messageReactions.results[0]],
-        removedResults: []
-      }]);
-    }
   }
 
   public updateStarsAmount(starsAmount: number) {

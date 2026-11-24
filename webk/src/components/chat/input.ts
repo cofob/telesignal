@@ -800,7 +800,7 @@ export default class ChatInput {
     c.classList.add('chat-input-control', 'chat-input-wrapper');
     this.inputContainer.append(c);
 
-    this.paidMessageInterceptor = new PaidMessagesInterceptor(this.chat, this.managers);
+    this.paidMessageInterceptor = new PaidMessagesInterceptor();
     this.getMiddleware().onDestroy(() => {
       this.paidMessageInterceptor.dispose();
     });
