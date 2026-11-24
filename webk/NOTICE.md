@@ -61,6 +61,9 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
 - Frontend switch: the main menu's "Switch to A version" opens `../a/`.
 - `src/vendor/telegram-3d-star` is removed (GPL-2.0-only), and `src/components/star3D` draws nothing.
 - `src/components/popupSandbox/stories/misc.ts`: the two stories that read the unvendored test fixtures are removed.
+- Media: a Signal album shows as paid media without a price (`src/lib/signal/media.ts`); the attach menu keeps photos,
+  videos and files; media spoilers, round video recording, voice transcription, the GIF tab and the edit that replaces
+  a message's media are off; the voice recorder's worklet is a file of the app instead of a `blob:` URL.
 
 ## Updating
 
