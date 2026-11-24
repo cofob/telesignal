@@ -101,6 +101,9 @@ import {canAddMultipleRichMessageMedia, isVisualRichMessageMimeType} from '@help
 import classNames from '@helpers/string/classNames';
 import {ScrollableContextValue} from '@components/scrollable2';
 
+// * TeleSignal: Signal has no media spoilers
+const CAN_SEND_MEDIA_SPOILERS = false;
+
 type SendFileParams = SendFileDetails & {
   file?: File | MyDocument,
   scaledBlob?: Blob,
@@ -869,7 +872,7 @@ export default function showNewMediaPopup(
   }
 
   function canToggleSpoilers(toggle: boolean, single: boolean) {
-    if(willSendPaidMedia()) return false;
+    if(!CAN_SEND_MEDIA_SPOILERS || willSendPaidMedia()) return false;
 
     let good = willAttach.type === 'media' && hasAnyMedia();
     if(single && good) {
@@ -1651,7 +1654,7 @@ export default function showNewMediaPopup(
         }
 
         let spoilerToggle: HTMLElement;
-        if(!willAttach.stars) {
+        if(CAN_SEND_MEDIA_SPOILERS && !willAttach.stars) {
           if(Modes.a11y) {
             spoilerToggle = ButtonElement(`${itemCls} spoiler-toggle`, {ariaLabel: 'EnablePhotoSpoiler', noRipple: true});
           } else {

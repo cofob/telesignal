@@ -83,6 +83,8 @@ export const onMediaCaptionClick = (caption: HTMLElement, e: MouseEvent) => {
   }
 };
 
+const SIGNAL_HAS_MESSAGE_ALBUMS = true;
+
 export default class AppMediaViewer extends AppMediaViewerBase<'caption', 'delete' | 'forward' | 'copy' | 'edit', AppMediaViewerTargetType> {
   protected listLoader: SearchListLoader<AppMediaViewerTargetType>;
   protected btnMenuForward: ButtonMenuItemOptionsVerifiable;
@@ -652,6 +654,13 @@ export default class AppMediaViewer extends AppMediaViewerBase<'caption', 'delet
     if(this.local || this.searchContext.useSearch === false) {
       const {previous, next} = this.listLoader;
       render({position: previous.length + 1, count: previous.length + 1 + next.length});
+      return;
+    }
+
+    // * TeleSignal: a Signal album is one message of several items (`@lib/signal/media`), while the places of a search
+    // * count messages, so they would not match the items the arrows go through
+    if(SIGNAL_HAS_MESSAGE_ALBUMS) {
+      render({position: 1, count: 1});
       return;
     }
 

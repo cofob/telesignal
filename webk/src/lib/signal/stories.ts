@@ -22,8 +22,6 @@ import type {
   SignalPeerStories,
   SignalStory,
   SignalStoryItem,
-  SignalStoryPhoto,
-  SignalStoryVideo,
   SignalStoryView,
   SignalStoryViews,
   SignalTypeStory
@@ -32,15 +30,11 @@ import type {SignalApiUpdate} from '@lib/signal/signalApi';
 import type {SignalNewStory} from '@lib/signal/storySettingsApi';
 import type {SignalMethodHandlers, SignalMethodHost} from '@lib/signal/methodHost';
 import {buildEntity, buildPeer, toPeerId, toSignalPeerId} from '@lib/signal/builders';
+import {buildSignalMessageMedia} from '@lib/signal/media';
 import {buildReaction, toSignalReaction} from '@lib/signal/reactions';
 import makeError from '@helpers/makeError';
 import tsNow from '@helpers/tsNow';
 
-// * the data center of the account, as the adapter's `getConfig` names it
-const DC_ID = 2;
-// * the provider's photos have the full image only, and a download names the size it asks for (`upload.getFile`)
-const PHOTO_SIZE_TYPE = 'x';
-const THUMBNAIL_SIZE_TYPE = 'm';
 const UNSUPPORTED_ERROR = 'SIGNAL_METHOD_UNSUPPORTED';
 
 type PeerRef = {id: string};
@@ -392,61 +386,12 @@ function buildStoryView(view: SignalStoryView): StoryView.storyView | undefined 
 }
 
 /**
- * A photo or a video story. A text story (`signal_text_story`) has no media of Telegram's: it is media Web K does not
- * show, which the story viewer draws as the text story instead
+ * A photo or a video story, as the media of a message (`buildSignalMessageMedia`), which `upload.getFile` downloads. A
+ * text story (`signal_text_story`) has no media of Telegram's: it is media Web K does not show, which the story viewer
+ * draws as the text story instead
  */
 function buildStoryMedia(content: SignalStory['content'], date: number): MessageMedia {
-  if(content.photo) return {_: 'messageMediaPhoto', pFlags: {}, photo: buildStoryPhoto(content.photo)};
-  if(content.video) {
-    return {_: 'messageMediaDocument', pFlags: {video: true}, document: buildStoryVideo(content.video, date)};
-  }
-
-  return {_: 'messageMediaUnsupported'};
-}
-
-function buildStoryPhoto(photo: SignalStoryPhoto) {
-  const size = photo.size ?? 0;
-  return {
-    _: 'photo' as const,
-    pFlags: {},
-    id: photo.id,
-    access_hash: '0',
-    file_reference: new Uint8Array(),
-    date: photo.date,
-    sizes: photo.sizes.length ?
-      photo.sizes.map(({width, height}) => ({_: 'photoSize' as const, type: PHOTO_SIZE_TYPE, w: width, h: height, size})) :
-      [{_: 'photoSize' as const, type: PHOTO_SIZE_TYPE, w: 0, h: 0, size}],
-    dc_id: DC_ID
-  };
-}
-
-function buildStoryVideo(video: SignalStoryVideo, date: number) {
-  return {
-    _: 'document' as const,
-    pFlags: {},
-    id: video.id,
-    access_hash: '0',
-    file_reference: new Uint8Array(),
-    date,
-    dc_id: DC_ID,
-    mime_type: video.mimeType as MTMimeType,
-    size: video.size,
-    attributes: [
-      {
-        _: 'documentAttributeVideo' as const,
-        pFlags: {supports_streaming: true as const},
-        duration: video.duration,
-        w: video.width ?? 0,
-        h: video.height ?? 0
-      },
-      {_: 'documentAttributeFilename' as const, file_name: video.fileName}
-    ],
-    thumbs: video.thumbnail ? [{
-      _: 'photoSize' as const,
-      type: THUMBNAIL_SIZE_TYPE,
-      w: video.thumbnail.width,
-      h: video.thumbnail.height,
-      size: 0
-    }] : undefined
-  };
+  const {photo, video} = content;
+  return (photo || video) && buildSignalMessageMedia({photo, video}, date) ||
+    {_: 'messageMediaUnsupported'};
 }

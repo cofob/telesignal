@@ -303,6 +303,9 @@ type WatchDownloadProgressArgs<T> = {
   cancel: () => void;
 };
 
+// * TeleSignal: the attach menu's items that Signal has
+const SIGNAL_ATTACH_ACTIONS: Set<RichMessageAttachMenuAction> = new Set(['visualMedia', 'document']);
+
 export default class ChatInput {
   private richMessageInput: RichMessageInputController;
   public get messageInputField() {return this.richMessageInput?.field;}
@@ -1663,6 +1666,8 @@ export default class ChatInput {
       },
       verify: () => !this.editMsgId && !this.chat.isMonoforum && !this.ephemeralComposer && !this.isWelcomeComposer
     }];
+    // * TeleSignal: Signal sends photos, videos and files; the other attachments are Telegram's
+    this.attachMenuButtons = this.attachMenuButtons.filter(({richMessageAction}) => SIGNAL_ATTACH_ACTIONS.has(richMessageAction));
 
     const attachMenuButtons = this.attachMenuButtons.slice();
     this.attachMenu = new AttachMenuButton;

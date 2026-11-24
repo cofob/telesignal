@@ -4,7 +4,7 @@
  */
 
 import type {StoryItem} from '@layer';
-import type {SignalFormattedText, SignalReaction} from '@lib/signal/signalApi';
+import type {SignalFormattedText, SignalPhoto, SignalReaction, SignalVideo} from '@lib/signal/signalApi';
 
 export type SignalTextStoryStyle = 'default' | 'regular' | 'bold' | 'serif' | 'script' | 'condensed';
 
@@ -34,8 +34,8 @@ export type SignalStory = {
   expireDate: number,
   content: {
     text?: SignalFormattedText,
-    photo?: SignalStoryPhoto,
-    video?: SignalStoryVideo
+    photo?: SignalPhoto,
+    video?: SignalVideo
   },
   textStory?: SignalTextStory,
   isOut?: true,
@@ -47,27 +47,6 @@ export type SignalStory = {
 };
 
 export type SignalTypeStory = SignalStory | {'@type'?: 'storySkipped' | 'storyDeleted', id: number, peerId: string};
-
-export type SignalStoryThumbnail = {width: number, height: number};
-
-export type SignalStoryPhoto = {
-  id: string,
-  date: number,
-  thumbnail?: SignalStoryThumbnail,
-  sizes: {type: string, width: number, height: number}[],
-  size?: number
-};
-
-export type SignalStoryVideo = {
-  id: string,
-  mimeType: string,
-  duration: number,
-  fileName: string,
-  width?: number,
-  height?: number,
-  thumbnail?: SignalStoryThumbnail,
-  size: number
-};
 
 export type SignalPeerStories = {
   byId: Record<number, SignalTypeStory>,
