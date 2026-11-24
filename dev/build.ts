@@ -2,7 +2,7 @@
 // and a root page that opens the default frontend (`plugins/frontends.ts`). Arguments go to Web A's build;
 // `--sourcemap false` also leaves out Web K's source maps.
 import { spawnSync } from 'child_process';
-import { readdirSync, rmSync, statSync, writeFileSync } from 'fs';
+import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs';
 import { join, resolve } from 'path';
 
 import { DEFAULT_FRONTEND_PATH } from '../plugins/frontends.ts';
@@ -10,6 +10,10 @@ import { DEFAULT_FRONTEND_PATH } from '../plugins/frontends.ts';
 const ROOT = resolve(import.meta.dirname, '..');
 const WEB_K_DIR = join(ROOT, 'webk');
 const SOURCE_MAP_RE = /\.map$/;
+const SCRIPT_RE = /\.js$/;
+// A worker's URL in a chunk (`new URL('index.worker-….js', import.meta.url)`), and a chunk's import of another one
+const WORKER_URL_RE = /new URL\(["'`]([^"'`/]+\.js)["'`],\s*import\.meta\.url\)/g;
+const RELATIVE_IMPORT_RE = /(?:\bfrom\s*|\bimport\s*\(?\s*)["'`]\.\/([^"'`]+\.js)["'`]/g;
 const ROOT_SCRIPT_NAME = 'root.js';
 // The root of the origin has no app of its own: `/` opens the default frontend, on any server and in the desktop app,
 // with the query (the account slot, `?account=2`) and the hash. The frontend is in `data-frontend`, which the image's
@@ -41,6 +45,7 @@ const env = {
 rmSync(outDir, { recursive: true, force: true });
 runVite(ROOT, ['build', ...webAArgs], {});
 runVite(WEB_K_DIR, ['build'], { NODE_ENV: 'production' });
+checkWorkerEntryImports(join(outDir, 'k'));
 if (hasNoSourceMaps) removeSourceMaps(join(outDir, 'k'));
 writeFileSync(join(outDir, 'index.html'), ROOT_PAGE);
 writeFileSync(join(outDir, ROOT_SCRIPT_NAME), ROOT_SCRIPT);
@@ -52,6 +57,33 @@ function runVite(cwd: string, args: string[], extraEnv: Record<string, string>) 
     cwd, env: { ...env, ...extraEnv }, stdio: 'inherit',
   });
   if (status !== 0) process.exit(status ?? 1);
+}
+
+// A page opens a worker by its URL with a query (`makeWorkerURL` in Web K), so a chunk that imports the worker's entry
+// by its plain URL runs the entry a second time in that worker (`worker.rolldownOptions` in `webk/vite.config.ts`)
+function checkWorkerEntryImports(dir: string) {
+  const scripts = readdirSync(dir).filter((name) => SCRIPT_RE.test(name));
+  const sources = new Map(scripts.map((name) => [name, readFileSync(join(dir, name), 'utf8')]));
+  const workerEntries = new Set<string>();
+  sources.forEach((source) => {
+    for (const [, name] of source.matchAll(WORKER_URL_RE)) workerEntries.add(name);
+  });
+  // Web K opens its main worker this way, so a build where none is found means that the pattern no longer matches
+  if (!workerEntries.size) {
+    // eslint-disable-next-line no-console
+    console.error('No worker URL found in Web K\'s build: update `WORKER_URL_RE` in `dev/build.ts`');
+    process.exit(1);
+  }
+
+  const failures = scripts.flatMap((name) => [...sources.get(name)!.matchAll(RELATIVE_IMPORT_RE)]
+    .map(([, imported]) => imported)
+    .filter((imported) => imported !== name && workerEntries.has(imported))
+    .map((imported) => `${name} imports the worker entry ${imported}`));
+  if (!failures.length) return;
+
+  // eslint-disable-next-line no-console
+  console.error(`Web K's build imports worker entries:\n${failures.join('\n')}`);
+  process.exit(1);
 }
 
 function removeSourceMaps(dir: string) {

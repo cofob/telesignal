@@ -8,7 +8,9 @@ page's worker, in WebAssembly.
 - Closing the window hides it (Settings, General, Desktop app, "Close to tray", on by default); the engine keeps
   running, and the tray icon or a second launch shows the window again. The tray menu quits the app. The unread
   count appears on the tray icon, the Dock icon (macOS), the taskbar button (Windows) and the launcher icon (Linux
-  desktops with the Unity launcher API).
+  desktops with the Unity launcher API). Each window reports its own count (`set_notifications_count`), and the app
+  shows the sum on the tray icon and on every window's taskbar button, so that windows of different frontends or
+  account slots do not replace each other's count; two windows of the same account count it twice.
 - New messages show system notifications when the window is not focused and web notifications are on in Settings,
   Notifications; a click opens the chat. See [Desktop integration](#desktop-integration).
 - `sgnl://` links open the app and the page handles them like the links in messages (`src/util/signalLinks.ts`):
@@ -117,6 +119,13 @@ API starts (`src/api/worker/connector.ts`). Buffers move between the threads wit
 page runs one `signal_send` at a time per connection, which keeps the order of the bytes; the worker
 counts the bytes it posted and not yet sent as `bufferedAmount`, which uploads wait on.
 
+Web K (`/k/`) runs the engine in a SharedWorker for each account slot, which several pages can share. Each page
+hands the worker a port of its own as its first message (`webk/src/lib/signal/desktopApp.ts`), and the worker relays
+the engine's single port to one of them (`webk/src/lib/signal/nativeTransport.ts`): the first page that offered one,
+until it closes. Since the app ends the connections of a page that closes or reloads, the worker then reports every
+open connection closed, and the engine reconnects through the next page; without a page, a connection closes at once.
+Both frontends call the same commands, so the policy below applies to both.
+
 Buffers are bounded in both directions. A connection queues at most four 64 KiB chunks for the
 upstream; `signal_send` waits while the queue is full. The app delivers at most 1 MiB that the worker has
 not acknowledged; the worker acknowledges after TLS processed the bytes, in batches of 256 KiB, and the
@@ -161,7 +170,9 @@ does not apply.
 The page holds a downloaded attachment as a blob, and system webviews do not download blobs reliably (WKWebView).
 The app therefore refuses every download that the webview starts (`on_download` in `src/lib.rs`) and saves files
 through the commands in `src/files.rs`. `src/util/tauri/nativeFiles.ts` sends the bytes in 2 MiB chunks as raw
-request bodies, one at a time, so a large video builds no JSON array and does not block the page.
+request bodies, one at a time, so a large video builds no JSON array and does not block the page. Web K saves its
+downloads the same way (`webk/src/lib/signal/desktopFiles.ts`, from `createDownloadAnchor`); its toast after a save
+offers Open and "Show in Finder" (Explorer, Folder), and its log out drops the records too.
 
 | Command | Purpose |
 | --- | --- |
@@ -227,7 +238,10 @@ The page asks for a notification with `show_notification(title, body, openLabel,
 for the user on a thread of its own (at most 64 at once; the others are shown without opening their chat, and a warning
 says so): the D-Bus `ActionInvoked` signal of the `default` action on Linux, the toast activation on Windows and the
 notification center on macOS. A click brings the window forward (`bring_window_forward`) and emits
-`notification-clicked` with `{ chatId, messageId }`, which `setupTauriListeners.ts` turns into `focusMessage`.
+`notification-clicked` with `{ chatId, messageId }`, which `setupTauriListeners.ts` turns into `focusMessage`. Web K
+passes its notification's key with the prefix `webk:` as `chatId` and runs that notification's click action
+(`webk/src/lib/signal/desktopApp.ts`); each frontend ignores the clicks of the other's notifications, which reach it
+when the window switched frontends since.
 
 On Linux the text is escaped (`&`, `<`, `>`) when the server has `body-markup`, so a sender cannot inject links or
 images, and the default action goes only to a server with `actions`; its label is the page's word for "Open". The page
@@ -244,6 +258,17 @@ click reveals nothing that the notification did not. The notification plugin rem
   keyboard shortcut registry.
 - macOS keeps the app out of App Nap for as long as it runs (`begin_background_activity`), so that a hidden window
   does not delay the engine's timers and network callbacks.
+
+### Web K
+
+Web K (`/k/`) takes the same integration from `webk/src/lib/signal/desktopApp.ts` and, once its chats show,
+`webk/src/lib/signal/desktopIm.ts`: the native transport, notifications, the unread count, links in the system browser,
+downloads, the "Desktop app" settings (General) and "Ask where to save each file" (Data and Storage), Ctrl+Q with Web A's
+combo, Cmd+, opening its settings, the menu labels, the window title of the open chat (unless Web A's
+`canDisplayChatInTitle` is off) and the update check. Web K has no route for `sgnl:` links yet: it takes them and,
+after a confirmation (one at a time, for the newest link), opens the A version of the same account slot with that link
+in its address (`#?tgaddr=`), which Web A opens as a Signal link. The window title follows renames of the open chat. On macOS Web K uses the standard title bar (`mark_title_bar_overlay(false)`); Web A asks for the overlay
+again when it starts.
 
 ### Connection and theme
 

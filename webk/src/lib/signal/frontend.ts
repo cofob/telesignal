@@ -9,9 +9,11 @@ import appNavigationController from '@components/appNavigationController';
 const WEB_A_PASSCODE_STATE_KEY = 'tt-is-screen-locked';
 const WEB_A_PATH = '../a/';
 
-export function getWebAUrl() {
+/** Web A in this page's account slot (`?account=N`), and with its other parameters */
+export function getWebAUrl(hash = '') {
   const url = new URL(WEB_A_PATH, location.href);
-  url.hash = '';
+  url.search = location.search;
+  url.hash = hash;
   return url.toString();
 }
 

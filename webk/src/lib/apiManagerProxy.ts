@@ -101,6 +101,7 @@ import type {
   CommunityPeerLinkRequestsState
 } from '@appManagers/appCommunitiesManager';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
+import {IS_DESKTOP_APP, IS_DESKTOP_APP_BUNDLE, serveNativeTransportToWorker} from '@lib/signal/desktopApp';
 
 
 export type Mirrors = {
@@ -884,7 +885,8 @@ class ApiManagerProxy extends MTProtoMessagePort {
   }
 
   private registerServiceWorker() {
-    if(!('serviceWorker' in navigator)) { // * none in this browser: the worker takes one for online until told otherwise
+    // * none in this browser, or none for the desktop app's own scheme: the worker takes one for online until told otherwise
+    if(!('serviceWorker' in navigator) || IS_DESKTOP_APP_BUNDLE) {
       this.invokeVoid('serviceWorkerOnline', false);
       return;
     }
@@ -1121,6 +1123,11 @@ class ApiManagerProxy extends MTProtoMessagePort {
     }
 
     this.onWorkerFirstMessage(worker);
+
+    // * TeleSignal: the engine of the worker connects through the desktop app, which only a page can call
+    if(IS_DESKTOP_APP) {
+      serveNativeTransportToWorker((port) => this.invokeVoid('nativeTransportPort', undefined, undefined, [port]));
+    }
   }
 
   private attachWorkerToPort(

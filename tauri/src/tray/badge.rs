@@ -21,7 +21,7 @@ pub fn set_badge_count_icon(window: &tauri::WebviewWindow, amount: i32, is_muted
 
   if amount == 0 {
     #[cfg(windows)]
-    window.set_overlay_icon(None).unwrap_or_default();
+    set_overlay_icons(window, None);
 
     if let Ok(tray_opt) = super::TRAY_HANDLE.lock()
       && let Some(tray) = tray_opt.as_ref()
@@ -29,17 +29,16 @@ pub fn set_badge_count_icon(window: &tauri::WebviewWindow, amount: i32, is_muted
       let _ = tray.set_icon(Some(super::TRAY_BASE_ICON.clone()));
     }
   } else {
-    // The taskbar button shows the counter as an overlay icon
+    // The taskbar buttons show the counter as an overlay icon
     #[cfg(windows)]
     {
       let png = generate_counter_png(48, amount, is_muted);
-      let converted = Image::from_bytes(&png);
-
-      if let Ok(converted) = converted {
-        window.set_overlay_icon(Some(converted)).unwrap_or_default();
-      } else {
-        log::error!("Failed to convert notification icon: {:?}", converted.err());
-        window.set_overlay_icon(None).unwrap_or_default();
+      match Image::from_bytes(&png) {
+        Ok(converted) => set_overlay_icons(window, Some(converted)),
+        Err(err) => {
+          log::error!("Failed to convert notification icon: {err:?}");
+          set_overlay_icons(window, None);
+        }
       }
     }
 
@@ -54,6 +53,17 @@ pub fn set_badge_count_icon(window: &tauri::WebviewWindow, amount: i32, is_muted
       let overlay_icon = overlay_tray_icon(base_icon, &counter_icon);
       let _ = tray.set_icon(Some(overlay_icon));
     }
+  }
+}
+
+/// The count is the sum of every window's, so every taskbar button shows it, not only the one of the window that
+/// reported a change
+#[cfg(windows)]
+fn set_overlay_icons(window: &tauri::WebviewWindow, icon: Option<Image<'static>>) {
+  use tauri::Manager;
+
+  for other in window.app_handle().webview_windows().values() {
+    other.set_overlay_icon(icon.clone()).unwrap_or_default();
   }
 }
 

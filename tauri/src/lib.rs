@@ -36,10 +36,37 @@ mod mac;
 #[cfg(target_os = "macos")]
 mod menu;
 
+/// The unread counts that the windows report, by window label. Each window shows one account in one frontend, and the
+/// tray and the badges show the sum, so that a window of one frontend or slot does not replace the count of another.
+/// Two windows of the same account count it twice.
 #[derive(Debug, Default)]
 pub struct AppStateStruct {
-  pub notification_count: i32,
-  pub is_muted: bool,
+  counts: HashMap<String, (i32, bool)>,
+}
+
+impl AppStateStruct {
+  /// Records a window's count; returns the total
+  pub fn set_count(&mut self, label: &str, amount: i32, is_muted: bool) -> (i32, bool) {
+    self.counts.insert(label.to_string(), (amount, is_muted));
+    self.total()
+  }
+
+  /// Forgets a window that closed; returns the total
+  pub fn remove_count(&mut self, label: &str) -> (i32, bool) {
+    self.counts.remove(label);
+    self.total()
+  }
+
+  /// The sum of the counts, muted only when every window with unread chats reports muted ones
+  pub fn total(&self) -> (i32, bool) {
+    let amount = self.counts.values().map(|(amount, _)| *amount).sum();
+    let is_muted = self
+      .counts
+      .values()
+      .filter(|(amount, _)| *amount > 0)
+      .all(|(_, is_muted)| *is_muted);
+    (amount, is_muted)
+  }
 }
 
 pub type AppState = Mutex<AppStateStruct>;
@@ -199,6 +226,13 @@ pub fn run() {
     tauri::WindowEvent::Destroyed => {
       if let Ok(mut states) = WINDOW_STATES.lock() {
         states.remove(window.label());
+      }
+      let app = window.app_handle();
+      if let Ok(mut app_state) = app.state::<AppState>().lock() {
+        let (amount, is_muted) = app_state.remove_count(window.label());
+        if let Some(other) = app.webview_windows().into_values().next() {
+          crate::tray::set_notifications_count(&other, amount, is_muted);
+        }
       }
       window
         .state::<Arc<Transport>>()
@@ -376,13 +410,11 @@ fn set_notifications_count(
   is_muted: bool,
   state: tauri::State<'_, AppState>,
 ) {
-  // Update app state
-  if let Ok(mut app_state) = state.lock() {
-    app_state.notification_count = amount;
-    app_state.is_muted = is_muted;
-  }
-
-  crate::tray::set_notifications_count(&window, amount, is_muted);
+  let Ok(mut app_state) = state.lock() else {
+    return;
+  };
+  let (total, is_total_muted) = app_state.set_count(window.label(), amount, is_muted);
+  crate::tray::set_notifications_count(&window, total, is_total_muted);
 }
 
 #[tauri::command]
@@ -527,7 +559,8 @@ pub(crate) fn open_new_window(
   if let Some(state) = app.try_state::<AppState>()
     && let Ok(app_state) = state.lock()
   {
-    crate::tray::set_notifications_count(&window, app_state.notification_count, app_state.is_muted);
+    let (amount, is_muted) = app_state.total();
+    crate::tray::set_notifications_count(&window, amount, is_muted);
   }
 
   Ok(window)
@@ -623,6 +656,15 @@ mod tests {
   /// What `open_external_url` accepts: a URL that parses, with an allowed scheme
   fn is_allowed(url: &str) -> bool {
     parse_external_url(url).is_ok()
+  }
+
+  #[test]
+  fn sums_the_unread_counts_of_the_windows() {
+    let mut state = AppStateStruct::default();
+    assert_eq!(state.set_count("a", 3, false), (3, false));
+    assert_eq!(state.set_count("k", 2, true), (5, false));
+    assert_eq!(state.set_count("a", 0, false), (2, true));
+    assert_eq!(state.remove_count("k"), (0, true));
   }
 
   #[test]

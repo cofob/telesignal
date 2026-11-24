@@ -71,7 +71,7 @@ export default function useLockScreenShortcut() {
 }
 
 /** The keys as Web A writes them (`normalizeKeyCombo`): the modifiers in a fixed order, a letter in lower case */
-function normalizeCombo(combo: string) {
+export function normalizeCombo(combo: string) {
   const parts = combo.split('+');
   const key = parts.pop();
   const modifiers = parts.map((part) => part === 'Mod' ? MOD_MODIFIER : part);
@@ -83,7 +83,7 @@ function normalizeCombo(combo: string) {
  * letter in lower case, a digit and punctuation unshifted by their place on the keyboard, a named key by its name; the
  * keys that AltGr types are text, not a shortcut
  */
-function getEventCombo(event: KeyboardEvent) {
+export function getEventCombo(event: KeyboardEvent) {
   const isAltGraph = !IS_APPLE && event.getModifierState('AltGraph');
   if(MODIFIER_EVENT_KEYS.has(event.key)) return;
   if(isAltGraph && !NAMED_KEYS.has(event.key) && !RE_FUNCTION_KEY.test(event.key) && !RE_LATIN_LETTER.test(event.key)) {

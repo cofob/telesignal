@@ -229,6 +229,12 @@ const ADDITIONAL_ALIASES = {
   '@signal-app/passcode-session': path.join(signalAppDir, 'util/passcode/sessionStore.ts'),
   // * the check of a proxy server's URL that Web A's settings make
   '@signal-app/signal-proxy': path.join(signalAppDir, 'util/signalProxy.ts'),
+  // * the desktop app's native transport: the engine's side in the worker, and the page's side that calls the app
+  '@signal-app/native-transport': path.join(signalAppDir, 'lib/signal/net/NativeTransport.ts'),
+  '@signal-app/serve-native-transport': path.join(signalAppDir, 'util/tauri/serveNativeTransport.ts'),
+  // * the desktop app's API and plugins, dependencies of the repository (`../package.json`) that this app's pages call
+  // * in the app
+  '@tauri-apps': path.join(repositoryDir, 'node_modules/@tauri-apps'),
   '@': resolve(rootDir, 'src')
 };
 
@@ -469,7 +475,15 @@ export default defineConfig({
     // cssCodeSplit: true
   },
   worker: {
-    format: 'es'
+    format: 'es',
+    // * each worker is one file: the page opens a worker with a query (`makeWorkerURL`), and a dynamic chunk of the worker
+    // * would import the modules it shares with the entry from the entry's plain URL, which runs the entry a second time.
+    // * `dev/build.ts` fails a build where a chunk imports a worker's entry.
+    rolldownOptions: {
+      output: {
+        codeSplitting: false
+      }
+    }
   },
   css: {
     devSourcemap: true,

@@ -6,6 +6,7 @@ import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import uiNotificationsManager from '@lib/uiNotificationsManager';
 import {useAppSettings} from '@stores/appSettings';
 import IS_NOTIFICATION_SUPPORTED from '@environment/notificationSupport';
+import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 
 function NotificationsSuggestion() {
   const [, setAppSettings] = useAppSettings();
@@ -47,7 +48,8 @@ export default function createNotificationsSuggestion(): PendingSuggestionContro
   const [appSettings] = useAppSettings();
 
   return {
-    available: () => IS_NOTIFICATION_SUPPORTED &&
+    // * TeleSignal: the desktop app needs no permission for its system notifications
+    available: () => !IS_DESKTOP_APP && IS_NOTIFICATION_SUPPORTED &&
       !appSettings.notifications.suggested &&
       Notification.permission !== 'granted',
     component: NotificationsSuggestion
