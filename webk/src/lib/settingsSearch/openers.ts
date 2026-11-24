@@ -46,11 +46,6 @@ export const A11Y_ONLY_ENTRIES = new Set([
   'AppGeneralSettingsTab:GeneralSettings.IncreaseContrast'
 ]);
 
-/** Rows of the TON wallet, which TeleSignal does not have */
-export const WALLET_ENTRIES = new Set([
-  'AppSettingsTab:WalletAttachMoney'
-]);
-
 type SectionOpener = (slider: SidebarSlider, middleware?: Middleware) => Promise<SliderSuperTab> | SliderSuperTab;
 
 const getConstructor = (sectionId: string) => {

@@ -1130,7 +1130,6 @@ export default class ChatBubbles {
 
     this.listenerSetter = new ListenerSetter();
 
-
     // --- scroll preservation across viewport reflows (window/PiP-window resize, PiP pop-in/out) ---
     this.saveReflowScrollDebounced = debounce(this.saveReflowScroll, 200, false, true);
     this.disposeDirectionEffect = createRoot((dispose) => {
@@ -4081,7 +4080,6 @@ export default class ChatBubbles {
 
       return;
     }
-
 
     const timeEffect = findUpClassName(target, 'time-effect');
     if(timeEffect) {

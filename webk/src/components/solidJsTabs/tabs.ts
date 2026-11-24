@@ -1,5 +1,5 @@
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
-import {AccountPasskeys, AccountPassword, ChannelParticipant, Chat, ChatAdminRights, ChatParticipant, ConnectedBot, DialogFilter, ExportedChatlistInvite, GlobalPrivacySettings, MediaArea, Passkey} from '@layer';
+import {AccountPassword, ChannelParticipant, ChatAdminRights, ChatParticipant, ConnectedBot, DialogFilter, ExportedChatlistInvite, GlobalPrivacySettings, MediaArea, Passkey} from '@layer';
 import type SidebarSlider from '@components/slider';
 import type {SliderSuperTab} from '@components/slider';
 import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId';

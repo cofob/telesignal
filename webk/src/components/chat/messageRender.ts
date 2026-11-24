@@ -341,7 +341,6 @@ export namespace MessageRender {
         args.push(span, icon);
       }
 
-
       if(message.views) {
         const postViewsSpan = document.createElement('span');
         postViewsSpan.classList.add('post-views');

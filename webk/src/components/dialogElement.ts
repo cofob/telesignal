@@ -8,7 +8,7 @@ import liteMode from '@helpers/liteMode';
 import sequentialDom from '@helpers/sequentialDom';
 import Modes from '@config/modes';
 import PeerTitle from '@components/peerTitle';
-import I18n, {i18n} from '@lib/langPack';
+import I18n from '@lib/langPack';
 import findUpTag from '@helpers/dom/findUpTag';
 import crossfadeContent, {getCrossfadingTo, STATUS_CROSSFADE_DURATION} from '@helpers/dom/crossfadeContent';
 import {TextHighlight} from '@helpers/dom/textHighlight';
@@ -54,7 +54,6 @@ export type DialogDom = {
   mentionsBadge?: HTMLElement,
   reactionsBadge?: HTMLElement,
   pollVotesBadge?: HTMLElement,
-  /** an unread incoming Gram transfer, in the mention's place */
   /** opens a bot's main mini app without opening the chat */
   botAppButton?: HTMLElement,
   lastMessageSpan: HTMLSpanElement,
@@ -802,5 +801,4 @@ export class DialogElement {
     });
   }
 }
-
 

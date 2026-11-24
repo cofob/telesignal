@@ -16,9 +16,7 @@ import {makeMediaSize} from '@helpers/mediaSize';
 import ReplyMarkupLayout from '@components/chat/bubbleParts/replyMarkupLayout';
 import classNames from '@helpers/string/classNames';
 import confirmationPopup from '@components/confirmationPopup';
-import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
-import {wrapFormattedDuration} from './wrapDuration';
-import formatDuration from '@helpers/formatDuration';
+import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {
   AnyButtonType,
   ButtonBackground,

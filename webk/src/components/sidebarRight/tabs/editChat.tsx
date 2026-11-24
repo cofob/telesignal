@@ -31,9 +31,7 @@ import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import wrapMessageForReply from '@components/wrappers/messageForReply';
 import anchorCallback from '@helpers/dom/anchorCallback';
-import numberThousandSplitter, {
-  numberThousandSplitterForStars
-} from '@helpers/number/numberThousandSplitter';
+import numberThousandSplitter from '@helpers/number/numberThousandSplitter';
 import {subscribeOn} from '@helpers/solid/subscribeOn';
 import {Chat, ChatFull, ChatParticipants} from '@layer';
 import type {LangPackKey} from '@lib/langPack';
@@ -131,7 +129,6 @@ function EditChatForm(props: {
     CommunityLinkSection,
     I18n,
     PeerTitleTsx,
-    apiManagerProxy,
     appDialogsManager,
     appImManager,
     confirmationPopup,
@@ -694,7 +691,6 @@ function EditChatForm(props: {
               <Row.Subtitle>{reactionsSubtitle()}</Row.Subtitle>
             </Row>
           </Show>
-
 
           <Show when={canChangePermissions() && !isBroadcast() && !isBroadcastGroup()}>
             <Row clickable={() => {

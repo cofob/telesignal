@@ -828,7 +828,6 @@ export class InternalLinkProcessor {
     // tg://new/
     // tg://new/group
     // tg://new/contact
-    // tg://new/channel
     addAnchorListener<{
       pathnameParams: [InternalLink.InternalLinkNew['type'] | '']
     }>({

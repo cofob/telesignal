@@ -861,7 +861,6 @@ export class AppMessagesManager extends AppManager {
   private streamedMessageDraftTtl = STREAMED_MESSAGE_DRAFT_TTL;
   private streamedMessageDraftTimeout: number;
 
-
   private pendingEditingMessages: Map<number, {
     canceled?: boolean;
     mediaTempId: number;
