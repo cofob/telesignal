@@ -5,6 +5,7 @@ import Modes from '@config/modes';
 import ButtonMenu, {ButtonMenuItemOptions} from '@components/buttonMenu';
 import showDeleteMessagesPopup from '@components/popups/deleteMessages';
 import showPinMessagePopup from '@components/popups/unpinMessage';
+import showMessageInfoPopup from '@components/popups/messageInfo';
 import {copyTextToClipboard} from '@helpers/clipboard';
 import {toastNew} from '@components/toast';
 import I18n, {i18n, LangPackKey} from '@lib/langPack';
@@ -1009,6 +1010,15 @@ export default class ChatContextMenu {
         !this.message.pFlags.pinned &&
         await this.managers.appPeersManager.canPinMessage(this.message.peerId) &&
         this.chat.type === ChatType.Chat
+    }, {
+      icon: 'info',
+      text: 'Signal.MessageInfo',
+      onClick: () => showMessageInfoPopup(this.message.peerId, this.message.mid),
+      verify: () => !this.isLegacy &&
+        !!this.message?.pFlags.out &&
+        this.message._ === 'message' &&
+        this.chat.type === ChatType.Chat &&
+        !this.chat.selection.isSelecting
     }, {
       icon: 'unpin',
       text: 'Message.Context.Unpin',

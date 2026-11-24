@@ -39,6 +39,7 @@ import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
 import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
+import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import makeError from '@helpers/makeError';
 import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
@@ -110,6 +111,11 @@ export default class AppSignalManager extends AppManager {
 
   public updateSafetyNumberVerified(userId: PeerId, isVerified: boolean) {
     return updateSafetyNumberVerified(this.createMethodHost(), userId, isVerified);
+  }
+
+  /** The recipients of an outgoing message for the message info popup (`components/popups/messageInfo.tsx`) */
+  public fetchMessageRecipients(peerId: PeerId, mid: number) {
+    return fetchMessageRecipients(this.createMethodHost(), peerId, mid);
   }
 
   public invoke<T extends keyof MethodDeclMap>(method: T, params: MethodDeclMap[T]['req']): Promise<MethodDeclMap[T]['res']> {
