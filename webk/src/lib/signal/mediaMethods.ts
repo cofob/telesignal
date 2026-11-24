@@ -41,9 +41,11 @@ export function buildMediaMethodHandlers(host: SignalMethodHost): SignalMethodHa
     'messages.uninstallStickerSet': ({stickerset}) => setStickerSetInstalled(host, stickerset, false),
     // * every file of Web K's downloads comes from the provider's `downloadMedia`, part by part
     'upload.getFile': (params) => getFile(host, params),
-    // * the files Web K sends are kept until their message is sent, which the provider does with them
-    'upload.saveFilePart': (params) => storeUploadPart(params),
-    'upload.saveBigFilePart': (params) => storeUploadPart(params)
+    // * the files Web K sends are kept until their message is sent or a group takes one as its avatar
+    'upload.saveFilePart': ({file_id, file_part, bytes}) => saveUploadPart(file_id, file_part, bytes),
+    'upload.saveBigFilePart': ({file_id, file_part, bytes, file_total_parts}) => (
+      saveUploadPart(file_id, file_part, bytes, file_total_parts)
+    )
   };
 }
 
@@ -79,11 +81,6 @@ async function countMediaItems(host: SignalMethodHost, peer: {id: string}, limit
   const result = await host.call<{messages: SignalMessage[]} | undefined>('searchMessagesInChat', {peer, type: 'media', limit});
   const items = (result?.messages ?? []).flatMap(({content}) => content.album?.items ?? [content]);
   return {photos: items.filter(({photo}) => photo).length, videos: items.filter(({video}) => video).length};
-}
-
-function storeUploadPart(params: MethodDeclMap['upload.saveFilePart']['req'] | MethodDeclMap['upload.saveBigFilePart']['req']) {
-  saveUploadPart(params.file_id, params.file_part, params.bytes);
-  return true;
 }
 
 async function getAllStickers(host: SignalMethodHost) {
