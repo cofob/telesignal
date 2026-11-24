@@ -220,10 +220,10 @@ locked, which is `getSignalLockState()` in `webk/src/lib/signal/passcode.ts`.
 ## Message search reads the stored messages without an index
 
 Signal keeps no search index, so `searchMessagesInChat` and `searchMessagesGlobal` (`src/api/signal/methods/messages.ts`)
-decrypt and read the stored messages, at most `SEARCH_SCAN_LIMIT` (1000) per call, and return a cursor while records remain.
-A page whose 1000 records hold no match comes back empty with a cursor; Web A's and Web K's result lists load the next page
-only when the user scrolls near the end of the loaded items, so an older match behind such a stretch shows only after another
-query. The count of a page counts the earlier pages through a small cache of recent cursors, so a client that jumps to an
-offset it did not get from the provider sees a count of that page alone. Web K's shared media tab counters come from
-`fetchSharedMediaCounts`, which reads the whole chat on each profile open. An index of message text and attachment kinds in
-`MessageDb`, kept by `MessageProcessor`, would make all three exact and bounded.
+decrypt and read the stored messages. A call yields to the worker after each chunk of `SEARCH_CHUNK_SIZE` (1000) records and
+goes on until it has a match or has read every record, so a rare query reads the whole history before it answers, and a
+query without matches reads all of it on each keystroke past the minimum length. The count of a page counts the earlier
+pages through a small cache of recent cursors, so a client that jumps to an offset it did not get from the provider sees a
+count of that page alone. Web K's shared media tab counters come from `fetchSharedMediaCounts`, which reads a whole chat once
+and keeps the counts until a message of the chat changes. An index of message text and attachment kinds in `MessageDb`,
+kept by `MessageProcessor`, would make all three exact and bounded.
