@@ -986,7 +986,8 @@ addActionHandler('unpinAllMessages', async (global, actions, payload): Promise<v
     return;
   }
 
-  await callApi('unpinAllMessages', { chat, threadId });
+  const result = await callApi('unpinAllMessages', { chat, threadId });
+  if (!result) return;
 
   global = getGlobal();
   const pinnedIds = selectPinnedIds(global, chatId, threadId);

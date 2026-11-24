@@ -1,0 +1,13 @@
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  min-width: 18rem;
+}
+
+.title {
+  padding: 0 1rem;
+  color: var(--secondary-text-color);
+  font-size: .875rem;
+  font-weight: var(--font-weight-bold);
+}

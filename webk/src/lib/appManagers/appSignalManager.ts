@@ -41,7 +41,10 @@ import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
 import {getErrorLangKey} from '@lib/signal/errors';
 import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
 import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
-import {buildMediaMethodHandlers, getSharedMediaSearchType} from '@lib/signal/mediaMethods';
+import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
+import {fetchMessageRecipients} from '@lib/signal/messageInfo';
+import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
+import {buildMediaMethodHandlers} from '@lib/signal/mediaMethods';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import makeError from '@helpers/makeError';
 import {storeSignalWebPages} from '@lib/signal/media';
@@ -78,6 +81,8 @@ export default class AppSignalManager extends AppManager {
   private isStarted: boolean;
   private isAuthorized: boolean;
   private pendingSends: Map<number, PendingSend> = new Map();
+  // * the `random_id` of each forwarded copy by its local id, until the engine stores the copy
+  private pendingForwardCopies: Map<number, string> = new Map();
   private localIdCounter = 0;
   private handlers: {[method in keyof MethodDeclMap]?: MethodHandler};
 
@@ -113,6 +118,11 @@ export default class AppSignalManager extends AppManager {
 
   public updateSafetyNumberVerified(userId: PeerId, isVerified: boolean) {
     return updateSafetyNumberVerified(this.createMethodHost(), userId, isVerified);
+  }
+
+  /** The recipients of an outgoing message for the message info popup (`components/popups/messageInfo.tsx`) */
+  public fetchMessageRecipients(peerId: PeerId, mid: number) {
+    return fetchMessageRecipients(this.createMethodHost(), peerId, mid);
   }
 
   public invoke<T extends keyof MethodDeclMap>(method: T, params: MethodDeclMap[T]['req']): Promise<MethodDeclMap[T]['res']> {
@@ -189,7 +199,7 @@ export default class AppSignalManager extends AppManager {
       'messages.getMessages': emptyMessages,
       'messages.search': (params) => this.searchMessages(params),
       'messages.searchGlobal': (params) => this.searchGlobal(params),
-      // * threads and saved messages are not ported yet: they answer with nothing, as for a new chat
+      // * Signal has no threads or saved dialogs: they answer with nothing, as for a new chat
       'messages.getReplies': emptyMessages,
       'messages.getSavedHistory': emptyMessages,
       'messages.receivedMessages': () => [],
@@ -232,6 +242,8 @@ export default class AppSignalManager extends AppManager {
       ...buildChatMethodHandlers(host),
       ...buildGroupMethodHandlers(host),
       ...buildUserMethodHandlers(host),
+      ...buildPinnedMessageHandlers(host),
+      ...buildSharedMediaHandlers(host),
       ...buildMediaMethodHandlers(host)
     };
   }
@@ -480,9 +492,9 @@ export default class AppSignalManager extends AppManager {
   }): Promise<Updates.updates> {
     const replyToMsgId = replyTo?._ === 'inputReplyToMessage' ? replyTo.reply_to_msg_id : undefined;
     const lastMessageId = this.appMessagesManager.getHistoryStorage(peerId.toPeerId()).maxId || 0;
-    const localId = lastMessageId + LOCAL_ID_STEP * (++this.localIdCounter % (1 / LOCAL_ID_STEP));
+    const localId = this.nextLocalId(lastMessageId);
     const chatId = toSignalPeerId(peerId);
-    const signalEntities = (entities || []).map((entity) => buildSignalEntity(entity)).filter(Boolean);
+    const signalEntities = (entities || []).map((entity) => this.buildSignalEntity(entity)).filter(Boolean);
     const replyInfo: SignalMessage['replyInfo'] = replyToMsgId ? {type: 'message', replyToMsgId} : undefined;
     const localMessage: SignalMessage = {
       id: localId,
@@ -516,9 +528,9 @@ export default class AppSignalManager extends AppManager {
       attachment,
       sticker,
       groupedId
-    }).catch(() => {
+    }).catch((err) => {
       this.pendingSends.delete(localId);
-      deferred.reject(makeError('SIGNAL_SEND_FAILED' as ErrorType));
+      deferred.reject(err);
     });
 
     return deferred;
@@ -559,7 +571,7 @@ export default class AppSignalManager extends AppManager {
       chat: {id: toSignalPeerId(peerId)},
       message: {id: params.id, chatId: toSignalPeerId(peerId)},
       text: params.message,
-      entities: (params.entities || []).map((entity) => buildSignalEntity(entity)).filter(Boolean)
+      entities: (params.entities || []).map((entity) => this.buildSignalEntity(entity)).filter(Boolean)
     });
     // * the edit comes back as an update once the engine stored it
     return {_: 'updates', updates: [], users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
@@ -590,8 +602,10 @@ export default class AppSignalManager extends AppManager {
   }
 
   /**
-   * Forwards each message as a new one, in order, so each gets the `random_id` of its pending copy. A message that
-   * is not sent fails the request, which marks every pending copy of it as failed.
+   * Forwards each message as a new one. Every copy has a local id that is registered with the `random_id` of its
+   * pending copy before the engine stores it, so the copy's `updateMessageID` goes out with its message, first: Web K
+   * finalizes a pending copy only when the id comes before the message. A copy that is not sent fails the request,
+   * which marks the pending copies of the request as failed.
    */
   private async forwardMessages(params: MethodDeclMap['messages.forwardMessages']['req']): Promise<Updates> {
     const fromChat = {id: toSignalPeerId(this.getInputPeerId(params.from_peer))};
@@ -602,50 +616,59 @@ export default class AppSignalManager extends AppManager {
       throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
     }
 
+    const lastMessageId = this.appMessagesManager.getHistoryStorage(toPeer).maxId || 0;
+    const localIds = params.id.map(() => this.nextLocalId(lastMessageId));
+    localIds.forEach((localId, index) => this.pendingForwardCopies.set(localId, '' + params.random_id[index]));
+    // * each copy leaves the map with its own sent or failed update, which may come after the call returns
     const storedIds: (number | undefined)[] = await this.call('forwardMessages', {
       fromChat,
       toChat,
       messages,
       noCaptions: params.drop_media_captions,
-      lastMessageId: this.appMessagesManager.getHistoryStorage(toPeer).maxId || 0
+      lastMessageId,
+      localIds
+    }).catch((err) => {
+      // * a call that failed may have left copies with no update to come
+      setTimeout(() => localIds.forEach((localId) => this.pendingForwardCopies.delete(localId)), SEND_TIMEOUT_MS);
+      throw err;
     });
     if(!storedIds?.every((id) => id !== undefined)) {
       throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
     }
 
-    return {
-      _: 'updates',
-      updates: storedIds.map((id, index) => ({_: 'updateMessageID', id, random_id: '' + params.random_id[index]})),
-      users: [],
-      chats: [],
-      date: tsNow(true),
-      seq: 0
-    } as Updates;
+    return {_: 'updates', updates: [], users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
   }
 
-  /** The text search of a chat, which the other filters (media, pinned messages) do not have yet */
+  /** The text and shared media search of a chat, and its pinned messages */
   private async searchMessages(params: MethodDeclMap['messages.search']['req']) {
     const peerId = this.getInputPeerId(params.peer);
-    // * a text search, or the shared media of a tab, which has no query
-    const type = params.filter._ === 'inputMessagesFilterEmpty' ? 'text' : getSharedMediaSearchType(params.filter);
-    if(!peerId || !type || (type === 'text') !== Boolean(params.q)) return emptySearchResult();
+    if(peerId && params.filter?._ === 'inputMessagesFilterPinned') {
+      const messages = await fetchPinnedMessages(this.createMethodHost(), peerId);
+      return this.buildSearchResult({messages, totalCount: messages.length});
+    }
+
+    const fromPeerId = params.from_id ? this.getInputPeerId(params.from_id) : undefined;
+    const type = getSearchType(params.filter);
+    if(!peerId || !type) return emptySearchResult();
 
     const result: SignalSearchResult = await this.call('searchMessagesInChat', {
       peer: {id: toSignalPeerId(peerId)},
       type,
-      query: params.q || undefined,
+      query: params.q,
       limit: params.limit,
-      offsetId: params.offset_id || undefined
+      offsetId: params.offset_id || undefined,
+      fromPeer: fromPeerId ? {id: toSignalPeerId(fromPeerId)} : undefined
     });
     return this.buildSearchResult(result);
   }
 
-  /** The text search of all listed chats; `next_rate` carries the offset of the next page */
+  /** The text and shared media search of all listed chats; `next_rate` carries the offset of the next page */
   private async searchGlobal(params: MethodDeclMap['messages.searchGlobal']['req']) {
-    if(params.filter?._ !== 'inputMessagesFilterEmpty' || !params.q) return emptySearchResult();
+    const type = getSearchType(params.filter);
+    if(!type) return emptySearchResult();
 
     const result: SignalSearchResult = await this.call('searchMessagesGlobal', {
-      type: 'text',
+      type,
       query: params.q,
       limit: params.limit,
       offsetId: params.offset_rate || params.offset_id || undefined
@@ -678,7 +701,7 @@ export default class AppSignalManager extends AppManager {
 
   private async getUsers(params: MethodDeclMap['users.getUsers']['req']) {
     const result: {users: SignalUser[]} = await this.call('fetchUsers', {
-      users: params.id.map((inputUser) => ({id: toSignalPeerId(getInputUserId(inputUser))}))
+      users: params.id.map((inputUser) => ({id: toSignalPeerId(this.getInputUserId(inputUser))}))
     });
     return (result?.users || []).map(buildUser);
   }
@@ -787,6 +810,9 @@ export default class AppSignalManager extends AppManager {
         }
         break;
       }
+      case 'updatePinnedIds':
+        this.pushUpdates([buildPinnedMessagesUpdate(update.chatId, update.messageIds, update.isPinned)]);
+        break;
       case 'updateThreadReadState':
         this.onReadState(update.chatId, update.readState);
         break;
@@ -877,9 +903,24 @@ export default class AppSignalManager extends AppManager {
     });
   }
 
+  /** A local id of this frontend's sends: each one is used once, and it is the id of the message until it is stored */
+  private nextLocalId(lastMessageId: number) {
+    return lastMessageId + LOCAL_ID_STEP * (++this.localIdCounter % (1 / LOCAL_ID_STEP));
+  }
+
   private onMessageSent(localId: number, message: SignalMessage) {
     const pending = this.pendingSends.get(localId);
     const built = this.buildMessage(message);
+    const forwardRandomId = this.pendingForwardCopies.get(localId);
+    if(!pending && forwardRandomId !== undefined) {
+      this.pendingForwardCopies.delete(localId);
+      this.pushUpdates([
+        {_: 'updateMessageID', id: message.id, random_id: forwardRandomId},
+        {_: 'updateNewMessage', message: built, pts: 0, pts_count: 0}
+      ]);
+      return;
+    }
+
     if(!pending) {
       // * sent from Web A's other tab before this one took over, or a resend: a message like any other
       this.pushUpdates([{_: 'updateNewMessage', message: built, pts: 0, pts_count: 0}]);
@@ -900,7 +941,30 @@ export default class AppSignalManager extends AppManager {
     });
   }
 
+  /** The Web K id of an input user, `inputUserSelf` being us */
+  private getInputUserId(inputUser: InputUser): UserId | undefined {
+    if(inputUser._ === 'inputUserSelf') return this.appPeersManager.peerId.toUserId();
+    return inputUser._ === 'inputUser' ? +inputUser.user_id : undefined;
+  }
+
+  // * Telegram's entity names with an upper-case first letter are Web A's `ApiMessageEntityTypes`; a mention that Web K
+  // * sends names its user with an input user, and it is Web A's `MessageEntityMentionName`
+  private buildSignalEntity(entity: MethodDeclMap['messages.sendMessage']['req']['entities'][number]) {
+    const isInputMention = entity._ === 'inputMessageEntityMentionName';
+    const name = isInputMention ? 'messageEntityMentionName' : entity._;
+    const userId = isInputMention ? this.getInputUserId(entity.user_id) : (entity as {user_id?: UserId}).user_id;
+    return {
+      type: name.charAt(0).toUpperCase() + name.slice(1),
+      offset: entity.offset,
+      length: entity.length,
+      url: (entity as {url?: string}).url,
+      userId: userId ? toSignalPeerId(userId) : undefined,
+      language: (entity as {language?: string}).language
+    };
+  }
+
   private onMessageSendFailed(localId: number) {
+    this.pendingForwardCopies.delete(localId);
     const pending = this.pendingSends.get(localId);
     if(!pending) {
       return;
@@ -952,9 +1016,6 @@ function getProvider() {
   return provider ??= import('@signal-app/provider');
 }
 
-function getInputUserId(inputUser: InputUser): UserId {
-  return inputUser._ === 'inputUser' ? +inputUser.user_id : undefined;
-}
 
 function getPeerIdOfPeer(peer: Peer) {
   switch(peer._) {
@@ -967,15 +1028,3 @@ function getPeerIdOfPeer(peer: Peer) {
   }
 }
 
-// * Telegram's entity names with an upper-case first letter are Web A's `ApiMessageEntityTypes`
-function buildSignalEntity(entity: MethodDeclMap['messages.sendMessage']['req']['entities'][number]) {
-  const type = entity._.charAt(0).toUpperCase() + entity._.slice(1);
-  return {
-    type,
-    offset: entity.offset,
-    length: entity.length,
-    url: (entity as {url?: string}).url,
-    userId: (entity as {user_id?: UserId}).user_id ? toSignalPeerId((entity as {user_id?: UserId}).user_id) : undefined,
-    language: (entity as {language?: string}).language
-  };
-}

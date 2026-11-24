@@ -76,7 +76,7 @@ export default async function showDeleteMessagesPopup(
       const needRevoke = !!checked.size || revoke;
       // * a batch that holds a message which cannot be deleted for everyone is split, as the engine takes none of it
       if(needRevoke && canRevoke.length !== mids.length) {
-        managers.appMessagesManager.deleteMessages(peerId, canRevoke, true);
+        if(canRevoke.length) managers.appMessagesManager.deleteMessages(peerId, canRevoke, true);
         managers.appMessagesManager.deleteMessages(peerId, mids.filter((mid) => !canRevoke.includes(mid)), false);
       } else {
         managers.appMessagesManager.deleteMessages(peerId, mids, needRevoke);

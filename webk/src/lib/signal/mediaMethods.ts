@@ -3,8 +3,8 @@
  * Telegram's shapes. Sending a media message stays in the adapter, which owns the pending sends.
  */
 
-import type {InputPeer, InputStickerSet, MessagesFilter, MethodDeclMap, UploadFile} from '@layer';
-import type {SignalMessage, SignalSticker, SignalStickerSet} from '@lib/signal/signalApi';
+import type {InputStickerSet, MethodDeclMap, UploadFile} from '@layer';
+import type {SignalSticker, SignalStickerSet} from '@lib/signal/signalApi';
 import type {SignalMethodHandlers, SignalMethodHost} from '@lib/signal/methodHost';
 import {buildStickerDocument, getSignalAvatarUrl, getSignalFileUrl} from '@lib/signal/media';
 import {saveUploadPart} from '@lib/signal/outgoingMedia';
@@ -15,22 +15,9 @@ import tsNow from '@helpers/tsNow';
 
 // * the provider's `ApiMediaFormat.Progressive`: `downloadMedia` answers the byte range it is asked for
 const MEDIA_FORMAT_PROGRESSIVE = 1;
-// * the provider's shared media tabs of Telegram's search filters
-const SHARED_MEDIA_TYPES: Partial<Record<MessagesFilter['_'], string>> = {
-  inputMessagesFilterPhotoVideo: 'media',
-  inputMessagesFilterDocument: 'documents',
-  inputMessagesFilterUrl: 'links',
-  inputMessagesFilterMusic: 'audio',
-  inputMessagesFilterVoice: 'voice',
-  inputMessagesFilterRoundVoice: 'voice',
-  inputMessagesFilterGif: 'gif'
-};
-// * the photos and videos that the profile counts in the media tab, which lists them together
-const MEDIA_ITEM_FILTERS: Set<MessagesFilter['_']> = new Set(['inputMessagesFilterPhotos', 'inputMessagesFilterVideo']);
 
 export function buildMediaMethodHandlers(host: SignalMethodHost): SignalMethodHandlers {
   return {
-    'messages.getSearchCounters': ({peer, filters}) => getSearchCounters(host, peer, filters),
     'messages.getAllStickers': () => getAllStickers(host),
     'messages.getFeaturedStickers': () => getFeaturedStickers(host),
     'messages.getRecentStickers': () => getRecentStickers(host),
@@ -47,40 +34,6 @@ export function buildMediaMethodHandlers(host: SignalMethodHost): SignalMethodHa
       saveUploadPart(file_id, file_part, bytes, file_total_parts)
     )
   };
-}
-
-/** The provider's shared media tab of a search filter, or nothing for a filter that Signal has no tab for */
-export function getSharedMediaSearchType(filter: MessagesFilter) {
-  return SHARED_MEDIA_TYPES[filter._];
-}
-
-/**
- * The number of messages of each shared media tab, and of the photos and videos of the media tab; a filter that Signal
- * has no tab for counts none
- */
-async function getSearchCounters(host: SignalMethodHost, inputPeer: InputPeer, filters: MessagesFilter[]) {
-  const peerId = host.getInputPeerId(inputPeer);
-  const peer = peerId && {id: toSignalPeerId(peerId)};
-  const counts = peer && await host.call<Record<string, number> | undefined>('fetchSharedMediaCounts', {peer});
-  const mediaCount = counts?.media ?? 0;
-  const mediaItemCounts = filters.some((filter) => MEDIA_ITEM_FILTERS.has(filter._)) && mediaCount ?
-    await countMediaItems(host, peer, mediaCount) :
-    undefined;
-  return filters.map((filter) => ({
-    _: 'messages.searchCounter',
-    pFlags: {},
-    filter,
-    count: MEDIA_ITEM_FILTERS.has(filter._) ?
-      mediaItemCounts?.[filter._ === 'inputMessagesFilterPhotos' ? 'photos' : 'videos'] ?? 0 :
-      counts?.[getSharedMediaSearchType(filter)] ?? 0
-  }));
-}
-
-/** The photos and videos of a chat's media messages, an album counting each of its items */
-async function countMediaItems(host: SignalMethodHost, peer: {id: string}, limit: number) {
-  const result = await host.call<{messages: SignalMessage[]} | undefined>('searchMessagesInChat', {peer, type: 'media', limit});
-  const items = (result?.messages ?? []).flatMap(({content}) => content.album?.items ?? [content]);
-  return {photos: items.filter(({photo}) => photo).length, videos: items.filter(({video}) => video).length};
 }
 
 async function getAllStickers(host: SignalMethodHost) {

@@ -2,7 +2,6 @@ import {addCancelButton} from './indexTsx';
 import showPeerPopup, {PopupPeerButtonCallbackCheckboxes, PopupPeerOptions} from '@components/popups/peer';
 import rootScope from '@lib/rootScope';
 import {FormatterArguments, LangPackKey} from '@lib/langPack';
-import wrapPeerTitle from '@components/wrappers/peerTitle';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 
 export default async function showPinMessagePopup(
@@ -62,46 +61,13 @@ export default async function showPinMessagePopup(
       callback
     });
   } else {
+    // * a Signal pin is for everyone in the chat: there is no pin for ourselves alone and no separate notification
     title = 'PinMessageAlertTitle';
-    const pinButtonText: LangPackKey = 'PinMessage';
-
-    if(peerId.isAnyChat()) {
-      buttons.push({
-        langKey: pinButtonText,
-        callback: (e, checked) => callback(e, checked, false, !checked.size)
-      });
-
-      if(await managers.appChatsManager.isBroadcast(peerId.toChatId())) {
-        description = 'PinMessageAlertChannel';
-      } else {
-        description = 'PinMessageAlert';
-
-        checkboxes.push({
-          text: 'PinNotify',
-          checked: true
-        });
-      }
-    } else {
-      description = 'PinMessageAlertChat';
-
-      if(peerId === rootScope.myId) {
-        buttons.push({
-          langKey: pinButtonText,
-          callback
-        });
-      } else {
-        buttons.push({
-          langKey: pinButtonText,
-          callback: (e, checked) => callback(e, checked, !checked.size)
-        });
-
-        checkboxes.push({
-          text: 'PinAlsoFor',
-          textArgs: [await wrapPeerTitle({peerId})],
-          checked: true
-        });
-      }
-    }
+    description = peerId.isAnyChat() ? 'PinMessageAlert' : 'PinMessageAlertChat';
+    buttons.push({
+      langKey: 'PinMessage',
+      callback
+    });
   }
 
   addCancelButton(buttons);

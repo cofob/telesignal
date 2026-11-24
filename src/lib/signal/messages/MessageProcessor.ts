@@ -107,6 +107,9 @@ import {
 import { parseContactSync } from '../sync/contactSync';
 import { wasm } from '../wasm';
 import { getIsConversationAccepted } from './messageRequests';
+import {
+  addPinnedMessage, getCanPinMessages, getIsMessagePinnable, revertPinChange,
+} from './pinnedMessages';
 import { getNextSendRetry, getRetryRecipients, SEND_RETRY_MAX_AGE_MS } from './sendRetry';
 import { getFailedRecipients } from './sendState';
 
@@ -658,6 +661,63 @@ export default class MessageProcessor {
       });
       throw new Error('The reaction was not sent');
     }
+  }
+
+  /**
+   * Pins a message for everyone in the chat, for `durationSeconds` or until it is unpinned, or unpins it (Signal
+   * Desktop `onPinnedMessageAdd` and `onPinnedMessageRemove` in `ts/state/ducks/conversations.preload.ts`,
+   * `ts/jobs/helpers/sendPinMessage.preload.ts`). The change is shown at once and taken back when no recipient gets it.
+   */
+  async sendPin(messageId: number, isPinned: boolean, durationSeconds?: number) {
+    const account = await this.getAccount();
+    const sentAt = this.allocateTimestamp();
+
+    const prepared = await this.runSerial(async () => {
+      const target = await this.db.getMessage(messageId);
+      const found = target && await this.db.getConversation(target.conversationId);
+      if (!target || !found || !getIsMessagePinnable(target) || !getCanPinMessages(found, account.aci)) {
+        throw new Error('The message cannot be pinned');
+      }
+      const isChanged = isPinned || Boolean(found.pinnedMessages?.some((pin) => pin.messageId === target.id));
+      if (!isChanged) return undefined;
+      const pinnedMessages = isPinned
+        ? addPinnedMessage(found.pinnedMessages, {
+          messageId: target.id,
+          pinnedAt: sentAt,
+          expiresAt: durationSeconds ? sentAt + durationSeconds * 1000 : undefined,
+        }, sentAt)
+        : found.pinnedMessages?.filter((pin) => pin.messageId !== target.id);
+      await this.putConversation({ ...found, pinnedMessages });
+      return { conversation: found, target, pinnedMessages };
+    });
+    if (!prepared) return;
+
+    const { conversation, target, pinnedMessages } = prepared;
+    const targetFields = {
+      targetAuthorAciBinary: uuidToBytes(target.authorAci),
+      targetSentTimestamp: BigInt(target.sentAt),
+    };
+    const isSent = await this.sendToConversation(conversation, isPinned ? {
+      pinMessage: {
+        ...targetFields,
+        pinDuration: durationSeconds
+          ? { case: 'pinDurationSeconds', value: durationSeconds }
+          : { case: 'pinDurationForever', value: true },
+      },
+    } : { unpinMessage: targetFields }, sentAt);
+    await this.runSerial(async () => {
+      const current = await this.db.getConversation(conversation.id);
+      if (!current) return;
+      if (!isSent) {
+        await this.putConversation({
+          ...current,
+          pinnedMessages: revertPinChange(current.pinnedMessages, conversation.pinnedMessages, pinnedMessages),
+        });
+      } else if (isPinned) {
+        await this.addPinNotice(current, target.id, account.aci, sentAt, true);
+      }
+    });
+    if (!isSent) throw new Error('The pin was not sent');
   }
 
   /**
@@ -2635,7 +2695,7 @@ export default class MessageProcessor {
       return;
     }
     if (message.pinMessage || message.unpinMessage) {
-      await this.applyPin(conversation, message);
+      await this.applyPin(conversation, source, message);
       return;
     }
 
@@ -3265,7 +3325,11 @@ export default class MessageProcessor {
   }
 
   private async getConversationForMessage(source: MessageSource, message: DataMessage) {
-    if (message.groupV2?.masterKey.length) return this.getGroupConversationForMessage(source, message.groupV2);
+    if (message.groupV2?.masterKey.length) {
+      // Pins answer to the group's edit rights instead, see `applyPin`
+      const isPinChange = Boolean(message.pinMessage || message.unpinMessage);
+      return this.getGroupConversationForMessage(source, message.groupV2, isPinChange);
+    }
     const aci = source.isOutgoing ? source.destinationAci : source.authorAci;
     if (!aci) return undefined;
     const conversation = await this.ensurePrivateConversation(aci);
@@ -3412,9 +3476,12 @@ export default class MessageProcessor {
    * (Signal Desktop `updateGroupViaSingleChange`); `loadMessageGroup` fetched the state for other new revisions.
    * Returns `undefined` for a message that is dropped.
    */
-  private async getGroupConversationForMessage(source: MessageSource, context: GroupContextV2) {
+  private async getGroupConversationForMessage(
+    source: MessageSource, context: GroupContextV2, isAnnouncementExempt?: boolean,
+  ) {
     const conversation = await this.updateGroupForMessage(source, context);
-    return conversation && !(await this.getIsGroupMessageDropped(conversation, source)) ? conversation : undefined;
+    const isDropped = conversation && await this.getIsGroupMessageDropped(conversation, source, isAnnouncementExempt);
+    return conversation && !isDropped ? conversation : undefined;
   }
 
   private async updateGroupForMessage(source: MessageSource, context: GroupContextV2) {
@@ -3442,17 +3509,21 @@ export default class MessageProcessor {
 
   /**
    * Whether a group message is dropped (Signal Desktop `handleDataMessage`): an incoming one when we or the sender
-   * are not members of the group, and any when the group is announcements-only and the sender is no admin. Groups
-   * with no known state let messages through.
+   * are not members of the group, and any when the group is announcements-only and the sender is no admin, except
+   * a pin or unpin, which Signal Desktop handles before that check (`onPinnedMessageAdd` in
+   * `ts/background.preload.ts`). Groups with no known state let messages through.
    */
-  private async getIsGroupMessageDropped(conversation: ConversationRecord, source: MessageSource) {
+  private async getIsGroupMessageDropped(
+    conversation: ConversationRecord, source: MessageSource, isAnnouncementExempt?: boolean,
+  ) {
     const state = conversation.groupState;
     if (!state) return false;
 
     const { aci: selfAci } = await this.getAccount();
     const isMember = (aci: string) => state.members.some((member) => member.aci === aci);
     if (!source.isOutgoing && (!isMember(selfAci) || !isMember(source.authorAci))) return true;
-    return Boolean(state.isAnnouncementsOnly) && !conversation.adminAcis?.includes(source.authorAci);
+    return !isAnnouncementExempt && Boolean(state.isAnnouncementsOnly)
+      && !conversation.adminAcis?.includes(source.authorAci);
   }
 
   /** The decrypted change of a group message, or `undefined` when it is invalid or of a later change epoch */
@@ -3835,23 +3906,56 @@ export default class MessageProcessor {
     });
   }
 
-  private async applyPin(conversation: ConversationRecord, message: DataMessage) {
+  /**
+   * Pins or unpins a message of the conversation when the sender may edit the group (Signal Desktop
+   * `ts/messageModifiers/PinnedMessages.preload.ts`)
+   */
+  private async applyPin(conversation: ConversationRecord, source: MessageSource, message: DataMessage) {
     const target = message.pinMessage ?? message.unpinMessage!;
     const targetMessage = await this.db.findMessage(
       uuidToString(target.targetAuthorAciBinary), Number(target.targetSentTimestamp),
     );
-    if (!targetMessage) return;
+    if (!targetMessage || targetMessage.conversationId !== conversation.id || !getIsMessagePinnable(targetMessage)
+      || !getCanPinMessages(conversation, source.authorAci)) {
+      return;
+    }
 
-    const others = (conversation.pinnedMessages ?? []).filter(({ messageId }) => messageId !== targetMessage.id);
     const pin = message.pinMessage;
     const now = Date.now();
-    await this.putConversation({
-      ...conversation,
-      pinnedMessages: pin ? [...others, {
-        messageId: targetMessage.id,
-        pinnedAt: now,
-        expiresAt: pin.pinDuration.case === 'pinDurationSeconds' ? now + pin.pinDuration.value * 1000 : undefined,
-      }] : others,
+    if (!pin) {
+      await this.putConversation({
+        ...conversation,
+        pinnedMessages: conversation.pinnedMessages?.filter(({ messageId }) => messageId !== targetMessage.id),
+      });
+      return;
+    }
+
+    const entry = {
+      messageId: targetMessage.id,
+      pinnedAt: now,
+      expiresAt: pin.pinDuration.case === 'pinDurationSeconds' ? now + pin.pinDuration.value * 1000 : undefined,
+    };
+    const pinnedMessages = addPinnedMessage(conversation.pinnedMessages, entry, now);
+    if (!pinnedMessages.includes(entry)) return;
+    const updated = await this.putConversation({ ...conversation, pinnedMessages });
+    await this.addPinNotice(updated, targetMessage.id, source.authorAci, source.sentAt, source.isOutgoing);
+  }
+
+  /** The chat notice of a pin, as Signal Desktop's `addPinnedMessageNotification` adds it on sending and receiving */
+  private addPinNotice(
+    conversation: ConversationRecord, messageId: number, actorAci: string, sentAt: number, isOutgoing: boolean,
+  ) {
+    const now = Date.now();
+    return this.addMessage(conversation, {
+      conversationId: conversation.id,
+      kind: 'pinnedMessage',
+      authorAci: '',
+      actorAci,
+      pinnedMessageId: messageId,
+      sentAt,
+      receivedAt: now,
+      isOutgoing,
+      readAt: now,
     });
   }
 

@@ -120,6 +120,7 @@ import {getMediaTypeForProfileTab, orderMediaTabsByMain, ProfileTabMediaType} fr
 import {supportsSharedMediaScrollDate} from '@components/sharedMediaScrollDate';
 import createSharedMediaScrollDateBadge from '@components/sharedMediaScrollDateBadge';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
+import {SIGNAL_USERNAME_PATTERN} from '@lib/signal/usernames';
 import type appSidebarRight from '@components/sidebarRight';
 import type AppMediaViewer from '@components/mediaViewer';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
@@ -509,8 +510,6 @@ class QueryMiddleware {
 }
 
 // * how long a held tab (`changeQuery`) waits for its new results before it shows what it has
-// * a Signal username: letters, digits and `_`, and an optional two-digit suffix such as `alice.01`
-const SIGNAL_USERNAME_PATTERN = /^[a-z_][a-z0-9_]{2,31}(\.\d{2})?$/i;
 const SEARCH_RESULTS_WAIT = 1500;
 // * and how long, after that, a part of them that is late keeps what it showed before
 const SEARCH_RESULTS_WAIT_LATE = 4500;
