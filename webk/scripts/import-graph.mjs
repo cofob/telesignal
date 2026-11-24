@@ -50,7 +50,7 @@ const TEST_SKIP_DIRS = new Set(['node_modules', 'dist', '.claude', '.pnpm-store'
 
 // what a signed-in boot imports dynamically on its way to the chat list (recorded 2026-10-12): these, and every
 // dynamic import of bootstrapIm
-const BOOT_IMPORTS = ['src/pages/bootstrapIm.ts', 'src/pages/mountAuthFlow.tsx', 'src/components/chatTips/index.tsx',
+const BOOT_IMPORTS = ['src/pages/bootstrapIm.ts', 'src/pages/mountAuthFlow.tsx',
   'src/lang.ts', 'src/langSign.ts', 'src/countries.ts', 'src/vendor/fastBlur.js'];
 
 // what-if: modules no longer imported by app code, only from the root (--cut a,b — registered at startup instead)
