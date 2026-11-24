@@ -703,33 +703,6 @@ export class InternalLinkProcessor {
       }
     });
 
-    // t.me/m/slug
-    addAnchorListener<{pathnameParams: ['m', string]}>({
-      name: 'm',
-      callback: ({pathnameParams}) => {
-        const link: InternalLink = {
-          _: INTERNAL_LINK_TYPE.BUSINESS_CHAT,
-          slug: pathnameParams[1]
-        };
-
-        return this.processInternalLink(link);
-      }
-    });
-
-    // tg://message?slug=...
-    addAnchorListener<{
-      uriParams: {
-        slug: string
-      }
-    }>({
-      name: 'message',
-      protocol: 'tg',
-      callback: ({uriParams}) => {
-        const link = this.makeLink(INTERNAL_LINK_TYPE.BUSINESS_CHAT, uriParams);
-        return this.processInternalLink(link);
-      }
-    });
-
     // tg://stars_topup?amount=100
     addAnchorListener<{
       uriParams: {
@@ -1792,15 +1765,6 @@ export class InternalLinkProcessor {
     showGiftLinkPopup(link.slug, link.stack);
   };
 
-  public processBusinessChatLink = async(link: InternalLink.InternalLinkBusinessChat) => {
-    const resolved = await this.managers.appBusinessManager.resolveBusinessChatLink(link.slug);
-    appImManager.setInnerPeer({
-      peerId: resolved.peerId,
-      text: resolved.message,
-      entities: resolved.entities
-    });
-  };
-
   public processStarsTopupLink = async(link: InternalLink.InternalLinkStarsTopup) => {
     const middlewareHelper = getMiddleware();
     const balance = +(await prefetchStars(middlewareHelper.get()));
@@ -1971,7 +1935,6 @@ export class InternalLinkProcessor {
       [INTERNAL_LINK_TYPE.BOOST]: this.processBoostLink,
       [INTERNAL_LINK_TYPE.PREMIUM_FEATURES]: this.processPremiumFeaturesLink,
       [INTERNAL_LINK_TYPE.GIFT_CODE]: this.processGiftCodeLink,
-      [INTERNAL_LINK_TYPE.BUSINESS_CHAT]: this.processBusinessChatLink,
       [INTERNAL_LINK_TYPE.STARS_TOPUP]: this.processStarsTopupLink,
       [INTERNAL_LINK_TYPE.SHARE]: this.processShareLink,
       [INTERNAL_LINK_TYPE.UNIQUE_STAR_GIFT]: this.processUniqueStarGiftLink,

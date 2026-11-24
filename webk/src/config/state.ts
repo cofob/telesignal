@@ -11,7 +11,6 @@ import App from '@config/app';
 import {getAccentPresetsForBase} from '@config/themePresets';
 import {ColoredBrushType} from '@components/mediaEditor/context';
 import {FontKey} from '@components/mediaEditor/types';
-import type {BotConnectionReview} from '@appManagers/appBusinessManager';
 import type {UnconfirmedAuthorization} from '@appManagers/appAccountManager';
 import type {ContactsSortMode} from '@appManagers/utils/users/sortContacts';
 
@@ -267,7 +266,6 @@ export type State = {
   /** Key: a history storage's, value: the message of the force reply whose answer in the field the user dropped there. */
   droppedForceReplies: {[historyStorageKey: string]: number},
   hideChatJoinRequests: {[peerId: PeerId]: number},
-  botConnectionReviews: BotConnectionReview[],
   // stateId?: number, // ! DEPRECATED
   notifySettings: {[k in GlobalNotifySettingsKey]?: PeerNotifySettings.peerNotifySettings},
   confirmedWebViews: BotId[],
@@ -648,7 +646,6 @@ export const STATE_INIT: State = {
   closedReplyKeyboards: {},
   droppedForceReplies: {},
   hideChatJoinRequests: {},
-  botConnectionReviews: [],
   // stateId: nextRandomUint(32),
   notifySettings: {},
   confirmedWebViews: [],

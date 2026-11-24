@@ -48,7 +48,6 @@ import type AppStoriesManager from '@appManagers/appStoriesManager';
 import type AppBotsManager from '@appManagers/appBotsManager';
 import type AppBoostsManager from '@appManagers/appBoostsManager';
 import type AppStatisticsManager from '@appManagers/appStatisticsManager';
-import type AppBusinessManager from '@appManagers/appBusinessManager';
 import type AppTranslationsManager from '@appManagers/appTranslationsManager';
 import type {AppManagers} from '@lib/managers';
 import type AppGifsManager from '@appManagers/appGifsManager';
@@ -117,7 +116,6 @@ export class AppManager {
   protected appBotsManager: AppBotsManager;
   protected appBoostsManager: AppBoostsManager;
   protected appStatisticsManager: AppStatisticsManager;
-  protected appBusinessManager: AppBusinessManager;
   protected appTranslationsManager: AppTranslationsManager;
   protected appGifsManager: AppGifsManager;
   protected appGiftsManager: AppGiftsManager;

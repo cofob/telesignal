@@ -50,7 +50,6 @@ import AppStoriesManager from '@appManagers/appStoriesManager';
 import AppBotsManager from '@appManagers/appBotsManager';
 import AppBoostsManager from '@appManagers/appBoostsManager';
 import AppStatisticsManager from '@appManagers/appStatisticsManager';
-import AppBusinessManager from '@appManagers/appBusinessManager';
 import AppTranslationsManager from '@appManagers/appTranslationsManager';
 import AppGifsManager from '@appManagers/appGifsManager';
 import {ActiveAccountNumber} from '@lib/accounts/types';
@@ -121,7 +120,6 @@ export default function createManagers(
     appBotsManager: new AppBotsManager,
     appBoostsManager: new AppBoostsManager,
     appStatisticsManager: new AppStatisticsManager,
-    appBusinessManager: new AppBusinessManager,
     appTranslationsManager: new AppTranslationsManager,
     appGifsManager: new AppGifsManager,
     appGiftsManager: new AppGiftsManager,

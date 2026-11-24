@@ -21,7 +21,6 @@ import type {MyStarGift} from '@appManagers/appGiftsManager';
 import type {MyPromoData} from '@appManagers/appPromoManager';
 import type {UnconfirmedAuthorization} from '@appManagers/appAccountManager';
 import type {ActiveAccountNumber} from '@lib/accounts/types';
-import type {BotConnectionReview} from '@appManagers/appBusinessManager';
 import type {NotifyException} from '@appManagers/appNotificationsManager';
 import type {StreamedMessageDraft, StreamedMessageDraftRemovalReason} from '@appManagers/utils/messages/streamedMessageDrafts';
 import type {TonConnectSession} from '@layer';
@@ -76,8 +75,6 @@ export type BroadcastEvents = {
   'widget_storage_remap': {accountNumber: ActiveAccountNumber, peerId: PeerId, tempId: number, mid: number}, // a widget message of the account was sent: what its widget kept goes under the server's id
   'peer_full_update': PeerId,
   'peer_settings': {peerId: PeerId, settings: PeerSettings},
-  'chat_automation_update': ConnectedBot.connectedBot | undefined,
-  'bot_connection_reviews_update': BotConnectionReview[],
   'peer_stories': {peerId: PeerId, available: boolean},
   'peer_stories_hidden': {peerId: PeerId, hidden: boolean},
 

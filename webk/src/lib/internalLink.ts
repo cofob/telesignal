@@ -18,7 +18,6 @@ export enum INTERNAL_LINK_TYPE {
   BOOST,
   PREMIUM_FEATURES,
   GIFT_CODE,
-  BUSINESS_CHAT,
   STARS_TOPUP,
   SHARE,
   UNIQUE_STAR_GIFT,
@@ -50,7 +49,6 @@ export type InternalLink =
   InternalLink.InternalLinkBoost |
   InternalLink.InternalLinkPremiumFeatures |
   InternalLink.InternalLinkGiftCode |
-  InternalLink.InternalLinkBusinessChat |
   InternalLink.InternalLinkStarsTopup |
   InternalLink.InternalLinkShare |
   InternalLink.InternalLinkUniqueStarGift |
@@ -181,11 +179,6 @@ export namespace InternalLink {
     stack?: ChatSetPeerOptions['stack'] // local
   }
 
-  export interface InternalLinkBusinessChat {
-    _: INTERNAL_LINK_TYPE.BUSINESS_CHAT,
-    slug: string
-  }
-
   export interface InternalLinkStarsTopup {
     _: INTERNAL_LINK_TYPE.STARS_TOPUP,
     balance: string,
@@ -279,7 +272,6 @@ export type InternalLinkTypeMap = {
   [INTERNAL_LINK_TYPE.BOOST]: InternalLink.InternalLinkBoost,
   [INTERNAL_LINK_TYPE.PREMIUM_FEATURES]: InternalLink.InternalLinkPremiumFeatures,
   [INTERNAL_LINK_TYPE.GIFT_CODE]: InternalLink.InternalLinkGiftCode,
-  [INTERNAL_LINK_TYPE.BUSINESS_CHAT]: InternalLink.InternalLinkBusinessChat,
   [INTERNAL_LINK_TYPE.STARS_TOPUP]: InternalLink.InternalLinkStarsTopup,
   [INTERNAL_LINK_TYPE.SHARE]: InternalLink.InternalLinkShare,
   [INTERNAL_LINK_TYPE.UNIQUE_STAR_GIFT]: InternalLink.InternalLinkUniqueStarGift,
