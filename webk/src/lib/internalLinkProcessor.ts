@@ -21,7 +21,7 @@ import appImManager, {JoinConferenceOptions} from '@lib/appImManager';
 import {makeFullMid} from '@appManagers/utils/messages/fullMid';
 import {INTERNAL_LINK_TYPE, InternalLinkTypeMap, InternalLink} from '@lib/internalLink';
 import {parseSignalLink} from '@signal-app/signal-links';
-import {openSignalLink} from '@lib/signal/signalLinks';
+import {lookUpPhoneNumber, openSignalLink} from '@lib/signal/signalLinks';
 import {TabManagers} from '@lib/managers';
 import {createStoriesViewerWithPeer} from '@components/stories/viewer';
 import {simulateClickEvent} from '@helpers/dom/clickEvent';
@@ -115,7 +115,9 @@ export class InternalLinkProcessor {
   private showOpenUrlAlert(element: HTMLAnchorElement) {
     const a = element.cloneNode(true) as HTMLAnchorElement;
     a.removeAttribute('onclick');
-    confirmOpenUrl(a);
+    // * TeleSignal: a masked Signal link opens in the app once the user agrees
+    const signalLink = parseSignalLink(a.href);
+    confirmOpenUrl(a, undefined, signalLink ? () => openSignalLink(signalLink) : undefined);
   }
 
   public construct(managers: TabManagers) {
@@ -1442,23 +1444,9 @@ export class InternalLinkProcessor {
     }
   };
 
+  // * TeleSignal: a number goes to Signal's contact discovery service only once the user agrees (`lib/signal/signalLinks`)
   public processUserPhoneNumberLink = (link: InternalLink.InternalLinkUserPhoneNumber) => {
-    const managers = bindManagersToSession(this.managers);
-    return managers.appUsersManager.resolvePhone(link.phone).then((user): Promise<unknown> => {
-      // `t.me/+<phone>?free=<code>`: the code removes the message fee of the user the number names
-      if(link.free) {
-        return this.importNoPaidMessagesToken(managers, user as User.user, link.free);
-      }
-
-      return appImManager.setInnerPeer({
-        peerId: user.id.toPeerId(false),
-        text: link.text
-      });
-    }).catch((err: ApiError) => {
-      if(err.type === 'PHONE_NOT_OCCUPIED') {
-        toastNew({langPackKey: 'Alert.UserDoesntExists'});
-      }
-    });
+    return lookUpPhoneNumber(link.phone, link.text);
   };
 
   public processInvoiceLink = (link: InternalLink.InternalLinkInvoice) => {

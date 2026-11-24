@@ -184,8 +184,6 @@ const generated: GeneratedSettingsSearchData = {
     {id: 'AppKeyboardShortcutsTab:KeyboardShortcuts.Section.Stories', sectionId: 'AppKeyboardShortcutsTab', kind: 'subsection', titleLangKey: 'KeyboardShortcuts.Section.Stories'},
     {id: 'AppLinkedDevicesTab:Signal.Devices.LastActive', sectionId: 'AppLinkedDevicesTab', kind: 'row', titleLangKey: 'Signal.Devices.LastActive'},
     {id: 'AppLinkedDevicesTab:Signal.Devices.Link', sectionId: 'AppLinkedDevicesTab', kind: 'row', titleLangKey: 'Signal.Devices.Link'},
-    {id: 'AppLinkedDevicesTab:Signal.Devices.LinkField', sectionId: 'AppLinkedDevicesTab', kind: 'row', titleLangKey: 'Signal.Devices.LinkField'},
-    {id: 'AppLinkedDevicesTab:Signal.Devices.LinkTitle', sectionId: 'AppLinkedDevicesTab', kind: 'row', titleLangKey: 'Signal.Devices.LinkTitle'},
     {id: 'AppLinkedDevicesTab:Signal.Devices.ThisDevice', sectionId: 'AppLinkedDevicesTab', kind: 'row', titleLangKey: 'Signal.Devices.ThisDevice'},
     {id: 'AppLinkedDevicesTab:Signal.Devices.Unlink', sectionId: 'AppLinkedDevicesTab', kind: 'row', titleLangKey: 'Signal.Devices.Unlink'},
     {id: 'AppLinkedDevicesTab:Signal.Devices.UnlinkTitle', sectionId: 'AppLinkedDevicesTab', kind: 'row', titleLangKey: 'Signal.Devices.UnlinkTitle'},

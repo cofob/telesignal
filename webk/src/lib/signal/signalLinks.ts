@@ -15,7 +15,8 @@ import {INTERNAL_LINK_TYPE} from '@lib/internalLink';
 import rootScope from '@lib/rootScope';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
-import {fetchIsPrimaryDevice, linkDevice} from '@lib/signal/settingsApi';
+import {fetchIsPrimaryDevice} from '@lib/signal/settingsApi';
+import showLinkDevicePopup from '@components/popups/signalLinkDevice';
 import {getSignalProxySettings} from '@lib/signal/proxySettings';
 
 // * the links that TeleSignal cannot follow, with Web A's `SignalLinkModal` texts
@@ -60,7 +61,7 @@ export async function openSignalLink(link: SignalLink) {
       }).catch(() => {});
     case 'linkDevice':
       // * a primary device links the new device, as Web A's `openSignalLinkDevice` does
-      if(await fetchIsPrimaryDevice()) return linkNewDevice(link.url);
+      if(await fetchIsPrimaryDevice()) return showLinkDevicePopup({url: link.url});
       return showUnsupportedLink(link.type);
     case 'callLink':
     case 'reRegister':
@@ -71,9 +72,14 @@ export async function openSignalLink(link: SignalLink) {
   }
 }
 
-/** A number of a link can come from anyone, and looking it up tells the contact discovery service about it */
-async function lookUpPhoneNumber(phoneNumber: string) {
+/**
+ * Looks a number up on Signal and opens its chat, once the user agrees: a number can come from anyone, and looking it
+ * up tells Signal's contact discovery service about it, as Web A's `PhoneNumberLookupModal` says. Every lookup of a
+ * number from a link goes through here.
+ */
+export async function lookUpPhoneNumber(phone: string, text?: string) {
   const managers = bindManagersToSession(rootScope.managers);
+  const phoneNumber = phone.replace(/\D/g, '');
   try {
     await confirmationPopup({
       titleLangKey: 'SignalPhoneLookupTitle',
@@ -91,24 +97,7 @@ async function lookUpPhoneNumber(phoneNumber: string) {
     return;
   }
 
-  hotReloadGuard.appImManager.setInnerPeer({peerId: user.id.toPeerId(false)});
-}
-
-function linkNewDevice(url: string) {
-  return confirmationPopup({
-    titleLangKey: 'Signal.Devices.LinkTitle',
-    descriptionLangKey: 'Signal.Devices.LinkText',
-    button: {
-      langKey: 'Signal.Devices.LinkConfirm',
-      callback: async() => {
-        const result = await linkDevice(url);
-        const isLinked = result && !result.error;
-        toastNew({langPackKey: isLinked ?
-          (result.isPending ? 'Signal.Devices.LinkPending' : 'Signal.Devices.Linked') :
-          'Signal.Devices.LinkNetwork'});
-      }
-    }
-  }).catch(() => {});
+  hotReloadGuard.appImManager.setInnerPeer({peerId: user.id.toPeerId(false), text});
 }
 
 function showUnsupportedLink(type: keyof typeof UNSUPPORTED_LINK_TEXTS) {
