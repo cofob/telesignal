@@ -274,8 +274,9 @@ export type TabState = {
     isHidden?: boolean;
     timestamp?: number;
     shouldLandInMediaEditor?: boolean;
-    // Signal: the view-once message whose media is open; closing the viewer marks it viewed
-    viewOnceMessage?: { chatId: string; messageId: number };
+    // Signal: the media of an opened view-once message, already erased in the engine, which closing the viewer
+    // lets go of
+    viewOnceMedia?: { hash: string; blobUrl: string };
   };
 
   audioPlayer: {

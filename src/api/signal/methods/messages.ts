@@ -3,7 +3,7 @@ import { fromBinary } from '@bufbuild/protobuf';
 
 import type { ConversationRecord, MessageRecord } from '../../../lib/signal/db/MessageDb';
 import type { MessageChanges } from '../../../lib/signal/messages/MessageProcessor';
-import type { DataMessage_QuoteSchema } from '../../../lib/signal/proto/generated/SignalService_pb';
+import type { AttachmentPointer, DataMessage_QuoteSchema } from '../../../lib/signal/proto/generated/SignalService_pb';
 import type { ForwardMessagesParams, SendMessageParams, ThreadId } from '../../../types';
 import type {
   ApiAttachment,
@@ -54,6 +54,7 @@ import { parsePackStickerId, STICKER_SIZE } from '../builders/stickers';
 import { getCurrentAccount } from '../client';
 import { db, logError, processor } from '../engine';
 import { uploadMessageAttachment } from '../media';
+import { forgetDownloadedAttachments } from '../media/attachments';
 import { getConversationByPeerId, getPeerId, getUserPeerId } from '../peers';
 import { trackLocalMessage } from '../updaters/messages';
 import { sendApiUpdate } from '../updates';
@@ -795,7 +796,15 @@ export async function markMessageListRead({
 
 /** Marks voice, video and view-once messages viewed after they were played or opened */
 export async function markMessagesRead({ messageIds }: { chat: ApiChat; messageIds: number[] }) {
+  // The attachments of view-once messages, which marking them viewed erases (see `MessageProcessor.markViewed`)
+  const viewOnceAttachments: AttachmentPointer[] = [];
+  for (const id of messageIds) {
+    const record = await db.getMessage(id);
+    const dataMessage = record?.dataMessage && fromBinary(DataMessageSchema, record.dataMessage);
+    if (dataMessage && dataMessage.isViewOnce) viewOnceAttachments.push(...dataMessage.attachments);
+  }
   await processor.markViewed(messageIds).catch(logError);
+  forgetDownloadedAttachments(viewOnceAttachments);
 }
 
 /**

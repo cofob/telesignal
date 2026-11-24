@@ -1,3 +1,4 @@
+import noop from '@helpers/noop';
 import blurActiveElement from '@helpers/dom/blurActiveElement';
 import loadFonts from '@helpers/dom/loadFonts';
 import {doubleRaf} from '@helpers/schedulers';
@@ -20,6 +21,9 @@ let bootstrapped = false;
  * once from `src/index.ts` on a directly-signed-in boot) is a no-op the second
  * time.
  */
+// * the tab that asks for the recovery key to be saved, as long as it asks
+const RECOVERY_KEY_PROMPT_LOCK = 'signal_recovery_key_prompt';
+
 export async function bootstrapIm(): Promise<void> {
   if(bootstrapped) return;
   bootstrapped = true;
@@ -67,6 +71,14 @@ export async function bootstrapIm(): Promise<void> {
   // Tear down the auth UI 1s after IM appears — same delay the legacy
   // `pageIm.onFirstMount` used so the cross-fade looks right.
   disposeActiveAuthFlow(1000);
+
+  // * TeleSignal: the recovery key of an account registered here, until the user confirms it is saved, once per start
+  // * (Web A's `Main`): one tab of the origin asks, the one that gets the lock, which it holds while the popup is open
+  navigator.locks?.request(RECOVERY_KEY_PROMPT_LOCK, {ifAvailable: true}, async(lock) => {
+    if(!lock) return;
+    const {default: showRecoveryKeyPopup} = await import('@components/popups/recoveryKey');
+    await showRecoveryKeyPopup(true);
+  }).catch(noop);
 }
 
 let topLevel: Promise<typeof import('@lib/appDialogsManager')['default']>;

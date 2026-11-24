@@ -32,7 +32,13 @@ export type CardName =
   | 'signUp'
   | 'emailRecover'
   | 'signQR'
-  | 'signImport';
+  | 'signImport'
+  // * TeleSignal: the steps of a Signal registration after the number (`cards/SignalRegistrationCards`)
+  | 'signalCaptcha'
+  | 'signalCode'
+  | 'signalPin'
+  | 'signalProfile'
+  | 'signalRestore';
 
 export type CardPayloadMap = {
   signIn: void;
@@ -48,6 +54,11 @@ export type CardPayloadMap = {
   emailRecover: {email_pattern: string};
   signQR: void;
   signImport: AuthState.signImport['data'];
+  signalCaptcha: void;
+  signalCode: void;
+  signalPin: void;
+  signalProfile: void;
+  signalRestore: void;
 };
 
 /**

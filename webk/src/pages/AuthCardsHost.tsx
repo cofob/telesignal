@@ -23,6 +23,7 @@ import {
 } from '@/pages/authFlow';
 import styles from '@/pages/authFlow.module.scss';
 import type {AuthFlowHost, AuthFlowOptions} from '@/pages/mountAuthFlow';
+import {SignalAuthController} from '@/pages/signalRegistration';
 import Button from '@components/buttonTsx';
 
 if(import.meta.hot) import.meta.hot.accept();
@@ -40,6 +41,11 @@ const SignUpCard = lazy(() => import('@/pages/cards/SignUpCard'));
 const EmailRecoverCard = lazy(() => import('@/pages/cards/EmailRecoverCard'));
 const SignQRCard = lazy(() => import('@/pages/cards/SignQRCard'));
 const SignImportCard = lazy(() => import('@/pages/cards/SignImportCard'));
+const SignalCaptchaCard = lazy(() => import('@/pages/cards/SignalRegistrationCards').then((m) => ({default: m.SignalCaptchaCard})));
+const SignalCodeCard = lazy(() => import('@/pages/cards/SignalRegistrationCards').then((m) => ({default: m.SignalCodeCard})));
+const SignalPinCard = lazy(() => import('@/pages/cards/SignalRegistrationCards').then((m) => ({default: m.SignalPinCard})));
+const SignalProfileCard = lazy(() => import('@/pages/cards/SignalRegistrationCards').then((m) => ({default: m.SignalProfileCard})));
+const SignalRestoreCard = lazy(() => import('@/pages/cards/SignalRegistrationCards').then((m) => ({default: m.SignalRestoreCard})));
 
 /* ------------------------------------------------------------------ */
 /* Host                                                               */
@@ -174,6 +180,8 @@ export default function AuthCardsHost(props: AuthFlowOptions & {ref: (host: Auth
 
   return (
     <AuthFlowContext.Provider value={ctx}>
+      {/* * TeleSignal: the Signal engine leads from one card to the next */}
+      <SignalAuthController />
       <main
         ref={hostEl}
         style={{opacity: 0}}
@@ -248,6 +256,21 @@ function CardsTransition(): JSX.Element {
       </Match>
       <Match when={matchCard('signImport')} keyed>
         {(spec) => <SignImportCard spec={spec} />}
+      </Match>
+      <Match when={matchCard('signalCaptcha')}>
+        <SignalCaptchaCard />
+      </Match>
+      <Match when={matchCard('signalCode')}>
+        <SignalCodeCard />
+      </Match>
+      <Match when={matchCard('signalPin')}>
+        <SignalPinCard />
+      </Match>
+      <Match when={matchCard('signalProfile')}>
+        <SignalProfileCard />
+      </Match>
+      <Match when={matchCard('signalRestore')}>
+        <SignalRestoreCard />
       </Match>
     </Switch>
   ));

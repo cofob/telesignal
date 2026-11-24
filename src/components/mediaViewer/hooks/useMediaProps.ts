@@ -63,8 +63,11 @@ export const useMediaProps = ({
     return getMediaHash(media, isFull ? 'full' : 'preview');
   }, [isVideoAvatar, isPhotoAvatar, media]);
 
+  const localBlobUrl = media && 'blobUrl' in media ? media.blobUrl : undefined;
+  // Media with a local copy, such as opened view-once media whose original is erased, is not loaded again
   const pictogramBlobUrl = useMedia(
     media
+    && !localBlobUrl
     // Only use pictogram if it's already loaded
     && (isFromSharedMedia || isFromSearch || isDocument)
     && getMediaHash(media, 'pictogram'),
@@ -74,7 +77,7 @@ export const useMediaProps = ({
   );
   const previewMediaHash = getMediaOrAvatarHash();
   const previewBlobUrl = useMedia(
-    previewMediaHash,
+    localBlobUrl ? undefined : previewMediaHash,
     undefined,
     ApiMediaFormat.BlobUrl,
     delay,
@@ -83,13 +86,12 @@ export const useMediaProps = ({
     mediaData: fullMediaBlobUrl,
     loadProgress,
   } = useMediaWithLoadProgress(
-    getMediaOrAvatarHash(true),
+    localBlobUrl ? undefined : getMediaOrAvatarHash(true),
     undefined,
     media && getMediaFormat(media, 'full'),
     delay,
   );
 
-  const localBlobUrl = media && 'blobUrl' in media ? media.blobUrl : undefined;
   let bestImageData = (!isVideo && (localBlobUrl || fullMediaBlobUrl)) || previewBlobUrl || pictogramBlobUrl;
   const thumbDataUri = useBlurSync(!bestImageData && media && getMediaThumbUri(media));
   if (!bestImageData && origin !== MediaViewerOrigin.SearchResult) {

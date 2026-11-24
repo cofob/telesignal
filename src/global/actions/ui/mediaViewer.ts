@@ -6,6 +6,7 @@ import { MediaViewerOrigin } from '../../../types';
 
 import { getCurrentTabId } from '../../../util/establishMultitabRole';
 import { omit } from '../../../util/iteratees';
+import { unload } from '../../../util/mediaLoader';
 import { getMessageReplyInfo } from '../../helpers/replies';
 import { addActionHandler } from '../../index';
 import { updateTabState } from '../../reducers/tabs';
@@ -15,7 +16,7 @@ import { selectTimestampableMedia } from '../../selectors/media';
 addActionHandler('openMediaViewer', (global, actions, payload): ActionReturnType => {
   const {
     chatId, threadId = MAIN_THREAD_ID, messageId, timestamp, mediaIndex, isAvatarView, origin,
-    withDynamicLoading, standaloneMedia, pageMedia, viewOnceMessage, tabId = getCurrentTabId(),
+    withDynamicLoading, standaloneMedia, pageMedia, viewOnceMedia, tabId = getCurrentTabId(),
   } = payload;
 
   const tabState = selectTabState(global, tabId);
@@ -35,7 +36,7 @@ addActionHandler('openMediaViewer', (global, actions, payload): ActionReturnType
       withDynamicLoading,
       timestamp,
       shouldLandInMediaEditor: undefined,
-      viewOnceMessage,
+      viewOnceMedia,
     },
     forwardMessages: {},
     isShareMessageModalShown: false,
@@ -45,12 +46,13 @@ addActionHandler('openMediaViewer', (global, actions, payload): ActionReturnType
 addActionHandler('closeMediaViewer', (global, actions, payload): ActionReturnType => {
   const { shouldLandInMediaEditor, tabId = getCurrentTabId() } = payload || {};
   const {
-    volume, isMuted, playbackRate, isHidden, viewOnceMessage,
+    volume, isMuted, playbackRate, isHidden, viewOnceMedia,
   } = selectTabState(global, tabId).mediaViewer;
 
-  // Marking view-once media viewed erases it, so it waits until the viewer that loads it closes
-  if (viewOnceMessage) {
-    actions.markMessagesRead({ chatId: viewOnceMessage.chatId, messageIds: [viewOnceMessage.messageId] });
+  // The only copy of opened view-once media is this tab's object URL, which goes with the viewer
+  if (viewOnceMedia) {
+    URL.revokeObjectURL(viewOnceMedia.blobUrl);
+    void unload(viewOnceMedia.hash);
   }
 
   return updateTabState(global, {

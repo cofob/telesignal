@@ -1189,7 +1189,7 @@ export interface ActionPayloads {
     origin: MediaViewerOrigin;
     withDynamicLoading?: boolean;
     timestamp?: number;
-    viewOnceMessage?: { chatId: string; messageId: number };
+    viewOnceMedia?: { hash: string; blobUrl: string };
   } & WithTabId;
   closeMediaViewer: ({
     shouldLandInMediaEditor?: boolean;

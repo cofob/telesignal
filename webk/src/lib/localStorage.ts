@@ -10,6 +10,7 @@ import Modes from '@config/modes';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import {IS_WORKER} from '@helpers/context';
 import makeError from '@helpers/makeError';
+import noop from '@helpers/noop';
 import deepEqual from '@helpers/object/deepEqual';
 import {StringKey, WorkerTaskTemplate} from '@types';
 import EncryptedStorageLayer from '@lib/encryptedStorageLayer';
@@ -20,6 +21,19 @@ import DeferredIsUsingPasscode from '@lib/passcode/deferredIsUsingPasscode';
 // * unlocked and in the vault while it is locked (`src/util/passcode/sessionStore`)
 import {readSessionValue, removeSessionValue, writeSessionValue} from '@signal-app/passcode-session';
 
+
+// * TeleSignal: a write of an account slot reaches Web A's passcode vault at once (`@lib/signal/sessionsVault`), loaded
+// * on the page only; the other keys are Web K's own, which Web A's vault does not keep for it
+const SLOT_KEY_RE = /^account\d+$/;
+
+function isSlotKey(key: string) {
+  return SLOT_KEY_RE.test(key);
+}
+
+function flushSessionsVault() {
+  if(IS_WORKER) return;
+  import('@lib/signal/sessionsVault').then((module) => module.flushSessionsVault()).catch(noop);
+}
 
 // * the keys of Web A (`tt-` and the account slots that both frontends share), which Web K's `clear` leaves
 const SHARED_ORIGIN_KEY_RE = /^(tt-|account\d+$)/;
@@ -86,6 +100,8 @@ export class LocalStorage<Storage extends Record<string, any>> {
       }
     }
 
+    if(!onlyLocal && Object.keys(obj).some(isSlotKey)) flushSessionsVault();
+
     if(lastError) {
       throw lastError;
     }
@@ -106,6 +122,8 @@ export class LocalStorage<Storage extends Record<string, any>> {
 
     }
     // }
+
+    if(isSlotKey(key as string)) flushSessionsVault();
   }
 
   /**
