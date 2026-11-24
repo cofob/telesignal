@@ -24,6 +24,7 @@ import {
 import {broadcastPasscodeState} from '@signal-app/passcode-channel';
 import clearSignalLocalData from '@signal-app/clear-local-data';
 import {callSignalApi} from '@lib/signal/settingsApi';
+import noop from '@helpers/noop';
 
 // * Web A's `IS_SCREEN_LOCKED_CACHE_KEY` (`src/config.ts`): it is there while Web A has a passcode, and says whether the
 // * vault is locked
@@ -70,15 +71,25 @@ export async function getIsSignalVaultLocked() {
 }
 
 /**
- * Follows the vault that another tab of the origin locks, Web A's or Web K's of any slot (Web A's
- * `onPasscodeStateChangedRemotely`): the engine stops and the page reloads onto the lock screen. Web A's reset of all
- * data reloads the page as well.
+ * Follows the vault and its sessions as other tabs of the origin change them, Web A's or Web K's of any slot: a lock
+ * stops the engine and reloads the page onto the lock screen (Web A's `onPasscodeStateChangedRemotely`), and Web A's
+ * reset of all data reloads it as well.
  */
 export function listenSignalPasscodeChannel() {
   const channel = new BroadcastChannel(PASSCODE_CHANNEL_NAME);
-  channel.addEventListener('message', async({data}: MessageEvent<{type: string}>) => {
+  channel.addEventListener('message', async({data}: MessageEvent<{type: string, generation?: string}>) => {
     if(data?.type === 'reset') {
       location.reload();
+      return;
+    }
+
+    // * the sessions another tab changed, such as a slot that logged out, so that this page does not write the old
+    // * ones back into the vault (Web A's `onPasscodeSessionsChanged`)
+    if(data?.type === 'sessionsChanged') {
+      const generation = getDekGeneration();
+      if(generation && data.generation === generation && !isLocking) {
+        await restoreSessionsFromVault(generation).catch(noop);
+      }
       return;
     }
 

@@ -85,6 +85,8 @@ const updateCacheThrottled = throttle(() => onFullyIdle(() => updateCache()), UP
 const updateCacheForced = () => updateCache(true);
 
 let isCaching = false;
+// Set for good once the other frontend runs the account (`stopCaching`): nothing of this tab's state is written again
+let isCachingStopped = false;
 let isRemovingCache = false;
 let cacheUpdateSuspensionTimestamp = 0;
 let unsubscribeFromBeforeUnload: NoneToVoidFunction | undefined;
@@ -197,7 +199,7 @@ export async function loadCache(initialState: GlobalState): Promise<GlobalState 
 }
 
 export function setupCaching() {
-  if (isCaching) return;
+  if (isCaching || isCachingStopped) return;
 
   isCaching = true;
   unsubscribeFromBeforeUnload = onBeforeUnload(updateCacheForced, true);
@@ -205,10 +207,18 @@ export function setupCaching() {
   addCallback(updateCacheThrottled);
 }
 
-/** Writes the state a last time, when this tab caches it, and writes nothing more until the page reloads */
+/**
+ * Writes the state a last time, when this tab caches it, and writes nothing more until the page reloads: neither the
+ * cache nor the passcode vault, which could bring back the state of an account that the other frontend logged out
+ */
 export function stopCaching() {
   updateCacheForced();
   clearCaching();
+  isCachingStopped = true;
+}
+
+export function getIsCachingStopped() {
+  return isCachingStopped;
 }
 
 export function clearCaching() {
@@ -659,7 +669,7 @@ export function temporarilySuspendCacheUpdate() {
 }
 
 export function forceUpdateCache() {
-  if (Date.now() < cacheUpdateSuspensionTimestamp) {
+  if (isCachingStopped || Date.now() < cacheUpdateSuspensionTimestamp) {
     return;
   }
 

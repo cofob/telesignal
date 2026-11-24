@@ -9,6 +9,29 @@ import {readWebASharedSettings} from '@lib/signal/webAState';
 const LOCK_SCREEN_SHORTCUT_ID = 'lockScreen';
 const MODIFIERS = ['Ctrl', 'Alt', 'Shift', 'Meta'] as const;
 const MOD_MODIFIER = IS_APPLE ? 'Meta' : 'Ctrl';
+// * the keys of Web A's `keyCombos.ts`
+const MODIFIER_EVENT_KEYS = new Set(['Control', 'Alt', 'AltGraph', 'Shift', 'Meta', 'OS', 'Fn', 'CapsLock']);
+const NAMED_KEYS = new Set([
+  'Enter', 'Escape', 'Backspace', 'Delete', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'Home', 'End', 'PageUp', 'PageDown'
+]);
+const KEY_BY_CODE: Record<string, string> = {
+  Space: 'Space',
+  Comma: ',',
+  Period: '.',
+  Slash: '/',
+  Semicolon: ';',
+  Quote: '\'',
+  BracketLeft: '[',
+  BracketRight: ']',
+  Backslash: '\\',
+  Minus: '-',
+  Equal: '=',
+  Backquote: '`'
+};
+const PUNCTUATION_KEYS = new Set(Object.values(KEY_BY_CODE));
+const RE_LATIN_LETTER = /^[a-z]$/i;
+const RE_FUNCTION_KEY = /^F([1-9]|1[0-2])$/;
 // * Web A's `IS_APP`: a standalone window or the desktop app
 const IS_APP = window.matchMedia('(display-mode: standalone)').matches ||
   !!(navigator as {standalone?: boolean}).standalone ||
@@ -55,20 +78,37 @@ function normalizeCombo(combo: string) {
   return buildCombo(MODIFIERS.filter((modifier) => modifiers.includes(modifier)), key.length === 1 ? key.toLowerCase() : key);
 }
 
-// * a letter by its place on the keyboard, as Web A reads it (`getKeyFromEvent`), so that other layouts match too
+/**
+ * The keys of an event as Web A reads them (`getKeyComboFromEvent` in `src/util/keyboardShortcuts/keyCombos.ts`): a
+ * letter in lower case, a digit and punctuation unshifted by their place on the keyboard, a named key by its name; the
+ * keys that AltGr types are text, not a shortcut
+ */
 function getEventCombo(event: KeyboardEvent) {
-  const key = /^[a-z]$/i.test(event.key) ? event.key.toLowerCase() : (
-    event.code.startsWith('Key') ? event.code.slice(3).toLowerCase() : undefined
-  );
+  const isAltGraph = !IS_APPLE && event.getModifierState('AltGraph');
+  if(MODIFIER_EVENT_KEYS.has(event.key)) return;
+  if(isAltGraph && !NAMED_KEYS.has(event.key) && !RE_FUNCTION_KEY.test(event.key) && !RE_LATIN_LETTER.test(event.key)) {
+    return;
+  }
+
+  const key = getEventKey(event);
   if(!key) return;
 
   const modifiers = MODIFIERS.filter((modifier) => (
-    (modifier === 'Ctrl' && event.ctrlKey) ||
-    (modifier === 'Alt' && event.altKey) ||
+    (modifier === 'Ctrl' && (event.ctrlKey || isAltGraph)) ||
+    (modifier === 'Alt' && (event.altKey || isAltGraph)) ||
     (modifier === 'Shift' && event.shiftKey) ||
     (modifier === 'Meta' && event.metaKey)
   ));
   return buildCombo(modifiers, key);
+}
+
+function getEventKey({code, key}: KeyboardEvent) {
+  if(RE_LATIN_LETTER.test(key)) return key.toLowerCase();
+  if(code.startsWith('Digit')) return code.slice(5);
+  if(PUNCTUATION_KEYS.has(key)) return key;
+  if(code.startsWith('Key')) return code.slice(3).toLowerCase();
+  if(KEY_BY_CODE[code]) return KEY_BY_CODE[code];
+  if(NAMED_KEYS.has(key) || RE_FUNCTION_KEY.test(key)) return key;
 }
 
 function buildCombo(modifiers: readonly string[], key: string) {
