@@ -64,6 +64,9 @@ export async function bootstrapIm(): Promise<void> {
   // Tear down the auth UI 1s after IM appears — same delay the legacy
   // `pageIm.onFirstMount` used so the cross-fade looks right.
   disposeActiveAuthFlow(1000);
+
+  // * TeleSignal: the recovery key of an account registered here, until the user confirms it is saved (Web A's `Main`)
+  import('@components/popups/recoveryKey').then(({default: showRecoveryKeyPopup}) => showRecoveryKeyPopup(true));
 }
 
 let topLevel: Promise<typeof import('@lib/appDialogsManager')['default']>;

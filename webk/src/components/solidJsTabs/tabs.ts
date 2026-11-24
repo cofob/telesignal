@@ -508,6 +508,13 @@ export const AppLinkedDevicesTab =
     getComponentModule: () => import('../sidebarLeft/tabs/linkedDevices')
   });
 
+/** TeleSignal: Signal Secure Backups and backup files, as Web A's `SettingsBackups` */
+export const AppBackupsTab =
+  scaffoldSolidJSTab({
+    title: 'SettingsBackups',
+    getComponentModule: () => import('../sidebarLeft/tabs/backups')
+  });
+
 // ─── Data and storage + its auto-download sub-tabs (all eventable) ───
 
 export const AppAutoDownloadPhotoTab =

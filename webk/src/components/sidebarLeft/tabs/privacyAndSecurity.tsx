@@ -7,26 +7,42 @@ import {type AppPrivacyAndSecurityTab} from '@components/solidJsTabs/tabs';
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import rootScope from '@lib/rootScope';
+import type {LangPackKey} from '@lib/langPack';
 import {isSignalPasscodeEnabled, switchToWebA} from '@lib/signal/frontend';
 import {findExistingOrCreateCustomOption} from '@components/sidebarLeft/tabs/autoDeleteMessages/options';
+import showRecoveryKeyPopup from '@components/popups/recoveryKey';
 import {
+  checkKeyTransparencySelf,
   fetchContactDiscovery,
+  fetchKeyTransparencySelfStatus,
+  fetchStorySettings,
   fetchMessageSettings,
   fetchPhoneNumberPrivacy,
   fetchPinSettings,
   removePin,
   SignalMessageSettings,
   SignalPhoneNumberPrivacy,
+  SignalKeyTransparencySelfStatus,
   SignalPinSettings,
+  SignalStorySettings,
   setContactDiscovery,
   setPin,
   setRegistrationLock,
   updateMessageSettings,
-  updatePhoneNumberPrivacy
+  updatePhoneNumberPrivacy,
+  updateStorySettings
 } from '@lib/signal/settingsApi';
 
 // * Signal's PIN is at least four characters (Signal Android `PinEditText`)
 const PIN_MIN_LENGTH = 4;
+// * the result of the check of our own account (Web A's `KEY_TRANSPARENCY_SELF_TEXTS`)
+const KEY_TRANSPARENCY_SELF_KEYS: Record<SignalKeyTransparencySelfStatus, LangPackKey> = {
+  idle: 'KeyTransSelfIdle',
+  running: 'KeyTransRunning',
+  ok: 'KeyTransOk',
+  fail: 'KeyTransFail',
+  intermittent: 'KeyTransSelfRetry'
+};
 
 const PrivacyAndSecurity: Component = () => {
   const [tab] = useSuperTab<typeof AppPrivacyAndSecurityTab>();
@@ -40,6 +56,9 @@ const PrivacyAndSecurity: Component = () => {
   const [isPasscodeOn, setIsPasscodeOn] = createSignal(isSignalPasscodeEnabled());
   // * the disappearing messages timer of new chats, as Web A's `SettingsAutoDeleteMessages`; 0 is off
   const [autoDeletePeriod, setAutoDeletePeriod] = createSignal<number>();
+  // * none where Web A shows none: a check that is not available, and an account without stories settings
+  const [keyTransparencyStatus, setKeyTransparencyStatus] = createSignal<SignalKeyTransparencySelfStatus>();
+  const [storySettings, setStorySettings] = createSignal<SignalStorySettings>();
 
   const loadSettings = async() => {
     const [messages, phone, pin, discovery] = await Promise.all([
@@ -58,10 +77,33 @@ const PrivacyAndSecurity: Component = () => {
     setAutoDeletePeriod(await tab.managers.appPrivacyManager.getDefaultAutoDeletePeriod().catch((): undefined => undefined));
   };
 
-  onMount(() => {
+  onMount(async() => {
     loadSettings();
     loadAutoDeletePeriod();
+    const [keyTransparency, stories] = await Promise.all([fetchKeyTransparencySelfStatus(), fetchStorySettings()]);
+    setKeyTransparencyStatus(keyTransparency);
+    setStorySettings(stories);
   });
+
+  const onKeyTransparencyClick = async() => {
+    if(keyTransparencyStatus() === 'running') return;
+    setKeyTransparencyStatus('running');
+    setKeyTransparencyStatus(await checkKeyTransparencySelf());
+  };
+
+  // * the change shows at once and goes back when it fails, as in Web A
+  const onStorySettingChange = async(update: SignalStorySettings) => {
+    const previous = storySettings();
+    setStorySettings({...previous, ...update});
+    const updated = await updateStorySettings(update);
+    if(!updated) {
+      toastNew({langPackKey: 'Signal.Privacy.SaveFailed'});
+      setStorySettings({...previous});
+      return;
+    }
+
+    setStorySettings(updated);
+  };
 
   const onMessageSettingChange = async(update: Partial<SignalMessageSettings>) => {
     const updated = await updateMessageSettings(update);
@@ -284,6 +326,37 @@ const PrivacyAndSecurity: Component = () => {
         </Section>
       </Show>
 
+      <Show when={storySettings()}>
+        {(settings) => (
+          <Section name="StoriesSettingTitle">
+            <Row>
+              <Row.CheckboxFieldToggle>
+                <CheckboxFieldTsx
+                  checked={!settings().areStoriesDisabled}
+                  onChange={(value) => onStorySettingChange({areStoriesDisabled: !value})}
+                  toggle
+                />
+              </Row.CheckboxFieldToggle>
+              <Row.Title>{i18n('StoriesSettingEnable')}</Row.Title>
+              <Row.Subtitle>{i18n('StoriesSettingEnableInfo')}</Row.Subtitle>
+            </Row>
+            <Show when={!settings().areStoriesDisabled}>
+              <Row>
+                <Row.CheckboxFieldToggle>
+                  <CheckboxFieldTsx
+                    checked={!!settings().areViewReceiptsEnabled}
+                    onChange={(value) => onStorySettingChange({areViewReceiptsEnabled: value})}
+                    toggle
+                  />
+                </Row.CheckboxFieldToggle>
+                <Row.Title>{i18n('StoriesSettingViewReceipts')}</Row.Title>
+                <Row.Subtitle>{i18n('StoriesSettingViewReceiptsInfo')}</Row.Subtitle>
+              </Row>
+            </Show>
+          </Section>
+        )}
+      </Show>
+
       <Section name="Signal.Privacy.Security">
         <Show when={pinSettings()}>
           {(pin) => (
@@ -313,6 +386,19 @@ const PrivacyAndSecurity: Component = () => {
                 </Row>
               </Show>
             </>
+          )}
+        </Show>
+        <Row clickable={() => showRecoveryKeyPopup()}>
+          <Row.Icon icon="key" />
+          <Row.Title>{i18n('RecoveryKey')}</Row.Title>
+        </Row>
+        <Show when={keyTransparencyStatus()}>
+          {(status) => (
+            <Row clickable={status() === 'running' ? undefined : onKeyTransparencyClick}>
+              <Row.Icon icon="check" />
+              <Row.Title>{i18n('KeyTransTitle')}</Row.Title>
+              <Row.Subtitle>{i18n(KEY_TRANSPARENCY_SELF_KEYS[status()])}</Row.Subtitle>
+            </Row>
           )}
         </Show>
         <Row clickable={onBlockedClick}>

@@ -692,6 +692,10 @@ export default class AppSignalManager extends AppManager {
 
   private handleUpdate(update: SignalApiUpdate) {
     switch(update['@type']) {
+      case 'updateBackupSettings':
+        // * a backup under way reports its steps, which the backup settings show (`tabs/backups`)
+        this.rootScope.dispatchEvent('signal_backup_settings', update.settings);
+        break;
       case 'updateAuthorizationError':
         this.rootScope.dispatchEvent('signal_auth_error', update.errorKey);
         break;

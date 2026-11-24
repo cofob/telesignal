@@ -29,6 +29,7 @@ import type {TonConnectSession} from '@layer';
 import type {SignalLinkCode} from '@appManagers/appSignalManager';
 import type {LangPackKey} from '@lib/langPack';
 import type {SignalAuthError, SignalAuthState} from '@lib/signal/registrationTypes';
+import type {SignalBackupSettings} from '@lib/signal/settingsApi';
 import {NULL_PEER_ID, UserAuth} from '@appManagers/constants';
 import EventListenerBase, {EventListenerListeners} from '@helpers/eventListenerBase';
 import {MOUNT_CLASS_TO} from '@config/debug';
@@ -41,6 +42,7 @@ export type BroadcastEvents = {
   // * the sign-in step of the Signal engine, and a step it refused (@lib/signal/registrationTypes)
   'signal_auth_state': SignalAuthState,
   'signal_auth_error': SignalAuthError,
+  'signal_backup_settings': SignalBackupSettings,
   // * a change the Signal engine refused, by its lang key, which the page shows as a toast
   'signal_error': LangPackKey,
 
