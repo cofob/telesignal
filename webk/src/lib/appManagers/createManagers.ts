@@ -62,7 +62,6 @@ import MonoforumDialogsStorage from '@lib/storages/monoforumDialogs';
 import AppPromoManager from '@appManagers/appPromoManager';
 import AppAccountManager from '@appManagers/appAccountManager';
 import {AiTonesManager} from '@lib/appManagers/aiTonesManager';
-import AppWalletManager from '@appManagers/appWalletManager';
 import AppSignalManager from '@appManagers/appSignalManager';
 
 export default function createManagers(
@@ -132,7 +131,6 @@ export default function createManagers(
     appPromoManager: new AppPromoManager,
     appAccountManager: new AppAccountManager,
     aiTonesManager: new AiTonesManager,
-    appWalletManager: new AppWalletManager,
     appSignalManager: new AppSignalManager
   };
 

@@ -24,8 +24,7 @@ Checked against GPL-3.0-only (the build's license):
 - `src/vendor/telegram-3d-star` (GPL-2.0-only, which GPL-3.0 code cannot include) is removed: the stars of Telegram
   Premium and Stars keep an empty box (`src/components/star3D`).
 - npm packages that the bundle includes are MIT, ISC, Apache-2.0, BSD, 0BSD or Unlicense, except `mediabunny`
-  (MPL-2.0, compatible through its secondary-license terms), `@cryptography/*` (GPL-3.0-or-later) and
-  `@ton/wallet-engine` (MIT OR Apache-2.0, Telegram's wallet, to be removed).
+  (MPL-2.0, compatible through its secondary-license terms) and `@cryptography/*` (GPL-3.0-or-later).
 
 ## Vendored files
 
@@ -61,6 +60,8 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
 - Telegram's interactive widgets are removed: `src/vendor/widget-sandbox`, `src/vendor/widget-sandbox-quickjs`, their
   runtime (`src/lib/widgetSandbox`, `src/components/widgetSandbox`, `appWidgetsManager`) and build plugin; a widget
   message shows as unsupported media.
+- Telegram's TON wallet is removed with `@ton/wallet-engine`: `src/components/wallet`, `src/lib/wallet` and
+  `appWalletManager`; its service messages show as unsupported.
 - `src/components/popupSandbox/stories/misc.ts`: the two stories that read the unvendored test fixtures are removed.
 - Media: a Signal album shows as paid media without a price (`src/lib/signal/media.ts`); the attach menu keeps photos,
   videos and files; media spoilers, round video recording, voice transcription, the GIF tab and the edit that replaces

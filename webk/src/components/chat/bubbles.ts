@@ -225,8 +225,6 @@ import {getCurrentNewMediaPopup} from '@components/popups/newMedia';
 import showStarGiftInfoPopup from '@components/popups/starGiftInfo';
 import {StarGiftBubble, UniqueStarGiftWebPageBox} from '@components/chat/bubbles/starGift';
 import {PremiumGiftBubble} from '@components/chat/bubbles/premiumGift';
-import WalletChatCard from '@components/wallet/chatCard';
-import {isWalletReleased} from '@lib/wallet/release';
 import {ChatThemeGiftBubble} from '@components/chat/bubbles/chatThemeGift';
 import {ChatWallPaperBubble} from '@components/chat/bubbles/chatWallPaper';
 import {UnknownUserBubble} from '@components/chat/bubbles/unknownUser';
@@ -9872,30 +9870,6 @@ export default class ChatBubbles {
           }), content, middleware);
 
           bubbleContainer.after(content);
-        } else if(action._ === 'messageActionGramTransfer') {
-          // * a wallet transfer in the chat: the card opens its details in the wallet
-          const content = bubbleContainer.cloneNode(false) as HTMLElement;
-          content.classList.add('has-service-before');
-
-          this.wrapSomeSolid(() => WalletChatCard({
-            message: message as Message.messageService,
-            animationGroup: this.chat.animationGroup,
-            middleware
-          }), content, middleware);
-
-          bubbleContainer.after(content);
-        } else if(action._ === 'messageActionWalletTonConnectRequest') {
-          // * a connected app's request: a click reviews it in the wallet while it is pending (Android, tdesktop)
-          if(isWalletReleased() && message.peerId === SERVICE_PEER_ID && !message.pFlags.out && !action.pFlags.accepted && !action.pFlags.declined) {
-            bubbleContainer.classList.add('is-clickable');
-            // * a button to assistive technology, and with the a11y layer a tab stop Enter and Space open
-            ensureButtonSemantics(s);
-            attachClickEvent(s, () => {
-              import('@components/wallet/tonConnect').then(({openTonConnectRequestMessage}) => {
-                openTonConnectRequestMessage(String(action.session_id), (message as Message.messageService).id, action.expires);
-              });
-            }, {listenerSetter: this.listenerSetter});
-          }
         } else if(action._ === 'messageActionChannelJoined') {
           bubble.classList.add('is-similar-channels');
 

@@ -227,7 +227,6 @@ import captureInputContent from '@components/chat/inputEditor/captureInputConten
 import getRichMessagePostingChoice from '@components/chat/inputEditor/richMessagePostingChoice';
 import {APP_TABS} from '@lib/appColumns';
 import verifyMenuItem from '@helpers/verifyMenuItem';
-import {isWalletAvailable, isWalletReleased} from '@lib/wallet/release';
 import toastError from '@components/toastError';
 
 const HOT_CHAT_INPUTS = import.meta.hot ? [] as ChatInput[] : null;
@@ -1607,25 +1606,6 @@ export default class ChatInput {
           this.chat.canGiftPremium(),
           this.managers.apiManager.getAppConfig()
         ]).then(([canGift, {premium_gift_attach_menu_icon}]) => canGift && premium_gift_attach_menu_icon);
-      }
-    }, {
-      // * Grams to the person this chat is with, like the desktop client's attach menu
-      icon: 'wallet',
-      richMessageAction: 'sendMoney',
-      text: 'WalletAttachMoney',
-      onClick: () => {
-        const userId = this.chat.peerId.toUserId();
-        import('@components/wallet').then(({default: showWalletPopup}) => showWalletPopup({send: {userId}, fromChat: true}));
-      },
-      verify: async() => {
-        const peerId = this.chat.peerId;
-        if(!isWalletReleased() || this.editMsgId || this.ephemeralComposer || this.isWelcomeComposer) return false;
-        if(!peerId.isUser() || peerId === rootScope.myId || this.chat.isBot) return false;
-        const [regular, appConfig] = await Promise.all([
-          this.managers.appUsersManager.isRegularUser(peerId.toUserId()),
-          this.managers.apiManager.getAppConfig()
-        ]);
-        return regular && isWalletAvailable(appConfig);
       }
     }, {
       icon: 'poll',

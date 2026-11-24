@@ -60,7 +60,6 @@ import type {ActiveAccountNumber} from '@lib/accounts/types';
 import type AppPromoManager from '@appManagers/appPromoManager';
 import type AppAccountManager from '@appManagers/appAccountManager';
 import type {AiTonesManager} from '@lib/appManagers/aiTonesManager';
-import type AppWalletManager from '@appManagers/appWalletManager';
 import type AppSignalManager from '@appManagers/appSignalManager';
 import {logger, LogTypes} from '@lib/logger';
 
@@ -128,7 +127,6 @@ export class AppManager {
   protected appPromoManager: AppPromoManager;
   protected appAccountManager: AppAccountManager;
   protected aiTonesManager: AiTonesManager;
-  protected appWalletManager: AppWalletManager;
   protected appSignalManager: AppSignalManager;
 
   protected name: string;

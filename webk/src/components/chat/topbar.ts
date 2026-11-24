@@ -37,7 +37,6 @@ import {modifyAckedPromise} from '@helpers/modifyAckedResult';
 import callbackify from '@helpers/callbackify';
 import confirmationPopup from '@components/confirmationPopup';
 import noop from '@helpers/noop';
-import {isWalletAvailable, isWalletReleased} from '@lib/wallet/release';
 import blockUserWithConfirmation, {unblockUser} from '@components/blockUser';
 import shareContact, {canShareContact} from '@components/shareContact';
 import addContact from '@components/addContact';
