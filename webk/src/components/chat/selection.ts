@@ -46,7 +46,6 @@ import {
 } from '@components/chat/selectionRange';
 import {ChatType} from './chatType';
 import ChatInputPlate from '@components/chat/controlPlate';
-import {isWidgetTarget} from '@lib/widgetSandbox/gestures';
 import isSameMessageSelectionGroup, {getMessageSelectionGroup} from '@components/chat/isSameMessageSelectionGroup';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
@@ -938,7 +937,7 @@ export default class ChatSelection extends AppSelection {
         return !bad;
       },
       // * a hold over a widget is the shared gesture policy's: its renderer gives the bubble's to `holdOn` (on the bubble)
-      verifyTouchLongPress: (target) => !this.chat.input.recording && !isWidgetTarget(target),
+      verifyTouchLongPress: () => !this.chat.input.recording,
       targetLookupClassName: 'bubble',
       lookupBetweenParentClassName: 'bubbles-inner',
       lookupBetweenElementsQuery: '.bubble:not(.is-multiple-documents), .grouped-item',

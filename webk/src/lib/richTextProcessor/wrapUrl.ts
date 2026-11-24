@@ -72,12 +72,6 @@ export default function wrapUrl(url: string, safe?: boolean) {
     } else if(/^\+/.test(fullPath) && !PHONE_NUMBER_REG_EXP.test(fullPath)) { // second regexp is for phone numbers (t.me/+38050...)
       onclick = 'joinchat';
     } else if(
-      // * the wallet's handler is there only once it is released (lib/wallet/release): a username link till then
-      hasAnchorHandler('sendgrams') &&
-      path[0].toLowerCase() === 'sendgrams' && isOneSegment
-    ) { // t.me/sendgrams/?to=…&amount=…
-      onclick = 'sendgrams';
-    } else if(
       // * a proxy to connect to, t.me/proxy?server=… as tdesktop reads it (`^proxy/?\?(.+)`), not @proxy
       (PROXY_LINK_TYPES as readonly string[]).includes(path[0].toLowerCase()) &&
       isOneSegment &&

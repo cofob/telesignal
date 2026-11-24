@@ -1,6 +1,6 @@
 import {observeResize} from '@components/resizeObserver';
 import createAppWindowIntersectionObserver from '@helpers/dom/createAppWindowIntersectionObserver';
-import {createProgram, getWebGL2Context, loseContext, uniformLocations, type UniformMap} from '@components/wallet/visual/gl';
+import {createProgram, getWebGL2Context, loseContext, uniformLocations, type UniformMap} from '@helpers/visual/gl';
 
 /**
  * The light of the AI editor's rewrite on send, drawn by a shader as Telegram for iOS draws it (its dictation glow):
