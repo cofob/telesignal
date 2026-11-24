@@ -7107,7 +7107,6 @@ const lang = {
   'Experimental.Tools': 'Developer Tools',
   'Experimental.PopupSandbox': 'Popup Sandbox',
   'Experimental.BubbleSandbox': 'Bubble Sandbox',
-  'Experimental.WidgetSandbox': 'Widget Sandbox',
   'Experimental.IconLibrary': 'Icon Library',
   'Experimental.CopyDebugInfo': 'Copy Debug Info',
   'Experimental.CopyDebugInfo.Subtitle': 'Version, browser and the settings above, for a bug report',

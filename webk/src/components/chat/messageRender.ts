@@ -32,7 +32,6 @@ import {makeTime} from '@components/chat/utils';
 import {useAppConfig} from '@stores/appState';
 import {formatNanoton} from '@helpers/paymentsWrapCurrencyAmount';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
-import {isWidgetRenderingEnabled} from '@lib/widgetSandbox/payload';
 import withTimeout from '@helpers/schedulers/withTimeout';
 import noop from '@helpers/noop';
 import getGroupedText from '@appManagers/utils/messages/getGroupedText';
@@ -342,22 +341,6 @@ export namespace MessageRender {
         args.push(span, icon);
       }
 
-      // the network marker (docs/integration.md): a tap on this widget may send data to the bot's server; a message
-      // that is not of the chat's history asks nothing (bubbles.ts)
-      if(
-        messageMedia?._ === 'messageMediaWidget' &&
-        messageMedia.pFlags.can_query &&
-        isHistoryMessage(chatType, message) &&
-        isWidgetRenderingEnabled()
-      ) {
-        const marker = Icon('web_filled', 'time-icon', 'time-part', 'time-widget-network');
-        const explanation = I18n.format('Widget.NetworkMarker', true);
-        marker.removeAttribute('aria-hidden');
-        marker.setAttribute('role', 'img');
-        marker.setAttribute('aria-label', explanation);
-        args.push(marker);
-        title += '\n' + explanation;
-      }
 
       if(message.views) {
         const postViewsSpan = document.createElement('span');

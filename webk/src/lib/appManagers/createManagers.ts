@@ -48,7 +48,6 @@ import AppUsernamesManager from '@appManagers/appUsernamesManager';
 import AppChatInvitesManager from '@appManagers/appChatInvitesManager';
 import AppStoriesManager from '@appManagers/appStoriesManager';
 import AppBotsManager from '@appManagers/appBotsManager';
-import AppWidgetsManager from '@appManagers/appWidgetsManager';
 import AppBoostsManager from '@appManagers/appBoostsManager';
 import AppStatisticsManager from '@appManagers/appStatisticsManager';
 import AppBusinessManager from '@appManagers/appBusinessManager';
@@ -121,7 +120,6 @@ export default function createManagers(
     appChatInvitesManager: new AppChatInvitesManager,
     appStoriesManager: new AppStoriesManager,
     appBotsManager: new AppBotsManager,
-    appWidgetsManager: new AppWidgetsManager,
     appBoostsManager: new AppBoostsManager,
     appStatisticsManager: new AppStatisticsManager,
     appBusinessManager: new AppBusinessManager,

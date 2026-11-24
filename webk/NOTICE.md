@@ -16,13 +16,11 @@ build as a whole is offered under those terms; the source of every part is this 
 
 Checked against GPL-3.0-only (the build's license):
 
-- `src/vendor`: `solid`, `tlottie`, `opus`, `widget-sandbox-quickjs` (QuickJS, quickjs-emscripten), `StackBlur.js`,
+- `src/vendor`: `solid`, `tlottie`, `opus`, `StackBlur.js`,
   `fastBlur.js`, `bezierEasing.ts`, `cleanHTML.js`, `createListTransition.ts`, `dateFormat.ts`, `simple-yenc.js` are
   MIT; `recorder.min.js` is ISC; the `opus-recorder` workers in `public/` are MIT, with libopus and the Speex
   resampler (BSD-3-Clause) inside; `prism.ts` is Apache-2.0; `rnnoise` is BSD-3-Clause; `libwebp-0.2.0.js` is under
   the WebM BSD-style license. `leemon.ts`, `convertPunycode.js` and `smoothscroll*` name their authors but no license.
-- `src/vendor/widget-sandbox` (Telegram's interactive widgets, a Telegram-only feature) states no license in the
-  vendored files, only those of its third-party parts (MIT, ISC, Apache-2.0); it is to be removed with the feature.
 - `src/vendor/telegram-3d-star` (GPL-2.0-only, which GPL-3.0 code cannot include) is removed: the stars of Telegram
   Premium and Stars keep an empty box (`src/components/star3D`).
 - npm packages that the bundle includes are MIT, ISC, Apache-2.0, BSD, 0BSD or Unlicense, except `mediabunny`
@@ -60,6 +58,9 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
 - Threaded workers are copied under query strings instead of `blob:` URLs, which the policy does not allow.
 - Frontend switch: the main menu's "Switch to A version" opens `../a/`.
 - `src/vendor/telegram-3d-star` is removed (GPL-2.0-only), and `src/components/star3D` draws nothing.
+- Telegram's interactive widgets are removed: `src/vendor/widget-sandbox`, `src/vendor/widget-sandbox-quickjs`, their
+  runtime (`src/lib/widgetSandbox`, `src/components/widgetSandbox`, `appWidgetsManager`) and build plugin; a widget
+  message shows as unsupported media.
 - `src/components/popupSandbox/stories/misc.ts`: the two stories that read the unvendored test fixtures are removed.
 - Media: a Signal album shows as paid media without a price (`src/lib/signal/media.ts`); the attach menu keeps photos,
   videos and files; media spoilers, round video recording, voice transcription, the GIF tab and the edit that replaces

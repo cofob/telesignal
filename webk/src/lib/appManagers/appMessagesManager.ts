@@ -7422,8 +7422,6 @@ export class AppMessagesManager extends AppManager {
       }
 
       if(filterMessage) {
-        // a widget's storage goes with its message, also one that is not loaded here
-        this.appWidgetsManager.deleteWidgetStorageOf(peerId, filterMessage);
         const messagesStorage = this.getHistoryMessagesStorage(peerId);
         const ephemeralIds: number[] = [];
         for(const [mid, message] of messagesStorage) {
@@ -7566,9 +7564,6 @@ export class AppMessagesManager extends AppManager {
         // and a history too big to enumerate comes back as `updateChannelTooLong`, which
         // `processUpdateMessage` turns into a difference fetch.
         this.apiUpdatesManager.processUpdateMessage(updates);
-        // a widget's storage goes with the history up to `max_id`, including messages that were never loaded here
-        this.appWidgetsManager.deletePeerWidgetStorage(peerId, maxId);
-
         // ephemeral messages live on the client alone, so no update can mention them
         this.forgetAnchoredEphemeralsForPeer(peerId);
         const ephemeralIds = [...(this.ephemeralMidsByPeerId.get(peerId)?.keys() || [])];
@@ -7601,9 +7596,6 @@ export class AppMessagesManager extends AppManager {
 
       if(!threadOrSavedId) {
         this.flushStoragesByPeerId(peerId);
-        // here, not in flushStoragesByPeerId: that one also runs when a channel only reloads (a deleted chat's go with
-        // its dialog, dropDialogOnDeletion)
-        if(justClear) this.appWidgetsManager.deletePeerWidgetStorage(peerId);
       }
 
       if(justClear) {
@@ -12535,7 +12527,6 @@ export class AppMessagesManager extends AppManager {
     this.markChannelCutoffHistoryCountsUnknown(peerId);
     addDeleted(this.invalidateRichMessagesAtOrBefore(peerId, availableMinId));
     addDeleted(this.appTranslationsManager.resetPeerTranslationsByChannelCutoff(peerId));
-    this.appWidgetsManager.deleteWidgetStorageByChannelCutoff(peerId, availableMinId);
 
     const pendingSingles = this.needSingleMessages.get(peerId);
     const singleMessageMaps = [
@@ -12582,14 +12573,6 @@ export class AppMessagesManager extends AppManager {
     const channelId = (update as Update.updateDeleteChannelMessages).channel_id;
     let mids = (update as any as Update.updateDeleteChannelMessages).messages.map((id) => this.appMessagesIdsManager.generateMessageId(id, channelId));
     const peerId: PeerId = channelId ? channelId.toPeerId(true) : (update as LocalUpdateDeleteMessages).peerId ?? this.findPeerIdByMids(mids);
-
-    // a widget's storage goes with its message, loaded or not, once for the batch: private chats' and basic groups'
-    // server ids are the account's, so a batch may name messages of several chats (a temporary id is only its chat's)
-    if(channelId) {
-      this.appWidgetsManager.deleteWidgetStorage(peerId, mids);
-    } else {
-      this.appWidgetsManager.deleteWidgetStorageByLegacyMids(mids, peerId);
-    }
 
     if(!peerId) {
       return new Set<number>();
@@ -13299,11 +13282,6 @@ export class AppMessagesManager extends AppManager {
 
     delete this.pendingByRandomId[randomId];
     this.deletePendingTopMsg(peerId, tempId);
-
-    // what its widget kept goes under the server's id, also with no temporary copy left (a flush) to tell a bubble
-    if((finalMessage as Message.message).media?._ === 'messageMediaWidget') {
-      this.appWidgetsManager.onWidgetMessageSent(peerId, tempId, finalMessage.mid);
-    }
 
     this.finalizePendingMessageCallbacks(storage, tempId, finalMessage);
 
