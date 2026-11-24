@@ -31,6 +31,9 @@ import {
 import { selectThreadLocalStateParam, selectThreadReadState } from '../../selectors/threads';
 
 const TYPING_STATUS_CLEAR_DELAY = 6000; // 6 seconds
+// Actions of Signal messages that count as unread, as the engine counts them: the other actions are notices (timers,
+// group changes, calls, pins, safety numbers), which the engine stores as read
+const UNREAD_ACTION_TYPES = new Set<string>(['viewOnce', 'giftBadge', 'payment', 'unsupported']);
 const INVALIDATE_FULL_CHAT_FIELDS = new Set<keyof ApiChat>([
   'restrictionReasons', 'isJoinRequest', 'type',
 ]);
@@ -187,7 +190,8 @@ addActionHandler('apiUpdate', (global, actions, update): ActionReturnType => {
 
       const hasMention = Boolean(message.hasUnreadMention);
 
-      if (!isLocal) {
+      const { action } = message.content;
+      if (!isLocal && (!action || UNREAD_ACTION_TYPES.has(action.type))) {
         global = addUnreadMessageToCounter(global, chatId, message);
 
         if (hasMention) {
