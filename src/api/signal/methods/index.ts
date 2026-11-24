@@ -96,6 +96,7 @@ export {
   fetchMessageSendDetails,
   fetchMessages,
   fetchMessagesById,
+  fetchSharedMediaCounts,
   forwardMessages,
   loadPollOptionResults,
   markMessageListRead,

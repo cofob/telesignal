@@ -16,6 +16,7 @@ import type {
   ApiMessagePoll,
   ApiMessageRecipient,
   ApiMessageSearchContext,
+  ApiMessageSearchType,
   ApiOnProgress,
   ApiPeer,
   ApiReaction,
@@ -28,7 +29,7 @@ import type {
 } from '../../types';
 import { ApiMessageEntityTypes, MESSAGE_DELETED } from '../../types';
 
-import { LOCAL_MESSAGES_LIMIT, SEND_MESSAGE_ACTION_INTERVAL } from '../../../config';
+import { LOCAL_MESSAGES_LIMIT, RE_LINK_TEMPLATE, SEND_MESSAGE_ACTION_INTERVAL } from '../../../config';
 import { LONG_TEXT_CONTENT_TYPE } from '../../../lib/signal/messages/MessageProcessor';
 import {
   DataMessage_Contact_Phone_Type, DataMessage_Quote_Type, DataMessageSchema,
@@ -43,7 +44,7 @@ import { buildCollectionByKey, omit, omitUndefined } from '../../../util/iterate
 import { getServerTime } from '../../../util/serverTime';
 import { buildBodyRanges } from '../builders/bodyRanges';
 import { getIsChatListed } from '../builders/chats';
-import { parseAttachmentMediaId } from '../builders/media';
+import { buildMessageMedia, parseAttachmentMediaId } from '../builders/media';
 import {
   buildApiMessageWithPoll, createUserResolver, getIsMessageHidden,
 } from '../builders/messages';
@@ -149,16 +150,17 @@ type SearchMessagesResult = {
 };
 
 const EMPTY_SEARCH_RESULT: SearchMessagesResult = { messages: [], totalCount: 0, userStatusesById: {} };
+const LINK_REGEX = new RegExp(RE_LINK_TEMPLATE, 'i');
 
 /**
- * Messages of a chat whose text contains `query`, newest first, from before `offsetId`. Signal keeps no search index,
- * so the stored text is read; the shared media of a chat has no search yet and comes back empty.
+ * Messages of a chat whose text contains `query`, or its shared media of `type`, newest first, from before `offsetId`.
+ * Signal keeps no search index, so the stored messages are read.
  */
 export async function searchMessagesInChat({
   peer, type, query, limit, offsetId,
 }: {
   peer: ApiPeer;
-  type: string;
+  type: ApiMessageSearchType;
   query?: string;
   limit: number;
   offsetId?: number;
@@ -169,10 +171,54 @@ export async function searchMessagesInChat({
   maxDate?: number;
 }): Promise<SearchMessagesResult> {
   const conversation = await getConversationByPeerId(peer.id);
-  if (!conversation || type !== 'text' || !query) return EMPTY_SEARCH_RESULT;
+  if (!conversation) return EMPTY_SEARCH_RESULT;
+  if (type !== 'text') return findSharedMedia(conversation, type, limit, offsetId);
+  if (!query) return EMPTY_SEARCH_RESULT;
 
   const matches = await findTextMatches([conversation], query, limit, offsetId);
   return buildSearchResult(matches, limit);
+}
+
+/** The newest messages of a chat that carry media of the type of a shared media tab, from before `offsetId` */
+async function findSharedMedia(
+  conversation: ConversationRecord, type: ApiMessageSearchType, limit: number, offsetId?: number,
+) {
+  const before = offsetId || Number.MAX_SAFE_INTEGER;
+  const records = await db.findLatestMessages(conversation.id, limit, (message) => (
+    message.id < before && !getIsMessageHidden(message) && getSharedMediaType(message) === type
+  ));
+  return buildSearchResult(records.map((record) => ({ record, conversation })), limit);
+}
+
+/** How many messages of a chat each shared media tab holds; Signal keeps no index, so every stored message is read */
+export async function fetchSharedMediaCounts({ peer }: { peer: ApiPeer }) {
+  const conversation = await getConversationByPeerId(peer.id);
+  if (!conversation) return undefined;
+
+  const counts: Partial<Record<ApiMessageSearchType, number>> = {};
+  await db.findLatestMessages(conversation.id, Number.MAX_SAFE_INTEGER, (message) => {
+    const type = !getIsMessageHidden(message) ? getSharedMediaType(message) : undefined;
+    if (type) counts[type] = (counts[type] ?? 0) + 1;
+    return false;
+  });
+  return counts;
+}
+
+/** The shared media tab a message belongs to; view-once media stays out of them, as in Signal */
+function getSharedMediaType(message: MessageRecord): ApiMessageSearchType | undefined {
+  if (!message.dataMessage) return undefined;
+  const dataMessage = fromBinary(DataMessageSchema, message.dataMessage);
+  if (dataMessage.isViewOnce) return undefined;
+
+  const {
+    photo, video, album, document, audio, voice,
+  } = buildMessageMedia(message, dataMessage);
+  if (video?.isGif) return 'gif';
+  if (photo || video || album) return 'media';
+  if (document) return 'documents';
+  if (audio) return 'audio';
+  if (voice) return 'voice';
+  return dataMessage.preview.length || LINK_REGEX.test(message.body ?? '') ? 'links' : undefined;
 }
 
 /**
