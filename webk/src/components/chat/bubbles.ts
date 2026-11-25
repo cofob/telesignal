@@ -2543,8 +2543,8 @@ export default class ChatBubbles {
     this.listenerSetter.add(rootScope)('chat_participant_rank', ({chatId, userId, rank}) => this.onRankChange(chatId, () => {
       const peerId = userId.toPeerId(false);
       const role = this.ranks.get(peerId)?.role || 'member';
-      // * a supergroup's admin without a tag reads "admin" / "owner" again
-      const defaultRank = role !== 'member' && apiManagerProxy.getChat(chatId)?._ === 'channel' ? (role === 'owner' ? 1 : 2) : '';
+      // * an admin without a tag reads "admin" / "owner" again (TeleSignal: in a basic group too, as in Web A)
+      const defaultRank = role !== 'member' ? (role === 'owner' ? 1 : 2) : '';
       this.setAuthorRank(peerId, {rank: rank || defaultRank, role});
     }));
 
@@ -2579,8 +2579,9 @@ export default class ChatBubbles {
 
       const next = new Map<PeerId, BubbleNameRank>();
       (chatParticipants.participants as ChatParticipant[]).forEach((participant) => {
-        if(participant.rank) {
-          next.set(getParticipantPeerId(participant), {rank: participant.rank, role: getMemberTagRole(participant)});
+        const rank = getParticipantRank(participant);
+        if(rank) {
+          next.set(getParticipantPeerId(participant), {rank, role: getMemberTagRole(participant)});
         }
       });
 
@@ -6891,8 +6892,9 @@ export default class ChatBubbles {
         const setRanksPromise = ackedResult.result.then((channelParticipants) => {
           const ranks: Map<PeerId, BubbleNameRank> = new Map();
           (channelParticipants.participants as (ChatParticipant | ChannelParticipant)[]).forEach((participant) => {
-            // * a basic group shows the tags it has, with no "admin" for an admin without one (as desktop)
-            const rank = isBasicGroup ? (participant as ChatParticipant).rank : getParticipantRank(participant);
+            // * TeleSignal: an admin of a Signal group (a basic group here) without a tag shows "admin", as in Web A
+            // * (`RankBadge`)
+            const rank = getParticipantRank(participant);
             if(rank) {
               ranks.set(getParticipantPeerId(participant), {rank, role: getMemberTagRole(participant)});
             }
