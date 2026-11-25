@@ -38,7 +38,6 @@ import SolidJSHotReloadGuardProvider, {registerHotReloadGuard} from '@lib/solidj
 import cancelEvent from '@helpers/dom/cancelEvent';
 import appSidebarLeft from '@components/sidebarLeft';
 import {AppContactsTab} from '@components/solidJsTabs/tabs';
-import showCreateContactPopup from '@components/popups/createContact';
 import createNewGroupTab from '@components/sidebarLeft/tabs/createNewGroupTab';
 import {AppEditProfileTab, AppSettingsTab} from '@components/solidJsTabs';
 import showBirthdayPopup, {saveMyBirthday} from '@components/popups/birthday';
@@ -732,8 +731,9 @@ export class InternalLinkProcessor {
       callback: ({pathnameParams}) => {
         const [type = ''] = pathnameParams;
         switch(type) {
+          // * TeleSignal: Signal adds no contacts; the contacts list is where a number is found from its search
           case 'contact':
-            return showCreateContactPopup();
+            return appSidebarLeft.createTab(AppContactsTab).open();
           case 'group':
             return createNewGroupTab(appSidebarLeft);
           case '':
@@ -907,8 +907,8 @@ export class InternalLinkProcessor {
       callback: ({pathnameParams}) => {
         const [type = ''] = pathnameParams;
         switch(type) {
+          // * TeleSignal: Signal adds no contacts
           case 'new':
-            return showCreateContactPopup();
           case 'search':
           case '':
             return appSidebarLeft.createTab(AppContactsTab).open();

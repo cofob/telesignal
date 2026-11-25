@@ -71,7 +71,7 @@ import {_changeHistoryStorageKey, _deleteHistoryStorage, _iterateHistoryStorages
 import SlicedArray, {SliceEnd} from '@helpers/slicedArray';
 import {createHistoryStorageSearchSlicedArray} from '@appManagers/utils/messages/createHistoryStorage';
 import tabId from '@config/tabId';
-import Modes, {getURLWithoutFlags} from '@config/modes';
+import Modes, {getURLWithoutFlags, IS_DESKTOP_APP_BUNDLE} from '@config/modes';
 import appNavigationController from '@components/appNavigationController';
 import {BroadcastChannelWrapper, createBroadcastChannelWrapper} from './broadcastChannelWrapper';
 import {MainBroadcastChannelEvents, unversionedMainBroadcastChannelName} from '@config/broadcastChannel';
@@ -88,7 +88,7 @@ import {
   type ThreadedWorkerType
 } from '@lib/threadedWorkerTypes';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
-import {IS_DESKTOP_APP, IS_DESKTOP_APP_BUNDLE, serveNativeTransportToWorker} from '@lib/signal/desktopApp';
+import {IS_DESKTOP_APP, serveNativeTransportToWorker} from '@lib/signal/desktopApp';
 
 
 export type Mirrors = {

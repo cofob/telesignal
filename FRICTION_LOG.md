@@ -103,6 +103,10 @@ cannot flush by hand.
 
 `src/util/cacheApi.ts` builds every cache request from `self.location.origin` (`buildCacheRequest`), which is `tauri://localhost` in the bundled desktop app on macOS and Linux. In the WebKitGTK build, `cache.put(new Request('tauri://localhost/attachment/x'), ...)` rejects with "Request url is not HTTP/HTTPS", while the same call with an `http://` URL succeeds (verified under Xvfb with a scratch build of the app that ran the call from the page). `cacheApi.save` catches the error and returns `false`, so nothing is cached there: attachments, stickers and avatars are fetched from the CDN again on every view, and attachments that the CDN has dropped after its retention period cannot be shown again, while the web app and the Windows build (`http://tauri.localhost`) cache them. It also means `signalDev.seedDemo()` shows no pictures in the desktop app. A fixed `http://` base for the cache keys would likely avoid it; WKWebView on macOS was not tested.
 
+## Switching frontends in the desktop app soon after seeding the demo leaves Web A's `tt-data` store blocked
+
+In the Linux desktop app (WebKitGTK 2.52, debug build with the web part in development mode), running `signalDev.seedDemo()` on `/a/`, reloading the page and switching to `/k/` about 15 seconds later left Web K with no chat list: its start waits in `getSignalStartArgs` for a readonly transaction on Web A's `tt-data` store (`webk/src/lib/signal/webAState.ts`), which never completes. Verified twice from the page through the remote inspector: `indexedDB.open('tt-data')` succeeds, a transaction on its `store` never fires `complete`, and the state survives reloading Web K, navigating back to `/a/` (whose chat list is then empty too) and `history.back()`; restarting the app clears it. Four plain switches between `/a/` and `/k/` without seeding, and the same switch after seeding followed by an app restart, worked. The cause is not known: a transaction that Web A's page or one of its workers left open when the page went away (for example into WebKit's back/forward cache) is suspected. Restarting the app after `seedDemo()` avoids it; whether it can happen without the demo was not seen.
+
 ## Five npm dependencies come from GitHub, so every install needs `git` and GitHub access
 
 Web K adds one more: `webk/package.json` takes `@ton/wallet-engine` (the TON wallet, a Telegram-only feature) from a
@@ -214,7 +218,9 @@ members, admins, rights, link, requests, leaving and creating a group) fails ins
 the reason, and Web K shows it once. The adapter calls and the provider calls are checked up to that point, but a
 change that succeeds on the server has not been seen in the app. The demo seed also has no group with its link on
 and no join request, so Web K's group link screen with a link and its join request bar and list were seen only with
-data put in by hand. Testing the success path needs a linked account on a reachable server, which a contributor
+data put in by hand. Nor does it have a group that invited us, a group with removed members, a reply to a story or a
+shared contact with an ACI that has no chat: Web K's Join bar, removed members list, story reply preview and the
+contact's MESSAGE through `getChatByAci` were checked with a temporary edit of `src/lib/signal/dev/seedDemo.ts`. Testing the success path needs a linked account on a reachable server, which a contributor
 cannot use from the demo seed.
 
 ## Web K's settings call the provider only through its worker, and a page-side call reads no account

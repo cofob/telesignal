@@ -50,6 +50,7 @@ import {getCurrentAccount} from '@lib/accounts/getCurrentAccount';
 import AccountController from '@lib/accounts/accountController';
 import {getSignalLockState, listenSignalPasscodeChannel} from '@lib/signal/passcode';
 import {getSignalStartArgs} from '@lib/signal/proxySettings';
+import IS_SHARED_WORKER_SUPPORTED from '@environment/sharedWorkerSupport';
 import {showSignalLockScreen} from '@components/signalLockScreen';
 import {changeAccount} from '@lib/accounts/changeAccount';
 import {getValidatedAccount} from '@lib/accounts/getValidatedAccount';
@@ -337,10 +338,14 @@ function onInstanceDeactivated(reason: InstanceDeactivateReason) {
 
     if(reason === 'otherClient') {
       singleInstance.onMyClient();
-      // * the other frontend took the engine over (`src/lib/signal/engineOwnership.ts`): this one takes it back
-      getSignalStartArgs().then((args) => rootScope.managers.appSignalManager.start(args));
     } else {
       singleInstance.activateInstance();
+    }
+
+    // * the other frontend, or another tab with a worker of its own, took the engine over
+    // * (`src/lib/signal/engineOwnership.ts`): this one takes it back. Tabs sharing a worker share its engine
+    if(reason === 'otherClient' || !IS_SHARED_WORKER_SUPPORTED) {
+      getSignalStartArgs().then((args) => rootScope.managers.appSignalManager.start(args));
     }
 
     setTimeout(() => {

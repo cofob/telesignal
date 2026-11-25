@@ -13,7 +13,7 @@ import type {AppExperimentalTab} from '@components/solidJsTabs/tabs';
 import {toastNew} from '@components/toast';
 import {getAppVersionText} from '@config/app';
 import DEBUG from '@config/debug';
-import Modes, {getKeptFlags, getURLWithoutFlags, isFlagInURL, isFlagOn, KEPT_FLAGS, KeptFlag, setKeptFlag, setKeptFlags} from '@config/modes';
+import Modes, {IS_DESKTOP_APP_BUNDLE, IS_DESKTOP_APP_SCHEME, getKeptFlags, getURLWithoutFlags, isFlagInURL, isFlagOn, KEPT_FLAGS, KeptFlag, setKeptFlag, setKeptFlags} from '@config/modes';
 import IS_SHARED_WORKER_SUPPORTED from '@environment/sharedWorkerSupport';
 import {copyTextToClipboard} from '@helpers/clipboard';
 import liteMode from '@helpers/liteMode';
@@ -43,7 +43,10 @@ const RESTART_FLAGS: RestartFlag[] = [
 // * what the build has decided, which no switch here changes
 const FORCED: Partial<Record<RestartFlag, boolean>> = {
   test: !!import.meta.env.VITE_TEST_DC,
-  noWorker: !!import.meta.env.VITE_NO_WORKER
+  noWorker: !!import.meta.env.VITE_NO_WORKER,
+  // * the desktop app's bundle (`@config/modes`)
+  noServiceWorker: IS_DESKTOP_APP_BUNDLE,
+  noSharedWorker: IS_DESKTOP_APP_SCHEME
 };
 
 const isStartedWith = (flag: RestartFlag) => !!FORCED[flag] || (flag === 'test' ? isFlagInURL(flag) : isFlagOn(flag));

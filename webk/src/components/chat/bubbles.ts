@@ -191,7 +191,8 @@ import {makeContactPhoneFormatter} from '@components/wrappers/formatUserPhone';
 import parseVcard, {isVcardPhoneType} from '@helpers/parseVcard';
 import showContactDetailsPopup from '@components/popups/contactDetails';
 import {copyPhoneNumber} from '@helpers/copyContact';
-import showCreateContactPopup from '@components/popups/createContact';
+import createDownloadAnchor from '@helpers/dom/createDownloadAnchor';
+import type {SignalContactMedia} from '@lib/signal/media';
 import wrapPeerColorPattern from '@components/wrappers/peerColorPattern';
 import showTooltip from '@components/tooltip';
 import wrapTextWithEntities from '@lib/richTextProcessor/wrapTextWithEntities';
@@ -622,6 +623,9 @@ const webPageTypes: {[type in WebPage.webPage['type']]?: LangPackKey} = {
 
 // size (px) of the compact right-aligned sticker-set / custom-emoji preview grid in a webpage bubble
 const STICKER_SET_PREVIEW_BOX_SIZE = 56;
+// * a shared contact's vCard, which its ADD saves; the link lives long enough for the download to start
+const VCARD_MIME_TYPE = 'text/vcard';
+const VCARD_URL_LIFETIME = 60e3;
 
 const serviceMessageActionsWithReply: (MessageAction['_'])[] = [
   'messageActionTodoAppendTasks',
@@ -2539,8 +2543,8 @@ export default class ChatBubbles {
     this.listenerSetter.add(rootScope)('chat_participant_rank', ({chatId, userId, rank}) => this.onRankChange(chatId, () => {
       const peerId = userId.toPeerId(false);
       const role = this.ranks.get(peerId)?.role || 'member';
-      // * a supergroup's admin without a tag reads "admin" / "owner" again
-      const defaultRank = role !== 'member' && apiManagerProxy.getChat(chatId)?._ === 'channel' ? (role === 'owner' ? 1 : 2) : '';
+      // * an admin without a tag reads "admin" / "owner" again (TeleSignal: in a basic group too, as in Web A)
+      const defaultRank = role !== 'member' ? (role === 'owner' ? 1 : 2) : '';
       this.setAuthorRank(peerId, {rank: rank || defaultRank, role});
     }));
 
@@ -2575,8 +2579,9 @@ export default class ChatBubbles {
 
       const next = new Map<PeerId, BubbleNameRank>();
       (chatParticipants.participants as ChatParticipant[]).forEach((participant) => {
-        if(participant.rank) {
-          next.set(getParticipantPeerId(participant), {rank: participant.rank, role: getMemberTagRole(participant)});
+        const rank = getParticipantRank(participant);
+        if(rank) {
+          next.set(getParticipantPeerId(participant), {rank, role: getMemberTagRole(participant)});
         }
       });
 
@@ -6887,8 +6892,9 @@ export default class ChatBubbles {
         const setRanksPromise = ackedResult.result.then((channelParticipants) => {
           const ranks: Map<PeerId, BubbleNameRank> = new Map();
           (channelParticipants.participants as (ChatParticipant | ChannelParticipant)[]).forEach((participant) => {
-            // * a basic group shows the tags it has, with no "admin" for an admin without one (as desktop)
-            const rank = isBasicGroup ? (participant as ChatParticipant).rank : getParticipantRank(participant);
+            // * TeleSignal: an admin of a Signal group (a basic group here) without a tag shows "admin", as in Web A
+            // * (`RankBadge`)
+            const rank = getParticipantRank(participant);
             if(rank) {
               ranks.set(getParticipantPeerId(participant), {rank, role: getMemberTagRole(participant)});
             }
@@ -12308,18 +12314,19 @@ export default class ChatBubbles {
       ...(organization && organization !== displayName ? [organization] : [])
     ].slice(0, 5);
 
-    const openChat = (e: MouseEvent) => {
-      this.chat.appImManager.setInnerPeer({
-        stack: this.chat.appImManager.getStackFromElement(e.target as HTMLElement),
-        peerId: userId.toPeerId()
-      });
+    // * TeleSignal: a contact without a chat of its own gets one by its ACI when messaged, as in Web A (`Contact`)
+    const aci = (contact as SignalContactMedia).signal_aci;
+    const openChat = async(e: MouseEvent) => {
+      const stack = this.chat.appImManager.getStackFromElement(e.target as HTMLElement);
+      const peerId = user ? userId.toPeerId() : await this.managers.appSignalManager.getPeerIdByAci(aci);
+      if(peerId) this.chat.appImManager.setInnerPeer({stack, peerId});
     };
     const showDetails = () => showContactDetailsPopup(vcardItems, formatContactPhone);
-    const addContact = () => showCreateContactPopup({
-      firstName: contact.first_name,
-      lastName: contact.last_name,
-      phone
-    });
+    // * Signal keeps no contact list on a server: a shared contact is saved as its vCard, as in Web A
+    const saveVcard = () => {
+      const url = URL.createObjectURL(new Blob([contact.vcard], {type: VCARD_MIME_TYPE}));
+      createDownloadAnchor(url, `${displayName || ownPhone}.vcf`, () => setTimeout(() => URL.revokeObjectURL(url), VCARD_URL_LIFETIME));
+    };
     const copyPhone = () => copyPhoneNumber(phoneText);
 
     // * The box itself shows the vCard when there is one, as tdesktop's does; otherwise it opens
@@ -12341,27 +12348,10 @@ export default class ChatBubbles {
       visible
     });
 
-    let footer: Parameters<typeof WebPageBox>[0]['footer'];
-    if(user) {
-      const buttons = [footerButton('SharedContactMessage', openChat)];
-      if(!user.pFlags.self) {
-        // * ADD goes away once they are in the contacts, and comes back if they leave them
-        const [isContact, setIsContact] = createSignal(!!user.pFlags.contact);
-        const onContactsUpdate = (updatedUserId: UserId) => {
-          if(updatedUserId !== userId) return;
-          this.managers.appUsersManager.isContact(userId).then(setIsContact);
-        };
-        rootScope.addEventListener('contacts_update', onContactsUpdate);
-        middleware.onDestroy(() => rootScope.removeEventListener('contacts_update', onContactsUpdate));
-
-        buttons.push(footerButton('SharedContactAdd', addContact, () => !isContact()));
-      }
-
-      footer = {buttons};
-    } else if(vcardItems.length) {
-      // * VIEW CONTACT does what the box does, so it is the box's caption, as INSTANT VIEW is
-      footer = {content: i18n('ViewContact')};
-    }
+    const buttons: WebPageFooterButton[] = [];
+    if(user || aci) buttons.push(footerButton('SharedContactMessage', openChat));
+    if(contact.vcard) buttons.push(footerButton('SharedContactAdd', saveVcard));
+    const footer: Parameters<typeof WebPageBox>[0]['footer'] = buttons.length ? {buttons} : undefined;
 
     const avatar = avatarNew({
       middleware,
