@@ -14,7 +14,6 @@ import showStickersPopup from '@components/popups/stickers';
 import Row from '@components/rowTsx';
 import Section, {appendSectionContent} from '@components/section';
 import wrapStickerSetThumb from '@components/wrappers/stickerSetThumb';
-import ReactionStickerPreview from '@components/reactionStickerPreview';
 import {useAppSettings} from '@stores/appSettings';
 import {getStickerSetInputById} from '@lib/appManagers/utils/stickers/getStickerSetInput';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
@@ -28,13 +27,6 @@ const StickersAndEmoji: Component = () => {
   const [tab] = useSuperTab();
   const [appSettings, setAppSettings] = useAppSettings();
   const promiseCollector = usePromiseCollector();
-  const [quickReactionDoc, {refetch: refetchQuickReaction}] = createResource(async() => {
-    const reaction = await tab.managers.appReactionsManager.getQuickReaction();
-    return reaction._ === 'availableReaction' ?
-      reaction.static_icon :
-      tab.managers.appEmojiManager.getCustomEmojiDocument(reaction.document_id);
-  });
-
   // * the row to the archive stands only while there is something in it, as in Android; a failed
   // * answer leaves it out rather than failing the tab
   const [archivedCount, {refetch: refetchArchivedCount}] = createResource(() => {
@@ -75,13 +67,6 @@ const StickersAndEmoji: Component = () => {
               </Row.Title>
             </Row>
           </Show>
-          <Row
-            havePadding
-            clickable={() => tab.slider.createTab(hotReloadGuard.tabs.AppQuickReactionTab).open()}
-          >
-            <Row.Title>{i18n('DoubleTapSetting')}</Row.Title>
-            <ReactionStickerPreview sticker={quickReactionDoc()} />
-          </Row>
           <Row ref={suggestStickersRow} clickable>
             <Row.Icon icon="lamp_filled" />
             <Row.Title
@@ -121,10 +106,6 @@ const StickersAndEmoji: Component = () => {
         listenTo: suggestStickersRow,
         middleware: tab.middlewareHelper.get(),
         listenForClick: true
-      });
-
-      tab.listenerSetter.add(rootScope)('quick_reaction', () => {
-        refetchQuickReaction();
       });
 
       tab.scrollable.append(section);

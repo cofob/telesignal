@@ -140,13 +140,6 @@ export const AppExperimentalTab = Object.assign(
 (AppExperimentalTab as any).noSame = true;
 
 
-export const AppQuickReactionTab =
-  scaffoldSolidJSTab({
-    title: 'DoubleTapSetting',
-    getComponentModule: () => import('../sidebarLeft/tabs/quickReaction')
-  });
-
-
 export const AppStickersAndEmojiTab =
   scaffoldSolidJSTab({
     title: 'StickersName',
