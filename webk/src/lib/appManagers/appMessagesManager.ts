@@ -12378,8 +12378,10 @@ export class AppMessagesManager extends AppManager {
     return message;
   }
 
+  // * the preview of a channel we are not in polls its difference; a basic group, which every Signal group is, has no
+  // * channel state to poll, even when we are not in it (an ended group or one we left)
   public isFetchIntervalNeeded(peerId: PeerId) {
-    return peerId.isAnyChat() && !this.appChatsManager.isInChat(peerId.toChatId());
+    return this.appPeersManager.isChannel(peerId) && !this.appChatsManager.isInChat(peerId.toChatId());
   }
 
   // public async getNewHistory(peerId: PeerId, threadId?: number) {

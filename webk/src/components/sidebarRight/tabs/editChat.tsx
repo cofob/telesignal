@@ -227,7 +227,7 @@ function EditChatForm(props: {
     return numberThousandSplitter(getParticipantsCount(chatFull()));
   });
   const removedUsersSubtitle = createMemo(() => {
-    const count = channelFull()?.kicked_count || 0;
+    const count = channelFull()?.kicked_count || (chatFull() as {signal_banned?: PeerId[]}).signal_banned?.length || 0;
     return count ? numberThousandSplitter(count) : i18n('NoBlockedUsers');
   });
 
@@ -676,7 +676,8 @@ function EditChatForm(props: {
             <Row.Subtitle>{pendingInvitesCount()}</Row.Subtitle>
           </Row>
         </Show>
-        <Show when={isChannel()}>
+        {/* TeleSignal: a Signal group (a basic group here) has removed members too, as in Web A */}
+        <Show when={isChannel() || chat()._ === 'chat'}>
           <Row clickable={() => {
             tab.slider.createTab(hotReloadGuard.tabs.AppRemovedUsersTab).open({chatId: chatId()});
           }}>

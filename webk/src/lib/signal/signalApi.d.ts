@@ -210,7 +210,9 @@ export type SignalContact = {
   firstName: string,
   lastName: string,
   phoneNumber: string,
+  // `'0'` for a contact without a chat
   userId: string,
+  aci?: string,
   vcard?: string
 };
 
@@ -249,14 +251,14 @@ export type SignalMessage = {
     webPage?: {id: string},
     pollId?: string
   },
-  // A reply to a story or an ephemeral reply has nothing that Web K shows
+  // An ephemeral reply has nothing that Web K shows; a reply to a story that expired has `storyId` 0
   replyInfo?: {
     type: 'message',
     replyToMsgId?: number,
     replyFrom?: {date: number, fromId?: string},
     quoteText?: SignalFormattedText,
     isQuote?: true
-  } | {type: 'story' | 'ephemeral'},
+  } | {type: 'story', peerId: string, storyId: number} | {type: 'ephemeral'},
   reactions?: SignalReactions,
   sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed',
   isPartiallySent?: true,
@@ -395,6 +397,7 @@ export type SignalMethodName =
   | 'fetchUsernameLink'
   | 'fetchUsers'
   | 'forwardMessages'
+  | 'getChatByAci'
   | 'getChatByUsername'
   | 'hideAllChatJoinRequests'
   | 'hideChatJoinRequest'
@@ -402,6 +405,7 @@ export type SignalMethodName =
   | 'importBackupFile'
   | 'importChatInvite'
   | 'installStickerSet'
+  | 'joinChannel'
   | 'linkSignalDevice'
   | 'loadPollOptionResults'
   | 'lookUpPhoneNumber'
@@ -460,6 +464,7 @@ export type SignalMethodName =
   | 'updateChatAbout'
   | 'updateChatAdmin'
   | 'updateChatDefaultBannedRights'
+  | 'updateChatMemberBannedRights'
   | 'updateChatNotifySettings'
   | 'updateChatTitle'
   | 'updateNotificationSettings'

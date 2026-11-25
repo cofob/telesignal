@@ -5,7 +5,7 @@
 
 import type {Chat, InputUser, Peer, User} from '@layer';
 import type {SignalMethodHandlers, SignalMethodHost} from '@lib/signal/methodHost';
-import type {SignalChatStyle} from '@lib/signal/signalApi';
+import type {SignalChatStyle, SignalUser} from '@lib/signal/signalApi';
 import {buildPeer, buildUser, toPeerId} from '@lib/signal/builders';
 import {getInputUserPeerId, getUserRef} from '@lib/signal/methodHost';
 import {SIGNAL_USERNAME_PATTERN} from '@lib/signal/usernames';
@@ -34,6 +34,12 @@ export function cancelKeyTransparencyCheck(host: SignalMethodHost, userId: PeerI
 
 export function updateSafetyNumberVerified(host: SignalMethodHost, userId: PeerId, isVerified: boolean) {
   return host.call('updateSafetyNumberVerified', {user: getUserRef(userId), isVerified});
+}
+
+/** The user of a shared contact's ACI, whose chat the provider creates if there is none (Web A's `openChatByAci`) */
+export async function getUserByAci(host: SignalMethodHost, aci: string) {
+  const result = await host.call<{user: SignalUser} | undefined>('getChatByAci', aci);
+  return result && buildUser(result.user);
 }
 
 export function buildUserMethodHandlers(host: SignalMethodHost): SignalMethodHandlers {

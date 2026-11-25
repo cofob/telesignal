@@ -241,6 +241,11 @@ export async function buildGroupFullInfo(
       date: timestamp ? Math.floor(timestamp / MS_PER_SECOND) : undefined,
     };
   });
+  // Admins see who was removed from the group and can unban them; a ban names no one who removed the member
+  const bannedConversations: ConversationRecord[] = [];
+  for (const { serviceId } of isSelfAdmin ? conversation.groupState?.bannedMembers ?? [] : []) {
+    if (!isPniServiceId(serviceId)) bannedConversations.push(await processor.getOrCreatePrivateConversation(serviceId));
+  }
   const labels = new Map(conversation.groupState?.members.map((member) => [member.aci, formatMemberLabel(member)]));
   const members = memberConversations.map((member): ApiChatMember => {
     const isMemberAdmin = adminAcis.has(member.id);
@@ -269,8 +274,13 @@ export async function buildGroupFullInfo(
       requestsPending: requesters.length || undefined,
       recentRequesterIds: requesterConversations.length ? requesterConversations.map(getPeerId) : undefined,
       pendingInvites: pendingInvites.length ? pendingInvites : undefined,
+      kickedMembers: bannedConversations.length
+        ? bannedConversations.map((banned) => ({ userId: getPeerId(banned), bannedRights: { viewMessages: true } }))
+        : undefined,
     },
-    users: [...memberConversations, ...requesterConversations, ...invitedConversations.values()]
+    users: [
+      ...memberConversations, ...requesterConversations, ...invitedConversations.values(), ...bannedConversations,
+    ]
       .map((member) => buildApiUser(member, selfAci)),
   };
 }

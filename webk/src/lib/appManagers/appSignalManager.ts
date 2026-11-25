@@ -50,6 +50,7 @@ import {
   cancelKeyTransparencyCheck,
   checkKeyTransparency,
   fetchSafetyNumber,
+  getUserByAci,
   updateSafetyNumberVerified
 } from '@lib/signal/userMethods';
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
@@ -174,6 +175,14 @@ export default class AppSignalManager extends AppManager {
 
   public cancelKeyTransparencyCheck(userId: PeerId) {
     return cancelKeyTransparencyCheck(this.createMethodHost(), userId);
+  }
+
+  /** The peer of a shared contact's ACI, for its Message button (`components/chat/bubbles.ts`) */
+  public async getPeerIdByAci(aci: string) {
+    const user = await getUserByAci(this.createMethodHost(), aci);
+    if(!user) return undefined;
+    this.appUsersManager.saveApiUsers([user]);
+    return user.id.toPeerId(false);
   }
 
   /** The recipients of an outgoing message for the message info popup (`components/popups/messageInfo.tsx`) */
@@ -884,7 +893,7 @@ export default class AppSignalManager extends AppManager {
   private buildMessage = (message: SignalMessage) => buildMessage(message, (signalUserId) => {
     const user = this.appUsersManager.getUser(toPeerId(signalUserId));
     return user ? [user.first_name, user.last_name].filter(Boolean).join(' ') : '';
-  });
+  }, toSignalPeerId(this.appPeersManager.peerId));
 
   private getInputPeerId(inputPeer: InputPeer): PeerId {
     switch(inputPeer?._) {

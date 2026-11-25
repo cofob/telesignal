@@ -2,11 +2,9 @@ import {Component, createEffect, createSignal, onCleanup, onMount} from 'solid-j
 import InputSearch from '@components/inputSearch';
 import {IS_MOBILE} from '@environment/userAgent';
 import {canFocus} from '@helpers/dom/canFocus';
-import ButtonCorner from '@components/buttonCorner';
 import ButtonIcon from '@components/buttonIcon';
 import {replaceButtonIcon} from '@components/button';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
-import showCreateContactPopup from '@components/popups/createContact';
 import ContactsList from '@components/sidebarLeft/contactsList';
 import ContactsSelection from '@components/contactsSelection';
 import attachContactsContextMenu from '@components/sidebarLeft/contactsContextMenu';
@@ -63,13 +61,8 @@ const Contacts: Component = () => {
 
   onMount(() => {
     tab.container.id = 'contacts-container';
-
-    const btnAdd = ButtonCorner({icon: 'add', className: 'is-visible', ariaLabel: 'AddContact'});
-    tab.content.append(btnAdd);
-
-    attachClickEvent(btnAdd, () => {
-      showCreateContactPopup();
-    }, {listenerSetter: tab.listenerSetter});
+    // * TeleSignal: no Add Contact button. Signal keeps no contact list on a server, and Web A's dialog adds no one
+    // * (its `importContact` is a removed Telegram method); a number is looked up from the search instead
 
     const inputSearch = new InputSearch({
       placeholder: 'Search',

@@ -109,8 +109,10 @@ async function getFullChat(host: SignalMethodHost, chatId: number) {
       requests_pending: fullInfo?.requestsPending,
       recent_requesters: fullInfo?.recentRequesterIds?.map((id: string) => toPeerId(id)),
       // * not fields of Telegram's: the profile shows the colours (`PeerProfile.ChatStyle`), group management the
-      // * invitations not yet accepted (`sidebarRight/tabs/pendingInvites`)
+      // * invitations not yet accepted (`sidebarRight/tabs/pendingInvites`) and the removed members, which only
+      // * admins get (`appProfileManager.getParticipants`)
       signal_chat_style: fullInfo?.signalChatStyle,
+      signal_banned: (fullInfo?.kickedMembers ?? []).map(({userId}: {userId: string}) => toPeerId(userId)),
       signal_pending_invites: (fullInfo?.pendingInvites ?? []).map((invite: {
         serviceId: string, userId?: string, phoneNumber?: string, inviterId?: string
       }): SignalPendingInvite => ({
@@ -141,12 +143,15 @@ async function createChat(host: SignalMethodHost, title: string, users: any[]) {
   };
 }
 
+/** Adding ourselves is joining the group, which accepts our invitation (Web A's `joinChannel` action) */
 async function addChatUser(host: SignalMethodHost, chatId: number, inputUser: any) {
   const peerId = getInputUserPeerId(host, inputUser);
   const chat = getGroupOf(host, chatId);
   if(peerId === undefined || !chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
 
-  await applyGroupChange(host.call('addChatMembers', chat, [getUserRef(peerId)]));
+  await applyGroupChange(peerId === host.getManagers().appPeersManager.peerId ?
+    host.call('joinChannel', {channelId: chat.id, accessHash: ''}) :
+    host.call('addChatMembers', chat, [getUserRef(peerId)]));
   return {_: 'messages.invitedUsers', updates: emptyUpdates(), missing_invitees: [] as MissingInvitee[]};
 }
 

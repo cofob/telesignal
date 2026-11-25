@@ -137,14 +137,20 @@ function buildBannedRights(rights?: SignalBannedRights): ChatBannedRights.chatBa
   return {_: 'chatBannedRights', pFlags, until_date: 0};
 }
 
+/**
+ * A group as Web K keeps it. Not fields of Telegram's basic group: its avatar colour, as a user has, and
+ * `signal_not_joined` for a group that invited us, which we join by accepting the invitation
+ */
+export type SignalBuiltChat = Chat.chat & Pick<User.user, 'color'> & {signal_not_joined?: true};
+
 /** Groups only: a private conversation is its user (`buildUser`) */
-// * A group carries its avatar colour as a user does, which Telegram's basic group has no field for
 export function buildChat(chat: SignalChat): Chat.chat {
-  const result: Chat.chat & Pick<User.user, 'color'> = {
+  const result: SignalBuiltChat = {
     _: 'chat',
     pFlags: {
       creator: chat.isOwner || undefined,
-      left: chat.isForbidden || undefined,
+      // * we are not in a group that invited us until we accept, as in Web A (`selectIsChatRestricted`)
+      left: chat.isForbidden || chat.isNotJoined || undefined,
       // * Web K reads it on users and channels; a Signal group's stories are hidden the same way
       stories_hidden: chat.areStoriesHidden
     } as Chat.chat['pFlags'],
@@ -156,7 +162,8 @@ export function buildChat(chat: SignalChat): Chat.chat {
     version: 0,
     admin_rights: buildAdminRights(chat.adminRights),
     default_banned_rights: buildBannedRights(chat.defaultBannedRights),
-    color: chat.color?.color !== undefined ? {_: 'peerColor', color: chat.color.color} : undefined
+    color: chat.color?.color !== undefined ? {_: 'peerColor', color: chat.color.color} : undefined,
+    signal_not_joined: chat.isNotJoined || undefined
   };
   return result;
 }
@@ -196,7 +203,8 @@ export function buildNotifySettings(settings?: SignalNotifySettings): PeerNotify
   };
 }
 
-export function buildMessage(message: SignalMessage, getName: SignalNameResolver = () => ''): Message.message | Message.messageService {
+/** `selfId` is our provider user id, which tells a deletion by us as an admin from one by another admin */
+export function buildMessage(message: SignalMessage, getName: SignalNameResolver = () => '', selfId?: string): Message.message | Message.messageService {
   const peerId = buildPeer(message.chatId);
   const fromId = message.senderId ? buildPeer(message.senderId) : undefined;
   const pFlags: Message.message['pFlags'] = {
@@ -233,7 +241,7 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
       peer_id: peerId,
       from_id: fromId,
       date: message.date,
-      action: buildMessageAction(message, getName),
+      action: buildMessageAction(message, getName, selfId),
       // * a pin notice names the pinned message as Telegram's does
       reply_to: buildReplyHeader(message.replyInfo)
     };
@@ -281,8 +289,12 @@ function buildViewOnceMedia(media: any, date: number) {
 }
 
 // * a reply to a message of the chat names it; a quote of a message that is not in the chat, or is gone, keeps the
-// * text the quote carries
-function buildReplyHeader(replyInfo: SignalMessage['replyInfo']): MessageReplyHeader.messageReplyHeader | undefined {
+// * text the quote carries; a reply to a story names the story, which Web K shows above the reply as Web A does
+function buildReplyHeader(replyInfo: SignalMessage['replyInfo']): MessageReplyHeader | undefined {
+  if(replyInfo?.type === 'story') {
+    return {_: 'messageReplyStoryHeader', peer: buildPeer(replyInfo.peerId), story_id: replyInfo.storyId};
+  }
+
   if(replyInfo?.type !== 'message') return undefined;
   if(replyInfo.replyToMsgId) {
     return {_: 'messageReplyHeader', pFlags: {}, reply_to_msg_id: replyInfo.replyToMsgId};
@@ -382,7 +394,7 @@ const GROUP_UPDATE_KEYS: Record<string, string> = {
 };
 const GROUP_UPDATES_WITH_COUNT = new Set(['invited', 'inviteRevoked']);
 
-function buildMessageAction(message: SignalMessage, getName: SignalNameResolver): MessageAction {
+function buildMessageAction(message: SignalMessage, getName: SignalNameResolver, selfId?: string): MessageAction {
   const action = message.content.action;
   switch(action.type) {
     case 'setMessagesTtl':
@@ -403,7 +415,7 @@ function buildMessageAction(message: SignalMessage, getName: SignalNameResolver)
       return {_: 'messageActionPinMessage'};
     default:
       // * the notices Signal has and Telegram has not (safety numbers, group access) show as text
-      return {_: 'messageActionCustomAction', message: getActionText(message, getName)};
+      return {_: 'messageActionCustomAction', message: getActionText(message, getName, selfId)};
   }
 }
 
@@ -445,7 +457,7 @@ function getCallNoticeKey(callType: string, outcome: string, isOut: boolean, dat
 }
 
 /** The text of a notice that Telegram has no action for, as a lang key and its arguments (`@lib/signal/notices`) */
-function getActionText(message: SignalMessage, getName: SignalNameResolver) {
+function getActionText(message: SignalMessage, getName: SignalNameResolver, selfId?: string) {
   const {action} = message.content;
   const from = message.senderId ? getName(message.senderId) : '';
   const isOut = message.isOutgoing;
@@ -481,8 +493,13 @@ function getActionText(message: SignalMessage, getName: SignalNameResolver) {
       if(!isOut) return encodeSignalNotice('Signal.Notice.Payment' + name, [from]);
       return encodeSignalNotice('Signal.Notice.Payment' + name + 'Out', name === 'Activated' ? [] : [getName(message.chatId)]);
     }
-    case 'deleted':
-      return ofSender('Signal.Notice.Deleted');
+    // * Web A's `ActionMessageText` (Signal Desktop `getMessageStatusContents` in
+    // * `ts/components/conversation/Message.dom.tsx`): a message deleted by an admin names the admin
+    case 'deleted': {
+      const adminId = action.adminId as string | undefined;
+      if(!adminId) return ofSender('Signal.Notice.Deleted');
+      return adminId === selfId ? encodeSignalNotice('Signal.Notice.DeletedOut') : encodeSignalNotice('Signal.Notice.DeletedByAdmin', [getName(adminId)]);
+    }
     case 'viewOnce':
       return encodeSignalNotice(action.isViewed ? 'Signal.Notice.ViewOnceViewed' : 'Signal.Notice.ViewOnce');
     default:

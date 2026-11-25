@@ -670,7 +670,18 @@ export class AppProfileManager extends AppManager {
       }
 
       let {participants} = chatParticipants;
-      if(filter._ === 'channelParticipantsAdmins') {
+      if(filter._ === 'channelParticipantsKicked') {
+        // * TeleSignal: a Signal group (a basic group here) keeps its removed members apart from its members; a ban
+        // * names no one who removed the member
+        participants = ((chatFull as {signal_banned?: PeerId[]}).signal_banned ?? []).map((peerId) => ({
+          _: 'channelParticipantBanned',
+          pFlags: {left: true},
+          peer: {_: 'peerUser', user_id: peerId.toUserId()},
+          kicked_by: 0,
+          date: 0,
+          banned_rights: {_: 'chatBannedRights', pFlags: {view_messages: true}, until_date: 0}
+        }) satisfies ChannelParticipant.channelParticipantBanned as any as ChatParticipant);
+      } else if(filter._ === 'channelParticipantsAdmins') {
         participants = participants.filter((participant) => {
           return isParticipantAdmin(participant);
         });
