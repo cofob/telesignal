@@ -242,8 +242,7 @@ const Settings = () => {
     makeSubTabConfig('key_filled', 'AccountSettings.PrivacyAndSecurity', hotReloadGuard.tabs.AppPrivacyAndSecurityTab, tab),
     makeSubTabConfig('general_filled', 'Telegram.GeneralSettingsViewController', hotReloadGuard.tabs.AppGeneralSettingsTab, tab),
     makeSubTabConfig('limit_folders_filled', 'AccountSettings.Filters', hotReloadGuard.tabs.AppChatFoldersTab, tab),
-    makeSubTabConfig('reactions_filled', 'StickersName', hotReloadGuard.tabs.AppStickersAndEmojiTab, tab),
-    makeSubTabConfig('speaker_filled', 'AccountSettings.SpeakersAndCamera', hotReloadGuard.tabs.AppSpeakersAndCameraTab, tab)
+    makeSubTabConfig('reactions_filled', 'StickersName', hotReloadGuard.tabs.AppStickersAndEmojiTab, tab)
   ];
 
   const onSubTabClick = (item: SubTabConfig) => async() => {

@@ -104,13 +104,6 @@ export const AppLanguageTab =
   });
 
 
-export const AppSpeakersAndCameraTab =
-  scaffoldSolidJSTab({
-    title: 'AccountSettings.SpeakersAndCamera',
-    getComponentModule: () => import('../sidebarLeft/tabs/speakersAndCamera')
-  });
-
-
 export const AppSettingsTab =
   scaffoldSolidJSTab({
     title: 'Settings',
