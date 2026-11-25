@@ -23,7 +23,7 @@ import {readWebASharedSettings, updateWebASharedSettings} from '@lib/signal/webA
 export type ResolvedKeyboardShortcutCombo = {combo: string, condition?: KeyboardShortcutCondition};
 // * the shortcuts changed from their defaults: a combo, or `false` for none
 export type KeyboardShortcutOverrides = Partial<Record<KeyboardShortcutId, string | false>>;
-type SendKeyCombo = 'enter' | 'ctrl-enter';
+export type SendKeyCombo = 'enter' | 'ctrl-enter';
 
 const NO_COMBOS: ResolvedKeyboardShortcutCombo[] = [];
 // * Web A's environments of the defaults (`getIsDefaultAvailable`): `IS_APP` is a standalone window or the desktop app
@@ -40,6 +40,8 @@ let isListening = false;
 
 /** The user's changes of the shortcuts, which the settings screen follows */
 export const getKeyboardShortcutOverrides = overrides;
+/** The keys that send a message, Web A's `messageSendKeyCombo` of the settings both frontends share */
+export const getMessageSendKeyCombo = sendKeyCombo;
 
 /** The combos of a shortcut: the user's own one, none, or the defaults, as Web A's `getKeyboardShortcutCombos` */
 export function getKeyboardShortcutCombos(id: KeyboardShortcutId, custom: KeyboardShortcutOverrides = overrides()) {
@@ -89,6 +91,11 @@ export function resetKeyboardShortcuts(id?: KeyboardShortcutId) {
   const next = {...overrides()};
   if(id) delete next[id];
   return saveKeyboardShortcuts(id ? next : {});
+}
+
+export async function setMessageSendKeyCombo(value: SendKeyCombo) {
+  setSendKeyCombo(value);
+  await updateWebASharedSettings({messageSendKeyCombo: value});
 }
 
 // * where both frontends read them; Web A's open tabs take them at once (`listenOtherClients` in Web A)

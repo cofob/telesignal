@@ -2,7 +2,6 @@ import {createMemo, createSignal, For, onCleanup, Show, JSX} from 'solid-js';
 import Row from '@components/rowTsx';
 import Section from '@components/section';
 import I18n, {i18n, LangPackKey} from '@lib/langPack';
-import {useAppSettings} from '@stores/appSettings';
 import InlineSelect from '@components/inlineSelect';
 import confirmationPopup from '@components/confirmationPopup';
 import noop from '@helpers/noop';
@@ -11,9 +10,11 @@ import {
   getDefaultKeyboardShortcutCombos,
   getKeyboardShortcutCombos,
   getKeyboardShortcutOverrides,
+  getMessageSendKeyCombo,
   listenKeyboardShortcuts,
   resetKeyboardShortcuts,
   setKeyboardShortcut,
+  setMessageSendKeyCombo,
   type ResolvedKeyboardShortcutCombo
 } from '@lib/keyboardShortcuts';
 import {
@@ -92,13 +93,12 @@ function getDisplayKeyLabels(displayKeys: string[]) {
 }
 
 const SendShortcutRow = () => {
-  const [appSettings, setAppSettings] = useAppSettings();
   const [rowEl, setRowEl] = createSignal<HTMLElement>();
   const [isOpen, setIsOpen] = createSignal(false);
 
   const options = [
     {value: 'enter' as const, label: () => <Keys groups={[getKeyComboLabels('Enter', lang)]} />},
-    {value: 'ctrlEnter' as const, label: () => <Keys groups={[getKeyComboLabels('Mod+Enter', lang)]} />}
+    {value: 'ctrl-enter' as const, label: () => <Keys groups={[getKeyComboLabels('Mod+Enter', lang)]} />}
   ];
 
   return (
@@ -106,11 +106,11 @@ const SendShortcutRow = () => {
       <Row.Title>{i18n('KeyboardShortcuts.Action.Send')}</Row.Title>
       <Row.RightContent>
         <InlineSelect
-          value={appSettings.sendShortcut || 'enter'}
+          value={getMessageSendKeyCombo()}
           isOpen={isOpen()}
           onClose={() => setIsOpen(false)}
           options={options}
-          onChange={(value) => setAppSettings('sendShortcut', value)}
+          onChange={(value) => void setMessageSendKeyCombo(value)}
           parent={rowEl()}
         />
       </Row.RightContent>
@@ -124,10 +124,9 @@ const PlainRow = (props: {action: LangPackKey, keys: JSX.Element}) => (
   </Row>
 );
 
-// * Web K's own way of sending, which Web A keeps apart (`messageSendKeyCombo`)
+// * the way of sending that both frontends share (`messageSendKeyCombo` of Web A)
 const MessagesSection = () => {
-  const [appSettings] = useAppSettings();
-  const newLine = () => appSettings.sendShortcut === 'ctrlEnter' ? 'Enter' : 'Shift+Enter';
+  const newLine = () => getMessageSendKeyCombo() === 'ctrl-enter' ? 'Enter' : 'Shift+Enter';
 
   return (
     <Section name="KeyboardShortcuts.Section.Messages" caption="KeyboardShortcuts.Section.Messages.Caption">

@@ -1,4 +1,4 @@
-import {useAppSettings} from '@stores/appSettings';
+import {getMessageSendKeyCombo} from '@lib/keyboardShortcuts';
 import {IS_MOBILE, IS_APPLE} from '@environment/userAgent';
 
 export default function isSendShortcutPressed(e: KeyboardEvent) {
@@ -9,8 +9,7 @@ export default function isSendShortcutPressed(e: KeyboardEvent) {
       return;
     } */
 
-    const [appSettings] = useAppSettings();
-    if(appSettings.sendShortcut === 'enter') {
+    if(getMessageSendKeyCombo() === 'enter') {
       if(e.shiftKey || e.ctrlKey || e.metaKey) {
         return;
       }
@@ -34,8 +33,7 @@ export default function isSendShortcutPressed(e: KeyboardEvent) {
 export function isNewLineShortcutPressed(e: KeyboardEvent) {
   if(e.key !== 'Enter' || IS_MOBILE || e.isComposing || e.altKey) return false;
 
-  const [appSettings] = useAppSettings();
-  if(appSettings.sendShortcut === 'enter') {
+  if(getMessageSendKeyCombo() === 'enter') {
     return e.shiftKey && !e.ctrlKey && !e.metaKey;
   }
 
