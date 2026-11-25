@@ -106,7 +106,6 @@ export type StateSettings = {
   },
   notifications: {
     sound: boolean,
-    push: boolean,
     desktop: boolean,
     sentMessageSound: boolean,
     suggested: boolean,
@@ -170,9 +169,6 @@ export type StateSettings = {
     textStyle?: string;
     textFont?: FontKey;
   },
-  // The name of this browser in Telegram's Active Sessions, kept from Telegram's state: with MTProto gone no
-  // `initConnection` sends it. Empty = the raw user agent.
-  customDeviceModel: string,
   // Persisted device choices for the audio/video stack used by the
   // SettingsCallsPanel ("Speakers and Camera" tab) and the per-call settings
   // popup. Empty string = follow the OS default (no setSinkId / no deviceId
@@ -513,7 +509,6 @@ export const SETTINGS_INIT: StateSettings = {
   },
   notifications: {
     sound: false,
-    push: true,
     desktop: true,
     sentMessageSound: true,
     suggested: false,
@@ -594,7 +589,6 @@ export const SETTINGS_INIT: StateSettings = {
   mediaEditor: {
     colorByBrush: {}
   },
-  customDeviceModel: '',
   callDevices: {
     speakerId: '',
     microphoneId: '',

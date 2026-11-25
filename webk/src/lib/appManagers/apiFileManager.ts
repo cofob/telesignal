@@ -97,7 +97,7 @@ const AVG_PART_SIZE = 512 * 1024;
 const TGS_MAX_DECOMPRESSED_SIZE = 8 * 1024 * 1024;
 // .tgv is a gzipped SVG wallpaper pattern — a few hundred KB in practice. Without a
 // cap a sender-supplied gzip bomb (deflate reaches ~1032:1) expands unbounded inside
-// the crypto worker, which also carries all transport obfuscation.
+// the crypto worker, which also encrypts the storages and the file cache.
 const TGV_MAX_DECOMPRESSED_SIZE = 8 * 1024 * 1024;
 
 const REGULAR_DOWNLOAD_DELTA = (9 * 512 * 1024) / MIN_PART_SIZE;

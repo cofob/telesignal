@@ -37,7 +37,6 @@ import {getIsSilencedByNotificationProfile} from '@lib/signal/notificationProfil
 import {useAppSettings} from '@stores/appSettings';
 import {unwrap} from 'solid-js/store';
 import AudioAssetPlayer from '@helpers/audioAssetPlayer';
-import {createEffect, createRoot, on} from 'solid-js';
 import appNavigationController from '@components/appNavigationController';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
@@ -326,10 +325,6 @@ export class UiNotificationsManager {
       });
     }
 
-    createRoot((dispose) => {
-      createEffect(on(() => this.settings.push, this.onPushConditionsChange));
-    });
-
     rootScope.addEventListener('dialogs_multiupdate', () => {
       // unregisterTopMsgs()
       this.topMessagesDeferred.resolve();
@@ -405,23 +400,6 @@ export class UiNotificationsManager {
       });
     });
   }
-
-  public onPushConditionsChange = async() => {
-    const needPush = this.settings.push &&
-      webPushApiManager.isAvailable &&
-      Notification.permission === 'granted';
-
-    let tokenData = await webPushApiManager.getSubscription();
-    if(needPush) {
-      tokenData ||= await webPushApiManager.subscribe();
-      if(tokenData) {
-        apiManagerProxy.pushSingleManager.registerDevice(tokenData);
-      }
-    } else if(tokenData) {
-      webPushApiManager.unsubscribe();
-      apiManagerProxy.pushSingleManager.unregisterDevice(tokenData);
-    }
-  };
 
   public async buildNotificationQueue(options: Parameters<UiNotificationsManager['buildNotification']>[0]) {
     this.notificationsQueue.push({
@@ -539,7 +517,7 @@ export class UiNotificationsManager {
       if(!message || !message.pFlags.unread) return;
     }
 
-    const result = await this.finishNotification({
+    await this.finishNotification({
       notification,
       account,
       accountNumber,
@@ -553,10 +531,6 @@ export class UiNotificationsManager {
         peerId: '' + peerId
       }
     });
-
-    if(result && await apiManagerProxy.pushSingleManager.isRegistered()) {
-      webPushApiManager.ignorePushByMid(peerId, message.mid);
-    }
   }
 
   private async buildStoryNotification({
@@ -811,6 +785,8 @@ export class UiNotificationsManager {
       }
 
       webPushApiManager.start();
+      // * TeleSignal: no push service is used, as in Web A; a subscription that an earlier version made goes
+      webPushApiManager.unsubscribe();
     });
 
     if(!this.notificationsUiSupport) {
@@ -1095,11 +1071,7 @@ export class UiNotificationsManager {
       return;
     }
 
-    Notification.requestPermission().then((permission) => {
-      if(permission === 'granted') {
-        this.onPushConditionsChange();
-      }
-    });
+    Notification.requestPermission();
   };
 
   public testSound(volume: number) {

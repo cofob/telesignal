@@ -79,7 +79,6 @@ const SignalNotifySection = (props: {name: LangPackKey, typeText: LangPackKey, p
 };
 
 const NotificationsSection = () => {
-  const {uiNotificationsManager} = useHotReloadGuard();
   const [appSettings, setAppSettings] = useAppSettings();
   const [permission, setPermission] = createSignal<NotificationPermission>(
     // * TeleSignal: the desktop app shows system notifications, which need no permission of the page
@@ -97,9 +96,7 @@ const NotificationsSection = () => {
     // const now = Date.now();
     Notification.requestPermission().then((permission) => {
       setPermission(permission);
-      if(permission === 'granted') {
-        uiNotificationsManager.onPushConditionsChange();
-      } else {
+      if(permission !== 'granted') {
         throw 1;
       }
     }, () => {
@@ -142,16 +139,6 @@ const NotificationsSection = () => {
           />
         </Row.CheckboxFieldToggle>
         <Row.Title>{i18n('Notifications.Show')}</Row.Title>
-      </NotificationRow>
-      <NotificationRow>
-        <Row.CheckboxFieldToggle>
-          <NotificationCheckbox
-            checked={appSettings.notifications.push}
-            onChange={(value) => setAppSettings('notifications', 'push', value)}
-            toggle
-          />
-        </Row.CheckboxFieldToggle>
-        <Row.Title>{i18n('Notifications.Offline')}</Row.Title>
       </NotificationRow>
       <NotificationRow>
         <Row.CheckboxFieldToggle>
