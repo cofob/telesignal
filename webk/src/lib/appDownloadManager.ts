@@ -533,7 +533,8 @@ export class AppDownloadManager {
       hadProgress = true;
       element = iframe;
 
-      indexOfAndSplice(promise.listeners, onProgress);
+      // * a download that finished before this listener came keeps no listeners
+      if(promise.listeners) indexOfAndSplice(promise.listeners, onProgress);
     };
 
     promise.addNotifyListener(onProgress);

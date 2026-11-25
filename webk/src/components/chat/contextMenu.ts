@@ -884,7 +884,8 @@ export default class ChatContextMenu {
       verify: () => canCopySelectedText()
     }, this.copyMediaButton = {
       icon: 'copy',
-      text: 'MediaViewer.Context.Copy',
+      // * TeleSignal: what it copies is an image, as Web A's "Copy Image" (`canCopyMediaToClipboard`)
+      text: 'Signal.CopyImage',
       welcome: true,
       onClick: this.onCopyMediaClick,
       verify: () => this.richMedia ?
@@ -1194,7 +1195,9 @@ export default class ChatContextMenu {
       return message.some((message) => ChatContextMenu.canDownload(message, withTarget, noForwards, container));
     }
 
-    if(!canSaveMessageMedia(message, noForwards)) {
+    // * TeleSignal: view-once media (the only media with `ttl_seconds`) is never saved, as in Web A (`hasMessageTtl`)
+    const media = (message as Message.message).media as MessageMedia.messageMediaPhoto | MessageMedia.messageMediaDocument;
+    if(!canSaveMessageMedia(message, noForwards) || media?.ttl_seconds) {
       return false;
     }
 
@@ -1214,24 +1217,16 @@ export default class ChatContextMenu {
       isGoodType = true;
     }
 
-    let hasTarget = !withTarget || !!IS_TOUCH_SUPPORTED;
-
-    if(isGoodType && withTarget) {
-      hasTarget ||= !!(findUpClassName(withTarget, 'document') ||
-        findUpClassName(withTarget, 'audio') ||
-        findUpClassName(withTarget, 'media-sticker-wrapper') ||
-        findUpClassName(withTarget, 'media-photo') ||
-        findUpClassName(withTarget, 'media-video'));
-    }
-
+    // * TeleSignal: the target is not checked: the media is saved and copied from wherever the message is clicked, as
+    // * in Web A
     if(container && (message as Message.message).restriction_reason && isSensitive((message as Message.message).restriction_reason)) {
       const item = container.querySelector(
         `[data-peer-id="${message.peerId}"][data-mid="${message.mid}"]`
       ) || container.querySelector(`[data-mid="${message.mid}"]:not([data-peer-id])`);
-      return isGoodType && hasTarget && !!item && !hasSensitiveSpoiler(item as HTMLElement);
+      return isGoodType && !!item && !hasSensitiveSpoiler(item as HTMLElement);
     }
 
-    return isGoodType && hasTarget;
+    return isGoodType;
   }
 
   public static canCopyMedia(
