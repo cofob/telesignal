@@ -1,6 +1,7 @@
 import {createEffect, createRoot, createSignal, createUniqueId} from 'solid-js';
 import appImManager from '@lib/appImManager';
 import rootScope from '@lib/rootScope';
+import CheckboxField from '@components/checkboxField';
 import {createSearchGroup, getSearchTransitionDuration, SearchGroup} from '@components/searchGroup';
 import crossfadeContent, {CROSS_FADE_KEYFRAMES, getAnimatedOptions} from '@helpers/dom/crossfadeContent';
 import DialogsContextMenu from '@components/dialogsContextMenu';
@@ -92,7 +93,6 @@ import {bindActiveWindowListener} from '@helpers/appWindow';
 import tsNow from '@helpers/tsNow';
 import {toastNew} from '@components/toast';
 import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
-import {lockSignalPasscode} from '@lib/signal/passcode';
 import createLockButton from '@components/sidebarLeft/lockButton';
 import createSubmenuTrigger, {CreateSubmenuArgs} from '@components/createSubmenuTrigger';
 import ChatTypeMenu from '@components/chatTypeMenu';
@@ -783,6 +783,17 @@ export class AppSidebarLeft extends SidebarSlider {
       onClick: this.addAccount,
       verify: canAddAccount
     }, newSubmenu, {
+      // * TeleSignal: the items, their order and icons follow Web A's `LeftSideMenuItems`. My Profile opens our own
+      // * profile rather than Note to Self, as Web A's `openChatWithInfo` with `isOwnProfile` does
+      icon: 'user',
+      text: 'Signal.Menu.MyProfile',
+      onClick: () => {
+        import('@components/popups/peerProfile').then(({default: showPeerProfilePopup}) => {
+          showPeerProfilePopup({peerId: rootScope.myId});
+        });
+      },
+      separator: true
+    }, {
       icon: 'savedmessages',
       text: 'SavedMessages',
       onClick: () => {
@@ -791,9 +802,8 @@ export class AppSidebarLeft extends SidebarSlider {
             peerId: appImManager.myId
           });
         }, 0);
-      },
-      separator: true
-    }, btnArchive, {
+      }
+    }, {
       // * Signal has no saved stories of one's own: a story lives a day. A new one starts here, as in Web A's menu
       icon: 'stories',
       text: 'SignalStory.New',
@@ -802,8 +812,8 @@ export class AppSidebarLeft extends SidebarSlider {
           showSignalStoryComposerPopup();
         });
       }
-    }, {
-      icon: 'user',
+    }, btnArchive, {
+      icon: 'group',
       text: 'Contacts',
       onClick: onContactsClick
     }, {
@@ -817,21 +827,13 @@ export class AppSidebarLeft extends SidebarSlider {
       // * TeleSignal: the call log of Signal, which lists calls without placing them
       verify: () => true
     }, {
-      id: 'settings',
       icon: 'settings',
       text: 'Settings',
-      separator: true,
       onClick: () => {
         closeTabsBefore(() => {
           this.createTab(AppSettingsTab).open();
         });
       }
-    }, {
-      // * TeleSignal: locks Web A's vault, as the lock button above the chats and its shortcut do
-      icon: 'lock',
-      text: 'PasscodeLock.Lock',
-      onClick: () => lockSignalPasscode(),
-      verify: () => isSignalPasscodeEnabled()
     }, moreSubmenu];
 
     const filteredButtons = menuButtons.filter(Boolean);
@@ -857,9 +859,6 @@ export class AppSidebarLeft extends SidebarSlider {
           name = limitSymbols(name, 15, 18);
           return wrapEmojiText(name);
         }
-
-        const targetIdx = buttons.findIndex((btn) => btn.id === 'settings');
-        buttons[targetIdx].separator = true;
 
         const [accountNumbers, notificationsCount, hasAddAccount] = await Promise.all([
           AccountController.getAccountNumbers(),
@@ -958,13 +957,16 @@ export class AppSidebarLeft extends SidebarSlider {
       });
     };
 
-    const darkModeText = document.createElement('span');
-    darkModeText.append(i18n(themeController.isNight() ? 'DisableDarkMode': 'EnableDarkMode'));
     const animationsText = document.createElement('span');
 
+    // * TeleSignal: Web A's "Night Mode" switch, then its order: animations, the other version, installing the app
     const btns: ButtonMenuItemOptionsVerifiable[] = [{
       icon: 'darkmode',
-      regularText: darkModeText,
+      text: 'Signal.Menu.NightMode',
+      className: 'has-switch-end',
+      checkboxField: new CheckboxField({toggle: true, checked: themeController.isNight()}),
+      // * the theme switches by the capture listener below, which closes the menu
+      noCheckboxClickListener: true,
       onClick: () => {}
     }, {
       id: 'animations-toggle',
@@ -992,8 +994,15 @@ export class AppSidebarLeft extends SidebarSlider {
       icon: 'aversion',
       text: 'ChatList.Menu.SwitchTo.A',
       // * TeleSignal: the A version of the same build opens the same account (@lib/signal/frontend)
-      onClick: switchToWebA,
-      separator: true
+      onClick: switchToWebA
+    }, {
+      icon: 'download',
+      text: 'PWA.Install',
+      onClick: () => {
+        const installPrompt = getInstallPrompt();
+        installPrompt?.();
+      },
+      verify: () => !!getInstallPrompt()
     }, {
       icon: 'bug',
       text: 'ReportBug',
@@ -1007,14 +1016,6 @@ export class AppSidebarLeft extends SidebarSlider {
           a.remove();
         }, 0);
       }
-    }, {
-      icon: 'plusround',
-      text: 'PWA.Install',
-      onClick: () => {
-        const installPrompt = getInstallPrompt();
-        installPrompt?.();
-      },
-      verify: () => !!getInstallPrompt()
     }, {
       icon: 'pip',
       // The More submenu is rebuilt on every open (createMoreSubmenu runs per open), so reading the live

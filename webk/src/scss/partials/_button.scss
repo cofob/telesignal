@@ -598,6 +598,17 @@ $btn-menu-z-index: 4;
       .btn-menu-item-text {
         order: 1;
       }
+
+      // TeleSignal: a switch after its text, as Web A's menu items show one (Night Mode)
+      &.has-switch-end {
+        .btn-menu-item-text {
+          margin-inline-end: 1rem;
+        }
+
+        .checkbox-field {
+          order: 2;
+        }
+      }
     }
   }
 
