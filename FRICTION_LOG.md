@@ -195,14 +195,6 @@ Web A's empty Note to Self (`src/components/middle/NoMessages.tsx`, `Conversatio
 description strings) keeps Telegram's wording: «Your Cloud Storage» and «Access this chat from any device». Signal keeps
 Note to Self on the linked devices, not in a cloud; Web K says «Your notes» and «See them on your linked devices».
 
-## Web K shows no download progress until the whole attachment is decrypted
-
-Web K downloads a file part by part through `upload.getFile` (`webk/src/lib/signal/mediaMethods.ts`), and each part
-calls the provider's `downloadMedia` with a byte range. The first part makes the provider fetch and decrypt the whole
-attachment from the CDN (`fetchAttachmentBlob` in `src/api/signal/media/attachments.ts`) without a progress callback,
-since a callback cannot cross the worker call; the progress bar then jumps from zero to the end, and a cancel stops only
-the remaining parts, not the CDN download. Verified by reading the code; the demo account has every file cached.
-
 ## The demo account shows no avatars and no sticker packs
 
 Avatars are downloaded from the CDN on every request (`fetchAvatar` in `src/api/signal/methods/media.ts`), and sticker
