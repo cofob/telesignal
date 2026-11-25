@@ -5,7 +5,7 @@ export default function wrapTelegramUrlToAnchor(url1: string) {
   const element = document.createElement('a');
   (element as HTMLAnchorElement).href = url;
   if(onclick) {
-    element.setAttribute('onclick', `${onclick}(this)`);
+    element.dataset.callback = onclick;
   }
 
   return element;

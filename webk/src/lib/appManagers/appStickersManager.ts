@@ -214,6 +214,10 @@ export class AppStickersManager extends AppManager {
       this.apiFileManager.downloadMedia({media: this.greetingStickers[0]}); // preload next sticker
 
       return doc;
+    }, (err): Document.document => {
+      // * TeleSignal: with no sticker for the emoji the greeting shows without one, as Web A's `ContactGreeting` does
+      if(err === 'NO_STICKERS') return undefined;
+      throw err;
     });
   }
 

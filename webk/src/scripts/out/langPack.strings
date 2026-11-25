@@ -289,6 +289,11 @@
 "Signal.ViewOnce.Open" = "View";
 "Signal.ViewOnce.Photo" = "View-once photo";
 "Signal.ViewOnce.Video" = "View-once video";
+"Signal.CopyImage" = "Copy Image";
+"Signal.AttachDate" = "Date";
+"Signal.Keyboard" = "Keyboard";
+"Signal.TextReplacements" = "Automatic text replacements";
+"Signal.TextReplacementsInfo" = "Convert --, << and >> as you type";
 "ForwardMessagesLimit" = "You can only forward up to %s messages";
 "ForwardChatsLimit" = "You can only forward to up to %s chats";
 "SignalDeviceUnlinked" = "This device was unlinked from your Signal account. Its data was removed.";

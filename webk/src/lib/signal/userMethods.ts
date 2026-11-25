@@ -5,7 +5,8 @@
 
 import type {Chat, InputUser, Peer, User} from '@layer';
 import type {SignalMethodHandlers, SignalMethodHost} from '@lib/signal/methodHost';
-import type {SignalChatStyle, SignalUser} from '@lib/signal/signalApi';
+import type {SignalChatStyle, SignalPhoto, SignalUser} from '@lib/signal/signalApi';
+import {buildPhoto} from '@lib/signal/media';
 import {buildPeer, buildUser, toPeerId} from '@lib/signal/builders';
 import {getInputUserPeerId, getUserRef} from '@lib/signal/methodHost';
 import {SIGNAL_USERNAME_PATTERN} from '@lib/signal/usernames';
@@ -56,7 +57,14 @@ async function getFullUser(host: SignalMethodHost, inputUser: InputUser) {
   const peerId = getInputUserPeerId(host, inputUser);
   const result: {
     user: any,
-    fullInfo: {bio?: string, isBlocked?: boolean, ttlPeriod?: number, commonChatsCount?: number, signalChatStyle?: SignalChatStyle}
+    fullInfo: {
+      bio?: string,
+      isBlocked?: boolean,
+      ttlPeriod?: number,
+      commonChatsCount?: number,
+      signalChatStyle?: SignalChatStyle,
+      profilePhoto?: SignalPhoto
+    }
   } | undefined = (
     peerId !== undefined ? await host.call('fetchFullUser', getUserRef(peerId)) : undefined
   );
@@ -74,6 +82,7 @@ async function getFullUser(host: SignalMethodHost, inputUser: InputUser) {
       settings: {_: 'peerSettings', pFlags: {}},
       notify_settings: {_: 'peerNotifySettings'},
       common_chats_count: result.fullInfo.commonChatsCount ?? 0,
+      profile_photo: result.fullInfo.profilePhoto && buildPhoto(result.fullInfo.profilePhoto),
       ttl_period: result.fullInfo.ttlPeriod,
       // * not a field of Telegram's: the profile shows it (`PeerProfile.ChatStyle`)
       signal_chat_style: result.fullInfo.signalChatStyle

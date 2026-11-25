@@ -88,7 +88,7 @@ export function buildSignalMessageMedia(content: SignalMessage['content'], date:
 }
 
 /** The Telegram photo of a Signal photo, whose size a download reads from `size` */
-function buildPhoto(photo: SignalPhoto): Photo.photo {
+export function buildPhoto(photo: SignalPhoto): Photo.photo {
   const size = photo.size ?? 0;
   const sizes: PhotoSize.photoSize[] = photo.sizes.length
     ? photo.sizes.map(({width, height}) => ({_: 'photoSize', type: PHOTO_SIZE_TYPE, w: width, h: height, size}))

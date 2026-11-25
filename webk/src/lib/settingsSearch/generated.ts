@@ -158,6 +158,8 @@ const generated: GeneratedSettingsSearchData = {
     {id: 'AppGeneralSettingsTab:Signal.Desktop.Protect', sectionId: 'AppGeneralSettingsTab', kind: 'toggle', titleLangKey: 'Signal.Desktop.Protect'},
     {id: 'AppGeneralSettingsTab:Signal.Desktop.Settings', sectionId: 'AppGeneralSettingsTab', kind: 'subsection', titleLangKey: 'Signal.Desktop.Settings'},
     {id: 'AppGeneralSettingsTab:Signal.Desktop.Tray', sectionId: 'AppGeneralSettingsTab', kind: 'toggle', titleLangKey: 'Signal.Desktop.Tray'},
+    {id: 'AppGeneralSettingsTab:Signal.Keyboard', sectionId: 'AppGeneralSettingsTab', kind: 'subsection', titleLangKey: 'Signal.Keyboard'},
+    {id: 'AppGeneralSettingsTab:Signal.TextReplacements', sectionId: 'AppGeneralSettingsTab', kind: 'toggle', titleLangKey: 'Signal.TextReplacements'},
     {id: 'AppGeneralSettingsTab:TextSize', sectionId: 'AppGeneralSettingsTab', kind: 'row', titleLangKey: 'TextSize'},
     {id: 'AppGeneralSettingsTab:ThemeDay', sectionId: 'AppGeneralSettingsTab', kind: 'option', titleLangKey: 'ThemeDay'},
     {id: 'AppGeneralSettingsTab:ThemeLight', sectionId: 'AppGeneralSettingsTab', kind: 'option', titleLangKey: 'ThemeLight'},

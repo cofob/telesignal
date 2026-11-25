@@ -1185,8 +1185,10 @@ export class AppImManager extends EventListenerBase<{
         onSponsoredAnchorClick(anchor);
       }
 
+      // * the profile's photos sit in a container that has stories too but is no avatar of a peer: a click on them
+      // * opens the stories from the profile's own avatar (`PeerProfileAvatars`)
       const avatar = findUpAvatar(e.target);
-      if(avatar && avatar.classList.contains('has-stories') && !findUpClassName(e.target, 'stories-list')) {
+      if(avatar?.dataset.peerId && avatar.classList.contains('has-stories') && !findUpClassName(e.target, 'stories-list')) {
         this.openStoriesFromAvatar(avatar);
       }
     });

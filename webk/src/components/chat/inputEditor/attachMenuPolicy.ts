@@ -11,7 +11,9 @@ export type RichMessageAttachMenuAction =
   | 'poll'
   | 'contact'
   | 'standaloneChecklist'
-  | 'article';
+  | 'article'
+  | 'music'
+  | 'date';
 
 const RICH_MESSAGE_ATTACH_MENU_ACTIONS = new Set<RichMessageAttachMenuAction>([
   'visualMedia',

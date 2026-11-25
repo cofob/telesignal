@@ -66,6 +66,7 @@ import {ChatEmojiImages} from '@components/chat/inputEditor/extensions/emojiImag
 import {ChatInlineAtomNavigation, ChatEmptyDocumentSelection} from '@components/chat/inputEditor/extensions/navigation';
 import {ChatBlockReorder} from '@components/chat/inputEditor/extensions/blockReorder';
 import {ChatButtonRow, ChatRichButton} from '@components/chat/inputEditor/extensions/richButtons';
+import {ChatTextReplacements} from '@components/chat/inputEditor/extensions/textReplacements';
 
 const LIST_HTML_ATTRIBUTES = (ordered: boolean) => ({
   class: classNames(
@@ -165,7 +166,8 @@ export const CHAT_INPUT_EXTENSIONS: AnyExtension[] = [
   ChatEmojiImages,
   ChatInlineAtomNavigation,
   ChatEmptyDocumentSelection,
-  ChatBlockReorder
+  ChatBlockReorder,
+  ChatTextReplacements
 ];
 
 type MarkSpecConfig = {

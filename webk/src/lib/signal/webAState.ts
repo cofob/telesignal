@@ -19,7 +19,9 @@ export type WebASharedSettings = {
   // * the desktop app asks where to save each download (`lib/signal/desktopFiles`)
   shouldAskWhereToSave?: boolean,
   // * the window title of the desktop app names the open chat (`lib/signal/desktopIm`); on unless set to `false`
-  canDisplayChatInTitle?: boolean
+  canDisplayChatInTitle?: boolean,
+  // * the composer's automatic text replacements (`lib/signal/textReplacements`); on unless set to `false`
+  shouldReplaceTextShortcuts?: boolean
 };
 
 type SharedState = {settings?: WebASharedSettings, isInitial?: boolean};

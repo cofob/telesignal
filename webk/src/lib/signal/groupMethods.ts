@@ -13,6 +13,7 @@ import {getSignalChatOf} from '@lib/signal/chatMethods';
 import {unwrapInputPeer} from '@lib/signal/methodHost';
 import {makeReportedError} from '@lib/signal/errors';
 import {takeUpload} from '@lib/signal/outgoingMedia';
+import {buildPhoto} from '@lib/signal/media';
 import makeError from '@helpers/makeError';
 import tsNow from '@helpers/tsNow';
 
@@ -108,6 +109,7 @@ async function getFullChat(host: SignalMethodHost, chatId: number) {
       // * the join requests of the group link, which only admins get
       requests_pending: fullInfo?.requestsPending,
       recent_requesters: fullInfo?.recentRequesterIds?.map((id: string) => toPeerId(id)),
+      chat_photo: fullInfo?.profilePhoto && buildPhoto(fullInfo.profilePhoto),
       // * not fields of Telegram's: the profile shows the colours (`PeerProfile.ChatStyle`), group management the
       // * invitations not yet accepted (`sidebarRight/tabs/pendingInvites`) and the removed members, which only
       // * admins get (`appProfileManager.getParticipants`)
