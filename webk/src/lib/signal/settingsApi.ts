@@ -4,6 +4,7 @@
  * provider's types stay out of this tree (`signalApi.d.ts`).
  */
 
+import type {SignalMethodName} from '@lib/signal/signalApi';
 import rootScope from '@lib/rootScope';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import {buildNotifySettings} from '@lib/signal/accountMethods';
@@ -70,7 +71,7 @@ export type SignalDeviceLinkResult = {
  * A call of a provider method on the engine, which runs in the worker: the screens of this tab call it through the
  * Signal manager. A method the engine does not implement resolves with `undefined`.
  */
-export function callSignalApi<T = any>(name: string, ...args: any[]): Promise<T> {
+export function callSignalApi<T = any>(name: SignalMethodName, ...args: any[]): Promise<T> {
   return rootScope.managers.appSignalManager.callSignal(name, ...args);
 }
 
