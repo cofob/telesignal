@@ -805,11 +805,10 @@
 "Suggestion.BirthdayContacts.Single" = "It’s %s's birthday today! 🎂";
 "Suggestion.BirthdayContacts.Multiple_one" = "%d contact has a birthday today! 🎂";
 "Suggestion.BirthdayContacts.Multiple_other" = "%d contacts have birthdays today! 🎂";
-"Suggestion.BirthdayContacts.Subtitle" = "Send them a Gift.";
+"Suggestion.BirthdayContacts.Subtitle" = "Wish them a happy birthday";
 "Suggestion.BirthdayContacts.Yesterday" = "Birthday yesterday";
 "Suggestion.BirthdayContacts.Today" = "Birthday today";
 "Suggestion.BirthdayContacts.Tomorrow" = "Birthday tomorrow";
-"Suggestion.BirthdayContacts.Dismissed" = "You can send a Gift later in Settings.";
 "GiftRecipientDoesNotAccept" = "This user doesn’t accept gifts.";
 "Suggestion.PasskeySetup" = "Create Passkey! %s";
 "Suggestion.PasskeySetup.Subtitle" = "Log in safely and keep your account secure.";
@@ -1338,7 +1337,7 @@
 "PaidMedia.Menu.Edit" = "Edit price";
 "PaidMedia.Title" = "Paid Content";
 "PaidMedia.Enter" = "Enter unlock cost";
-"PaidMedia.Caption" = "Users will have to transfer this amount of Stars to your channel in order to view this media. [Learn more >]()";
+"PaidMedia.Caption" = "Users will have to transfer this amount of Stars to your channel in order to view this media.";
 "PaidMedia.Button" = "Make This Media Paid";
 "PaidMedia.KeepFree" = "Keep this media free";
 "PaidMedia.Unlock" = "Unlock for %s";
@@ -3999,7 +3998,6 @@
 "Message.Context.Pin" = "Pin";
 "Message.Context.Unpin" = "Unpin";
 "Message.Context.Goto" = "Show in chat";
-"Message.ReplyActionButtonShowReceipt" = "Show Receipt";
 "MessageTimer.ShortMinutes" = "%@m";
 "MessageTimer.ShortHours" = "%@h";
 "MessageContext.CopyMessageLink1" = "Copy Message Link";

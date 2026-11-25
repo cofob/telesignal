@@ -10611,8 +10611,6 @@ export default class ChatBubbles {
             wrapped = urlEntities[0];
           }
 
-          const starGiftAttribute = webPage.attributes?.find((attr) => attr._ === 'webPageAttributeUniqueStarGift')
-          const starGiftCollectionAttribute = webPage.attributes?.find((attr) => attr._ === 'webPageAttributeStarGiftCollection')
           const stickerSetAttribute = webPage.attributes?.find((attr) => attr._ === 'webPageAttributeStickerSet') as WebPageAttribute.webPageAttributeStickerSet
 
           const props: Parameters<typeof WebPageBox>[0] = {};
@@ -10711,7 +10709,7 @@ export default class ChatBubbles {
           // const willHaveSponsoredAvatar = sponsoredMessage && (getPeerId(sponsoredMessage.from_id) !== NULL_PEER_ID || sponsoredPhoto);
           // const willHaveSponsoredPhoto = sponsoredMessage && sponsoredMessage.pFlags.show_peer_photo && willHaveSponsoredAvatar;
           const willHaveSponsoredPhoto = !!sponsoredPhoto;
-          const willHaveMedia = !!(photo || doc || storyAttribute || willHaveSponsoredPhoto || starGiftAttribute || starGiftCollectionAttribute || (stickerSetAttribute && stickerSetAttribute.stickers.length));
+          const willHaveMedia = !!(photo || doc || storyAttribute || willHaveSponsoredPhoto || (stickerSetAttribute && stickerSetAttribute.stickers.length));
           if(willHaveMedia) {
             preview = document.createElement('div');
             props.media = {
@@ -10828,7 +10826,7 @@ export default class ChatBubbles {
           }
 
           let isSquare = false;
-          if(willHaveSponsoredPhoto || (photo && !doc && !starGiftAttribute)) {
+          if(willHaveSponsoredPhoto || (photo && !doc)) {
             bubble.classList.add('photo');
 
             const squareBoxSize = 48;
@@ -10932,21 +10930,7 @@ export default class ChatBubbles {
             });
           }
 
-          if(starGiftCollectionAttribute) {
-            await wrapSticker({
-              doc: starGiftCollectionAttribute.icons[0] as MyDocument,
-              div: preview,
-              middleware,
-              lazyLoadQueue,
-              play: true,
-              loop: false,
-              group: this.chat.animationGroup
-            });
-            preview.style.width = '48px';
-            preview.style.height = '48px';
-            props.media.photoSize = 'square';
-            isSquare = true;
-          } else if(stickerSetAttribute?.stickers.length) {
+          if(stickerSetAttribute?.stickers.length) {
             const stickers = stickerSetAttribute.stickers as MyDocument[];
             const {side, cellSize, boxSize} = computeStickerSetPreviewGrid(stickers.length, STICKER_SET_PREVIEW_BOX_SIZE);
             preview.style.width = preview.style.height = `${boxSize}px`;

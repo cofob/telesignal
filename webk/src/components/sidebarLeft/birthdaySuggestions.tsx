@@ -10,7 +10,6 @@ import {PendingSuggestion, SimpleSuggestion} from '@components/sidebarLeft/pendi
 import suggestionStyles from '@components/sidebarLeft/pendingSuggestion.module.scss';
 import collapsedPanelStyles from '@components/sidebarLeft/collapsedPanelButton.module.scss';
 import {StackedAvatarsTsx} from '@components/stackedAvatars';
-import {toastNew} from '@components/toast';
 import getPeerTitle from '@components/wrappers/getPeerTitle';
 import classNames from '@helpers/string/classNames';
 import {i18n} from '@lib/langPack';
@@ -238,17 +237,10 @@ export default function createBirthdaySuggestions() {
     void loadContactBirthdays();
   });
 
-  createEffect(() => {
-    if(canShowBirthdayContacts() && contactBirthdays()?.today.length) {
-      void rootScope.managers.appGiftsManager.getStarGiftOptions().catch(() => {});
-    }
-  });
-
   const dismissBirthdayContacts = () => {
     ++contactBirthdaysRequest;
     setContactBirthdays(undefined);
     rootScope.managers.appPromoManager.dismissSuggestion(BIRTHDAY_CONTACTS_TODAY_SUGGESTION_KEY);
-    toastNew({langPackKey: 'Suggestion.BirthdayContacts.Dismissed'});
   };
 
   const ContactsSuggestion = () => (
