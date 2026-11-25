@@ -148,6 +148,12 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Install Web K dependencies
+        run: npm run install:webk
+
+      - name: Run Web K tests
+        run: npm --prefix webk test -- --run
+
   generated:
     name: Check generated files
     needs: changes
