@@ -45,7 +45,6 @@ import {useAppConfig, useAppState} from '@stores/appState';
 import callbackify from '@helpers/callbackify';
 import useIsNightTheme from '@hooks/useIsNightTheme';
 import namedPromises from '@helpers/namedPromises';
-import {getCurrentNewMediaPopup} from '@components/popups/newMedia';
 import {isVerificationBot} from '@components/chat/utils';
 import {isSensitive} from '@helpers/restrictions';
 import {isTempId} from '@appManagers/utils/messages/isTempId';
@@ -181,7 +180,6 @@ export default class Chat extends EventListenerBase<{
   public isTemporaryThread: boolean;
   public noInput: boolean;
 
-  public starsAmount: number | undefined;
   public stealthMode: StoriesStealthMode | undefined;
 
   public animationGroup: AnimationItemGroup;
@@ -880,11 +878,9 @@ export default class Chat extends EventListenerBase<{
       const {peerId} = this;
       if(peerId.isAnyChat() && peerId.toChatId() === chatId) {
         const {
-          starsAmount,
           isAnonymousSending,
           canManageDirectMessages
         } = await namedPromises({
-          starsAmount: this.managers.appChatsManager.getStarsAmount(chatId),
           isAnonymousSending: this.managers.appMessagesManager.isAnonymousSending(peerId),
           canManageDirectMessages: this.managers.appPeersManager.canManageDirectMessages(peerId)
         });
@@ -892,14 +888,11 @@ export default class Chat extends EventListenerBase<{
         if(peerId === this.peerId) {
           this.canManageDirectMessages = canManageDirectMessages;
           this.isAnonymousSending = isAnonymousSending;
-          this.updateStarsAmount(starsAmount);
         }
       }
     };
 
     this.bubbles.listenerSetter.add(rootScope)('chat_update', onChatOrFullUpdate);
-    // * the full channel may lift the per-message price for this user ("Remove Fee")
-    this.bubbles.listenerSetter.add(rootScope)('chat_full_update', onChatOrFullUpdate);
 
     this.bubbles.listenerSetter.add(rootScope)('botforum_pending_topic_created', ({peerId, tempId, newId}) => {
       if(peerId !== this.peerId || (this.threadId && this.threadId !== tempId)) return;
@@ -1144,7 +1137,6 @@ export default class Chat extends EventListenerBase<{
       isAnonymousSending,
       isUserBlocked,
       isPremiumRequired,
-      starsAmount,
       chat,
       canManageDirectMessages
     } = await m(namedPromises({
@@ -1159,7 +1151,6 @@ export default class Chat extends EventListenerBase<{
       isAnonymousSending: this.managers.appMessagesManager.isAnonymousSending(peerId),
       isUserBlocked: peerId.isUser() && this.managers.appProfileManager.isCachedUserBlocked(peerId),
       isPremiumRequired: this.isPremiumRequiredToContact(peerId),
-      starsAmount: this.managers.acknowledged.appPeersManager.getStarsAmount(peerId),
       chat: peerId.isAnyChat() && this.peer as MTChat,
       canManageDirectMessages: this.managers.appPeersManager.canManageDirectMessages(peerId)
     }, this.log));
@@ -1186,18 +1177,6 @@ export default class Chat extends EventListenerBase<{
     this.isBotforum = isBotforum;
     this.canManageDirectMessages = canManageDirectMessages;
     this.canManageBotforumTopics = canManageBotforumTopics;
-
-    if(starsAmount.cached) {
-      this.starsAmount = await starsAmount.result;
-    } else {
-      const middleware = this.middlewareHelper.get();
-      starsAmount.result.then((starsAmount) => {
-        if(!middleware()) {
-          return;
-        }
-        this.updateStarsAmount(starsAmount);
-      });
-    }
 
     this.isRestricted = isRestricted;
 
@@ -1786,21 +1765,10 @@ export default class Chat extends EventListenerBase<{
   }
 
   public async sendReaction(options: SendReactionOptions) {
-    // * TeleSignal: Signal has no paid reactions
-    if(options.reaction._ === 'reactionPaid') {
-      return;
-    }
-
     await this.managers.appReactionsManager.sendReaction({
       ...options,
       count: options.count ?? 1
     });
-  }
-
-  public updateStarsAmount(starsAmount: number) {
-    this.starsAmount = starsAmount;
-    this.input.setStarsAmount(starsAmount);
-    getCurrentNewMediaPopup()?.setStarsAmount(starsAmount);
   }
 
   public async getAutoDeletePeriod(): Promise<AckedResult<number>> {

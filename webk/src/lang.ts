@@ -1473,14 +1473,6 @@ const lang = {
   'MiniApps.Collapsed.Many': {
     'other_value': '%2$s & %1$d Other'
   },
-  'PaidReaction.Sent': {
-    'one_value': 'Star sent!',
-    'other_value': 'Stars sent!'
-  },
-  'PaidReaction.Sent.Anonymously': {
-    'one_value': 'Star sent anonymously!',
-    'other_value': 'Stars sent anonymously!'
-  },
   'Action.StarGiveawayPrize': {
     'one_value': 'You won a prize in a giveaway organized by **%s**.\n\nYour prize is **%1$d Star**.',
     'other_value': 'You won a prize in a giveaway organized by **%s**.\n\nYour prize is **%1$d Stars**.'
@@ -2561,7 +2553,6 @@ const lang = {
   'ResetAutomaticMediaDownloadAlert': 'Are you sure you want to reset auto-download settings?',
   'Reset': 'Reset',
   'SendMessageAsTitle': 'Send message as...',
-  'SendReactionAsTitle': 'Send reaction as...',
   'Devices': 'Devices',
   'LanguageName': 'English',
   'EditCantEditPermissionsPublic': 'This permission is not available in public groups.',
@@ -2763,11 +2754,6 @@ const lang = {
     'other_value': 'Delete topics'
   },
   'DeleteSelectedTopic': 'Are you sure you want delete %s?',
-  'DeleteSelectedTopics': 'Are you sure you want delete these topics?',
-  'TopicsSelected': {
-    'one_value': '%d topic selected',
-    'other_value': '%d topics selected'
-  },
   'NewTopic': 'New Topic',
   'CreateTopicTitle': 'Choose a topic name and icon',
   'CreateGeneralTopicTitle': 'Choose topic name',
@@ -2801,10 +2787,6 @@ const lang = {
   'ChatThemeChangedTo': '%1$s changed the chat theme to %2$s',
   'ChatThemeDisabled': '%1$s disabled the chat theme',
   'ChatThemeDisabledYou': 'You disabled the chat theme',
-  'GiftThemesSetByYou': 'You set %s as a new theme for this chat.',
-  'GiftThemesSetByOther': '%1$s set %2$s as a new theme for this chat.',
-  'GiftThemesSetIn': 'Set as Theme in...',
-  'GiftThemesSetInReuseInfo': 'This gift is already your theme in the chat with **%s**. Remove it there and use it here instead?',
   'SetWallpapers': 'Set Wallpaper',
   'SelectTheme': 'Select theme',
   'ChatApplyTheme': 'Apply Theme',
@@ -3838,7 +3820,6 @@ const lang = {
     'other_value': 'You reacted with **%d** stars.'
   },
   'StarsReactionTitle': 'Star Reaction',
-  'PaidReaction.Send': 'Send %d',
   'StarsGiveawayPrizeReceived': 'Received Prize',
   'BoostingBoostsCountTitle': {
     'one_value': '%d boost',
@@ -3877,11 +3858,6 @@ const lang = {
   'QRCode.Copied': 'QR Code copied to clipboard',
   'QRCode.CopiedLink': 'Profile link copied to clipboard',
   'QRCode.Colors': 'Profile colors',
-  'QRCode.NoGiftsTitle': 'No gifts yet',
-  'QRCode.NoGiftsInfo': 'Use any collectible gift you own\nto style your QR code.',
-  'QRCode.ChatNoCollectibles': 'There are no collectible gifts here yet.',
-  'QRCode.BrowseGifts': 'Browse Gifts',
-  'QRCode.LoadingGifts': 'Loading gifts…',
   'QRCode.CreatingLink': 'Creating link…',
   'QRCode.Saved': 'QR code saved',
   'QRCode.Share': 'Share QR Code',
@@ -4272,10 +4248,6 @@ const lang = {
   'DiscussionController.Channel.Title': 'Discussion Group',
   'DiscussionController.PrivateGroup': 'private group',
   'DiscussionController.PrivateChannel': 'private channel',
-  'ForumTopic.Context.Info': 'Group Info',
-  'ForumTopic.Context.AddMember': 'Add Members',
-  'ForumTopic.Context.ShowAsMessages': 'View as Messages',
-  'ForumTopic.Context.New': 'Create Topic',
   'ForumTopic.Context.ApplyToJoin': 'Apply to Join',
   'ForumTopic.Name.Placeholder': 'Topic Name',
   'ForumTopic.Title.Edit': 'Edit Topic',
@@ -4843,7 +4815,6 @@ const lang = {
   'PasscodeLock.TurnOff.Description': 'Are you sure you want to turn passcode off?',
 
   'PaidMessages.NewChatDescription': '%s charges %d for each message',
-  'PaidMessages.MessageForStars': 'Message for %d',
   'PaidMessages.FeeForMessages': {
     'one_value': 'Fee for %d message',
     'other_value': 'Fee for %d messages'
@@ -4876,10 +4847,6 @@ const lang = {
   'NoPaidMessagesToken.Imported': 'You can now message **%s** for free.',
   'NoPaidMessagesToken.Invalid': 'This free messages link is invalid or has expired.',
   'NoPaidMessagesToken.UserInvalid': 'This free messages link can\'t be used.',
-  'PaidMessages.FailedToPayForMessage': {
-    'one_value': 'You failed to pay **%2$s** to send a message',
-    'other_value': 'You failed to pay **%2$s** to send %1$d messages.'
-  },
 
   'UnsavedChanges': 'Unsaved Changes',
   'UnsavedChangesDescription': 'Are you sure you want to discard all changes?',

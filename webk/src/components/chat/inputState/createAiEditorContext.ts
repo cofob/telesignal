@@ -13,8 +13,7 @@ export default function createAiEditorContext(instance: ChatInput): AiEditorCont
       const isCurrent = () => middleware() && instance.chat.peerId === peerId &&
         instance.chat.threadId === threadId && instance.chat.type === chatType &&
         instance.editMsgId === editMsgId && instance.isEphemeralComposerMode() === wasEphemeral;
-      const canSend = !wasEphemeral && !instance.chat.starsAmount && !editMsgId;
-      // * what the composer sends goes through its own checks, a payment's among them
+      const canSend = !wasEphemeral && !editMsgId;
       const canSaveSendStyle = !wasEphemeral && !editMsgId;
       const sendingParams = canSend ? instance.chat.getMessageSendingParams() : undefined;
       return {

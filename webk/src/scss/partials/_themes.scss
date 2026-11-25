@@ -189,17 +189,6 @@ $theme-bubble-out-end: .375rem;
       inset-inline-start: .375rem;
     }
 
-    &.is-taken {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 .1875rem;
-    }
-
-    &-icon {
-      font-size: .875rem;
-      color: var(--secondary-text-color);
-    }
   }
 
   // * the tile for no theme: a plain plate with its name, as in tdesktop

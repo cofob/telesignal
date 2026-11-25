@@ -685,10 +685,7 @@ export default async function wrapMessageActionTextNewUnsafe(options: WrapMessag
         args = authorElement ? [authorElement] : [];
 
         const theme = action.theme;
-        if(theme._ === 'chatThemeUniqueGift') {
-          args.push(wrapSomeText(getCollectibleName(theme.gift as StarGift.starGiftUnique), plain));
-          langPackKey = isMe ? 'GiftThemesSetByYou' : 'GiftThemesSetByOther';
-        } else if(theme.emoticon) {
+        if(theme._ === 'chatTheme' && theme.emoticon) {
           args.push(wrapSomeText(theme.emoticon, plain));
           langPackKey = isMe ? 'ChatThemeChangedYou' : 'ChatThemeChangedTo';
         } else {

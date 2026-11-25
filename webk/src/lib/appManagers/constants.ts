@@ -31,7 +31,6 @@ export const SERVER_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'imag
 export const STARS_CURRENCY = 'XTR';
 export const TON_CURRENCY = 'TON';
 export const SEND_PAID_WITH_STARS_DELAY = 5e3;
-export const SEND_PAID_REACTION_ANONYMOUS_PEER_ID: PeerId = -1;
 export const SUGGESTED_POST_WAIT_FOR_REWARD_HOURS = 24;
 export const SUGGESTED_POST_DEFAULT_STARS_COMMISSION = 850;
 export const PEER_FULL_TTL = 3 * 60e3;

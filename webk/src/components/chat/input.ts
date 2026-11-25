@@ -167,7 +167,6 @@ import {Accessor, createComponent, createEffect, createRoot, createSignal, on, S
 import {unwrapSolidElement, wrapSolidComponent} from '@helpers/solid/wrapSolidComponent';
 import SelectedEffect from '@components/chat/selectedEffect';
 import windowSize from '@helpers/windowSize';
-import accumulate from '@helpers/array/accumulate';
 import splitStringByLength from '@helpers/string/splitStringByLength';
 import asyncThrottle from '@helpers/schedulers/asyncThrottle';
 import focusInput from '@helpers/dom/focusInput';
@@ -573,10 +572,6 @@ export default class ChatInput {
   private rowsWrapperWrapper: HTMLDivElement;
   private controlContainer: HTMLElement;
   private fakeSelectionWrapper: HTMLDivElement;
-  /** @internal — used by ChatInput input state */
-  public starsBadge: HTMLElement;
-  /** @internal — used by ChatInput input state */
-  public starsBadgeStars: HTMLElement;
 
   private fakeWrapperTo: HTMLElement;
   private toggleControlButtonDisability: () => void;
@@ -1453,7 +1448,6 @@ export default class ChatInput {
       sparkles: new AiSendSparkles(this.btnSend.querySelector<HTMLElement>('.btn-send-icon-' + icon), icon === 'schedule')
     }));
 
-    this.addStarsBadge();
 
     this.btnSendContainer.append(this.btnSend);
 
@@ -2906,7 +2900,7 @@ export default class ChatInput {
 
       previousSendAs?.destroy();
       setSendAsCallback?.();
-      sendMenu?.setPeerParams({peerId, isPaid: !!this.chat.starsAmount});
+      sendMenu?.setPeerParams({peerId, isPaid: false});
       this.stopAiSendStyle?.();
       this.aiStyledContent = undefined;
       this.setAiSendStyleKey(this.getChatAiSendStyleKey());
@@ -3041,8 +3035,6 @@ export default class ChatInput {
       if(options.deferInputLayout) options.deferInputLayout(applyLayout);
       else applyLayout();
 
-      this.setStarsAmount(this.chat?.starsAmount); // should reset when undefined
-
       this.inputState.set({
         isMonoforumAllChats: isMonoforum && canManageDirectMessages && !monoforumThreadId,
         isReplying: !!this.helperType
@@ -3098,7 +3090,7 @@ export default class ChatInput {
     this.placeholderParamsMiddlewareHelper.clean();
     canSend ??= await this.chat.canSend('send_plain');
     const {peerId, threadId, isForum, type} = this.chat;
-    let key: LangPackKey, args: FormatterArguments, inputStarsCountEl: HTMLElement;
+    let key: LangPackKey, args: FormatterArguments;
     if(!canSend) {
       key = 'Channel.Persmission.MessageBlock';
     } else if(type === ChatType.Welcome) {
@@ -3121,9 +3113,7 @@ export default class ChatInput {
       (peerState ? peerState.isAnonymousSending : await this.managers.appMessagesManager.isAnonymousSending(peerId))
     ) {
       key = 'SendAnonymously';
-    } else if(type === ChatType.Stories && !this.chat.starsAmount) {
-      // * a reply that costs Stars shows its price below instead, over the stealth mode countdown too:
-      // * as Android has it, what a message costs is said before it is sent
+    } else if(type === ChatType.Stories) {
       const stealthModeActiveUntilDate = this.chat.stealthMode?.active_until_date || 0;
       if(stealthModeActiveUntilDate > tsNow(true)) {
         const {element, dispose} = slowModeTimer(() => stealthModeActiveUntilDate - tsNow(true));
@@ -3142,24 +3132,16 @@ export default class ChatInput {
       } else {
         key = 'Message';
       }
-    } else if(this.chat.starsAmount) {
-      key = 'PaidMessages.MessageForStars';
-      const starsElement = document.createElement('span');
-      const span = inputStarsCountEl = document.createElement('span');
-      starsElement.append(Icon('star', 'input-message-placeholder-stars'), span);
-
-      args = [starsElement];
     } else {
       key = 'Message';
     }
 
-    return {key, args, inputStarsCountEl};
+    return {key, args};
   }
 
   public updateMessageInputPlaceholder(params: {
     key: LangPackKey,
-    args?: FormatterArguments,
-    inputStarsCountEl?: HTMLElement
+    args?: FormatterArguments
   }) {
     // console.warn('[input] update placeholder');
     // const i = I18n.weakMap.get(this.messageInput) as I18n.IntlElement;
@@ -3185,12 +3167,10 @@ export default class ChatInput {
       return;
     }
 
-    const {key, args = [], inputStarsCountEl} = params;
+    const {key, args = []} = params;
     if(!i.compareAndUpdateBool({key, args})) {
       return;
     }
-
-    this.inputState.set({inputStarsCountEl});
   }
 
   private filterAttachMenuButtons() {
@@ -4370,11 +4350,6 @@ export default class ChatInput {
     this.updateSendBtnLabel();
     this.updateAiSendSparkles();
 
-    this.inputState.set({
-      hasSendButton: icon === 'send',
-      forwarding: accumulate(Object.values(this.forwarding || {}).map(messages => messages.length), 0)
-    });
-
     if(this.btnScheduled) {
       this.btnScheduled.classList.toggle('show', isInputEmpty && this.chat.type !== ChatType.Scheduled && !this.isWelcomeComposer);
     }
@@ -4408,30 +4383,6 @@ export default class ChatInput {
     }
 
     this.btnSend.setAttribute('aria-label', label);
-  }
-
-  private async addStarsBadge() {
-    const starsBadge = this.starsBadge = document.createElement('span');
-    starsBadge.classList.add('btn-send-stars-badge', 'stars-badge-base');
-
-    const starsBadgeStars = this.starsBadgeStars = document.createElement('span');
-
-    starsBadge.append(
-      Icon('star', 'stars-badge-base__icon'),
-      starsBadgeStars
-    );
-
-    this.btnSendContainer.append(starsBadge);
-
-    this.inputState.set({starsBadgeInited: true});
-  }
-
-  public async setStarsAmount(starsAmount: number | undefined) {
-    this.inputState.set({starsAmount});
-
-    // TODO: review this `|| true` WTF?
-    const params = await this.getPlaceholderParams(await this.chat?.canSend('send_plain') || true);
-    this.updateMessageInputPlaceholder(params);
   }
 
   private throttledSetMessageCountToBadgeState = asyncThrottle(async(value: string) => {

@@ -193,7 +193,6 @@ export class AppProfileManager extends AppManager {
         userFull.personal_photo = this.appPhotosManager.savePhoto(userFull.personal_photo, {type: 'profilePhoto', peerId});
       }
       userFull.wallpaper = this.appThemesManager.saveWallPaper(userFull.wallpaper);
-      userFull.theme = this.appThemesManager.saveChatTheme(userFull.theme);
 
       const referenceContext: ReferenceContext = {type: 'userFull', userId: peerId.toUserId()};
 
@@ -660,7 +659,7 @@ export class AppProfileManager extends AppManager {
   public getParticipants(options: GetChannelParticipantsOptions) {
     options = {...defaultGetChannelParticipantsOptions, ...options};
     const {id, filter} = options;
-    if(this.appChatsManager.isChannel(id) || this.appChatsManager.isCommunity(id)) {
+    if(this.appChatsManager.isChannel(id)) {
       return this.getChannelParticipants(options);
     }
 
@@ -690,7 +689,7 @@ export class AppProfileManager extends AppManager {
   }
 
   public getParticipant(id: ChatId, peerId: PeerId) {
-    if(this.appChatsManager.isChannel(id) || this.appChatsManager.isCommunity(id)) {
+    if(this.appChatsManager.isChannel(id)) {
       return this.getChannelParticipant(id, peerId);
     }
 
@@ -728,7 +727,7 @@ export class AppProfileManager extends AppManager {
       const userId = peerId.toUserId();
       const date = tsNow(true);
       return {
-        participant: this.appChatsManager.isChannel(id) || this.appChatsManager.isCommunity(id) ?
+        participant: this.appChatsManager.isChannel(id) ?
           {_: 'channelParticipant', user_id: userId, date} :
           {_: 'chatParticipant', user_id: userId, inviter_id: this.rootScope.myId.toUserId(), date},
         missing: true

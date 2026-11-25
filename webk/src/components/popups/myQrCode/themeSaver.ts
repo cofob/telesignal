@@ -87,7 +87,7 @@ export function createThemeSaver(options: {
       sendLater();
     },
 
-    /** A choice that cannot be saved (a gift nothing names): an earlier one still waiting is outdated */
+    /** A choice that is not to be saved yet: an earlier one still waiting is outdated */
     cancel() {
       pending = undefined;
       sendLater.clearTimeout();

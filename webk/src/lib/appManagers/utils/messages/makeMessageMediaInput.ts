@@ -41,13 +41,3 @@ export function makeMessageMediaInput(media: MessageMedia): InputMedia | undefin
 
   // Other types to be added...
 }
-
-export function makeMessageMediaInputForSuggestedPost(media: MessageMedia) {
-  if(media && (
-    media._ === 'messageMediaPhoto' && media.photo?._ === 'photo' ||
-    media._ === 'messageMediaDocument' && media.document?._ === 'document'
-    // media._ === 'messageMediaContact
-  )) {
-    return makeMessageMediaInput(media);
-  }
-}

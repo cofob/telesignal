@@ -137,10 +137,7 @@ export class AppChatsManager extends AppManager {
       for(const chatId in this.chats) {
         if(!chatId) continue;
         if(!this.peersStorage.isPeerNeeded(chatId.toPeerId(true))) {
-          const chat = this.chats[chatId];
-          if(chat._ !== 'community' && chat._ !== 'communityForbidden') {
-            this.appUsersManager.modifyUsernamesCache(chat, false);
-          }
+          this.appUsersManager.modifyUsernamesCache(this.chats[chatId], false);
 
           this.storage.delete(chatId);
           delete this.chats[chatId];
@@ -190,12 +187,6 @@ export class AppChatsManager extends AppManager {
 
     if((chat as Chat.channel).pFlags.min && oldChat !== undefined) {
       return;
-    }
-
-    if(chat._ === 'channel') {
-      if(chat.linked_community_id) {
-        chat.linked_community_id = chat.linked_community_id.toChatId();
-      }
     }
 
     if(chat._ === 'channel' &&
@@ -369,11 +360,6 @@ export class AppChatsManager extends AppManager {
     return !!(chat && (chat._ === 'channel' || chat._ === 'channelForbidden')/*  || this.channelAccess[id] */);
   }
 
-  public isCommunity(id: ChatId) {
-    const chat = this.getChat(id);
-    return chat?._ === 'community' || chat?._ === 'communityForbidden';
-  }
-
   public isMegagroup(id: ChatId) {
     /* if(this.megagroups[id]) {
       return true;
@@ -409,7 +395,6 @@ export class AppChatsManager extends AppManager {
     if(!chat ||
       chat._ === 'channelForbidden' ||
       chat._ === 'chatForbidden' ||
-      chat._ === 'communityForbidden' ||
       (chat as any as Chat.chatEmpty)._ === 'chatEmpty' ||
       (chat as Chat.chat).pFlags.left ||
       // || (chat as any).pFlags.kicked
@@ -499,7 +484,7 @@ export class AppChatsManager extends AppManager {
   }
 
   public getInputPeer(id: ChatId) {
-    return this.isChannel(id) || this.isCommunity(id) ?
+    return this.isChannel(id) ?
       this.getChannelInputPeer(id) :
       this.getChatInputPeer(id);
   }
@@ -536,7 +521,7 @@ export class AppChatsManager extends AppManager {
 
   public getChatString(id: ChatId, forceChannel = false) {
     const chat = this.getChat(id);
-    if(forceChannel || this.isChannel(id) || this.isCommunity(id)) {
+    if(forceChannel || this.isChannel(id)) {
       return (this.isMegagroup(id) ? 's' : 'c') + id + '_' +
         (chat && 'access_hash' in chat ? chat.access_hash : 0);
     }
@@ -627,7 +612,7 @@ export class AppChatsManager extends AppManager {
     // * can have no updates on editAdmin
     if(
       (forceInvalidation || (updates as Updates.updates)?.updates?.length) &&
-      (this.isChannel(chatId) || this.isCommunity(chatId))
+      (this.isChannel(chatId))
     ) {
       this.rootScope.dispatchEvent('invalidate_participants', chatId);
     }
@@ -721,13 +706,13 @@ export class AppChatsManager extends AppManager {
   }
 
   public leave(id: ChatId) {
-    return this.isChannel(id) || this.isCommunity(id) ?
+    return this.isChannel(id) ?
       this.leaveChannel(id) :
       this.leaveChat(id);
   }
 
   public delete(id: ChatId) {
-    return this.isChannel(id) || this.isCommunity(id) ?
+    return this.isChannel(id) ?
       this.deleteChannel(id) :
       this.deleteChat(id);
   }
@@ -754,7 +739,7 @@ export class AppChatsManager extends AppManager {
 
   public async migrateChat(id: ChatId): Promise<ChatId> {
     const chat: Chat = this.getChat(id);
-    if(chat._ === 'channel' || chat._ === 'community') return chat.id;
+    if(chat._ === 'channel') return chat.id;
     else {
       const migratedTo = (chat as Chat.chat).migrated_to;
       if(migratedTo) {
@@ -800,7 +785,7 @@ export class AppChatsManager extends AppManager {
     rank: string = '',
     returnParticipant = false
   ): Promise<ChatId | ChannelParticipant> {
-    const wasChannel = this.isChannel(id) || this.isCommunity(id);
+    const wasChannel = this.isChannel(id);
     const peerId = getParticipantPeerId(participant);
     const userId = peerId.toUserId();
     const makingAdmin = Object.keys(rights.pFlags).length > 0;
@@ -916,7 +901,7 @@ export class AppChatsManager extends AppManager {
 
   private setChatPhoto(id: ChatId, inputChatPhoto: InputChatPhoto) {
     let promise: Promise<Updates>;
-    if(this.isChannel(id) || this.isCommunity(id)) {
+    if(this.isChannel(id)) {
       promise = this.apiManager.invokeApi('channels.editPhoto', {
         channel: this.getChannelInput(id),
         photo: inputChatPhoto
@@ -934,7 +919,7 @@ export class AppChatsManager extends AppManager {
   public editTitle(id: ChatId, title: string) {
     let promise: any;
 
-    if(this.isChannel(id) || this.isCommunity(id)) {
+    if(this.isChannel(id)) {
       promise = this.apiManager.invokeApi('channels.editTitle', {
         channel: this.getChannelInput(id),
         title
@@ -1163,7 +1148,7 @@ export class AppChatsManager extends AppManager {
     });
   }
 
-  public getSendAs(channelId: ChatId, forPaidReactions: boolean = false) {
+  public getSendAs(channelId: ChatId) {
     const onResult = (sendAsPeers: ChannelsSendAsPeers) => {
       this.appUsersManager.saveApiUsers(sendAsPeers.users);
       this.saveApiChats(sendAsPeers.chats);
@@ -1173,7 +1158,6 @@ export class AppChatsManager extends AppManager {
 
     const inputPeer = this.getChannelInputPeer(channelId);
     const result = this.apiManager.invokeApiCacheable('channels.getSendAs', {
-      for_paid_reactions: forPaidReactions,
       peer: inputPeer
     }, {cacheSeconds: 60, syncIfHasResult: true});
     return callbackify(result, onResult);

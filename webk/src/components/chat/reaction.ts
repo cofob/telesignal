@@ -27,7 +27,6 @@ import {savedReactionTags} from '@components/chat/reactions';
 import reactionsEqual from '@appManagers/utils/reactions/reactionsEqual';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {hotListen} from '@helpers/hotModule';
-import getUnsafeRandomInt from '@helpers/number/getUnsafeRandomInt';
 import drawMediaToCanvas, {DrawableMedia} from '@helpers/canvas/drawMediaToCanvas';
 import forgetFailedRequest from '@helpers/forgetFailedRequest';
 import type {ReactionFlight} from '@components/chat/reactionFlight';
@@ -557,8 +556,7 @@ export function stashFlightSource(reaction: Reaction, container?: HTMLElement, m
   if(
     !liteMode.isAvailable('effects_reactions') ||
     !reaction ||
-    reaction._ === 'reactionEmpty' ||
-    reaction._ === 'reactionPaid'
+    reaction._ === 'reactionEmpty'
   ) {
     return;
   }
@@ -1541,14 +1539,8 @@ export default class ReactionElement extends HTMLElement {
     let promise: Promise<void>;
     if(reaction._ === 'reactionEmoji') {
       promise = Promise.resolve(onEmoticon(undefined, reaction.emoticon));
-    } else if(reaction._ === 'reactionPaid') {
-      promise = Promise.resolve()
-      onAvailableReaction({
-        onlyAround: true,
-        assetName: `StarReactionEffect${getUnsafeRandomInt(1, 3)}` as LottieAssetName
-      })
     } else {
-      promise = callbackify(options.managers.appEmojiManager.getCustomEmojiDocument(reaction.document_id), (doc) => {
+      promise = callbackify(options.managers.appEmojiManager.getCustomEmojiDocument((reaction as Reaction.reactionCustomEmoji).document_id), (doc) => {
         return onEmoticon(doc);
       });
     }

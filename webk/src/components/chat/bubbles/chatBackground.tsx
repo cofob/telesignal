@@ -19,7 +19,7 @@ import {Theme, WallPaper} from '@layer';
 import themeControllerSingleton, {ThemeController} from '@helpers/themeController';
 import {getColorsFromWallPaper} from '@helpers/color';
 import ChatBackgroundGradientRenderer from '@components/chat/gradientRenderer';
-import ChatBackgroundPatternRenderer, {GiftPatternArea} from '@components/chat/patternRenderer';
+import ChatBackgroundPatternRenderer from '@components/chat/patternRenderer';
 import ChatBackgroundStore from '@lib/chatBackgroundStore';
 import appDownloadManager from '@lib/appDownloadManager';
 import renderImageFromUrl from '@helpers/dom/renderImageFromUrl';
@@ -32,10 +32,7 @@ import {MOUNT_CLASS_TO} from '@config/debug';
 import {DEFAULT_BACKGROUND_SLUG} from '@config/app';
 import {ReadingManagers} from '@lib/managers';
 import {AppTheme} from '@config/state';
-import {getMiddleware} from '@helpers/middleware';
-import type {MyDocument} from '@appManagers/appDocsManager';
-import getUniqueGiftAttributes from '@appManagers/utils/gifts/getUniqueGiftAttributes';
-import {getChatBackgroundFromFullPeer, getGiftChatTheme} from '@components/chat/chatTheme';
+import {getChatBackgroundFromFullPeer} from '@components/chat/chatTheme';
 import classNames from '@helpers/string/classNames';
 import noop from '@helpers/noop';
 import liteMode from '@helpers/liteMode';
@@ -124,13 +121,6 @@ type Slot = {
   image?: HTMLImageElement;
   /** a pattern's colours alone, which its pattern is still to come over (`colorsFirst`) */
   colorsOnly?: boolean;
-  giftModel?: GiftModel;
-};
-
-/** The gift of a gift theme, standing in its slot of the pattern. */
-type GiftModel = {
-  el: HTMLElement,
-  dispose: () => void
 };
 
 /**
@@ -148,7 +138,6 @@ type BuiltContent = {
   gradientRenderer?: ChatBackgroundGradientRenderer;
   gradientCanvas?: HTMLCanvasElement;
   image?: HTMLImageElement;
-  giftModel?: GiftModel;
   readyPromise: Promise<void>;
 };
 
@@ -217,79 +206,6 @@ function getWallPaperUrl(
   return {urlOrPromise, isColorOnly};
 }
 
-/**
- * The gift's own sticker over the slot the pattern keeps for it, played once and half-transparent
- * as tdesktop shows it.
- */
-function createGiftModel(
-  patternRenderer: ChatBackgroundPatternRenderer,
-  patternCanvas: HTMLCanvasElement,
-  doc: MyDocument
-): GiftModel {
-  const el = document.createElement('div');
-  el.classList.add(styles.GiftModel);
-  const middlewareHelper = getMiddleware();
-  let size: number, area: GiftPatternArea, shown: {width: number, height: number};
-  // * the canvas is drawn at the window's size and shown cover-fitted in its layer, which a preview's is smaller than:
-  // * the model goes where its slot is shown
-  const place = () => {
-    if(!area || !shown?.width) {
-      return;
-    }
-
-    const dpr = patternCanvas.dpr || 1;
-    const drawnWidth = patternCanvas.width / dpr, drawnHeight = patternCanvas.height / dpr;
-    const scale = Math.max(shown.width / drawnWidth, shown.height / drawnHeight);
-    const centerX = (shown.width - drawnWidth * scale) / 2 + (area.left + area.width / 2) * scale;
-    const centerY = (shown.height - drawnHeight * scale) / 2 + (area.top + area.height / 2) * scale;
-    el.style.transform = `translate(${centerX - size / 2}px, ${centerY - size / 2}px) rotate(${area.rotation}deg) scale(${area.width * scale / size})`;
-  };
-
-  const resizeObserver = new ResizeObserver(([entry]) => {
-    shown = {width: entry.contentRect.width, height: entry.contentRect.height};
-    place();
-  });
-  resizeObserver.observe(patternCanvas);
-
-  patternRenderer.setGiftAreaListener(patternCanvas, (newArea) => {
-    el.classList.toggle('hide', !newArea);
-    area = newArea;
-    if(!area) {
-      return;
-    }
-
-    if(size === undefined) {
-      size = Math.round(area.width);
-      el.style.width = el.style.height = size + 'px';
-      const middleware = middlewareHelper.get();
-      import('@components/wrappers/sticker').then(({default: wrapSticker}) => {
-        if(!middleware()) return;
-        return wrapSticker({
-          doc,
-          div: el,
-          middleware,
-          width: size,
-          height: size,
-          play: true,
-          loop: false,
-          group: 'none',
-          liteModeKey: 'stickers_chat'
-        });
-      });
-    }
-
-    place();
-  });
-
-  return {
-    el,
-    dispose: () => {
-      resizeObserver.disconnect();
-      middlewareHelper.destroy();
-    }
-  };
-}
-
 function buildContent(
   layer: HTMLElement,
   resolved: ResolvedBackground,
@@ -298,12 +214,6 @@ function buildContent(
   height: number
 ): BuiltContent {
   const {wallPaper} = resolved;
-  // * the gift's symbols belong to its theme's own pattern, not to a wallpaper set over it
-  const giftTheme = getGiftChatTheme(resolved.theme);
-  const gift = giftTheme?.theme_settings.some((themeSettings) => themeSettings.wallpaper?.id === wallPaper?.id) ?
-    giftTheme.gift :
-    undefined;
-  const giftAttributes = gift?._ === 'starGiftUnique' ? getUniqueGiftAttributes(gift) : undefined;
   const colors = getColorsFromWallPaper(wallPaper);
   const isPattern = !!(wallPaper as WallPaper.wallPaper)?.pFlags?.pattern;
   const themeName = (resolved.theme as AppTheme)?.name;
@@ -330,7 +240,6 @@ function buildContent(
   let image: HTMLImageElement | undefined;
   let patternRenderer: ChatBackgroundPatternRenderer | undefined;
   let gradientRenderer: ChatBackgroundGradientRenderer | undefined;
-  let giftModel: GiftModel | undefined;
 
   if(url && isPattern) {
     patternRenderer = ChatBackgroundPatternRenderer.getInstance({
@@ -338,16 +247,12 @@ function buildContent(
       url,
       width,
       height,
-      mask: isDarkPattern && !useOverlayRender,
-      giftSymbol: giftAttributes?.pattern?.document as MyDocument
+      mask: isDarkPattern && !useOverlayRender
     });
     patternCanvas = patternRenderer.createCanvas();
     patternCanvas.classList.add(styles.CanvasCommon);
     if(!isDarkPattern || useOverlayRender) patternCanvas.classList.add(styles.Blend);
     if(useOverlayRender) patternCanvas.classList.add(styles.DarkPatternInvert);
-    if(giftAttributes?.model) {
-      giftModel = createGiftModel(patternRenderer, patternCanvas, giftAttributes.model.document as MyDocument);
-    }
   } else if(url) {
     image = document.createElement('img');
     image.alt = '';
@@ -401,7 +306,6 @@ function buildContent(
     gradientRenderer,
     gradientCanvas,
     image,
-    giftModel,
     readyPromise
   };
 }
@@ -410,7 +314,6 @@ function buildContent(
 function disposeBuilt(built: BuiltContent) {
   if(built.patternRenderer && built.patternCanvas) built.patternRenderer.cleanup(built.patternCanvas);
   if(built.gradientRenderer) built.gradientRenderer.cleanup();
-  built.giftModel?.dispose();
 }
 
 /** Moves a built content into a slot's DOM, taking ownership of its renderers. */
@@ -422,7 +325,6 @@ function attachBuiltToSlot(slot: Slot, built: BuiltContent) {
   if(built.gradientCanvas) slot.el.append(built.gradientCanvas);
   if(built.patternCanvas) slot.el.append(built.patternCanvas);
   if(built.image) slot.el.append(built.image);
-  if(built.giftModel) slot.el.append(built.giftModel.el);
 
   slot.appliedTheme = built.resolved.theme;
   slot.appliedWallPaper = built.resolved.wallPaper;
@@ -431,7 +333,6 @@ function attachBuiltToSlot(slot: Slot, built: BuiltContent) {
   slot.gradientCanvas = built.gradientCanvas;
   slot.patternCanvas = built.patternCanvas;
   slot.image = built.image;
-  slot.giftModel = built.giftModel;
 }
 
 function clearSlot(slot: Slot) {
@@ -441,7 +342,6 @@ function clearSlot(slot: Slot) {
   if(slot.gradientRenderer) {
     slot.gradientRenderer.cleanup();
   }
-  slot.giftModel?.dispose();
   while(slot.el.firstChild) slot.el.removeChild(slot.el.firstChild);
   slot.appliedTheme = undefined;
   slot.appliedWallPaper = undefined;
@@ -451,7 +351,6 @@ function clearSlot(slot: Slot) {
   slot.patternCanvas = undefined;
   slot.image = undefined;
   slot.colorsOnly = undefined;
-  slot.giftModel = undefined;
 }
 
 function transitionClassFor(transition: ChatBackgroundTransition): string | undefined {

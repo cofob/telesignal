@@ -55,7 +55,7 @@
     }
   }
 
-  // A floating forum/community remains mounted while its own management tabs
+  // A floating forum remains mounted while its own management tabs
   // are open. Move it out of the hit-testing layer so the selected slider tab
   // receives both pointer and keyboard interaction.
   &.has-real-tabs .topics-container.is-floating {

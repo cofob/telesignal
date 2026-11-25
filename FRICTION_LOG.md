@@ -161,21 +161,25 @@ and boosts and statistics are removed. What remains of bots are inline buttons i
 `replyMarkupLayout`, URL authorization) and the bot command cache that ephemeral messages read (`appProfileManager`,
 `appMessagesManager`).
 
-Stars, gifts, Premium and payments are removed from the UI, with the paid message interceptor, the price changed
-tooltip, the stars balance store, suggested posts, group message charges, the channel fee plate and paid reactions;
-`appPaymentsManager`, `appGiftsManager` and `appManagers/utils/gifts` stay in the worker. What still reads Stars data
-that Signal never sends: the managers' paid sending (`confirmedPaymentResult`, `repayRequestHandler`,
-`paidMessagesQueue` and the suggested post parameters in `appMessagesManager`), the composer's per-chat stars price
-(`chat.starsAmount`, the stars badge of the send button), and collectible gifts in the QR code popup
-(`popups/myQrCode`) and the chat themes (`chat/chatTheme.ts`, `themeChooser.tsx`), whose drawing paths share the
-ordinary themes'. Communities are removed from the UI, the chat list and the worker
-(`appCommunitiesManager`); the managers still recognise the Telegram community shapes they may be handed and skip or
-ignore them (`community` chats in `appChatsManager.saveApiChat`, `dialogCommunity` in `dialogsStorage`,
-`notifyCommunity` settings in `appNotificationsManager`, `communityFull` checks in `appProfileManager` and
-`hasRights`). Forums stay: `isForum` is false for Signal
-chats, and topic thread ids run through the same chat, history and dialog code, so they go with the Telegram shapes of the managers. About 140
-`.invalid` links of these features remain in `src`; the strings that Signal chats can show point to Signal on the
-phone instead.
+Stars, gifts, Premium and payments are removed from the UI and from the managers' sending: paid messages, their
+repay requests and queue, suggested posts, group message charges, the composer's stars price, paid reactions and
+collectible gift themes in the QR code popup and the chat themes. `appPaymentsManager`, `appGiftsManager` and
+`appManagers/utils/gifts` stay in the worker. What still reads Stars data that Signal never sends: the forward
+popup's stars total (`forward.tsx`, `appSelectPeers.starsAmountByPeer`, the `stars` of `InputFieldMessage`), the paid
+switch of the channel reactions editor (`chatReactions.tsx`, `chatReactionsState.ts`) with the channel screens, the
+price of paid media (`sendFile`'s `stars`, next to the paid media look Signal albums borrow), and the free-messages
+code of the QR code popup (`myQrCode/feeCode.ts`).
+
+Communities are removed from the UI, the chat list and the managers. What is left are the guards Telegram's type
+unions need (`communityFull` and `communityForbidden` checks in `hasRights`, `appProfileManager` and the reactions
+and call code) and the places that drop a community they are handed (`appChatsManager.saveApiChat`,
+`dialogCommunity` in `dialogsStorage`, `notifyCommunity` updates in `appNotificationsManager`).
+
+Forums: the group forum tab and its topic list are removed, so a forum opens no topic screen. `isForum` checks and
+topic thread ids stay in the shared chat, history and dialog code, as do the bot forum and channel direct message
+tabs (`forumTab/botforumTab.ts`, `forumTab/monoforumTab.ts`) and the topic editor, which the profile's media tabs
+open (`sidebarRight/tabs/sharedMedia.tsx`). About 140 `.invalid` links of these features remain in `src`; the strings
+that Signal chats can show point to Signal on the phone instead.
 
 ## Web A calls Note to Self «Your Cloud Storage»
 
@@ -306,3 +310,10 @@ The search of the settings screen is shared only in part: the key query (`parseK
 `keyCombos.ts`) is common, while the word matching of `filterKeyboardShortcuts` and its `splitWords` are copied into
 `webk/src/components/sidebarLeft/tabs/keyboardShortcuts.tsx`. Pure versions that take the environment and the settings
 as arguments would let both frontends share them.
+
+## A Web K test file sometimes fails to load in a full run
+
+`cd webk && npx vitest run` reported a whole file as failed, with none of its tests run, in 3 of about 10 full runs on
+a loaded machine (a dev server and a production build running alongside): `src/lib/calls/e2e/tests/blockchain.test.ts`
+once, an unnamed file of the same suite twice. The file passes on its own and in the next full run. The cause is not
+known; a load-time timeout of the suite is suspected.

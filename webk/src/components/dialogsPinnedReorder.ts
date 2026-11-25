@@ -99,9 +99,8 @@ export default function attachPinnedDialogsReorder({list, scrollable, middleware
  * Turns the move the drag made into the list's whole pinned order.
  *
  * The order the drag produced covers only the rows that were on screen, and a list can hold pins
- * with no row at all (the member chats of a folded Community keep theirs), so the move is
- * replayed onto the stored order by the neighbour it ended up next to rather than by how many
- * slots it travelled.
+ * with no row on screen, so the move is replayed onto the stored order by the neighbour it ended
+ * up next to rather than by how many slots it travelled.
  */
 async function pinnedOrderAfterDrag({managers, filterId, key, reordered, to}: {
   managers: ReadingManagers,

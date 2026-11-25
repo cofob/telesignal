@@ -1370,10 +1370,6 @@
 "MiniApps.Collapsed.One" = "%s";
 "MiniApps.Collapsed.Two" = "%s & %s";
 "MiniApps.Collapsed.Many_other" = "%2$s & %1$d Other";
-"PaidReaction.Sent_one" = "Star sent!";
-"PaidReaction.Sent_other" = "Stars sent!";
-"PaidReaction.Sent.Anonymously_one" = "Star sent anonymously!";
-"PaidReaction.Sent.Anonymously_other" = "Stars sent anonymously!";
 "Action.StarGiveawayPrize_one" = "You won a prize in a giveaway organized by **%s**.\n\nYour prize is **%1$d Star**.";
 "Action.StarGiveawayPrize_other" = "You won a prize in a giveaway organized by **%s**.\n\nYour prize is **%1$d Stars**.";
 "MediaEditor.Free" = "Free";
@@ -2344,7 +2340,6 @@
 "ResetAutomaticMediaDownloadAlert" = "Are you sure you want to reset auto-download settings?";
 "Reset" = "Reset";
 "SendMessageAsTitle" = "Send message as...";
-"SendReactionAsTitle" = "Send reaction as...";
 "Devices" = "Devices";
 "LanguageName" = "English";
 "EditCantEditPermissionsPublic" = "This permission is not available in public groups.";
@@ -2510,9 +2505,6 @@
 "DeleteTopics_one" = "Delete topic";
 "DeleteTopics_other" = "Delete topics";
 "DeleteSelectedTopic" = "Are you sure you want delete %s?";
-"DeleteSelectedTopics" = "Are you sure you want delete these topics?";
-"TopicsSelected_one" = "%d topic selected";
-"TopicsSelected_other" = "%d topics selected";
 "NewTopic" = "New Topic";
 "CreateTopicTitle" = "Choose a topic name and icon";
 "CreateGeneralTopicTitle" = "Choose topic name";
@@ -2544,10 +2536,6 @@
 "ChatThemeChangedTo" = "%1$s changed the chat theme to %2$s";
 "ChatThemeDisabled" = "%1$s disabled the chat theme";
 "ChatThemeDisabledYou" = "You disabled the chat theme";
-"GiftThemesSetByYou" = "You set %s as a new theme for this chat.";
-"GiftThemesSetByOther" = "%1$s set %2$s as a new theme for this chat.";
-"GiftThemesSetIn" = "Set as Theme in...";
-"GiftThemesSetInReuseInfo" = "This gift is already your theme in the chat with **%s**. Remove it there and use it here instead?";
 "SetWallpapers" = "Set Wallpaper";
 "SelectTheme" = "Select theme";
 "ChatApplyTheme" = "Apply Theme";
@@ -3398,7 +3386,6 @@
 "StarsSentText_one" = "You reacted with **%d** star.";
 "StarsSentText_other" = "You reacted with **%d** stars.";
 "StarsReactionTitle" = "Star Reaction";
-"PaidReaction.Send" = "Send %d";
 "StarsGiveawayPrizeReceived" = "Received Prize";
 "BoostingBoostsCountTitle_one" = "%d boost";
 "BoostingBoostsCountTitle_other" = "%d boosts";
@@ -3428,11 +3415,6 @@
 "QRCode.Copied" = "QR Code copied to clipboard";
 "QRCode.CopiedLink" = "Profile link copied to clipboard";
 "QRCode.Colors" = "Profile colors";
-"QRCode.NoGiftsTitle" = "No gifts yet";
-"QRCode.NoGiftsInfo" = "Use any collectible gift you own\nto style your QR code.";
-"QRCode.ChatNoCollectibles" = "There are no collectible gifts here yet.";
-"QRCode.BrowseGifts" = "Browse Gifts";
-"QRCode.LoadingGifts" = "Loading gifts…";
 "QRCode.CreatingLink" = "Creating link…";
 "QRCode.Saved" = "QR code saved";
 "QRCode.Share" = "Share QR Code";
@@ -3777,10 +3759,6 @@
 "DiscussionController.Channel.Title" = "Discussion Group";
 "DiscussionController.PrivateGroup" = "private group";
 "DiscussionController.PrivateChannel" = "private channel";
-"ForumTopic.Context.Info" = "Group Info";
-"ForumTopic.Context.AddMember" = "Add Members";
-"ForumTopic.Context.ShowAsMessages" = "View as Messages";
-"ForumTopic.Context.New" = "Create Topic";
 "ForumTopic.Context.ApplyToJoin" = "Apply to Join";
 "ForumTopic.Name.Placeholder" = "Topic Name";
 "ForumTopic.Title.Edit" = "Edit Topic";
@@ -4304,7 +4282,6 @@
 "PasscodeLock.LogoutPopup.Description" = "Are you sure you want to log out?";
 "PasscodeLock.TurnOff.Description" = "Are you sure you want to turn passcode off?";
 "PaidMessages.NewChatDescription" = "%s charges %d for each message";
-"PaidMessages.MessageForStars" = "Message for %d";
 "PaidMessages.FeeForMessages_one" = "Fee for %d message";
 "PaidMessages.FeeForMessages_other" = "Fee for %d messages";
 "PaidMessages.GroupPriceChangedFree" = "Messages in this group are now free";
@@ -4325,8 +4302,6 @@
 "NoPaidMessagesToken.Imported" = "You can now message **%s** for free.";
 "NoPaidMessagesToken.Invalid" = "This free messages link is invalid or has expired.";
 "NoPaidMessagesToken.UserInvalid" = "This free messages link can't be used.";
-"PaidMessages.FailedToPayForMessage_one" = "You failed to pay **%2$s** to send a message";
-"PaidMessages.FailedToPayForMessage_other" = "You failed to pay **%2$s** to send %1$d messages.";
 "UnsavedChanges" = "Unsaved Changes";
 "UnsavedChangesDescription" = "Are you sure you want to discard all changes?";
 "UnsavedChangesDescription.Archive" = "You have changed some archive settings. Save changes?";

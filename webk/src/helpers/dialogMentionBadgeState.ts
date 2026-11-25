@@ -1,10 +1,10 @@
 export type DialogMentionBadgeStateOptions = {
   /**
    * Whatever the unread badge itself counts: unread topics for a forum, unread
-   * chats for a community, unread messages otherwise.
+   * messages otherwise.
    */
   unreadCount: number,
-  /** Unread messages — differs from `unreadCount` when the badge counts topics/chats. */
+  /** Unread messages — differs from `unreadCount` when the badge counts topics. */
   unreadMessagesCount: number,
   unreadMentionsCount: number,
   hasUnreadBadge: boolean

@@ -3,18 +3,10 @@ import {nodeFrame} from '@helpers/schedulers';
 import {onAppWindowChange} from '@helpers/appWindow';
 
 /**
- * The field's tile and its canvas, in px: the canvas is centred on the surface and covers it at any shift. A field
- * drawn anew every frame gives `draw` instead, which takes the shift (not wrapped: its lattice does not repeat) and the
- * idle clock, and `setPlaying`, told whether its frames are read: its sources play only while they are.
+ * A field drawn anew every frame: `draw` takes the shift (not wrapped: its lattice does not repeat) and the idle clock,
+ * and `setPlaying` is told whether its frames are read: its sources play only while they are.
  */
-export type FieldLayout =
-  {surfaceWidth: number, surfaceHeight: number, canvasWidth: number, canvasHeight: number, periodWidth: number, periodHeight: number} |
-  {draw: (x: number, y: number, time: number) => void, setPlaying: (playing: boolean) => void};
-
-/** The canvas that covers a surface shifted by up to a period either way (it must not show an edge) */
-export function fieldCanvasSize(width: number, height: number, periodWidth: number, periodHeight: number) {
-  return {width: Math.ceil(width + periodWidth), height: Math.ceil(height + periodHeight)};
-}
+export type FieldLayout = {draw: (x: number, y: number, time: number) => void, setPlaying: (playing: boolean) => void};
 
 // Android's `QrShareView`: the field drifts 6.2 px/s up and to the left with a wandering heading, follows a drag 1:1 and
 // glides on after a release (tau 0.35 s, 2600 px/s at most). The idle motion stops under the finger (over 0.07 s) and
@@ -23,7 +15,6 @@ const DRIFT_SPEED = 6.2, DRIFT_ANGLE = Math.atan2(-5.5, -3.5);
 const GLIDE_TAU = 0.35, GLIDE_END = GLIDE_TAU * 8, MAX_FLING = 2600;
 const SLOP = 8;
 const VELOCITY_WINDOW = 100;
-const wrap = (value: number, period: number) => value - Math.round(value / period) * period;
 
 /**
  * Moves the field: a drift and a drag, by one `transform` of a painted tile, or by a redraw of a field drawn live, every
@@ -52,15 +43,8 @@ export default function attachFieldMotion(surface: HTMLElement, mover: HTMLEleme
       return;
     }
 
-    const x = driftX + panX, y = driftY + panY;
-    if('draw' in layout) {
-      mover.style.transform = '';
-      layout.draw(x, y, idleTime);
-      return;
-    }
-
-    // the tile wraps by its period
-    mover.style.transform = `translate(${(layout.surfaceWidth - layout.canvasWidth) / 2 + wrap(x, layout.periodWidth)}px, ${(layout.surfaceHeight - layout.canvasHeight) / 2 + wrap(y, layout.periodHeight)}px)`;
+    mover.style.transform = '';
+    layout.draw(driftX + panX, driftY + panY, idleTime);
   };
 
   const step = (now: number) => {

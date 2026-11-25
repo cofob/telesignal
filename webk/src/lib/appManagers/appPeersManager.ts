@@ -22,7 +22,7 @@ import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
 import callbackify from '@helpers/callbackify';
 import {isTempId} from '@appManagers/utils/messages/isTempId';
 
-export type PeerType = 'channel' | 'community' | 'chat' | 'megagroup' | 'group' | 'saved' | 'savedDialog' | 'monoforum' | 'monoforum_thread' | 'botforum_thread';
+export type PeerType = 'channel' | 'chat' | 'megagroup' | 'group' | 'saved' | 'savedDialog' | 'monoforum' | 'monoforum_thread' | 'botforum_thread';
 // * a few messages per `min` peer are enough: one of them is still around when it is needed
 const MESSAGES_WITH_PEER_LIMIT = 3;
 
@@ -138,7 +138,7 @@ export class AppPeersManager extends AppManager {
     }
 
     const chatId = peerId.toChatId();
-    if(this.appChatsManager.isChannel(chatId) || this.isCommunity(peerId)) {
+    if(this.appChatsManager.isChannel(chatId)) {
       return {_: 'peerChannel', channel_id: chatId};
     }
 
@@ -149,10 +149,7 @@ export class AppPeersManager extends AppManager {
     if(peerId.isUser()) {
       return this.appUsersManager.getUserString(peerId.toUserId());
     }
-    return this.appChatsManager.getChatString(
-      peerId.toChatId(),
-      this.isCommunity(peerId)
-    );
+    return this.appChatsManager.getChatString(peerId.toChatId());
   }
 
   public getPeerUsername(peerId: PeerId) {
@@ -175,13 +172,6 @@ export class AppPeersManager extends AppManager {
   }
 
   public getDialogPeer(peerId: PeerId): DialogPeer {
-    if(this.isCommunity(peerId)) {
-      return {
-        _: 'dialogPeerCommunity',
-        community_id: peerId.toChatId()
-      };
-    }
-
     return {
       _: 'dialogPeer',
       peer: this.getOutputPeer(peerId)
@@ -190,10 +180,6 @@ export class AppPeersManager extends AppManager {
 
   public isChannel(peerId: PeerId): boolean {
     return !peerId.isUser() && this.appChatsManager.isChannel(peerId.toChatId());
-  }
-
-  public isCommunity(peerId: PeerId): boolean {
-    return !peerId.isUser() && this.appChatsManager.isCommunity(peerId.toChatId());
   }
 
   public isMegagroup(peerId: PeerId) {
@@ -206,7 +192,6 @@ export class AppPeersManager extends AppManager {
 
   public isAnyGroup(peerId: PeerId): boolean {
     return !peerId.isUser() &&
-      !this.isCommunity(peerId) &&
       !this.appChatsManager.isBroadcast(peerId.toChatId());
   }
 
@@ -346,7 +331,7 @@ export class AppPeersManager extends AppManager {
     InputNotifyPeer.inputNotifyUsers | InputNotifyPeer.inputNotifyChats | InputNotifyPeer.inputNotifyBroadcasts :
     (T['threadId'] extends number ?
       InputNotifyPeer.inputNotifyForumTopic :
-      InputNotifyPeer.inputNotifyPeer | InputNotifyPeer.inputNotifyCommunity) {
+      InputNotifyPeer.inputNotifyPeer) {
     if(ignorePeerId) {
       if(peerId.isUser()) {
         return {_: 'inputNotifyUsers'} as any;
@@ -357,11 +342,6 @@ export class AppPeersManager extends AppManager {
           return {_: 'inputNotifyChats'} as any;
         }
       }
-    } else if(this.isCommunity(peerId)) {
-      return {
-        _: 'inputNotifyCommunity',
-        community: this.appChatsManager.getChannelInput(peerId.toChatId())
-      } as any;
     } else if(threadId) {
       return {
         _: 'inputNotifyForumTopic',
@@ -382,11 +362,7 @@ export class AppPeersManager extends AppManager {
     }
 
     if(!peerId.isUser()) {
-      const chatId = peerId.toChatId();
-      if(this.isCommunity(peerId)) {
-        return this.appChatsManager.getChannelInputPeer(chatId);
-      }
-      return this.appChatsManager.getInputPeer(chatId);
+      return this.appChatsManager.getInputPeer(peerId.toChatId());
     }
 
     const userId = peerId.toUserId();
@@ -401,13 +377,6 @@ export class AppPeersManager extends AppManager {
   }
 
   public getInputDialogPeerById(peerId: PeerId | InputPeer): InputDialogPeer {
-    if(!isObject<InputPeer>(peerId) && this.isCommunity(peerId)) {
-      return {
-        _: 'inputDialogPeerCommunity',
-        community: this.appChatsManager.getChannelInput(peerId.toChatId())
-      };
-    }
-
     return {
       _: 'inputDialogPeer',
       peer: isObject<InputPeer>(peerId) ? peerId : this.getInputPeerById(peerId)
@@ -428,8 +397,6 @@ export class AppPeersManager extends AppManager {
   public getDialogType(peerId: PeerId, threadId?: number): PeerType {
     if(this.peerId === peerId && threadId) {
       return 'savedDialog';
-    } else if(this.isCommunity(peerId)) {
-      return 'community';
     } else if(this.isMonoforum(peerId)) {
       return threadId ? 'monoforum_thread' : 'monoforum';
     } else if(this.isBotforum(peerId) && threadId) {

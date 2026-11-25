@@ -1,6 +1,5 @@
 import {Portal, render} from 'solid-js/web';
 import {getOverlayRoot} from '@helpers/appWindow';
-import {createStore} from 'solid-js/store';
 
 import type Chat from '@components/chat/chat';
 import type {
@@ -71,7 +70,7 @@ import type {LocalTextWithEntities} from '@types';
 import getRichValueWithCaret from '@helpers/dom/getRichValueWithCaret';
 import {ChatType} from '@components/chat/chatType';
 import pause from '@helpers/schedulers/pause';
-import {Accessor, createMemo, createRoot, createSignal, onCleanup, onMount, Setter, Signal, useContext} from 'solid-js';
+import {Accessor, createRoot, createSignal, onCleanup, onMount, Setter, Signal, useContext} from 'solid-js';
 import SelectedEffect from '@components/chat/selectedEffect';
 import {unwrapSolidElement} from '@helpers/solid/wrapSolidComponent';
 import showMakePaidPopup from '@components/popups/makePaid';
@@ -144,7 +143,6 @@ type WillAttach = Partial<{
 
 export type NewMediaPopupHandle = {
   addFiles: (files: File[]) => void,
-  setStarsAmount: (starsAmount: number) => void,
   appendDrops: (element: HTMLElement) => void,
   hide: () => void
 };
@@ -311,23 +309,6 @@ export default function showNewMediaPopup(
 
   canConvertGifToVideo(); // warm up the memo for the sync reads
 
-  function createStarsState() {
-    const [store, set] = createStore({
-      hasMessage: false,
-      isGrouped: true,
-      attachedFiles: files.length,
-      starsAmount: chat.starsAmount || 0
-    });
-
-    const shouldCountMessage = () => +store.hasMessage * +(!store.isGrouped && store.attachedFiles > 1);
-    const totalMessages = createMemo(() => +shouldCountMessage() + store.attachedFiles);
-    const totalStars = createMemo(() => store.starsAmount * totalMessages());
-
-    return {store, set, totalMessages, totalStars};
-  }
-
-  let starsState: ReturnType<typeof createStarsState>;
-
   async function construct() {
     willAttach = {
       type: willAttachType,
@@ -483,11 +464,9 @@ export default function showNewMediaPopup(
         animationGroup,
         listenerSetter,
         onScroll,
-        onInput: (hasValue) => {
-          starsState.set({hasMessage: hasValue});
+        onInput: () => {
           updateEphemeralComposer();
         },
-        stars: starsState.totalStars,
         draft,
         ref: (inputField) => {
           messageInputField = inputField;
@@ -601,7 +580,7 @@ export default function showNewMediaPopup(
         onEffect: setEffectAccessor
       });
 
-      sendMenu?.setPeerParams({peerId: chat.peerId, isPaid: !!chat.starsAmount});
+      sendMenu?.setPeerParams({peerId: chat.peerId, isPaid: false});
     }
 
     currentPopup = handle;
@@ -905,7 +884,6 @@ export default function showNewMediaPopup(
   function changeGroup(group: boolean) {
     willAttach.group = group;
     attachFiles();
-    starsState.set({isGrouped: group});
   }
 
   function changeSpoilers(toggle: boolean) {
@@ -1204,7 +1182,7 @@ export default function showNewMediaPopup(
 
     if(isEphemeral && !isEditing()) {
       input.onMessageSent(true, true, true);
-    } else if(sendingParams.replyToMsgId || sendingParams.suggestedPost) {
+    } else if(sendingParams.replyToMsgId) {
       input.onHelperCancel();
     }
     // input.replyToMsgId = chat.threadId;
@@ -2229,10 +2207,6 @@ export default function showNewMediaPopup(
     }
   }
 
-  function setStarsAmount(starsAmount: number) {
-    starsState.set({starsAmount});
-  }
-
   /** What the attachment is, and how many of it — the two things a title has to say. */
   function getTitleSubject(): [MediaTitleKind, number] {
     if(gifDocument) {
@@ -2314,7 +2288,6 @@ export default function showNewMediaPopup(
       });
       currentFileSection = undefined;
       const filesLength = gifDocument ? 1 : files.length;
-      starsState.set({attachedFiles: filesLength, isGrouped: willAttach?.group && !hasGif()});
 
       if(!filesLength) {
         return;
@@ -2376,7 +2349,6 @@ export default function showNewMediaPopup(
 
   const handle: NewMediaPopupHandle = {
     addFiles,
-    setStarsAmount,
     appendDrops,
     hide: () => {
       setShow(false);
@@ -2385,7 +2357,6 @@ export default function showNewMediaPopup(
 
   function Inner() {
     context = useContext(PopupContext);
-    starsState = createStarsState();
 
     onCleanup(() => {
       listenerSetter.removeAll();

@@ -28,9 +28,6 @@ export interface ChatSendAsOptions {
   managers: AppManagers;
   onReady: (container: HTMLElement, skipAnimation?: boolean) => void,
   onChange: (sendAsPeerId: PeerId) => void
-  forPaidReaction?: boolean,
-  menuContainer?: HTMLElement
-  defaultPeerId?: PeerId
 }
 
 export default class ChatSendAs {
@@ -50,9 +47,6 @@ export default class ChatSendAs {
   private managers: ChatSendAsOptions['managers'];
   private onReady: ChatSendAsOptions['onReady'];
   private onChange: ChatSendAsOptions['onChange'];
-  private forPaidReaction: ChatSendAsOptions['forPaidReaction'];
-  private menuContainer: ChatSendAsOptions['menuContainer'];
-  private defaultPeerId: ChatSendAsOptions['defaultPeerId'];
 
   constructor(options: ChatSendAsOptions) {
     safeAssign(this, options);
@@ -65,7 +59,7 @@ export default class ChatSendAs {
     this.container = document.createElement('div');
     this.container.classList.add('new-message-send-as-container');
     this.container.setAttribute('role', 'button');
-    (this.menuContainer ?? this.container).setAttribute('aria-label', I18n.format(this.forPaidReaction ? 'SendReactionAsTitle' : 'SendMessageAsTitle', true));
+    this.container.setAttribute('aria-label', I18n.format('SendMessageAsTitle', true));
 
     this.closeBtn = document.createElement('div');
     this.closeBtn.classList.add('new-message-send-as-close', 'new-message-send-as-avatar');
@@ -73,7 +67,7 @@ export default class ChatSendAs {
     this.closeBtn.append(Icon('close'));
 
     const sendAsButtons: ButtonMenuItemOptions[] = [{
-      text: this.forPaidReaction ? 'SendReactionAsTitle' : 'SendMessageAsTitle',
+      text: 'SendMessageAsTitle',
       onClick: undefined
     }];
 
@@ -81,9 +75,6 @@ export default class ChatSendAs {
 
     let previousAvatar: ChatSendAs['avatar'];
     const onSendAsMenuToggle = (visible: boolean) => {
-      if(this.forPaidReaction) {
-        return;
-      }
       if(visible) {
         previousAvatar = this.avatar;
       }
@@ -112,8 +103,8 @@ export default class ChatSendAs {
     ButtonMenuToggle({
       buttonOptions: {noRipple: true},
       listenerSetter: this.listenerSetter,
-      container: this.menuContainer ?? this.container,
-      direction: this.forPaidReaction ? 'bottom-center' : 'top-right',
+      container: this.container,
+      direction: 'top-right',
       buttons: sendAsButtons,
       onOpenBefore: () => {
         onSendAsMenuToggle(true);
@@ -184,9 +175,7 @@ export default class ChatSendAs {
             executeButtonsUpdate();
           }
 
-          if(!this.forPaidReaction) {
-            this.managers.appMessagesManager.saveDefaultSendAs(currentPeerId, sendAsPeerId);
-          }
+          this.managers.appMessagesManager.saveDefaultSendAs(currentPeerId, sendAsPeerId);
         } : undefined,
         textElement
       };
@@ -269,13 +258,6 @@ export default class ChatSendAs {
   }
 
   private getDefaultSendAs(): Promise<AckedResult<PeerId>> {
-    if(this.forPaidReaction) {
-      return Promise.resolve({
-        cached: true,
-        result: Promise.resolve(this.defaultPeerId)
-      });
-    }
-
     return this.managers.acknowledged.appProfileManager.getChannelFull(this.peerId.toChatId()).then((acked) => {
       return {
         cached: acked.cached,
@@ -322,7 +304,7 @@ export default class ChatSendAs {
       if(!middleware()) return;
 
       Promise.all([
-        managers.appChatsManager.getSendAs(chatId, this.forPaidReaction),
+        managers.appChatsManager.getSendAs(chatId),
         apiManagerProxy.isPremiumFeaturesHidden()
       ]).then(([sendAsPeers, isPremiumFeaturesHidden]) => {
         if(!middleware()) return;

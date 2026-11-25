@@ -6,8 +6,8 @@ export type PinnedKey = PeerId | number;
  * neighbour it ended up next to rather than by how far it travelled.
  *
  * A reorder performed by hand only knows about the rows that were on screen, while the stored
- * order can hold pins with no row at all - the member chats of a folded Community keep theirs -
- * so counting slots would land next to the wrong pin as soon as one of those sits in between.
+ * order can hold pins with no row on screen, so counting slots would land next to the wrong pin
+ * as soon as one of those sits in between.
  *
  * @param order the list's whole pinned order, topmost first
  * @param key the dialog that moved

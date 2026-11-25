@@ -1579,8 +1579,8 @@ export default class DialogsStorage extends AppManager {
    * since the dialog was asked for (`settingsAskedAt`): then the dialog carries what is kept instead
    */
   private saveDialogNotifySettings(
-    dialog: AnyDialog | MTDialog.dialogCommunity,
-    target: {peerId?: PeerId, threadId?: number, communityId?: ChatId},
+    dialog: AnyDialog,
+    target: {peerId?: PeerId, threadId?: number},
     settingsAskedAt: number
   ) {
     const dialogWithSettings = dialog as MTDialog.dialog;
@@ -2646,8 +2646,6 @@ export default class DialogsStorage extends AppManager {
       const order = update.order.flatMap((peer) => {
         if(peer._ === 'dialogPeer') {
           return [this.appPeersManager.getPeerId(peer.peer)];
-        } else if(peer._ === 'dialogPeerCommunity') {
-          return [(peer.community_id as ChatId).toPeerId(true)];
         }
 
         return [];
