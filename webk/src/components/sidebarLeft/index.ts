@@ -1,4 +1,4 @@
-import {createEffect, createRoot, createSignal, createUniqueId, on} from 'solid-js';
+import {createEffect, createRoot, createSignal, createUniqueId} from 'solid-js';
 import appImManager from '@lib/appImManager';
 import rootScope from '@lib/rootScope';
 import {createSearchGroup, getSearchTransitionDuration, SearchGroup} from '@components/searchGroup';
@@ -104,8 +104,6 @@ import useHasFoldersSidebar, {
   useFoldersSidebarShown
 } from '@stores/foldersSidebar';
 import isObject from '@helpers/object/isObject';
-import {useCollapsedCommunityDialogsKey} from '@stores/communities';
-import isCommunity from '@appManagers/utils/communities/isCommunity';
 import {openEmojiStatusPicker} from '@components/sidebarLeft/emojiStatusPicker';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import verifyMenuItem from '@helpers/verifyMenuItem';
@@ -263,7 +261,7 @@ export class AppSidebarLeft extends SidebarSlider {
     const updateArchivedCount = async() => {
       const generation = ++archiveCountGeneration;
       const {unreadCount} = await rootScope.managers.dialogsStorage
-      .getFolderUnreadCount(FOLDER_ID_ARCHIVE, true);
+      .getFolderUnreadCount(FOLDER_ID_ARCHIVE);
       if(generation !== archiveCountGeneration) {
         return;
       }
@@ -275,12 +273,7 @@ export class AppSidebarLeft extends SidebarSlider {
         void updateArchivedCount().catch(noop);
       }
     });
-    createRoot(() => {
-      const projectionKey = useCollapsedCommunityDialogsKey();
-      createEffect(on(projectionKey, () => {
-        void updateArchivedCount().catch(noop);
-      }));
-    });
+    void updateArchivedCount().catch(noop);
 
     let statusMiddlewareHelper: MiddlewareHelper, fireOnNew: boolean;
     const premiumMiddlewareHelper = this.getMiddleware().create();
@@ -1276,7 +1269,6 @@ export class AppSidebarLeft extends SidebarSlider {
 
     const pickedElements: HTMLElement[] = [];
     let selectedPeerId: PeerId = ''.toPeerId();
-    let selectedCommunityId: ChatId;
     let selectedMinDate = 0;
     let selectedMaxDate = 0;
     let selectedArchive = false;
@@ -1364,7 +1356,6 @@ export class AppSidebarLeft extends SidebarSlider {
         selectedMaxDate = +maxDate;
       } else {
         selectedPeerId = key.toPeerId();
-        selectedCommunityId = undefined;
       }
 
       pickEntity(target);
@@ -1374,29 +1365,17 @@ export class AppSidebarLeft extends SidebarSlider {
 
     searchSuper.nav.parentElement.append(helper);
 
-    // * only a community: a forum or a monoforum is searched as the chat it is
-    const getCommunityByPeerId = (peerId: PeerId) => {
-      const chat = peerId.isAnyChat() ? apiManagerProxy.getChat(peerId.toChatId()) : undefined;
-      return isCommunity(chat) ? chat : undefined;
-    };
     const renderEntity = (key: PeerId | string, title?: string | HTMLElement) => {
-      const peerId = key.isPeerId() ? key.toPeerId() : undefined;
-      const community = peerId && getCommunityByPeerId(peerId);
       const isArchive = key === ARCHIVE_SEARCH_KEY;
       const rendered = AppSelectPeers.renderEntity({
         key,
-        title: title ?? (isArchive ? i18n('ArchiveSearchFilter') : community?.title),
+        title: title ?? (isArchive ? i18n('ArchiveSearchFilter') : undefined),
         middleware: helperMiddlewareHelper.get(),
         avatarSize: 30,
         fallbackIcon: 'calendarfilter',
         primary: true
       });
-      if(community) {
-        void rendered.avatar.render({
-          peerId,
-          peer: community as any
-        });
-      } else if(isArchive) {
+      if(isArchive) {
         // * the archive row's own picture
         rendered.avatar.set({icon: 'archive_filled', color: 'blue'});
       }
@@ -1412,7 +1391,6 @@ export class AppSidebarLeft extends SidebarSlider {
         selectedArchive = false;
       } else {
         selectedPeerId = ''.toPeerId();
-        selectedCommunityId = undefined;
       }
 
       // * a chip taken off by keyboard leaves the focus where the typing goes on
@@ -1520,7 +1498,7 @@ export class AppSidebarLeft extends SidebarSlider {
         'channels',
         'posts'
       ];
-      const hideGlobalOnlyTabs = !!selectedCommunityId || selectedArchive;
+      const hideGlobalOnlyTabs = selectedArchive;
       for(const type of globalOnlyTabs) {
         searchSuper.mediaTabsMap
         .get(type)
@@ -1544,8 +1522,7 @@ export class AppSidebarLeft extends SidebarSlider {
       // spot input
       searchSuper.changeQuery({
         peerId: selectedPeerId,
-        communityId: selectedCommunityId,
-        folderId: selectedPeerId || selectedCommunityId ? undefined : (selectedArchive ? FOLDER_ID_ARCHIVE : 0),
+        folderId: selectedPeerId ? undefined : (selectedArchive ? FOLDER_ID_ARCHIVE : 0),
         query: value,
         chatType,
         minDate: selectedMinDate,
@@ -1568,7 +1545,7 @@ export class AppSidebarLeft extends SidebarSlider {
       }
 
       // * no chat chips next to the archive one: a chat would leave it nothing to narrow
-      if(!selectedPeerId && !selectedCommunityId && !selectedArchive && value.trim()) {
+      if(!selectedPeerId && !selectedArchive && value.trim()) {
         const middleware = searchSuper.middleware.get();
         const promise = Promise.all([
           this.managers.dialogsStorage.getDialogs({query: value}).then(({dialogs}) => dialogs.map((d) => d.peerId)),
@@ -1813,12 +1790,7 @@ export class AppSidebarLeft extends SidebarSlider {
         if(focus) focusInput();
       },
       openWithPeerId: (peerId: PeerId) => {
-        selectedCommunityId = getCommunityByPeerId(peerId) ?
-          peerId.toChatId() :
-          undefined;
-        selectedPeerId = selectedCommunityId ?
-          ''.toPeerId() :
-          peerId;
+        selectedPeerId = peerId;
 
         openWithEntity(peerId);
       },

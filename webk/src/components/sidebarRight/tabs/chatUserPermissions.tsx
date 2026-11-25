@@ -45,10 +45,6 @@ import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 const ChatUserPermissions: Component = () => {
   const [tab] = useSuperTab<typeof AppUserPermissionsTab>();
-  if('communityId' in tab.payload) {
-    return null;
-  }
-
   const promiseCollector = usePromiseCollector();
 
   const {

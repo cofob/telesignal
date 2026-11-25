@@ -31,8 +31,6 @@ import indexOfAndSplice from '@helpers/array/indexOfAndSplice';
 import {CHANNEL_CUTOFF_RETRY_LIMIT, FOLDER_ID_ALL, PEER_FULL_TTL} from '@appManagers/constants';
 import {isParticipantAdmin} from '@lib/appManagers/utils/chats/isParticipantAdmin';
 import type {State} from '@config/state';
-import safeReplaceObject from '@helpers/object/safeReplaceObject';
-import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
 
 export type UserTyping = Partial<{userId: UserId, action: SendMessageAction, timeout: number}>;
 export type AppChatFull = ChatFull.chatFull | ChatFull.channelFull;
@@ -222,9 +220,6 @@ export class AppProfileManager extends AppManager {
       );
     } else {
       const fullChat = fullPeer as ChatFull;
-      if(fullChat._ === 'communityFull') {
-        this.appCommunitiesManager.prepareFullCommunity(fullChat);
-      }
       if(fullChat.chat_photo?.id) {
         fullChat.chat_photo = this.appPhotosManager.savePhoto(fullChat.chat_photo, {type: 'profilePhoto', peerId});
       }
@@ -273,20 +268,7 @@ export class AppProfileManager extends AppManager {
       this.rootScope.dispatchEvent('user_full_update', userId);
     } else {
       const chatId = peerId.toChatId();
-      let fullChat = fullPeer as ChatFull;
-      const oldFullChat = this.chatsFull[chatId];
-      if(fullChat._ === 'communityFull' && oldFullChat?._ === 'communityFull') {
-        safeReplaceObject(oldFullChat, fullChat);
-        fullChat = oldFullChat;
-        fullPeer = fullChat as T;
-      } else {
-        this.chatsFull[chatId] = fullChat;
-      }
-
-      if(fullChat._ === 'communityFull') {
-        this.appCommunitiesManager.handleFullCommunityUpdate(fullChat);
-        this.mirrorCommunityFull(chatId);
-      }
+      this.chatsFull[chatId] = fullPeer as ChatFull;
       this.rootScope.dispatchEvent('chat_full_update', chatId);
     }
 
@@ -449,28 +431,6 @@ export class AppProfileManager extends AppManager {
     return this.chatsFull;
   }
 
-  private mirrorCommunityFull(communityId: ChatId) {
-    const fullChat = this.chatsFull[communityId];
-    MTProtoMessagePort.getInstance<false>().invokeVoid('mirror', {
-      name: 'communityFull',
-      key: '' + communityId,
-      value: fullChat?._ === 'communityFull' ? structuredClone(fullChat) : undefined,
-      accountNumber: this.getAccountNumber()
-    });
-  }
-
-  public getCommunityFullMirror(): {[communityId: ChatId]: ChatFull.communityFull} {
-    const communitiesFull: {[communityId: ChatId]: ChatFull.communityFull} = {};
-    for(const chatId in this.chatsFull) {
-      const fullChat = this.chatsFull[chatId];
-      if(fullChat._ === 'communityFull') {
-        communitiesFull[chatId.toChatId()] = fullChat;
-      }
-    }
-
-    return structuredClone(communitiesFull);
-  }
-
   public expireCachedFullChat(chatId: ChatId) {
     this.fullExpiration[chatId.toPeerId(true)] = 0;
   }
@@ -484,19 +444,8 @@ export class AppProfileManager extends AppManager {
 
     delete this.chatsFull[chatId];
     delete this.fullExpiration[chatId.toPeerId(true)];
-    if(fullChat._ === 'communityFull') {
-      this.mirrorCommunityFull(chatId);
-    }
     if(dispatchUpdate) {
       this.rootScope.dispatchEvent('chat_full_update', chatId);
-    }
-  }
-
-  public clearCachedCommunityFulls() {
-    for(const chatId in this.chatsFull) {
-      if(this.chatsFull[chatId]._ === 'communityFull') {
-        this.deleteCachedFullChat(chatId.toChatId());
-      }
     }
   }
 
@@ -567,11 +516,7 @@ export class AppProfileManager extends AppManager {
       if(peerId.isUser()) {
         this.rootScope.dispatchEvent('user_full_update', peerId.toUserId());
       } else {
-        const chatId = peerId.toChatId();
-        if(fullPeer._ === 'communityFull') {
-          this.mirrorCommunityFull(chatId);
-        }
-        this.rootScope.dispatchEvent('chat_full_update', chatId);
+        this.rootScope.dispatchEvent('chat_full_update', peerId.toChatId());
       }
     }
   }
@@ -653,38 +598,6 @@ export class AppProfileManager extends AppManager {
   }
 
   public getChatFull(id: ChatId, override?: boolean): MaybePromise<ChatFull> {
-    if(this.appChatsManager.isCommunity(id)) {
-      const peerId = id.toPeerId(true);
-      const fullCommunity = this.chatsFull[id];
-      if(
-        fullCommunity?._ === 'communityFull' &&
-        !override &&
-        Date.now() < this.fullExpiration[peerId]
-      ) {
-        return fullCommunity;
-      }
-
-      const requestState = this.appCommunitiesManager.captureFullCommunityRequest(id);
-      const settingsAskedAt = this.appNotificationsManager.getSettingsClock();
-      return this.apiManager.invokeApiSingleProcess({
-        method: 'channels.getFullChannel',
-        params: {
-          channel: this.appChatsManager.getChannelInput(id)
-        },
-        options: {overwrite: override},
-        processResult: (result) => {
-          if(result.full_chat._ !== 'communityFull') {
-            throw makeError('CHANNEL_INVALID');
-          }
-          if(!this.appCommunitiesManager.isFullCommunityRequestCurrent(requestState)) {
-            return result.full_chat;
-          }
-
-          return this.saveFullPeerResult(peerId, result, settingsAskedAt) as ChatFull.communityFull;
-        }
-      });
-    }
-
     if(this.appChatsManager.isChannel(id)) {
       return this.getChannelFull(id, override);
     }

@@ -4,7 +4,6 @@ import {MUTE_UNTIL} from '@appManagers/constants';
 import RadioFormTsx from '@components/radioFormTsx';
 import showPeerPopup, {PopupPeerButton} from '@components/popups/peer';
 import showDatePickerPopup from '@components/popups/datePicker';
-import createCommunityAvatarElement from '@components/communities/communityAvatarElement';
 import {createComponent} from 'solid-js';
 import rootScope from '@lib/rootScope';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
@@ -38,31 +37,20 @@ const times: {value: number, langPackKey: LangPackKey, checked?: boolean}[] = [{
 }];
 
 /**
- * Every "Mute" of a chat, a topic or a Community — the chat list, the top bar, the profile — as tdesktop's mute
+ * Every "Mute" of a chat or a topic — the chat list, the top bar, the profile — as tdesktop's mute
  * menu (`menu/menu_mute.cpp`): a duration or one of the user's own. TeleSignal: Signal keeps no sound setting of a
  * chat, only its mute, so the menu has no sound button.
  */
 export default function showMutePopup(
-  peerId?: PeerId,
-  threadId?: number,
-  communityId?: ChatId
+  peerId: PeerId,
+  threadId?: number
 ) {
   const managers = bindManagersToSession(rootScope.managers);
-
-  // a Community can't go through `peerId`: its avatar is the decorated one, built here
-  // so the popup looks like every other mute popup instead of a bare title
-  const communityAvatar = communityId ?
-    createCommunityAvatarElement(communityId, 32) :
-    undefined;
 
   let time = times.find((option) => option.checked).value;
 
   const mute = (muteUntil: number) => {
-    if(communityId) {
-      managers.appCommunitiesManager.muteCommunity(communityId, muteUntil);
-    } else {
-      managers.appMessagesManager.mutePeer({peerId, muteUntil, threadId});
-    }
+    managers.appMessagesManager.mutePeer({peerId, muteUntil, threadId});
   };
 
   const buttons: PopupPeerButton[] = [{
@@ -90,8 +78,7 @@ export default function showMutePopup(
   }];
 
   showPeerPopup('popup-mute', {
-    peerId: communityId ? undefined : peerId,
-    avatar: communityAvatar?.element,
+    peerId,
     titleLangKey: 'Notifications',
     buttons,
     content: createComponent(RadioFormTsx<number | string>, {
@@ -99,7 +86,6 @@ export default function showMutePopup(
       onChange: (value) => {
         time = +value;
       }
-    }),
-    onCloseAfterTimeout: communityAvatar?.dispose
+    })
   });
 }

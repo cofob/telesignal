@@ -270,9 +270,6 @@ import isAnchoredEphemeralMessage from '@appManagers/utils/messages/isAnchoredEp
 import canReplyToEphemeralMessage from '@appManagers/utils/messages/canReplyToEphemeralMessage';
 import isEphemeralMessageId from '@appManagers/utils/messageId/isEphemeralMessageId';
 import {
-  CommunityChangedServiceBubble
-} from '@components/chat/bubbles/communityChanged';
-import {
   createSolidMessageBody,
   makeSolidMessageBodySnapshot,
   SolidMessageBodyController
@@ -9443,35 +9440,6 @@ export default class ChatBubbles {
             }), middleware);
             contentWrapper.append(buttons);
           }
-        } else if(
-          action._ === 'messageActionChangeCommunity' &&
-          action.community_id !== undefined &&
-          action.community_id !== 0 &&
-          action.community_id !== '0'
-        ) {
-          const communityId = action.community_id.toChatId();
-          const community = await this.managers.appChatsManager.getChat(communityId);
-          const text = await wrapMessageActionTextNew({
-            message,
-            ...wrapOptions,
-            noLinks: !!community?.title
-          });
-          this.wrapSomeSolid(() => CommunityChangedServiceBubble({
-            communityId,
-            initialCommunity: community?._ === 'community' ||
-              community?._ === 'communityForbidden' ? community : undefined,
-            initialText: text,
-            message: message as Message.messageService,
-            onViewClick: () => {
-              hotReloadGuard.appDialogsManager.toggleForumTabByPeerId(
-                communityId.toPeerId(true),
-                true,
-                false
-              );
-            },
-            serviceContainer: s,
-            wrapOptions
-          }), s, middleware);
         } else if(action._ === 'messageActionSetChatWallPaper' && !action.pFlags.same) {
           // * the wallpaper stands in for the text, with the text under it, as in tdesktop
           const text = await wrapMessageActionTextNew({message, ...wrapOptions});

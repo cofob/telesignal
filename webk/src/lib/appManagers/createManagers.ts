@@ -6,7 +6,6 @@ import {ApiUpdatesManager} from '@appManagers/apiUpdatesManager';
 import {AppAvatarsManager} from '@appManagers/appAvatarsManager';
 import {AppCallsManager} from '@appManagers/appCallsManager';
 import {AppChatsManager} from '@appManagers/appChatsManager';
-import {AppCommunitiesManager} from '@appManagers/appCommunitiesManager';
 import {AppDocsManager} from '@appManagers/appDocsManager';
 import {AppDraftsManager} from '@appManagers/appDraftsManager';
 import {AppEmojiManager} from '@appManagers/appEmojiManager';
@@ -65,7 +64,6 @@ export default function createManagers(
   const managers = {
     appPeersManager: new AppPeersManager,
     appChatsManager: new AppChatsManager,
-    appCommunitiesManager: new AppCommunitiesManager,
     appDocsManager: new AppDocsManager,
     appPhotosManager: new AppPhotosManager,
     appPollsManager: new AppPollsManager,
@@ -140,7 +138,6 @@ export default function createManagers(
   const promises: Array<Promise<(() => void) | void> | void>[] = [];
   let names = Object.keys(managers) as (keyof T)[];
   names.unshift(
-    'appCommunitiesManager',
     'appUsersManager',
     'appChatsManager',
     'appNotificationsManager',

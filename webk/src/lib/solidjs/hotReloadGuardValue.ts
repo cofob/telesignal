@@ -11,7 +11,6 @@ import ButtonMenu, {ButtonMenuSync} from '@components/buttonMenu';
 import {ChatType} from '@components/chat/chatType';
 import PaidMessagesInterceptor from '@components/chat/paidMessagesInterceptor';
 import {pickLanguage} from '@components/chat/translation';
-import CommunityLinkSection from '@components/communities/communityLinkSection';
 import confirmationPopup from '@components/confirmationPopup';
 import confirmOpenGoogleMaps from '@components/confirmOpenGoogleMaps';
 import createEmojiDropdownButton, {useEmojiDropdown} from '@components/emojiDropdownButton';
@@ -159,7 +158,6 @@ registerHotReloadGuard({
   usePeerTranslation,
   showSharingPickerPopup,
   PaidMessagesInterceptor,
-  CommunityLinkSection,
   showForwardPopup,
   showPeerProfilePopup,
   createStoriesViewer,

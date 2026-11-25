@@ -3,7 +3,6 @@ import cancelEvent from '@helpers/dom/cancelEvent';
 import findUpClassName from '@helpers/dom/findUpClassName';
 import toggleDisability from '@helpers/dom/toggleDisability';
 import {KeyboardButton, KeyboardInlineButton, Message, ReplyMarkup, InlineQueryPeerType} from '@layer';
-import {i18n} from '@lib/langPack';
 import wrapRichText from '@lib/richTextProcessor/wrapRichText';
 import rootScope from '@lib/rootScope';
 import isEphemeralMessageId from '@appManagers/utils/messageId/isEphemeralMessageId';

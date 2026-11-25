@@ -153,7 +153,7 @@ import showChatToast from '@components/chat/chatToast';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import safeWindowOpen from '@helpers/dom/safeWindowOpen';
 import {createProxiedManagersForAccount} from '@lib/getProxiedManagers';
-import {getAccountSession, getCurrentAccount, getManagersSession, isSessionLeaving} from '@lib/accounts/getCurrentAccount';
+import {getAccountSession, getCurrentAccount, isSessionLeaving} from '@lib/accounts/getCurrentAccount';
 import type {ActiveAccountNumber} from '@lib/accounts/types';
 import ChatBackgroundStore from '@lib/chatBackgroundStore';
 import useLockScreenShortcut from '@appManagers/utils/useLockScreenShortcut';
@@ -1663,31 +1663,11 @@ export class AppImManager extends EventListenerBase<{
               break;
             }
 
-            if(params.community !== undefined && !peerId.isUser()) {
-              this.managers.appCommunitiesManager
-              .getJoinedCommunities()
-              .then((communities) => {
-                const community = communities.find(({id}) => {
-                  return id.toPeerId(true) === peerId;
-                });
-                this.op({
-                  peer: community,
-                  lastMsgId: messageId,
-                  threadId,
-                  call: params.call
-                });
-              })
-              .catch((error) => {
-                this.log.error('open community route error', error);
-              });
-              break;
-            }
-
-            const cachedCommunity = !peerId.isUser() ?
+            const cachedChat = !peerId.isUser() ?
               apiManagerProxy.getChat(peerId.toChatId()) :
               undefined;
-            const peerPromise = cachedCommunity ?
-              Promise.resolve(cachedCommunity) :
+            const peerPromise = cachedChat ?
+              Promise.resolve(cachedChat) :
               Promise.all([
                 this.managers.appPeersManager.getPeer(peerId),
                 !peerId.isUser() ?
@@ -1695,7 +1675,7 @@ export class AppImManager extends EventListenerBase<{
                     peerId.toChatId()
                   ) :
                   undefined
-              ]).then(([peer, community]) => community || peer);
+              ]).then(([peer, chat]) => chat || peer);
             peerPromise.then((peer) => {
               this.op({
                 peer,
@@ -1732,12 +1712,12 @@ export class AppImManager extends EventListenerBase<{
   }
 
   public async open(options: Omit<Parameters<AppImManager['op']>[0], 'peer'> & {peerId: PeerId}) {
-    const community = !options.peerId.isUser() ?
+    const chat = !options.peerId.isUser() ?
       apiManagerProxy.getChat(options.peerId.toChatId()) :
       undefined;
     return this.op({
       ...options,
-      peer: community ||
+      peer: chat ||
         apiManagerProxy.getPeer(options.peerId) ||
         await this.managers.appPeersManager.getPeer(options.peerId)
     });
@@ -1750,20 +1730,6 @@ export class AppImManager extends EventListenerBase<{
     if(!options.peer) {
       return;
     }
-    if(options.peer._ === 'community') {
-      const {CommunityForumTab} = await import(
-        '@components/forumTab/communityForumTab'
-      );
-      // * a community of the account it was asked on: not opened once the tab is on another
-      if(isSessionLeaving(getManagersSession(managers))) return;
-      return appDialogsManager.toggleForumTabByPeerId(
-        options.peer.id.toPeerId(true),
-        true,
-        false,
-        CommunityForumTab
-      );
-    }
-
     const isUser = options.peer._ === 'user';
     const isChannel = options.peer._ === 'channel';
     let peerId = options.peer.id.toPeerId(!isUser);
@@ -2942,7 +2908,7 @@ export class AppImManager extends EventListenerBase<{
 
       const target = e.target as HTMLElement;
       const dialogElement = findUpClassName(target, 'chatlist-chat');
-      if(dialogElement && !dialogElement.dataset.communityId) {
+      if(dialogElement) {
         if(lastDialogElement !== dialogElement) {
           dialogElement.classList.add('is-dragover');
           lastDialogElement = dialogElement;
