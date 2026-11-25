@@ -115,14 +115,13 @@ without `git`, and fetching them took most of the two minutes that the install n
 tarball would make installs hermetic and let the image build run offline from a registry mirror. The two ESLint and one
 Stylelint plugins are needed by checks only, which the image build does not run, but `npm ci` installs them all.
 
-## Web K describes the Signal provider's API by hand
+## Web K passes the provider's method arguments untyped
 
-Web K (`webk/`) runs Web A's Signal provider (`src/api/signal`) in its worker, but its type check cannot include the
-provider's sources: Web K's `tsconfig.json` has other settings (`strictNullChecks` off, an ES2015 library), and the
-provider's `Methods` type reaches Web A's UI code, which fails there. So `webk/src/lib/signal/signalApi.d.ts` describes
-the provider calls and the `Api*` fields that `appSignalManager` reads, and Vite resolves `@signal-app/provider` to the
-real module. A change of a provider method or of an `Api*` field that Web K reads type-checks in both trees and breaks
-Web K at run time only. The rights of a chat (`SignalRights`) that `builders.ts` maps to Telegram's flags are typed the same way. A types-only package of the provider's API, shared by both trees, would close the gap.
+Web K (`webk/`) types the provider's API by hand in `webk/src/lib/signal/signalApi.d.ts`, since its type check cannot
+include the provider's sources. `src/api/signal/webkContract.ts` checks that description in `npm run check:ts`: the
+method names that Web K calls, the `Api*` objects that Web K reads and the ones it hands over. The arguments of each
+call and its result are still `any` on Web K's side (`appSignalManager.call`, `SignalMethodHost.call`,
+`callSignalApi`), so a changed parameter of a provider method that Web K calls breaks Web K at run time only.
 
 ## Web K's reactions assume catalog stickers that Signal emoji do not have
 

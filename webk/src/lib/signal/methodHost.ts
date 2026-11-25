@@ -7,6 +7,7 @@
 import type {AppChatsManager} from '@appManagers/appChatsManager';
 import type {AppPeersManager} from '@appManagers/appPeersManager';
 import type {InputPeer, MethodDeclMap} from '@layer';
+import type {SignalMethodName} from '@lib/signal/signalApi';
 import {toSignalPeerId} from '@lib/signal/builders';
 
 export type SignalMethodHandler = (params: any) => any;
@@ -19,7 +20,7 @@ export type SignalMethodManagers = {
 
 export type SignalMethodHost = {
   /** Calls a method of the provider (`src/api/signal/methods`) */
-  call: <T = any>(name: string, ...args: any[]) => Promise<T>;
+  call: <T = any>(name: SignalMethodName, ...args: any[]) => Promise<T>;
   /** The Web K peer id of an input peer, as the adapter reads it */
   getInputPeerId: (inputPeer: InputPeer) => PeerId | undefined;
   getManagers: () => SignalMethodManagers;

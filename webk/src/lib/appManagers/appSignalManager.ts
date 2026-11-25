@@ -33,6 +33,7 @@ import type {
   SignalContact,
   SignalInitialArgs,
   SignalMessage,
+  SignalMethodName,
   SignalReactions,
   SignalSticker,
   SignalUser
@@ -202,7 +203,7 @@ export default class AppSignalManager extends AppManager {
   }
 
   /** A provider method that the settings screens call, run by the engine of this worker (`lib/signal/settingsApi`) */
-  public callSignal(name: string, ...args: any[]) {
+  public callSignal(name: SignalMethodName, ...args: any[]) {
     return this.call(name, ...args);
   }
 
@@ -226,7 +227,7 @@ export default class AppSignalManager extends AppManager {
     };
   }
 
-  private async call<T = any>(name: string, ...args: any[]): Promise<T> {
+  private async call<T = any>(name: SignalMethodName, ...args: any[]): Promise<T> {
     const {callApi} = await getProvider();
     return callApi(name, ...args);
   }
