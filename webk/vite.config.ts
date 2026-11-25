@@ -231,6 +231,10 @@ const ADDITIONAL_ALIASES = {
   '@signal-app/signal-proxy': path.join(signalAppDir, 'util/signalProxy.ts'),
   // * the parser of Signal links that Web A's search and message links open
   '@signal-app/signal-links': path.join(signalAppDir, 'util/signalLinks.ts'),
+  // * the keyboard shortcuts both frontends share: their ids, defaults and editable ones, and the reading of key combos
+  '@signal-app/keyboard-shortcuts': path.join(signalAppDir, 'util/keyboardShortcuts/registry.ts'),
+  '@signal-app/key-combos': path.join(signalAppDir, 'util/keyboardShortcuts/keyCombos.ts'),
+  '@signal-app/platform': path.join(signalAppDir, 'util/browser/platform.ts'),
   // * the desktop app's native transport: the engine's side in the worker, and the page's side that calls the app
   '@signal-app/native-transport': path.join(signalAppDir, 'lib/signal/net/NativeTransport.ts'),
   '@signal-app/serve-native-transport': path.join(signalAppDir, 'util/tauri/serveNativeTransport.ts'),
@@ -324,6 +328,21 @@ function compileHintsPlugin(): Plugin {
   };
 }
 
+// TeleSignal: in a test run `vite-plugin-solid` adds `@testing-library/jest-dom` to the setup files whenever it can
+// resolve it, and from its own location it finds Web A's copy in the repository root, which vitest here cannot load.
+// No test of Web K uses it
+function noRootJestDomPlugin(): Plugin {
+  return {
+    name: 'no-root-jest-dom',
+    config(config) {
+      const test = (config as {test?: {setupFiles?: string[]}}).test;
+      if(test?.setupFiles) {
+        test.setupFiles = test.setupFiles.filter((file) => !file.includes('jest-dom'));
+      }
+    }
+  };
+}
+
 // Vite's preload helper waits for a lazy chunk's CSS with listeners it leaves on the <link> for good,
 // and makes them inside `__vitePreload`, so their closures hold its scope: the `() => import(...)`
 // it was called with, and through that whatever the caller's scope held — the first popup, tab or
@@ -367,6 +386,7 @@ export default defineConfig({
     signalAppVersionPlugin(),
     signalStaticAssetsPlugin(),
     solidPlugin(),
+    noRootJestDomPlugin(),
     handlebarsPlugin as any,
     compileHintsPlugin(),
     preloadHelperCssWaitPlugin(),
@@ -426,8 +446,7 @@ export default defineConfig({
     pool: 'forks',
     // a full run waits for its turn in the machine-wide queue of heavy test runs (scripts/test-queue.sh)
     maxWorkers: vitestWorkers(),
-    globals: true,
-    setupFiles: ['./src/tests/setup.ts']
+    globals: true
   },
   server: serverOptions,
   base: process.env.NODE_ENV === 'development' ? '/k/' : '',

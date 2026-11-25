@@ -87,7 +87,8 @@ import {AppChatFoldersTab} from '@components/solidJsTabs/tabs';
 import {SliderSuperTabConstructable} from '@components/sliderTab';
 import showSliderPopup from '@components/sliderPopup';
 import {AppEditFolderTab} from '@components/solidJsTabs/tabs';
-import {addShortcutListener} from '@helpers/shortcutListener';
+import {getIsKeyboardShortcut, listenKeyboardShortcuts} from '@lib/keyboardShortcuts';
+import {bindActiveWindowListener} from '@helpers/appWindow';
 import tsNow from '@helpers/tsNow';
 import {toastNew} from '@components/toast';
 import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
@@ -491,37 +492,38 @@ export class AppSidebarLeft extends SidebarSlider {
       this.onSomethingOpenInsideChange();
     };
 
-    addShortcutListener(['ctrl+f', 'alt+f', 'meta+f'], () => {
-      if(appNavigationController.findItemByType('popup')) return;
-      // * from inside the archive the search stays in it
-      if(lastItem(this.getHistory()) instanceof AppArchivedTab) {
-        this.openArchiveSearch();
-        return;
+    // * Web A's global shortcuts by its registry and its user's changes (`lib/keyboardShortcuts`)
+    listenKeyboardShortcuts();
+    bindActiveWindowListener((w) => w.document, 'keydown', (e: KeyboardEvent) => {
+      // * in the composer, a selection takes Mod+K for a link first
+      if(e.defaultPrevented || !e.isTrusted || appNavigationController.findItemByType('popup')) return;
+
+      if(getIsKeyboardShortcut(e, 'globalSearch')) {
+        e.preventDefault();
+        // * from inside the archive the search stays in it
+        if(lastItem(this.getHistory()) instanceof AppArchivedTab) this.openArchiveSearch();
+        else this.initSearch().open();
+      } else if(getIsKeyboardShortcut(e, 'searchInChat') && appImManager.chat?.peerId) {
+        e.preventDefault();
+        appImManager.chat.initSearch();
+      } else if(getIsKeyboardShortcut(e, 'quickChatPicker')) {
+        e.preventDefault();
+        void import('@components/popups/pickUser').then(({showPickUser2Popup}) => showPickUser2Popup({
+          peerType: ['dialogs', 'contacts'],
+          filterPeerTypeBy: undefined,
+          titleLangKey: 'SelectChat',
+          placeholder: 'Search'
+        })).then((peerId) => appImManager.setInnerPeer({peerId}), noop);
+      } else if(getIsKeyboardShortcut(e, 'savedMessages')) {
+        e.preventDefault();
+        if(appImManager.chat?.peerId !== appImManager.myId) appImManager.setPeer({peerId: appImManager.myId});
+      } else if(getIsKeyboardShortcut(e, 'archivedChats')) {
+        e.preventDefault();
+        this.openArchiveTab();
+      } else if(getIsKeyboardShortcut(e, 'openSettings')) {
+        e.preventDefault();
+        this.createTab(AppSettingsTab).open();
       }
-
-      this.initSearch().open();
-    });
-
-    // * Web A's quick chat picker (Mod+K, `quickChatPicker`): a chat or contact to open; in the composer, a selection
-    // * takes it for a link first
-    addShortcutListener(['ctrl+k', 'meta+k'], (combo, e) => {
-      if(e.defaultPrevented || appNavigationController.findItemByType('popup')) return;
-      e.preventDefault();
-      void import('@components/popups/pickUser').then(({showPickUser2Popup}) => showPickUser2Popup({
-        peerType: ['dialogs', 'contacts'],
-        filterPeerTypeBy: undefined,
-        titleLangKey: 'SelectChat',
-        placeholder: 'Search'
-      })).then((peerId) => appImManager.setInnerPeer({peerId}), noop);
-    }, false);
-
-    // * Web A's Note to Self: Mod+0 and Mod+Shift+S
-    addShortcutListener(['ctrl+0', 'meta+0', 'ctrl+shift+keys', 'meta+shift+keys'], () => {
-      if(appNavigationController.findItemByType('popup') ||
-        appImManager.chat.peerId === appImManager.myId) return;
-      appImManager.setPeer({
-        peerId: appImManager.myId
-      });
     });
   }
 

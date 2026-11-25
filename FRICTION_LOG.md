@@ -272,14 +272,13 @@ switch in place remains: `apiManagerProxy.switchAccount` and `resetAccountMirror
 of about twenty modules, and the `notifyAllAccounts` routing of notifications to tabs of other accounts, which only
 work when one worker serves every account. Removing them means checking each listener for work it does at startup too.
 
-## Every Web K page load reports page errors with no message
+## Every Web K page load reports a page error with no message
 
-Each load of `/k/` in Chromium logs several `pageerror` events whose error is a plain object, and Solid logs
-`solid error Error: Unknown error` (seen in Playwright on the demo account while checking logout, accounts and
-settings). The app keeps working. Some of them are verified: an `unhandledrejection` listener added before the page
-loads shows `{type: 'SIGNAL_METHOD_UNSUPPORTED'}` rejections of `langpack.getLangPack` and of
-`AppReactionsManager.getSavedReactionTags`, which call methods the adapter (`appSignalManager.ts`) does not answer and
-do not catch the rejection; the stack of the others ends at `invokeApiSingleProcess`, without the method's name.
+Each load of `/k/` in Chromium logs a `pageerror` event whose error is a plain object (seen in Playwright on the demo
+account). The app keeps working. An `unhandledrejection` listener added before the page loads shows a
+`{type: 'SIGNAL_METHOD_UNSUPPORTED'}` rejection from `AppPaymentsManager.loadStarsStatus`, which asks for the Stars
+balance that the adapter (`appSignalManager.ts`) does not answer and does not catch the rejection; it goes with the
+inert Stars paths. Other Telegram methods that a manager calls without a catch would show the same way.
 
 ## Message search reads the stored messages without an index
 
@@ -302,7 +301,7 @@ Web K's sign-in now links with the QR code or registers a phone number through t
 (`webk/src/pages/signalRegistration.tsx`), and the number card (`webk/src/pages/cards/SignInCard.tsx`) sends the
 number to the engine. Telegram's cards for the code, the cloud password, the sign-up, the e-mail setup and recovery
 and the web token import (`AuthCodeCard`, `PasswordCard`, `SignUpCard`, `Email*Card`, `SignImportCard`), the
-`continueLogin` and `sentCode` helpers and the passkey button stay in `webk/src/pages/` and `authFlow.tsx`, and
+`continueLogin` and `sentCode` helpers stay in `webk/src/pages/` and `authFlow.tsx`, and
 `index.ts` still maps Telegram's auth states to them. No step of the engine leads there, so they are dead code that
 reads as live; removing them needs the auth states of `AuthState` in `webk/src/types.d.ts` trimmed with them.
 
@@ -317,3 +316,19 @@ cursor takes the highest id seen and the newest rendered bubble (`webk/src/compo
 unread divider is the first bubble above the read id (`getFirstUnreadBubble`), and the viewport's bottom is compared by id
 (`isScrolledPast`). With an inversion, a message above the divider can be unread, or one below it read; Web A has the same
 assumption. Observed with the demo's call 66 in Alice's chat, which is read, so it shows no wrong divider there.
+
+## Web K repeats Web A's resolution and checks of keyboard shortcuts
+
+Both frontends take the registry and the key combos from one place (`src/util/keyboardShortcuts/registry.ts` and
+`keyCombos.ts`, which Web K imports through `@signal-app/keyboard-shortcuts` and `@signal-app/key-combos`), but the code
+around them is written twice. Web A resolves a shortcut's combos (`buildDefaultCombos`, `getIsDefaultAvailable` and
+`getKeyboardShortcutCombos` in `src/util/keyboardShortcuts/index.ts`) and checks a recorded combo
+(`src/components/left/settings/keyboardShortcuts/helpers.ts`); Web K has its own copies in
+`webk/src/lib/keyboardShortcuts.ts` and `webk/src/lib/keyboardShortcutConflicts.ts`. Web A's modules read the global
+state (`getGlobal`), the app environment (`IS_APP`, `IS_TAURI`, `IS_FIREFOX` of `windowEnvironment.ts` and
+`globalEnvironment.ts`, which pull in `fasterdom` and Tauri) and the settings search, so Web K cannot import them, and
+a change to the environments of the defaults, the reserved combos or the conflict rules must be made in both copies.
+The search of the settings screen is shared only in part: the key query (`parseKeyQuery`, `getIsComboWithKeys` in
+`keyCombos.ts`) is common, while the word matching of `filterKeyboardShortcuts` and its `splitWords` are copied into
+`webk/src/components/sidebarLeft/tabs/keyboardShortcuts.tsx`. Pure versions that take the environment and the settings
+as arguments would let both frontends share them.

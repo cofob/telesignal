@@ -12,18 +12,16 @@ import {Underline} from '@tiptap/extension-underline';
 import classNames from '@helpers/string/classNames';
 import {isAllowedLinkHref} from '@helpers/string/normalizeLinkUrl';
 
-// The marks' keys are Ctrl (Cmd on a Mac) and the letter, nothing more. Tiptap also binds the capital
-// letter, which ProseMirror's keymap matches with Shift held — Ctrl+Shift+B is the browser's bookmarks bar,
-// Ctrl+Shift+I its DevTools — and strikethrough to Ctrl+Shift+S, a screenshot in Firefox: strikethrough is
-// Ctrl+S on a selection (handleMarkdownShortcut). A capital from Caps Lock still finds the lowercase binding
-// by the key's code.
+// The marks take no keys of their own: bold, italic, underline and strikethrough follow Web A's shortcuts and the
+// user's changes of them (`lib/keyboardShortcuts`), on a selection through `handleMarkdownShortcut` and on none as
+// the mark of what is typed next (`ChatInputEditor`'s `handleKeyDown`), as Web A's `EDITOR_COMMANDS` do.
 
 // Typed and pasted markdown is Telegram's, not CommonMark's: `**` is bold and `__` italic, as in
 // every official client and in the parser a sent message goes through (MARKDOWN_ENTITIES), and a
 // single `*` or `_` marks nothing. Tiptap's own rules read `__` as bold and `*` / `_` as italic.
 export const ChatBold = Bold.extend({
   addKeyboardShortcuts() {
-    return {'Mod-b': () => this.editor.commands.toggleBold()};
+    return {};
   },
 
   addInputRules() {
@@ -37,7 +35,7 @@ export const ChatBold = Bold.extend({
 
 export const ChatItalic = Italic.extend({
   addKeyboardShortcuts() {
-    return {'Mod-i': () => this.editor.commands.toggleItalic()};
+    return {};
   },
 
   addInputRules() {
@@ -51,7 +49,7 @@ export const ChatItalic = Italic.extend({
 
 export const ChatUnderline = Underline.extend({
   addKeyboardShortcuts() {
-    return {'Mod-u': () => this.editor.commands.toggleUnderline()};
+    return {};
   }
 });
 

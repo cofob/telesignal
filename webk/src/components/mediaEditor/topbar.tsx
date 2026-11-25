@@ -1,6 +1,7 @@
 import {batch, onCleanup, onMount} from 'solid-js';
 
-import {addShortcutListener} from '@helpers/shortcutListener';
+import {bindActiveWindowListener} from '@helpers/appWindow';
+import {getIsKeyboardShortcut} from '@lib/keyboardShortcuts';
 import I18n, {i18n} from '@lib/langPack';
 import {ButtonIconTsx} from '@components/buttonIconTsx';
 import ripple from '@components/ripple';
@@ -44,10 +45,13 @@ export default function Topbar(props: {onClose: () => void; onFinish: () => void
   onMount(() => {
     ripple(doneButton);
 
-    const removeListener = addShortcutListener(['Ctrl+KeyZ', 'Ctrl+Shift+KeyZ', 'Ctrl+KeyY'], (combo) => {
-      if(combo === 'Ctrl+KeyZ') {
+    // * Web A's undo and redo of the media editor, by its registry (`lib/keyboardShortcuts`)
+    const removeListener = bindActiveWindowListener((w) => w.document, 'keydown', (e: KeyboardEvent) => {
+      if(getIsKeyboardShortcut(e, 'mediaEditorUndo')) {
+        e.preventDefault();
         onUndo();
-      } else {
+      } else if(getIsKeyboardShortcut(e, 'mediaEditorRedo')) {
+        e.preventDefault();
         onRedo();
       }
     });

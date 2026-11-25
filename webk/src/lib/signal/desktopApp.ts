@@ -12,7 +12,6 @@ import DEBUG from '@config/debug';
 import {IS_APPLE} from '@environment/userAgent';
 import noop from '@helpers/noop';
 import serveNativeTransport from '@signal-app/serve-native-transport';
-import {readWebASharedSettings} from '@lib/signal/webAState';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 /** Tauri's `isTauri()`: the app's pages get the flag before their scripts run */
@@ -25,10 +24,6 @@ export const IS_DESKTOP_APP_BUNDLE = IS_DESKTOP_APP &&
 const NOTIFICATION_CLICKED_EVENT = 'notification-clicked';
 // * Cmd+, in the macOS menu bar (`tauri/src/menu.rs`)
 const OPEN_SETTINGS_EVENT = 'open-settings';
-// * Web A's id of the shortcut and its default (`quitApp` in `src/util/keyboardShortcuts/registry.ts`): Ctrl+Q outside
-// * macOS, whose menu bar quits with Cmd+Q
-const QUIT_SHORTCUT_ID = 'quitApp';
-const DEFAULT_QUIT_COMBO = 'Ctrl+Q';
 // * the app reports a click with the chat that the notification named; Web K names its key with this prefix, which
 // * Web A's pages ignore after the window switched frontends (`src/util/tauri/setupTauriListeners.ts`)
 const NOTIFICATION_PREFIX = 'webk:';
@@ -144,25 +139,17 @@ export function setupDesktopApp() {
 }
 
 /**
- * Ctrl+Q quits on Windows and Linux, where the app has no menu bar, with Web A's combo or its user's change of it; a
- * change made in Web A is read when the user comes back to this window
+ * Ctrl+Q quits on Windows and Linux, where the app has no menu bar, with Web A's combo or its user's change of it
+ * (`quitApp`, `lib/keyboardShortcuts`)
  */
 async function listenToQuitShortcut() {
-  // * the keys as Web A reads them; loaded later, as the module reaches the passcode
-  const {getEventCombo, normalizeCombo} = await import('@appManagers/utils/useLockScreenShortcut');
-  let combos = [normalizeCombo(DEFAULT_QUIT_COMBO)];
-  const refresh = () => readWebASharedSettings().then(({keyboardShortcuts}) => {
-    const custom = keyboardShortcuts?.[QUIT_SHORTCUT_ID];
-    combos = custom === false ? [] : [normalizeCombo(custom || DEFAULT_QUIT_COMBO)];
-  }, noop);
-  refresh();
-  window.addEventListener('focus', refresh);
+  // * loaded later, as the shortcuts read Web A's settings
+  const {getIsKeyboardShortcut, listenKeyboardShortcuts} = await import('@lib/keyboardShortcuts');
+  listenKeyboardShortcuts();
 
   document.addEventListener('keydown', (e) => {
     // * Web K passes a key on to the composer as a copy of the event (`focusInput`)
-    if(!e.isTrusted) return;
-    const combo = getEventCombo(e);
-    if(!combo || !combos.includes(combo)) return;
+    if(!e.isTrusted || !getIsKeyboardShortcut(e, 'quitApp')) return;
 
     e.preventDefault();
     invoke<void>('quit_app').catch(noop);

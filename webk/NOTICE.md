@@ -48,7 +48,9 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
 
 - Build: `vite.config.ts` serves the app at `/k/` behind the repository's dev server, builds it to `../dist/k`, takes the
   page's policy from `../plugins/csp.ts`, the environment from the repository and the emoji images from `emoji-data-ios`;
-  the dev checks of upstream run only with `TWEB_DEV_CHECKS`.
+  the dev checks of upstream run only with `TWEB_DEV_CHECKS`. Vitest runs the vendored unit tests without upstream's
+  setup file (`src/tests/setup.ts` is not vendored) and without the `@testing-library/jest-dom` setup that
+  `vite-plugin-solid` would take from the repository root.
 - Telegram API: MTProto is removed (`src/lib/mtproto`, the networker factory, the crypto worker's AES-IGE, RSA and
   factorization, Telegram push decryption) with the `@cryptography/aes` dependency; `src/lib/appManagers/apiManager.ts`
   passes the managers' calls to `appSignalManager.ts`, which answers them from the shared Signal provider

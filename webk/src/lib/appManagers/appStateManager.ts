@@ -12,7 +12,6 @@ import isObject from '@helpers/object/isObject';
 
 export type ResetStoragesPromise = CancellablePromise<{
   storages: Map<keyof StoragesResults, (PeerId | UserId | ChatId)[]>,
-  refetch?: boolean,
   callback: () => Promise<void>
 }>;
 

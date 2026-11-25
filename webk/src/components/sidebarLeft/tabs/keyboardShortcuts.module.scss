@@ -2,8 +2,10 @@
   display: inline-flex;
   align-items: center;
   gap: .25rem;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
+  // * a shortcut of two combos goes on a second line rather than take the title's place
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 11rem;
   white-space: nowrap;
   // * a combination reads left to right in any language, the way it is written ("Ctrl + B")
   direction: ltr;
@@ -36,4 +38,28 @@
   font-size: .8125rem;
   margin: 0 .125rem;
   opacity: .75;
+}
+
+// * a shortcut's condition, recording hint, error and conflicts, one to a line
+.description {
+  white-space: pre-line;
+}
+
+// * one combo, which stays on one line
+.combo {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+}
+
+// * the field keeps its own side margins, which the row shrinks it by
+.search {
+  display: flex;
+  padding: .5rem .5rem 0;
+}
+
+.nothingFound {
+  padding: 1rem;
+  color: var(--secondary-text-color);
+  text-align: center;
 }

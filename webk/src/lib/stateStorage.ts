@@ -2,7 +2,7 @@ import type {ChatSavedPosition} from '@lib/appImManager';
 import type {AppDraftsManager} from '@appManagers/appDraftsManager';
 import type {State} from '@config/state';
 import AppStorage from '@lib/storage';
-import {AccountDatabase, getDatabaseState, getOldDatabaseState} from '@config/databases/state';
+import {AccountDatabase, getDatabaseState} from '@config/databases/state';
 import {ActiveAccountNumber} from '@lib/accounts/types';
 
 export default class StateStorage extends AppStorage<{
@@ -11,11 +11,7 @@ export default class StateStorage extends AppStorage<{
   },
   drafts: AppDraftsManager['drafts']
 } & State, AccountDatabase> {
-  constructor(accountNumber: ActiveAccountNumber | 'old') {
-    const db = accountNumber === 'old' ?
-      getOldDatabaseState() :
-      getDatabaseState(accountNumber);
-
-    super(db, 'session');
+  constructor(accountNumber: ActiveAccountNumber) {
+    super(getDatabaseState(accountNumber), 'session');
   }
 }

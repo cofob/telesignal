@@ -13,11 +13,12 @@ import { IS_APP } from '../../../../util/browser/windowEnvironment';
 import { unique } from '../../../../util/iteratees';
 import { getKeyboardShortcutCombos } from '../../../../util/keyboardShortcuts';
 import {
+  getIsComboWithKeys,
   getIsFunctionKey,
   IS_APPLE_KEYBOARD,
-  MOD_MODIFIER,
   normalizeKeyCombo,
   parseKeyCombo,
+  parseKeyQuery,
 } from '../../../../util/keyboardShortcuts/keyCombos';
 import {
   KEYBOARD_SHORTCUT_IDS,
@@ -57,49 +58,6 @@ const RESERVED_COMBOS = new Set([
   ...SYSTEM_RESERVED_COMBOS,
   ...(IS_APP ? [] : BROWSER_RESERVED_COMBOS),
 ].map(normalizeKeyCombo));
-
-const KEY_QUERY_ALIASES: Record<string, string> = {
-  cmd: 'Meta',
-  command: 'Meta',
-  meta: 'Meta',
-  win: 'Meta',
-  '⌘': 'Meta',
-  ctrl: 'Ctrl',
-  control: 'Ctrl',
-  '⌃': 'Ctrl',
-  alt: 'Alt',
-  option: 'Alt',
-  opt: 'Alt',
-  '⌥': 'Alt',
-  shift: 'Shift',
-  '⇧': 'Shift',
-  mod: MOD_MODIFIER,
-  enter: 'Enter',
-  return: 'Enter',
-  '↵': 'Enter',
-  esc: 'Escape',
-  escape: 'Escape',
-  tab: 'Tab',
-  space: 'Space',
-  backspace: 'Backspace',
-  delete: 'Delete',
-  del: 'Delete',
-  up: 'ArrowUp',
-  '↑': 'ArrowUp',
-  down: 'ArrowDown',
-  '↓': 'ArrowDown',
-  left: 'ArrowLeft',
-  '←': 'ArrowLeft',
-  right: 'ArrowRight',
-  '→': 'ArrowRight',
-  pageup: 'PageUp',
-  pagedown: 'PageDown',
-  home: 'Home',
-  end: 'End',
-};
-const RE_KEY_SYMBOL = /([⌘⌃⌥⇧↵↑↓←→])/g;
-const RE_KEY_SEPARATOR = /[\s+]+/;
-const RE_WORD_DASH = /(\w)-(?=\w)/g;
 
 const CONDITION_TITLE_KEYS = {
   hasSelection: 'ShortcutWhenSelection',
@@ -179,7 +137,7 @@ export function filterKeyboardShortcuts(query: string, combos: KeyboardShortcutC
 
   return KEYBOARD_SHORTCUT_IDS.filter((id) => {
     const { titleKey, descriptionKey, section, condition } = KEYBOARD_SHORTCUTS[id];
-    if (queryKeys && getHasComboWithKeys(combos[id], queryKeys)) return true;
+    if (queryKeys && combos[id].some(({ combo }) => getIsComboWithKeys(combo, queryKeys))) return true;
     if (!queryWords.length) return false;
 
     const words = splitWords([
@@ -258,28 +216,4 @@ function getIsReservedCombo(combo: string, key: string, hasModifiers: boolean) {
   return RESERVED_COMBOS.has(combo)
     || RESERVED_KEYS.has(key)
     || (hasModifiers && RESERVED_KEYS_WITH_MODIFIERS.has(key));
-}
-
-function parseKeyQuery(query: string) {
-  const tokens = query.toLowerCase()
-    .replace(RE_KEY_SYMBOL, ' $1 ')
-    .replace(RE_WORD_DASH, '$1 ')
-    .split(RE_KEY_SEPARATOR)
-    .filter(Boolean);
-  if (!tokens.length) return undefined;
-
-  const keys = tokens.map((token) => (
-    KEY_QUERY_ALIASES[token] || (token.length === 1 || getIsFunctionKey(token.toUpperCase()) ? token : undefined)
-  ));
-
-  return keys.every(Boolean) ? keys as string[] : undefined;
-}
-
-function getHasComboWithKeys(combos: ResolvedKeyboardShortcutCombo[], keys: string[]) {
-  return combos.some(({ combo }) => {
-    const { modifiers, key } = parseKeyCombo(combo);
-    const parts = [...modifiers, key].map((part) => part.toLowerCase());
-
-    return keys.every((queryKey) => parts.includes(queryKey.toLowerCase()));
-  });
 }

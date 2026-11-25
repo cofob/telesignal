@@ -1,9 +1,8 @@
-import App from '@config/app';
 import DEBUG from '@config/debug';
 import {LangPackKey, i18n} from '@lib/langPack';
 import {logger} from '@lib/logger';
 import rootScope from '@lib/rootScope';
-import {ConnectionStatus} from '@lib/connectionStatus';
+import {ConnectionStatus, SIGNAL_CONNECTION_NAME} from '@lib/connectionStatus';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import {TabManagers} from '@lib/managers';
@@ -99,20 +98,13 @@ export default class ConnectionStatusComponent {
 
   private setConnectionStatus = (overrideStatus?: ConnectionStatus) => {
     const managers = bindManagersToSession(this.managers);
-    Promise.all([
-      rootScope.managers.apiManager.getBaseDcId(),
-      rootScope.managers.rootScope.getConnectionStatus()
-    ]).then(([baseDcId, connectionStatus]) => {
-      if(!baseDcId) {
-        baseDcId = App.baseDcId;
-      }
-
+    rootScope.managers.rootScope.getConnectionStatus().then((connectionStatus) => {
       if(this.setFirstConnectionTimeout) {
         clearTimeout(this.setFirstConnectionTimeout);
         this.setFirstConnectionTimeout = 0;
       }
 
-      const status = connectionStatus['NET-' + baseDcId];
+      const status = connectionStatus[SIGNAL_CONNECTION_NAME];
       const online = status && (overrideStatus ?? status.status) === ConnectionStatus.Connected;
 
       if(this.connecting && online) {

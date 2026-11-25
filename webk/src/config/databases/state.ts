@@ -5,31 +5,6 @@ import {MOUNT_CLASS_TO} from '@config/debug';
 export type AccountDatabase = Database<'session' | 'stickerSets' | 'users' | 'chats' | 'messages' | 'dialogs' | 'webapp' | 'widgets'>;
 export type CommonDatabase = Database<'session' | 'localStorage'>;
 
-export const getOldDatabaseState = (): AccountDatabase => ({
-  name: `tweb`,
-  version: 7,
-  stores: [
-    {
-      name: 'session'
-    },
-    {
-      name: 'stickerSets'
-    },
-    {
-      name: 'users'
-    },
-    {
-      name: 'chats'
-    },
-    {
-      name: 'dialogs'
-    },
-    {
-      name: 'messages'
-    }
-  ]
-});
-
 export const getCommonDatabaseState = (): CommonDatabase => ({
   name: `tweb-common`,
   version: 8,

@@ -60,7 +60,6 @@ export type StateSettings = {
   // Only written once the reader flips a story's weather widget; until then the unit follows the
   // locale, so there is nothing to store and no settings row to show (same as tdesktop).
   temperatureUnit?: 'celsius' | 'fahrenheit',
-  sendShortcut: 'enter' | 'ctrlEnter',
   animationsEnabled?: boolean, // ! DEPRECATED
   autoDownload: {
     contacts?: boolean, // ! DEPRECATED
@@ -448,7 +447,6 @@ const makeDefaultAppTheme = (name: AppTheme['name']): AppTheme => {
 export const SETTINGS_INIT: StateSettings = {
   messagesTextSize: 16,
   distanceUnit: 'kilometers',
-  sendShortcut: 'enter',
   autoDownload: {
     photo: {
       contacts: true,

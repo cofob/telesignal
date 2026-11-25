@@ -7,6 +7,7 @@ import type {Middleware} from '@helpers/middleware';
 import type {ConnectedBot} from '@layer';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
+import {CAN_PROTECT_CONTENT, IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 
 /**
  * Sections the search cannot open on its own: wizard steps and detail views that
@@ -42,6 +43,19 @@ export const NON_NAVIGABLE_SECTIONS = new Set([
 export const A11Y_ONLY_ENTRIES = new Set([
   'AppGeneralSettingsTab:GeneralSettings.IncreaseContrast'
 ]);
+
+/**
+ * Rows a tab renders only in the desktop app (`DesktopAppSection`, `DesktopDownloadsSection`), by whether this page
+ * has them; elsewhere their results would open a screen that does not have them
+ */
+export const DESKTOP_APP_ENTRIES: {[entryId: string]: boolean} = {
+  'AppGeneralSettingsTab:Signal.Desktop.Settings': IS_DESKTOP_APP,
+  'AppGeneralSettingsTab:Signal.Desktop.Tray': IS_DESKTOP_APP,
+  'AppGeneralSettingsTab:Signal.Desktop.Autostart': IS_DESKTOP_APP,
+  'AppGeneralSettingsTab:Signal.Desktop.Protect': IS_DESKTOP_APP && CAN_PROTECT_CONTENT,
+  'AppDataAndStorageTab:Signal.Desktop.Settings': IS_DESKTOP_APP,
+  'AppDataAndStorageTab:Signal.Desktop.AskWhereToSave': IS_DESKTOP_APP
+};
 
 type SectionOpener = (slider: SidebarSlider, middleware?: Middleware) => Promise<SliderSuperTab> | SliderSuperTab;
 

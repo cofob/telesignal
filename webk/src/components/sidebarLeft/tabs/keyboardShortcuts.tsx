@@ -1,117 +1,118 @@
-import {createResource, createSignal, For, Show, JSX} from 'solid-js';
+import {createMemo, createSignal, For, onCleanup, Show} from 'solid-js';
+import InputSearch from '@components/inputSearch';
 import Row from '@components/rowTsx';
 import Section from '@components/section';
 import I18n, {i18n, LangPackKey} from '@lib/langPack';
-import {IS_APPLE} from '@environment/userAgent';
-import {useAppSettings} from '@stores/appSettings';
 import InlineSelect from '@components/inlineSelect';
+import confirmationPopup from '@components/confirmationPopup';
+import noop from '@helpers/noop';
 import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
-import {getLockScreenCombos} from '@appManagers/utils/useLockScreenShortcut';
+import {
+  getDefaultKeyboardShortcutCombos,
+  getKeyboardShortcutCombos,
+  getKeyboardShortcutOverrides,
+  getMessageSendKeyCombo,
+  getShownKeyboardShortcutSections,
+  listenKeyboardShortcuts,
+  resetKeyboardShortcuts,
+  setKeyboardShortcut,
+  setMessageSendKeyCombo,
+  WEBK_MESSAGES_SECTION,
+  WEBK_VIEWER_SECTIONS,
+  type ResolvedKeyboardShortcutCombo,
+  type WebKOwnShortcutSection
+} from '@lib/keyboardShortcuts';
+import {
+  buildKeyboardShortcutCombos,
+  buildKeyboardShortcutConflicts,
+  checkRecordedCombo,
+  findEditableDefaultComboOwners,
+  type RecordedComboCheck
+} from '@lib/keyboardShortcutConflicts';
+import {KEYBOARD_SHORTCUTS, type KeyboardShortcutId} from '@signal-app/keyboard-shortcuts';
+import {
+  getEventModifiers,
+  getIsComboWithKeys,
+  getKeyComboFromEvent,
+  getKeyComboLabels,
+  getKeyComboText,
+  getKeyLabel,
+  getModifierLabels,
+  parseKeyQuery,
+  type KeyComboModifier,
+  type KeyLabelLang
+} from '@signal-app/key-combos';
 import styles from './keyboardShortcuts.module.scss';
 
+/*
+ * TeleSignal: the keyboard shortcuts as Web A's settings show and change them (`SettingsKeyboardShortcuts`): Web A's
+ * registry, by section, with the user's own combos, which both frontends share (`lib/keyboardShortcuts`). A click on a
+ * shortcut that can be changed records a new combo; Esc cancels and Backspace clears it, a combo that another
+ * shortcut has is taken from it after a question, and the context menu puts a changed one back to its default. The
+ * search box filters the rows by their titles, sections, conditions and keys, as Web A's (`filterKeyboardShortcuts`).
+ */
 
-const KEY_LABELS: {[k: string]: {mac: string, pc: string}} = {
-  ctrl: {mac: '⌘', pc: 'Ctrl'},
-  // * the Control key itself, which a Mac does not turn into Command
-  control: {mac: '⌃', pc: 'Ctrl'},
-  shift: {mac: '⇧', pc: 'Shift'},
-  alt: {mac: '⌥', pc: 'Alt'},
-  meta: {mac: '⌘', pc: 'Win'},
-  enter: {mac: '↵', pc: 'Enter'},
-  esc: {mac: 'Esc', pc: 'Esc'},
-  space: {mac: 'Space', pc: 'Space'},
-  up: {mac: '↑', pc: '↑'},
-  down: {mac: '↓', pc: '↓'},
-  left: {mac: '←', pc: '←'},
-  right: {mac: '→', pc: '→'},
-  plus: {mac: '+', pc: '+'},
-  minus: {mac: '−', pc: '−'}
-};
+const MODIFIER_NAMES = new Set(['Mod', 'Ctrl', 'Alt', 'Shift', 'Meta']);
+const CLEAR_KEYS = new Set(['Backspace', 'Delete']);
+const CONDITION_TITLE_KEYS = {
+  hasSelection: 'ShortcutWhenSelection',
+  noSelection: 'ShortcutWhenNoSelection',
+  isInputEmpty: 'ShortcutWhenInputEmpty'
+} as const;
+const COMMAND_MODIFIERS: KeyComboModifier[] = ['Ctrl', 'Alt', 'Meta'];
+// * `splitWords` of Web A's settings search
+const RE_COMBINING_MARKS = /\p{M}+/gu;
+const RE_WORD_BOUNDARY = /[^\p{L}\p{N}]+|(?<=\p{N})(?=\p{L})/u;
 
-// * keys along the line: the arrow toward its end goes on, the left one in a right-to-left layout
-const INLINE_KEYS: {[k: string]: () => string} = {
-  next: () => I18n.isRTL() ? 'left' : 'right',
-  previous: () => I18n.isRTL() ? 'right' : 'left'
-};
+type ShortcutQuery = {words: string[], keys?: string[]};
 
-function labelFor(key: string): string {
-  const lower = INLINE_KEYS[key]?.() ?? key.toLowerCase();
-  const lookup = KEY_LABELS[lower];
-  if(lookup) return IS_APPLE ? lookup.mac : lookup.pc;
-  return key.length === 1 ? key.toUpperCase() : key;
-}
+const lang = ((key: string) => I18n.format(key as LangPackKey, true)) as KeyLabelLang;
+const format = (key: string, args?: string[]) => I18n.format(key as LangPackKey, true, args);
 
-const Kbd = (props: {children: JSX.Element}) => (
-  <span class={styles.kbd}>{props.children}</span>
-);
-
-const KeyCombo = (props: {keys: string[]}) => (
+const Keys = (props: {groups: string[][]}) => (
   <span class={styles.keys}>
-    <For each={props.keys}>
-      {(key, index) => (
-        <>
-          <Show when={index() > 0}>
-            <span class={styles.plus}>+</span>
-          </Show>
-          <Kbd>{labelFor(key)}</Kbd>
-        </>
-      )}
-    </For>
-  </span>
-);
-
-const KeyAlternatives = (props: {combos: string[][]}) => (
-  <span class={styles.keys}>
-    <For each={props.combos}>
-      {(combo, index) => (
+    <For each={props.groups}>
+      {(labels, index) => (
         <>
           <Show when={index() > 0}>
             <span class={styles.or}>/</span>
           </Show>
-          <KeyCombo keys={combo} />
+          <span class={styles.combo}>
+            <For each={labels}>{(label) => <span class={styles.kbd}>{label}</span>}</For>
+          </span>
         </>
       )}
     </For>
   </span>
 );
 
-const ShortcutRow = (props: {action: LangPackKey, hint?: LangPackKey, keys: JSX.Element}) => (
-  <Row>
-    <Row.Title titleRight={props.keys} titleRightSecondary>
-      {i18n(props.action)}
-    </Row.Title>
-    <Show when={props.hint}>
-      <Row.Subtitle>{i18n(props.hint)}</Row.Subtitle>
-    </Show>
-  </Row>
-);
+function splitWords(text: string) {
+  return text.toLowerCase().normalize('NFD').replace(RE_COMBINING_MARKS, '').split(RE_WORD_BOUNDARY).filter(Boolean);
+}
 
-const FormattingSection = () => (
-  <Section
-    name="KeyboardShortcuts.Section.Formatting"
-    caption="KeyboardShortcuts.Section.Formatting.Caption"
-  >
-    <ShortcutRow action="KeyboardShortcuts.Action.Bold" keys={<KeyCombo keys={['ctrl', 'B']} />} />
-    <ShortcutRow action="KeyboardShortcuts.Action.Italic" keys={<KeyCombo keys={['ctrl', 'I']} />} />
-    <ShortcutRow action="KeyboardShortcuts.Action.Underline" keys={<KeyCombo keys={['ctrl', 'U']} />} />
-    <ShortcutRow action="KeyboardShortcuts.Action.Strikethrough" keys={<KeyCombo keys={['ctrl', 'S']} />} />
-    <ShortcutRow action="KeyboardShortcuts.Action.Monospace" keys={<KeyCombo keys={IS_APPLE ? ['ctrl', 'shift', 'M'] : ['ctrl', 'M']} />} />
-    <ShortcutRow action="KeyboardShortcuts.Action.Spoiler" keys={<KeyCombo keys={['ctrl', 'P']} />} />
-    <ShortcutRow action="KeyboardShortcuts.Action.Link" keys={<KeyCombo keys={['ctrl', 'K']} />} />
-  </Section>
-);
+/** Whether a row matches the query: by the keys of one of its combos, or by every word starting a word of its texts */
+function getIsQueryMatch(query: ShortcutQuery, texts: string[], combos: string[]) {
+  if(!query.words.length && !query.keys?.length) return true;
+  if(query.keys && combos.some((combo) => getIsComboWithKeys(combo, query.keys))) return true;
+  if(!query.words.length) return false;
+
+  const words = splitWords(texts.join(' '));
+  return query.words.every((queryWord) => words.some((word) => word.startsWith(queryWord)));
+}
+
+function getDisplayKeyLabels(displayKeys: string[]) {
+  const modifiers = displayKeys.filter((key) => MODIFIER_NAMES.has(key)) as (KeyComboModifier | 'Mod')[];
+  const keys = displayKeys.filter((key) => !MODIFIER_NAMES.has(key));
+  return [...getModifierLabels(modifiers), ...keys.map((key) => getKeyLabel(key, lang))];
+}
 
 const SendShortcutRow = () => {
-  const [appSettings, setAppSettings] = useAppSettings();
   const [rowEl, setRowEl] = createSignal<HTMLElement>();
   const [isOpen, setIsOpen] = createSignal(false);
 
-  const enterLabel = () => <KeyCombo keys={['enter']} />;
-  const ctrlEnterLabel = () => <KeyCombo keys={['ctrl', 'enter']} />;
-
   const options = [
-    {value: 'enter' as const, label: enterLabel},
-    {value: 'ctrlEnter' as const, label: ctrlEnterLabel}
+    {value: 'enter' as const, label: () => <Keys groups={[getKeyComboLabels('Enter', lang)]} />},
+    {value: 'ctrl-enter' as const, label: () => <Keys groups={[getKeyComboLabels('Mod+Enter', lang)]} />}
   ];
 
   return (
@@ -119,11 +120,11 @@ const SendShortcutRow = () => {
       <Row.Title>{i18n('KeyboardShortcuts.Action.Send')}</Row.Title>
       <Row.RightContent>
         <InlineSelect
-          value={appSettings.sendShortcut || 'enter'}
+          value={getMessageSendKeyCombo()}
           isOpen={isOpen()}
           onClose={() => setIsOpen(false)}
           options={options}
-          onChange={(value) => setAppSettings('sendShortcut', value)}
+          onChange={(value) => void setMessageSendKeyCombo(value)}
           parent={rowEl()}
         />
       </Row.RightContent>
@@ -131,199 +132,262 @@ const SendShortcutRow = () => {
   );
 };
 
-const NewLineRow = () => {
-  const [appSettings] = useAppSettings();
-  const keys = () => appSettings.sendShortcut === 'ctrlEnter' ? ['enter'] : ['shift', 'enter'];
+function getPlainShortcutsMatching(section: WebKOwnShortcutSection, query: ShortcutQuery) {
+  return section.shortcuts.filter(({titleKey, combo}) => {
+    return getIsQueryMatch(query, [format(titleKey), format(section.titleKey)], [combo()]);
+  });
+}
+
+// * the send row is a choice rather than a shortcut, which a search leaves out, as Web A's does
+const PlainShortcutsSection = (props: {section: WebKOwnShortcutSection, query: ShortcutQuery, hasQuery: boolean}) => {
+  const shown = () => getPlainShortcutsMatching(props.section, props.query);
+  const hasSendRow = () => !props.hasQuery && props.section === WEBK_MESSAGES_SECTION;
 
   return (
-    <Row>
-      <Row.Title titleRight={<KeyCombo keys={keys()} />} titleRightSecondary>
-        {i18n('KeyboardShortcuts.Action.NewLine')}
-      </Row.Title>
-    </Row>
+    <Show when={shown().length || hasSendRow()}>
+      <Section name={props.section.titleKey as LangPackKey} caption={props.section.captionKey as LangPackKey}>
+        <Show when={hasSendRow()}>
+          <SendShortcutRow />
+        </Show>
+        <For each={shown()}>
+          {({titleKey, combo}) => (
+            <Row>
+              <Row.Title titleRight={<Keys groups={[getKeyComboLabels(combo(), lang)]} />} titleRightSecondary>
+                {i18n(titleKey as LangPackKey)}
+              </Row.Title>
+            </Row>
+          )}
+        </For>
+      </Section>
+    </Show>
   );
 };
 
-const MessagesSection = () => (
-  <Section
-    name="KeyboardShortcuts.Section.Messages"
-    caption="KeyboardShortcuts.Section.Messages.Caption"
-  >
-    <SendShortcutRow />
-    <NewLineRow />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.JumpToInputStart"
-      keys={<KeyCombo keys={['ctrl', 'PageUp']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.JumpToInputEnd"
-      keys={<KeyCombo keys={['ctrl', 'PageDown']} />}
-    />
-  </Section>
-);
+const KeyboardShortcutsTab = () => {
+  listenKeyboardShortcuts();
+  const combos = createMemo(() => {
+    getKeyboardShortcutOverrides();
+    return buildKeyboardShortcutCombos();
+  });
+  const conflicts = createMemo(() => buildKeyboardShortcutConflicts(combos()));
+  const [recordingId, setRecordingId] = createSignal<KeyboardShortcutId>();
+  const [recordingModifiers, setRecordingModifiers] = createSignal<KeyComboModifier[]>([]);
+  const [recordError, setRecordError] = createSignal<{id: KeyboardShortcutId, text: string}>();
 
-const ChatSection = () => (
-  <Section name="KeyboardShortcuts.Section.Chat">
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.EditLast"
-      hint="KeyboardShortcuts.Hint.WhenInputEmpty"
-      keys={<KeyCombo keys={['up']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.ReplyToPrevious"
-      keys={<KeyCombo keys={['ctrl', 'up']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.ReplyToNext"
-      keys={<KeyCombo keys={['ctrl', 'down']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.FocusInput"
-      keys={<KeyCombo keys={['Tab']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.PauseRecording"
-      keys={<KeyCombo keys={['space']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.CopySelected"
-      keys={<KeyCombo keys={['ctrl', 'C']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.DeleteSelected"
-      keys={<KeyCombo keys={['Delete']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.NextChat"
-      keys={<KeyCombo keys={['alt', 'down']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.PreviousChat"
-      keys={<KeyCombo keys={['alt', 'up']} />}
-    />
-  </Section>
-);
+  const [query, setQuery] = createSignal('');
+  const parsedQuery = createMemo((): ShortcutQuery => ({words: splitWords(query()), keys: parseKeyQuery(query())}));
+  const hasQuery = () => !!query().trim();
+  const getIsShortcutMatch = (id: KeyboardShortcutId, sectionTitleKey: string) => {
+    const {titleKey, descriptionKey, condition} = KEYBOARD_SHORTCUTS[id];
+    return getIsQueryMatch(parsedQuery(), [
+      format(titleKey),
+      format(sectionTitleKey),
+      descriptionKey ? format(descriptionKey) : '',
+      condition ? format(CONDITION_TITLE_KEYS[condition]) : '',
+      ...combos()[id].map((resolved) => resolved.condition ? format(CONDITION_TITLE_KEYS[resolved.condition]) : '')
+    ], combos()[id].map((resolved) => resolved.combo));
+  };
+  const shownSections = createMemo(() => getShownKeyboardShortcutSections()
+  .map((section) => ({...section, ids: section.ids.filter((id) => getIsShortcutMatch(id, section.titleKey))}))
+  .filter(({ids}) => ids.length));
+  const hasPlainMatch = () => [WEBK_MESSAGES_SECTION, ...WEBK_VIEWER_SECTIONS]
+  .some((section) => getPlainShortcutsMatching(section, parsedQuery()).length);
 
-const NavigationSection = () => (
-  <Section name="KeyboardShortcuts.Section.Navigation">
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.OpenSearch"
-      keys={<KeyCombo keys={['ctrl', 'F']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.QuickChatPicker"
-      keys={<KeyCombo keys={['ctrl', 'K']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.SavedMessages"
-      keys={<KeyCombo keys={['ctrl', '0']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.FolderByNumber"
-      keys={<KeyCombo keys={['control', 'shift', '1–9']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.ClosePopup"
-      keys={<KeyCombo keys={['esc']} />}
-    />
-  </Section>
-);
+  const inputSearch = new InputSearch({placeholder: 'Search', onChange: setQuery});
 
-const MediaViewerSection = () => (
-  <Section name="KeyboardShortcuts.Section.MediaViewer">
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.NextMedia"
-      keys={<KeyCombo keys={['next']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.PreviousMedia"
-      keys={<KeyCombo keys={['previous']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.ZoomIn"
-      keys={<KeyCombo keys={['ctrl', 'plus']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.ZoomOut"
-      keys={<KeyCombo keys={['ctrl', 'minus']} />}
-    />
-  </Section>
-);
+  const stopRecording = () => {
+    setRecordingId(undefined);
+    setRecordingModifiers([]);
+  };
 
-const StoriesSection = () => (
-  <Section name="KeyboardShortcuts.Section.Stories">
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.NextStory"
-      keys={<KeyCombo keys={['next']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.PreviousStory"
-      keys={<KeyCombo keys={['previous']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.PlayPauseStory"
-      keys={<KeyCombo keys={['space']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.CloseStories"
-      keys={<KeyCombo keys={['down']} />}
-    />
-  </Section>
-);
+  const record = (id: KeyboardShortcutId, combo: string | false) => {
+    const current = combos()[id];
+    const isUnchanged = combo === false ? !current.length : current.some((resolved) => resolved.combo === combo);
+    if(isUnchanged) return;
+    if(combo === false) {
+      void setKeyboardShortcut(id, false);
+      return;
+    }
 
-const MediaEditorSection = () => (
-  <Section name="KeyboardShortcuts.Section.MediaEditor">
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.Undo"
-      keys={<KeyCombo keys={['ctrl', 'Z']} />}
-    />
-    <ShortcutRow
-      action="KeyboardShortcuts.Action.Redo"
-      keys={<KeyAlternatives combos={[['ctrl', 'shift', 'Z'], ['ctrl', 'Y']]} />}
-    />
-  </Section>
-);
+    const [recorded] = getKeyboardShortcutCombos(id, {[id]: combo});
+    const check = checkRecordedCombo(id, recorded, combos());
+    if(check.type === 'ok') {
+      void setKeyboardShortcut(id, combo);
+    } else if(check.type === 'usedByEditable') {
+      void replace(id, check.ownerIds, combo);
+    } else {
+      setRecordError({id, text: getRecordErrorText(check, combo)});
+    }
+  };
 
-// * the lock of Web A's passcode, which is set in the A version (`useLockScreenShortcut`)
-// * the lock of Web A's passcode, with Web A's combos (`useLockScreenShortcut`); the passcode is set in the A version
-const OtherSection = () => {
-  const [combos] = createResource(getLockScreenCombos);
-  // * as the keys of this tab are written: Ctrl shows as ⌘ on Apple's systems, so a combo there may show twice
-  const keys = () => {
-    const shown = (combos() || []).map((combo) => combo.split('+').map((key) => key.length > 1 ? key.toLowerCase() : key.toUpperCase()));
-    return shown.filter((combo, index) => shown.findIndex((other) => labelsOf(other) === labelsOf(combo)) === index);
+  // * Web A's question before a combo is taken from other shortcuts: they keep another combo of theirs, or none
+  const replace = async(id: KeyboardShortcutId, ownerIds: KeyboardShortcutId[], combo?: string) => {
+    const keys = combo ? [combo] : getDefaultKeyboardShortcutCombos(id).map((resolved) => resolved.combo)
+    .filter((defaultCombo) => ownerIds.some((ownerId) => combos()[ownerId].some((resolved) => resolved.combo === defaultCombo)));
+    try {
+      await confirmationPopup({
+        titleLangKey: 'ShortcutReplaceTitle' as LangPackKey,
+        descriptionLangKey: 'ShortcutReplaceText' as LangPackKey,
+        descriptionLangArgs: [
+          keys.map((key) => getKeyComboText(key, lang)).join(' / '),
+          ownerIds.map((ownerId) => format(KEYBOARD_SHORTCUTS[ownerId].titleKey)).join(', ')
+        ],
+        button: {langKey: 'Replace' as LangPackKey}
+      });
+    } catch{
+      return;
+    }
+
+    const taken = combo ? [combo] : getDefaultKeyboardShortcutCombos(id).map((resolved) => resolved.combo);
+    for(const ownerId of ownerIds) {
+      const ownerCombo = combos()[ownerId].find((resolved) => !taken.includes(resolved.combo))?.combo;
+      await setKeyboardShortcut(ownerId, ownerCombo ?? false);
+    }
+
+    if(combo) await setKeyboardShortcut(id, combo);
+    else await resetKeyboardShortcuts(id);
+  };
+
+  const reset = (id: KeyboardShortcutId) => {
+    setRecordError(undefined);
+    const ownerIds = findEditableDefaultComboOwners(id, getDefaultKeyboardShortcutCombos(id), combos());
+    if(ownerIds.length) void replace(id, ownerIds);
+    else void resetKeyboardShortcuts(id);
+  };
+
+  const resetAll = () => {
+    confirmationPopup({
+      titleLangKey: 'ShortcutResetAll' as LangPackKey,
+      descriptionLangKey: 'ShortcutResetAllText' as LangPackKey,
+      button: {langKey: 'ThemeResetToDefaults' as LangPackKey, isDanger: true}
+    }).then(() => resetKeyboardShortcuts(), noop);
+  };
+
+  function getRecordErrorText(check: RecordedComboCheck, combo: string) {
+    switch(check.type) {
+      case 'needsModifier':
+        return format('ShortcutNeedsModifier', [getModifierLabels(COMMAND_MODIFIERS).join(' / ')]);
+      case 'reserved':
+        return format('ShortcutReserved', [getKeyComboText(combo, lang)]);
+      case 'usedByFixed':
+        return format('ShortcutUsedByFixed', [getKeyComboText(combo, lang), format(KEYBOARD_SHORTCUTS[check.ownerId].titleKey)]);
+      default:
+        return '';
+    }
+  }
+
+  // * while a shortcut records, every key is the recording's (Web A's `useKeyboardShortcutRecorder`)
+  const onKeyDown = (e: KeyboardEvent) => {
+    const id = recordingId();
+    if(!id) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if(e.repeat || e.isComposing) return;
+
+    const combo = getKeyComboFromEvent(e);
+    if(!combo) {
+      setRecordingModifiers(getEventModifiers(e));
+      return;
+    }
+
+    stopRecording();
+    if(combo === 'Escape') return;
+    record(id, CLEAR_KEYS.has(combo) ? false : combo);
+  };
+  const onKeyUp = (e: KeyboardEvent) => {
+    if(!recordingId()) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    setRecordingModifiers(getEventModifiers(e));
+  };
+  window.addEventListener('keydown', onKeyDown, true);
+  window.addEventListener('keyup', onKeyUp, true);
+  window.addEventListener('blur', stopRecording);
+  onCleanup(() => {
+    window.removeEventListener('keydown', onKeyDown, true);
+    window.removeEventListener('keyup', onKeyUp, true);
+    window.removeEventListener('blur', stopRecording);
+  });
+
+  const ShortcutRow = (props: {id: KeyboardShortcutId}) => {
+    const shortcut = KEYBOARD_SHORTCUTS[props.id];
+    const isModified = () => getKeyboardShortcutOverrides()[props.id] !== undefined;
+    const resolved = (): ResolvedKeyboardShortcutCombo[] => combos()[props.id];
+    const isRecording = () => recordingId() === props.id;
+
+    const keys = () => {
+      if(isRecording()) {
+        return recordingModifiers().length ?
+          <Keys groups={[getModifierLabels(recordingModifiers())]} /> :
+          <span class={styles.or}>{format('ShortcutRecording')}</span>;
+      }
+
+      if(shortcut.displayKeys && !isModified()) return <Keys groups={[getDisplayKeyLabels(shortcut.displayKeys)]} />;
+      if(resolved().length) return <Keys groups={resolved().map(({combo}) => getKeyComboLabels(combo, lang))} />;
+      return <span class={styles.or}>{format('ShortcutNotSet')}</span>;
+    };
+
+    const description = () => {
+      const lines: string[] = [];
+      if(shortcut.condition) lines.push(format(CONDITION_TITLE_KEYS[shortcut.condition]));
+      if(shortcut.descriptionKey) lines.push(format(shortcut.descriptionKey));
+      if(props.id === 'lockScreen' && !isSignalPasscodeEnabled()) lines.push(format('KeyboardShortcuts.Hint.LockPasscodeNotSet'));
+      if(isRecording()) lines.push(format('ShortcutRecordingHint'));
+      const error = recordError();
+      if(error?.id === props.id) lines.push(error.text);
+      const conflictIds = conflicts()[props.id];
+      if(conflictIds && !isRecording()) {
+        lines.push(format('ShortcutAlsoUsedBy', [conflictIds.map((id) => format(KEYBOARD_SHORTCUTS[id].titleKey)).join(', ')]));
+      }
+
+      return lines.join('\n');
+    };
+
+    return (
+      <Row
+        clickable={shortcut.isEditable ? () => {
+          setRecordError(undefined);
+          setRecordingModifiers([]);
+          setRecordingId(props.id);
+        } : undefined}
+        contextMenu={isModified() ? {buttons: [{icon: 'undo', text: 'ThemeResetToDefaults' as LangPackKey, onClick: () => reset(props.id)}]} : undefined}
+      >
+        <Row.Title titleRight={keys()} titleRightSecondary>{i18n(shortcut.titleKey as LangPackKey)}</Row.Title>
+        <Show when={description()}>
+          <Row.Subtitle class={styles.description}>{description()}</Row.Subtitle>
+        </Show>
+      </Row>
+    );
   };
 
   return (
-    <Section name="KeyboardShortcuts.Section.Other">
-      <ShortcutRow
-        action="KeyboardShortcuts.Action.LockPasscode"
-        hint={isSignalPasscodeEnabled() ? undefined : 'KeyboardShortcuts.Hint.LockPasscodeNotSet'}
-        keys={
-          <Show when={keys().length} fallback={<span class={styles.or}>—</span>}>
-            <KeyAlternatives combos={keys()} />
-          </Show>
-        }
-      />
-    </Section>
+    <>
+      <div class={styles.search}>{inputSearch.container}</div>
+      <PlainShortcutsSection section={WEBK_MESSAGES_SECTION} query={parsedQuery()} hasQuery={hasQuery()} />
+      <For each={shownSections()}>
+        {({titleKey, descriptionKey, ids}) => (
+          <Section name={titleKey as LangPackKey} caption={descriptionKey as LangPackKey}>
+            <For each={ids}>{(id) => <ShortcutRow id={id} />}</For>
+          </Section>
+        )}
+      </For>
+      <For each={WEBK_VIEWER_SECTIONS}>
+        {(section) => <PlainShortcutsSection section={section} query={parsedQuery()} hasQuery={hasQuery()} />}
+      </For>
+      <Show when={hasQuery() && !shownSections().length && !hasPlainMatch()}>
+        <Section>
+          <div class={styles.nothingFound}>{format('NoResult')}</div>
+        </Section>
+      </Show>
+      <Show when={!hasQuery()}>
+        <Section>
+          <Row clickable={resetAll}>
+            <Row.Title class="danger">{format('ShortcutResetAll')}</Row.Title>
+          </Row>
+        </Section>
+      </Show>
+    </>
   );
 };
-
-function labelsOf(keys: string[]) {
-  return keys.map(labelFor).join('+');
-}
-
-const KeyboardShortcutsTab = () => (
-  <>
-    <FormattingSection />
-    <MessagesSection />
-    <ChatSection />
-    <NavigationSection />
-    <MediaViewerSection />
-    <StoriesSection />
-    <MediaEditorSection />
-    <OtherSection />
-  </>
-);
 
 export default KeyboardShortcutsTab;

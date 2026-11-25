@@ -2,7 +2,6 @@ import bytesCmpConstTime from '@helpers/bytes/bytesCmpConstTime';
 import {joinDeepPath} from '@helpers/object/setDeepProperty';
 import {useAppSettings} from '@stores/appSettings';
 
-import AccountController from '@lib/accounts/accountController';
 import commonStateStorage from '@lib/commonStateStorage';
 import CacheStorageController from '@lib/files/cacheStorage';
 import {useLockScreenHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
@@ -70,12 +69,6 @@ export function usePasscodeActions() {
     DeferredIsUsingPasscode.resolveDeferred(true);
     EncryptionKeyStore.save(encryptionKey);
 
-    // * the worker answers once the accounts are encrypted and written: the plain copy of their keys goes now, never
-    // * before - and not after a step below either, which may not finish (the tab closed, the service worker failed),
-    // * leaving it in localStorage, where nothing removes it with the passcode on until the next start
-    // * (`AccountController.removeLegacyCopyBehindPasscode`)
-    await AccountController.updateStorageForLegacy(null);
-
     await apiManagerProxy.serviceMessagePort?.invoke('toggleUsingPasscode', {type: 'full', isUsingPasscode: true, encryptionKey});
 
     rootScope.dispatchEvent('toggle_using_passcode', true);
@@ -110,9 +103,6 @@ export function usePasscodeActions() {
     await enableCacheStorages();
 
     commonStateStorage.delete('passcode');
-
-    // * the reverse of the strip `enablePasscode` does
-    await AccountController.updateStorageForLegacy(await AccountController.get(1));
   }
 
   /**

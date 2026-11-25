@@ -452,7 +452,8 @@ export class AppDownloadManager {
         getPhotoDownloadOptions(media as any, options.thumb as PhotoSize.photoSize);
       const docFileName = (options.media as MyDocument).file_name;
       if(docFileName) return docFileName;
-      let name = getFileNameByLocation(downloadOptions.location);
+      // * TeleSignal: a photo is named by its id, as Web A names it (`getMediaFilename`)
+      let name = isDocument || isWebFile ? getFileNameByLocation(downloadOptions.location) : '' + (media as Photo.photo).id;
       const ext = MIME_TYPE_EXTENSION_MAP[downloadOptions.mimeType];
       if(ext) name += '.' + ext;
       return name;
