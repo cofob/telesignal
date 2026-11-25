@@ -7,6 +7,8 @@ TeleSignal is based, is in [docs/TELEGRAM_WEB_A_CHANGELOG.md](docs/TELEGRAM_WEB_
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-25
+
 Web K catches up with Web A and runs in the desktop app, its Telegram features are gone, and pinned messages and
 shared media work in both frontends.
 
@@ -25,8 +27,9 @@ shared media work in both frontends.
   bar with Accept, Delete, Block and Report spam.
 - Web K: registration with a phone number, Signal secure backups and the recovery key, the key transparency check,
   notification profiles and notifications of pinned messages, several accounts, the proxy servers of Web A, turning
-  the passcode on, changing and turning it off with auto-lock, and the progress of the message history transfer on
-  the link screen. When the phone unlinks the device, Web K logs out and says why, as Web A does.
+  the passcode on, changing and turning it off with auto-lock (not yet checked in a browser: set the passcode in Web A
+  until it is), and the progress of the message history transfer on the link screen. When the phone unlinks the
+  device, Web K logs out and says why, as Web A does.
 - Web K: the Keyboard Shortcuts screen of Web A, with recording, conflict checks, reset and search.
 - Desktop app: Web K runs in the app over the native connection, with system notifications, the unread count in the
   tray, downloads with Open and Show in Folder, "Ask where to save each file", Close to tray and Launch at login,
@@ -187,6 +190,7 @@ The conversion of Telegram Web A into a Signal client; the plan and its status a
 - Desktop app: no shell access for the page, external links limited to web, mail and phone links, new windows blocked,
   and the TLS libraries and the updater's ZIP reader updated to versions that fix published advisories.
 
-[Unreleased]: https://github.com/cofob/telesignal/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/cofob/telesignal/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/cofob/telesignal/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/cofob/telesignal/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cofob/telesignal/releases/tag/v0.1.0
