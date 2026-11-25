@@ -7744,10 +7744,6 @@ export class AppMessagesManager extends AppManager {
       }
 
       switch(action._) {
-        case 'messageActionSetChatTheme':
-          action.theme = this.appThemesManager.saveChatTheme(action.theme);
-          break;
-
         case 'messageActionSetChatWallPaper':
           action.wallpaper = this.appThemesManager.saveWallPaper(action.wallpaper);
           break;

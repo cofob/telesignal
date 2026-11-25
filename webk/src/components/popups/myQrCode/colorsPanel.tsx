@@ -25,7 +25,7 @@ const swatchBackground = (center: number, edge: number) => `linear-gradient(135d
  */
 export function ColorsPanel(props: {
   backdrops: Accessor<ShareThemeBackdropOption[] | undefined>,
-  /** The id of the colour on show; `undefined` when it is a gift's */
+  /** The id of the colour on show; `undefined` for the default circle */
   selectedId: Accessor<number | undefined>,
   onPick: (option: ShareThemeBackdropOption | undefined) => void
 }) {

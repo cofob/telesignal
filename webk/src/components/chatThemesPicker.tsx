@@ -18,14 +18,8 @@ import LottiePlayer from '@lib/lottie/lottiePlayer';
 import wrapStickerEmoji from '@components/wrappers/stickerEmoji';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
-import wrapSticker from '@components/wrappers/sticker';
-import {MyDocument} from '@appManagers/appDocsManager';
-import {avatarNew} from '@components/avatarNew';
-import Icon from '@components/icon';
-import getPeerTitle from '@components/wrappers/getPeerTitle';
 import noop from '@helpers/noop';
 import createSerializedQueue from '@helpers/createSerializedQueue';
-import isDocumentRTL from '@helpers/dom/isDocumentRTL';
 import useBaseTheme from '@hooks/useBaseTheme';
 
 /** One tile of the strip. */
@@ -34,14 +28,10 @@ export type ChatThemesPickerItem = {
   id: string,
   /** Left out for a tile that stands for no theme at all. */
   theme?: Theme,
-  /** Drawn at the bottom instead of the theme's emoticon — a gift's model. */
-  sticker?: MyDocument,
   /** Drawn at the bottom when the theme has no emoticon of its own. */
   emoticon?: string,
   /** The text of a tile without a theme. */
-  label?: LangPackKey,
-  /** The chat a gift is the theme of already. */
-  takenBy?: PeerId
+  label?: LangPackKey
 };
 
 type ThemeItem = {
@@ -111,9 +101,6 @@ export type ChatThemesPickerProps = {
    * `themeController.applyNewTheme` applies it to the app. A chat's own theme is never blended.
    */
   blendTinted?: boolean;
-  /** Asked for more once the tile with the `loadMoreAfter()` id is about to come into view. */
-  loadMoreAfter?: () => string | undefined;
-  onLoadMore?: () => void;
   /**
    * Reactive base theme for wallpaper rendering. Defaults to the live base from
    * `themeController`. Override when the picker needs to show a different
@@ -296,42 +283,28 @@ export default function ChatThemesPicker(props: ChatThemesPickerProps) {
     const loadPromises: Promise<any>[] = [];
     let emoticonContainer: HTMLElement;
     const emoticon = item.emoticon ?? theme?.emoticon;
-    if(item.sticker || emoticon) {
+    if(emoticon) {
       emoticonContainer = document.createElement('div');
       emoticonContainer.classList.add('theme-emoticon');
       const setPlayer = (player: unknown) => {
         themeItem.player = player as LottiePlayer;
       };
 
-      if(item.sticker) {
-        wrapSticker({
-          doc: item.sticker,
-          div: emoticonContainer,
-          width: EMOTICON_SIZE,
-          height: EMOTICON_SIZE,
-          middleware,
-          loadPromises,
-          play: false,
-          loop: false,
-          group: 'none'
-        }).then(({render}) => render).then(setPlayer, noop);
-      } else {
-        wrapStickerEmoji({
-          div: emoticonContainer,
-          width: EMOTICON_SIZE,
-          height: EMOTICON_SIZE,
-          emoji: emoticon,
-          managers,
-          loadPromises,
-          middleware,
-          play: false,
-          group: 'none'
-        }).then(({render}) => render).then(setPlayer, () => {
-          // * no animated sticker for it: the emoji itself, as tdesktop draws them
-          emoticonContainer.classList.add('is-static');
-          emoticonContainer.replaceChildren(wrapEmojiText(emoticon));
-        });
-      }
+      wrapStickerEmoji({
+        div: emoticonContainer,
+        width: EMOTICON_SIZE,
+        height: EMOTICON_SIZE,
+        emoji: emoticon,
+        managers,
+        loadPromises,
+        middleware,
+        play: false,
+        group: 'none'
+      }).then(({render}) => render).then(setPlayer, () => {
+        // * no animated sticker for it: the emoji itself, as tdesktop draws them
+        emoticonContainer.classList.add('is-static');
+        emoticonContainer.replaceChildren(wrapEmojiText(emoticon));
+      });
     }
 
     container.classList.add('theme-container');
@@ -355,24 +328,6 @@ export default function ChatThemesPicker(props: ChatThemesPickerProps) {
       bubbleIn.classList.add('is-in');
       bubble.classList.add('is-out');
 
-      // * a gift in use in another chat: who has it, the way tdesktop marks it — and in words for
-      // * a screen reader, which names the tile by its theme only
-      if(item.takenBy) {
-        const avatar = avatarNew({
-          middleware,
-          peerId: item.takenBy,
-          size: 16,
-          isDialog: false
-        });
-        avatar.render();
-        avatar.node.classList.add('theme-bubble-avatar');
-        bubbleIn.classList.add('is-taken');
-        bubbleIn.append(avatar.node, Icon('forward', 'theme-bubble-icon'));
-        getPeerTitle({peerId: item.takenBy, plainText: true}).then((title) => {
-          container.setAttribute('aria-description', title);
-        });
-      }
-
       container.append(bubbleIn, bubble);
     }
 
@@ -384,22 +339,6 @@ export default function ChatThemesPicker(props: ChatThemesPickerProps) {
     themeItem.disposers.forEach((dispose) => dispose());
     tilesById.delete(themeItem.item.id);
     themesMap.delete(themeItem.container);
-  };
-
-  const checkLoadMore = () => {
-    const id = props.loadMoreAfter?.();
-    const container = id !== undefined && tilesById.get(id)?.container;
-    if(!container?.isConnected) {
-      return;
-    }
-
-    // * how far past the strip's visible end the tile starts, along the line: leftward in RTL
-    const tile = container.getBoundingClientRect();
-    const strip = scrollable.container.getBoundingClientRect();
-    const ahead = isDocumentRTL() ? strip.left - tile.right : tile.left - strip.right;
-    if(ahead < strip.width) {
-      props.onLoadMore?.();
-    }
   };
 
   let revealed = false;
@@ -445,8 +384,6 @@ export default function ChatThemesPicker(props: ChatThemesPickerProps) {
 
       props.onReady?.();
     }
-
-    checkLoadMore();
   };
 
   // * one sync at a time, in order: one gone wrong does not stop the ones after it
@@ -456,11 +393,6 @@ export default function ChatThemesPicker(props: ChatThemesPickerProps) {
       syncs.enqueue(() => syncTiles(list)).catch(noop);
     }
   }));
-
-  if(props.onLoadMore) {
-    scrollable.onAdditionalScroll = checkLoadMore;
-    scrollable.setListeners();
-  }
 
   // Reactively re-stripe `.active` when the external selectedId changes.
   createEffect(() => {

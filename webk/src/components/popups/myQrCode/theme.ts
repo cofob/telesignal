@@ -1,7 +1,6 @@
-import type {InputSavedStarGift, Reaction, ShareTheme, ShareThemeBackdropOption, StarGift, StarGiftAttribute} from '@layer';
+import type {Reaction, ShareTheme, ShareThemeBackdropOption} from '@layer';
 import {BackdropInput, DEFAULT_BACKDROP, DEFAULT_BACKDROP_NAME} from '@components/popups/myQrCode/colors';
 import {BUILT_IN_BACKDROPS, isBuiltInBackdropId} from '@components/popups/myQrCode/backdropTable';
-import getUniqueGiftAttributes from '@appManagers/utils/gifts/getUniqueGiftAttributes';
 
 /**
  * What a share theme looks like, apart from how it is drawn. Pure: the screen reads the served `ShareTheme` and the
@@ -11,7 +10,7 @@ import getUniqueGiftAttributes from '@appManagers/utils/gifts/getUniqueGiftAttri
 /** The most emoji a theme holds (`QrShareView.MAX_EMOJI`) */
 export const MAX_THEME_EMOJI = 6;
 
-export type ThemeKind = 'default' | 'color' | 'emoji' | 'gift';
+export type ThemeKind = 'default' | 'color' | 'emoji';
 
 export type ThemeEmoji = {
   /** A plain emoji */
@@ -20,21 +19,12 @@ export type ThemeEmoji = {
   documentId?: DocId
 };
 
-export type GiftArt = {
-  /** The model's sticker, floating on the backdrop */
-  model?: StarGiftAttribute.starGiftAttributeModel['document'],
-  /** The symbol the backdrop is patterned with */
-  pattern?: StarGiftAttribute.starGiftAttributePattern['document']
-};
-
 export type Appearance = {
   kind: ThemeKind,
   backdrop: BackdropInput,
   /** The server's id of the backdrop, when one is picked */
   backdropId?: number,
-  emojis: ThemeEmoji[],
-  gift?: StarGift.starGiftUnique,
-  giftArt?: GiftArt
+  emojis: ThemeEmoji[]
 };
 
 export function reactionToThemeEmoji(reaction: Reaction): ThemeEmoji | undefined {
@@ -80,28 +70,6 @@ export function shareThemeToAppearance(theme: ShareTheme | undefined, backdrops?
 
       return {kind: emojis.length ? 'emoji' : 'color', backdrop, backdropId: backdrop.backdrop_id, emojis};
     }
-
-    case 'shareThemeGift': {
-      const gift = theme.stargift;
-      if(gift._ !== 'starGiftUnique') break;
-
-      const {backdrop, model, pattern} = getUniqueGiftAttributes(gift);
-      if(!backdrop) break;
-
-      return {
-        kind: 'gift',
-        // a gift's backdrop is never the tuned one: only the palette's own is
-        backdrop: {
-          center_color: backdrop.center_color,
-          edge_color: backdrop.edge_color,
-          pattern_color: backdrop.pattern_color,
-          text_color: backdrop.text_color
-        },
-        emojis: [],
-        gift,
-        giftArt: {model: model?.document, pattern: pattern?.document}
-      };
-    }
   }
 
   return defaultAppearance(backdrops);
@@ -109,18 +77,18 @@ export function shareThemeToAppearance(theme: ShareTheme | undefined, backdrops?
 
 /* Editing: what a pick makes of the theme on show, and what is sent for it */
 
-export const isDefaultBackdrop = (backdrop: BackdropInput) => backdrop.name === DEFAULT_BACKDROP_NAME;
+const isDefaultBackdrop = (backdrop: BackdropInput) => backdrop.name === DEFAULT_BACKDROP_NAME;
 
 /** A colour of the built-in table has no server id to be sent by: it waits for the served list (`backdropWaitsForIds`) */
 export const waitsForServedId = (appearance: Appearance) => {
-  return appearance.kind !== 'gift' && !isDefaultBackdrop(appearance.backdrop) && isBuiltInBackdropId(appearance.backdropId);
+  return !isDefaultBackdrop(appearance.backdrop) && isBuiltInBackdropId(appearance.backdropId);
 };
 
-/** A colour picked: `undefined` is the default circle. A gift gives way to it, the emoji stay. */
+/** A colour picked: `undefined` is the default circle. The emoji stay. */
 export function withBackdrop(appearance: Appearance, backdrops: ShareThemeBackdropOption[] | undefined, option?: ShareThemeBackdropOption): Appearance {
   const backdrop = option && !isDefaultBackdrop(option) ? option : getDefaultBackdrop(backdrops);
   const isDefault = isDefaultBackdrop(backdrop);
-  const emojis = appearance.kind === 'gift' ? [] : appearance.emojis;
+  const {emojis} = appearance;
   return {
     kind: emojis.length ? 'emoji' : isDefault ? 'default' : 'color',
     backdrop,
@@ -129,12 +97,8 @@ export function withBackdrop(appearance: Appearance, backdrops: ShareThemeBackdr
   };
 }
 
-/**
- * An emoji tapped: a toggle. A pick over a full set drops the oldest, and a gift gives way to the colour `fallback`
- * (the last one shown, else the default) - a gift theme has no emoji.
- */
-export function withEmojiToggled(appearance: Appearance, emoji: ThemeEmoji, fallback: Appearance): Appearance {
-  const base = appearance.kind === 'gift' ? fallback : appearance;
+/** An emoji tapped: a toggle. A pick over a full set drops the oldest. */
+export function withEmojiToggled(base: Appearance, emoji: ThemeEmoji): Appearance {
   const key = themeEmojiKey(emoji);
   const without = base.emojis.filter((item) => themeEmojiKey(item) !== key);
   const emojis = without.length < base.emojis.length ? without : [...base.emojis, emoji].slice(-MAX_THEME_EMOJI);
@@ -146,31 +110,14 @@ export function withEmojiToggled(appearance: Appearance, emoji: ThemeEmoji, fall
   };
 }
 
-/** A collectible tapped: it takes the whole theme, and the emoji go */
-export function withGift(gift: StarGift.starGiftUnique): Appearance | undefined {
-  return shareThemeToAppearance({_: 'shareThemeGift', stargift: gift});
-}
-
 export type ShareThemeToSave = {
   /** What `messages.setShareTheme` takes */
   theme: ShareTheme,
-  /** What the full peer holds afterwards: the same, but for a gift, whose input constructor is not a thing to keep */
+  /** What the full peer holds afterwards */
   shown: ShareTheme
 };
 
-/**
- * @param giftInput how the owner names the gift: its slug for the own profile, the chat and the saved id for a chat's
- * @returns `undefined` for a gift that cannot be named, which cannot be saved
- */
-export function appearanceToShareTheme(appearance: Appearance, giftInput?: InputSavedStarGift): ShareThemeToSave | undefined {
-  if(appearance.kind === 'gift') {
-    if(!appearance.gift || !giftInput) return;
-    return {
-      theme: {_: 'inputShareThemeGift', stargift: giftInput},
-      shown: {_: 'shareThemeGift', stargift: appearance.gift}
-    };
-  }
-
+export function appearanceToShareTheme(appearance: Appearance): ShareThemeToSave {
   const hasBackdrop = !isDefaultBackdrop(appearance.backdrop) && appearance.backdropId !== undefined;
   if(!hasBackdrop && !appearance.emojis.length) {
     return {theme: {_: 'shareThemeDefault'}, shown: {_: 'shareThemeDefault'}};
@@ -185,10 +132,4 @@ export function appearanceToShareTheme(appearance: Appearance, giftInput?: Input
   }
 
   return {theme, shown: theme};
-}
-
-/** The input naming a gift of the owner: the own profile's by its slug, a chat's by the input its list came with */
-export function giftToInput(gift: StarGift.starGiftUnique, isSelf: boolean, chatInput?: InputSavedStarGift): InputSavedStarGift | undefined {
-  if(isSelf) return gift.slug ? {_: 'inputSavedStarGiftSlug', slug: gift.slug} : undefined;
-  return chatInput?._ === 'inputSavedStarGiftChat' ? chatInput : undefined;
 }

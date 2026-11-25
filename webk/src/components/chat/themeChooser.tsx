@@ -1,21 +1,15 @@
 import {createEffect, createMemo, createRoot, createSignal, onCleanup} from 'solid-js';
 import {render} from 'solid-js/web';
-import {unwrap} from 'solid-js/store';
-import {ChatTheme, StarGift, UserFull} from '@layer';
+import {ChatTheme, UserFull} from '@layer';
 import type Chat from '@components/chat/chat';
 import ChatThemesPicker, {ChatThemesPickerItem} from '@components/chatThemesPicker';
 import {ButtonIconTsx} from '@components/buttonIconTsx';
 import Button from '@components/buttonTsx';
 import ChatInputPlate, {CHAT_INPUT_PLATE_SINGLE_CLASS} from '@components/chat/controlPlate';
 import classNames from '@helpers/string/classNames';
-import confirmationPopup from '@components/confirmationPopup';
-import wrapPeerTitle from '@components/wrappers/peerTitle';
 import {toastNew} from '@components/toast';
 import appNavigationController, {NavigationItem} from '@components/appNavigationController';
 import {getChatThemeKey, getThemeFromChatTheme} from '@components/chat/chatTheme';
-import type {MyDocument} from '@appManagers/appDocsManager';
-import getPeerId from '@appManagers/utils/peers/getPeerId';
-import getUniqueGiftAttributes from '@appManagers/utils/gifts/getUniqueGiftAttributes';
 import focusInput from '@helpers/dom/focusInput';
 import liteMode from '@helpers/liteMode';
 import {CROSS_FADE_KEYFRAMES} from '@helpers/dom/crossfadeContent';
@@ -57,30 +51,7 @@ function ThemeChooser(props: {
   const [pickedKey, setPickedKey] = createSignal<string>();
   const chosenKey = () => pickedKey() ?? currentKey();
 
-  const [giftThemes, setGiftThemes] = createSignal<ChatTheme.chatThemeUniqueGift[]>();
-  const [hasMoreGifts, setHasMoreGifts] = createSignal(false);
-  let loadingGifts = false;
-  const loadGiftThemes = (more?: boolean) => {
-    if(loadingGifts) return;
-    loadingGifts = true;
-    managers.appThemesManager.getUniqueGiftChatThemes(more).then(({themes, hasMore}) => {
-      setGiftThemes(themes);
-      setHasMoreGifts(hasMore);
-    }, () => {
-      setGiftThemes((themes) => themes || []);
-      setHasMoreGifts(false);
-    }).finally(() => {
-      loadingGifts = false;
-    });
-  };
-  loadGiftThemes();
-
   const tiles = createMemo<Tile[]>(() => {
-    const gifts = giftThemes();
-    if(!gifts) {
-      return;
-    }
-
     const result: Tile[] = [{id: '', label: 'ChatNoTheme', emoticon: '❌'}];
     const add = (chatTheme: ChatTheme) => {
       const id = getChatThemeKey(chatTheme);
@@ -89,15 +60,7 @@ function ThemeChooser(props: {
         return;
       }
 
-      const tile: Tile = {id, theme, chatTheme};
-      if(chatTheme._ === 'chatThemeUniqueGift') {
-        // * the list knows best which chat the gift is in use in; the chat's own theme has the rest
-        const gift = (gifts.find((giftTheme) => getChatThemeKey(giftTheme) === id) ?? unwrap(chatTheme)).gift as StarGift.starGiftUnique;
-        tile.sticker = getUniqueGiftAttributes(gift).model?.document as MyDocument;
-        tile.takenBy = getPeerId(gift.theme_peer) || undefined;
-      }
-
-      result.push(tile);
+      result.push({id, theme, chatTheme});
     };
 
     // * the theme in use keeps its place at the front
@@ -106,7 +69,6 @@ function ThemeChooser(props: {
       add(currentTheme);
     }
 
-    gifts.forEach(add);
     appState.accountThemes.themes?.forEach((theme) => {
       if(theme.emoticon) {
         add({_: 'chatTheme', emoticon: theme.emoticon});
@@ -115,11 +77,6 @@ function ThemeChooser(props: {
 
     return result;
   });
-
-  const lastGiftId = () => {
-    const gifts = giftThemes();
-    return hasMoreGifts() && gifts?.length ? getChatThemeKey(gifts[gifts.length - 1]) : undefined;
-  };
 
   const select = (tile: Tile) => {
     setPickedKey(tile.id);
@@ -132,24 +89,6 @@ function ThemeChooser(props: {
     const tile = tiles()?.find((tile) => tile.id === key);
     if(!tile || key === currentKey()) {
       return;
-    }
-
-    const takenBy = tile.takenBy;
-    if(takenBy && takenBy !== peerId) {
-      try {
-        await confirmationPopup({
-          descriptionLangKey: 'GiftThemesSetInReuseInfo',
-          descriptionLangArgs: [await wrapPeerTitle({peerId: takenBy, onlyFirstName: true})],
-          button: {langKey: 'Yes'}
-        });
-      } catch(err) {
-        return;
-      }
-
-      // * the chat was left while it asked
-      if(disposed) {
-        return;
-      }
     }
 
     managers.appThemesManager.setChatTheme(peerId, tile.chatTheme).catch(() => {
@@ -202,8 +141,6 @@ function ThemeChooser(props: {
           items={tiles}
           selectedId={chosenKey}
           blendTinted={false}
-          loadMoreAfter={lastGiftId}
-          onLoadMore={() => loadGiftThemes(true)}
           onSelect={(theme, tile) => select(tile)}
           shownWhenReady
           onReady={() => {

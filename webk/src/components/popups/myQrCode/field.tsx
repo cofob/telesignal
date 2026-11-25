@@ -9,31 +9,17 @@ import easeOutBack from '@helpers/easing/easeOutBack';
 import rootScope from '@lib/rootScope';
 import {Accessor, createEffect, on, onCleanup, onMount} from 'solid-js';
 import {getMiddleware, Middleware} from '@helpers/middleware';
-import {rgbIntToHex} from '@helpers/color';
-import applyColorOnContext from '@helpers/canvas/applyColorOnContext';
-import {loadEmojiStill} from '@components/wrappers/emojiPattern';
 import {FontFamily} from '@config/font';
 import {Appearance, themeEmojiKey, ThemeEmoji} from '@components/popups/myQrCode/theme';
 import createLayerStack from '@components/popups/myQrCode/layerStack';
-import {EDGE_BAND, GIFT_PERIOD, modelNodes, Node, placeEmojiField, symbolNodes} from '@components/popups/myQrCode/fieldNodes';
-import attachFieldMotion, {fieldCanvasSize} from '@components/popups/myQrCode/fieldMotion';
+import {EDGE_BAND, placeEmojiField} from '@components/popups/myQrCode/fieldNodes';
+import attachFieldMotion from '@components/popups/myQrCode/fieldMotion';
 import styles from '@components/popups/myQrCode.module.scss';
 
 /**
- * What floats on the backdrop: the picked emoji, or a collectible gift's models and the symbols of its pattern. The
- * gift's is one canvas painted once for an appearance and a size, a repeating tile big enough to cover the surface at
- * any shift; it drifts and follows a drag by `transform` alone (`fieldMotion.ts`). The emoji are drawn
- * anew every frame, each copy at its place, as Android draws them. A change is a new canvas fading in over the old one.
+ * What floats on the backdrop: the picked emoji, drawn anew every frame, each copy at its place, as Android draws them,
+ * and following a drag (`fieldMotion.ts`). A change is a new canvas fading in over the old one.
  */
-
-function drawRotated(ctx: CanvasRenderingContext2D, node: Node, draw: (size: number) => void) {
-  ctx.save();
-  ctx.globalAlpha = node.alpha;
-  ctx.translate(node.x, node.y);
-  ctx.rotate(node.angle * Math.PI / 180);
-  draw(node.size);
-  ctx.restore();
-}
 
 function createCanvas(width: number, height: number) {
   const canvas = document.createElement('canvas');
@@ -51,49 +37,8 @@ function createCanvas(width: number, height: number) {
 const TEXT_COLOR_EMOJI = '#ffffff';
 const isTextColorEmoji = (doc: MyDocument) => doc.attributes.some((attribute) => attribute._ === 'documentAttributeCustomEmoji' && attribute.pFlags.text_color);
 
-async function loadDocument(doc: Parameters<typeof loadEmojiStill>[0]['docId'], middleware: Middleware, size: number) {
-  try {
-    return await loadEmojiStill({docId: doc, middleware, emojiSize: size});
-  } catch{}
-}
-
-/** The symbol in the pattern's colour, once: the tint is not worth redoing for every copy of it */
-function tint(image: HTMLImageElement, color: string) {
-  const {canvas, ctx} = createCanvas(64, 64);
-  ctx.drawImage(image, 0, 0, 64, 64);
-  applyColorOnContext(ctx, color, 0, 0, 64, 64);
-  return canvas;
-}
-
-/** Paints the gift's field; `undefined` for a theme with none, or when it was left before the art came. */
-async function paintGiftField(appearance: Appearance, width: number, height: number, middleware: Middleware): Promise<HTMLCanvasElement | undefined> {
-  if(appearance.kind === 'gift' && appearance.giftArt) {
-    const [model, pattern] = await Promise.all([
-      appearance.giftArt.model && loadDocument(appearance.giftArt.model as any, middleware, 128),
-      appearance.giftArt.pattern && loadDocument(appearance.giftArt.pattern as any, middleware, 64)
-    ]);
-    if(!middleware()) return;
-    const {canvas, ctx} = createCanvas(width, height);
-    const models = model ? modelNodes(width, height) : [];
-    if(pattern) {
-      const symbol = tint(pattern, rgbIntToHex(appearance.backdrop.pattern_color));
-      for(const node of symbolNodes(width, height, models)) {
-        drawRotated(ctx, node, (size) => ctx.drawImage(symbol, -size / 2, -size / 2, size, size));
-      }
-    }
-
-    for(const node of models) {
-      drawRotated(ctx, node, (size) => ctx.drawImage(model, -size / 2, -size / 2, size, size));
-    }
-
-    return canvas;
-  }
-}
-
 function fieldKey(appearance: Appearance, width: number, height: number) {
-  const art = appearance.kind === 'emoji' ?
-    appearance.emojis.map(themeEmojiKey).join() :
-    appearance.kind === 'gift' ? String(appearance.gift?.id) : '';
+  const art = appearance.kind === 'emoji' ? appearance.emojis.map(themeEmojiKey).join() : '';
   return [appearance.kind, art, width, height].join('|');
 }
 
@@ -372,19 +317,8 @@ export function PatternField(props: {
 
     stillField = undefined;
     host.style.maskImage = '';
-    const size = appearance.kind === 'gift' && appearance.giftArt ? fieldCanvasSize(width, height, GIFT_PERIOD.width, GIFT_PERIOD.height) : undefined;
-    (size ? paintGiftField(appearance, size.width, size.height, current) : Promise.resolve(undefined)).then((canvas) => {
-      if(!current()) return;
-      stack.set(canvas);
-      motion.update(canvas && {
-        surfaceWidth: width,
-        surfaceHeight: height,
-        canvasWidth: size.width,
-        canvasHeight: size.height,
-        periodWidth: GIFT_PERIOD.width,
-        periodHeight: GIFT_PERIOD.height
-      });
-    });
+    stack.set(undefined);
+    motion.update(undefined);
   }));
 
   onCleanup(() => {

@@ -193,7 +193,6 @@ export class AppProfileManager extends AppManager {
         userFull.personal_photo = this.appPhotosManager.savePhoto(userFull.personal_photo, {type: 'profilePhoto', peerId});
       }
       userFull.wallpaper = this.appThemesManager.saveWallPaper(userFull.wallpaper);
-      userFull.theme = this.appThemesManager.saveChatTheme(userFull.theme);
 
       const referenceContext: ReferenceContext = {type: 'userFull', userId: peerId.toUserId()};
 

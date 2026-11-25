@@ -23,7 +23,7 @@ import noop from '@helpers/noop';
 import {nodeFrame} from '@helpers/schedulers';
 import {useMediaSizes} from '@helpers/mediaSizes';
 import {subscribeOn} from '@helpers/solid/subscribeOn';
-import {Chat, InputSavedStarGift, ShareTheme, ShareThemeBackdropOption, User} from '@layer';
+import {Chat, ShareTheme, ShareThemeBackdropOption, User} from '@layer';
 import {backdropGradient, backdropToCss} from '@components/popups/myQrCode/backdrop';
 import {Caption} from '@components/popups/myQrCode/caption';
 import {QrCard} from '@components/popups/myQrCode/card';
@@ -37,7 +37,7 @@ import {BUILT_IN_BACKDROPS, usableBackdrops} from '@components/popups/myQrCode/b
 import {buildPhoneUrl, linkCaption} from '@components/popups/myQrCode/link';
 import {Rect} from '@components/popups/myQrCode/fieldNodes';
 import {openLayout, PILL_GAP, SHEET_BOTTOM, SHEET_INSET, sheetHeightFor, surfaceGeometry} from '@components/popups/myQrCode/layout';
-import {appearanceToShareTheme, Appearance, isDefaultBackdrop, shareThemeToAppearance, ThemeEmoji, themeEmojiKey, withBackdrop, waitsForServedId, withEmojiToggled} from '@components/popups/myQrCode/theme';
+import {appearanceToShareTheme, Appearance, shareThemeToAppearance, ThemeEmoji, themeEmojiKey, withBackdrop, waitsForServedId, withEmojiToggled} from '@components/popups/myQrCode/theme';
 import {createThemeSaver, getHeldTheme} from '@components/popups/myQrCode/themeSaver';
 import {ColorsPanel} from '@components/popups/myQrCode/colorsPanel';
 import {ChosenEmojiStrip, EmojiPanel} from '@components/popups/myQrCode/emojiPanel';
@@ -222,39 +222,25 @@ function MyQrCodePopup(props: {
     onError: () => toastNew({langPackKey: 'Error.AnError'})
   });
 
-  // the colour a gift gives way to: the last one shown
-  let lastColor: Appearance;
-  createEffect(() => {
-    const current = appearance();
-    if(current.kind !== 'gift') {
-      lastColor = {kind: isDefaultBackdrop(current.backdrop) ? 'default' : 'color', backdrop: current.backdrop, backdropId: current.backdropId, emojis: []};
-    }
-  });
-
   // a colour of the built-in table has no server id: it shows at once, and is saved once the served list has come, by
   // its name (`QrShareServer.backdropWaitsForIds`)
   let waitsForIds = false;
-  const commit = (next: Appearance, giftInput?: InputSavedStarGift) => {
+  const commit = (next: Appearance) => {
     changedByUser = true;
-    // a built-in colour remembered from before the served list came (the colour a gift gives way to) is the served one
-    // of its name by now
+    // a built-in colour remembered from before the served list came is the served one of its name by now
     const list = palette();
     if(waitsForServedId(next) && list !== BUILT_IN_BACKDROPS) {
       next = withBackdrop(next, list, list.find((option) => option.name === next.backdrop.name));
     }
 
-    const toSave = appearanceToShareTheme(next, giftInput);
+    const toSave = appearanceToShareTheme(next);
     waitsForIds = waitsForServedId(next);
     if(waitsForIds) {
       setShareTheme(toSave.shown);
       saver.cancel();
-    } else if(toSave) {
+    } else {
       setShareTheme(toSave.shown);
       saver.schedule(toSave);
-    } else if(next.kind === 'gift') {
-      // a gift nothing names cannot be saved, and an earlier choice still waiting is outdated
-      setShareTheme({_: 'shareThemeGift', stargift: next.gift});
-      saver.cancel();
     }
   };
 
@@ -278,7 +264,7 @@ function MyQrCodePopup(props: {
   };
 
   const pickBackdrop = (option?: ShareThemeBackdropOption) => commit(withBackdrop(appearance(), palette(), option));
-  const toggleEmoji = (emoji: ThemeEmoji) => commit(withEmojiToggled(appearance(), emoji, lastColor ?? withBackdrop(appearance(), palette())));
+  const toggleEmoji = (emoji: ThemeEmoji) => commit(withEmojiToggled(appearance(), emoji));
   const pickEmoji = (docId: DocId) => toggleEmoji({documentId: docId});
 
   /* The panels: the island's buttons open one, the card makes room above it */
@@ -436,7 +422,7 @@ function MyQrCodePopup(props: {
     if(!qr) return;
 
     const a = appearance();
-    const key = [url(), a.kind, a.backdropId, a.gift?.id, a.emojis.map(themeEmojiKey).join(), colors().ink, caption()?.text, size().width, size().height].join('|');
+    const key = [url(), a.kind, a.backdropId, a.emojis.map(themeEmojiKey).join(), colors().ink, caption()?.text, size().width, size().height].join('|');
     if(cached?.key === key && cached.qr === qr && cached.field === field) return cached.image;
 
     const image = exportImage({
@@ -604,7 +590,7 @@ function MyQrCodePopup(props: {
                   {id === 'colors' && (
                     <ColorsPanel
                       backdrops={palette}
-                      selectedId={() => appearance().kind === 'gift' ? undefined : appearance().backdropId}
+                      selectedId={() => appearance().backdropId}
                       onPick={pickBackdrop}
                     />
                   )}

@@ -1,35 +1,16 @@
 import {unwrap} from 'solid-js/store';
-import {ChatFull, ChatTheme, StarGift, Theme, UserFull, WallPaper, WallPaperSettings} from '@layer';
+import {ChatFull, ChatTheme, Theme, UserFull, WallPaper, WallPaperSettings} from '@layer';
 import {appState} from '@stores/appState';
-import {getCollectibleName} from '@appManagers/utils/gifts/getCollectibleName';
 import copy from '@helpers/object/copy';
 import deepEqual from '@helpers/object/deepEqual';
 import {cleanEmoji} from '@lib/richTextProcessor/fixEmoji';
 
 /**
- * A chat theme made of a collectible gift, in the shape of a cloud theme so the chat background and
- * colours take it like any other. It keeps the gift for the background to draw its symbols.
- */
-export type GiftTheme = Theme.theme & {giftTheme: ChatTheme.chatThemeUniqueGift};
-
-// * the background tells themes apart by reference — one object per gift keeps it from redrawing
-const giftThemes: Map<string, GiftTheme> = new Map();
-
-export function getGiftChatThemeSlug(chatTheme: ChatTheme) {
-  return chatTheme?._ === 'chatThemeUniqueGift' ? (chatTheme.gift as StarGift.starGiftUnique).slug : undefined;
-}
-
-/**
- * What tells chat themes apart: an emoticon, a gift, or '' for no theme. An emoticon is compared
- * without its variation selectors, as tdesktop finds it: the server names the theme it was given
- * as `⛄` by `⛄️` in the service message.
+ * What tells chat themes apart: an emoticon, or '' for no theme. An emoticon is compared without its
+ * variation selectors, as tdesktop finds it: the server names the theme it was given as `⛄` by `⛄️`
+ * in the service message.
  */
 export function getChatThemeKey(chatTheme: ChatTheme | undefined) {
-  const slug = getGiftChatThemeSlug(chatTheme);
-  if(slug) {
-    return 'gift:' + slug;
-  }
-
   const emoticon = (chatTheme as ChatTheme.chatTheme)?.emoticon;
   return emoticon ? cleanEmoji(emoticon) : '';
 }
@@ -44,38 +25,7 @@ export function getThemeByEmoticon(emoticon: string) {
 }
 
 export function getThemeFromChatTheme(chatTheme: ChatTheme | undefined): Theme | undefined {
-  const slug = getGiftChatThemeSlug(chatTheme);
-  if(!slug) {
-    return getThemeByEmoticon((chatTheme as ChatTheme.chatTheme)?.emoticon);
-  }
-
-  let theme = giftThemes.get(slug);
-  if(!theme) {
-    // * nothing to draw with: left to the chat's own background, and asked again next time
-    if(!(chatTheme as ChatTheme.chatThemeUniqueGift).theme_settings?.length) {
-      return;
-    }
-
-    // * a copy: the full peer store reconciles its theme in place once the chat takes another one
-    const giftTheme = copy(unwrap(chatTheme as ChatTheme.chatThemeUniqueGift));
-    theme = {
-      _: 'theme',
-      id: 'gift:' + slug,
-      access_hash: '',
-      slug: '',
-      title: getCollectibleName(giftTheme.gift as StarGift.starGiftUnique),
-      pFlags: {},
-      settings: giftTheme.theme_settings,
-      giftTheme
-    };
-    giftThemes.set(slug, theme);
-  }
-
-  return theme;
-}
-
-export function getGiftChatTheme(theme: unknown) {
-  return (theme as GiftTheme)?.giftTheme;
+  return getThemeByEmoticon((chatTheme as ChatTheme.chatTheme)?.emoticon);
 }
 
 // * one copy per wallpaper as it is set up: the background tells them apart by reference, and the
@@ -109,8 +59,8 @@ export function isSameWallPaper(a: WallPaper, b: WallPaper) {
 }
 
 /**
- * The background a chat shows for its full peer, as tdesktop draws it: a theme (by emoticon or a
- * gift) gives the colours and its own wallpaper, and a wallpaper set for the chat stands in for
+ * The background a chat shows for its full peer, as tdesktop draws it: a theme (by emoticon) gives
+ * the colours and its own wallpaper, and a wallpaper set for the chat stands in for
  * that wallpaper. A wallpaper that only names a theme by its emoticon is that theme.
  */
 export function getChatBackgroundFromFullPeer(
