@@ -249,14 +249,14 @@ export type SignalMessage = {
     webPage?: {id: string},
     pollId?: string
   },
-  // A reply to a story or an ephemeral reply has nothing that Web K shows
+  // An ephemeral reply has nothing that Web K shows; a reply to a story that expired has `storyId` 0
   replyInfo?: {
     type: 'message',
     replyToMsgId?: number,
     replyFrom?: {date: number, fromId?: string},
     quoteText?: SignalFormattedText,
     isQuote?: true
-  } | {type: 'story' | 'ephemeral'},
+  } | {type: 'story', peerId: string, storyId: number} | {type: 'ephemeral'},
   reactions?: SignalReactions,
   sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed',
   isPartiallySent?: true,

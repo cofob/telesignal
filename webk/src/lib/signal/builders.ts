@@ -289,8 +289,12 @@ function buildViewOnceMedia(media: any, date: number) {
 }
 
 // * a reply to a message of the chat names it; a quote of a message that is not in the chat, or is gone, keeps the
-// * text the quote carries
-function buildReplyHeader(replyInfo: SignalMessage['replyInfo']): MessageReplyHeader.messageReplyHeader | undefined {
+// * text the quote carries; a reply to a story names the story, which Web K shows above the reply as Web A does
+function buildReplyHeader(replyInfo: SignalMessage['replyInfo']): MessageReplyHeader | undefined {
+  if(replyInfo?.type === 'story') {
+    return {_: 'messageReplyStoryHeader', peer: buildPeer(replyInfo.peerId), story_id: replyInfo.storyId};
+  }
+
   if(replyInfo?.type !== 'message') return undefined;
   if(replyInfo.replyToMsgId) {
     return {_: 'messageReplyHeader', pFlags: {}, reply_to_msg_id: replyInfo.replyToMsgId};
