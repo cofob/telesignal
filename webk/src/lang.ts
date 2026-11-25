@@ -786,7 +786,6 @@ const lang = {
   'KeyboardShortcuts.Section.Chat': 'Chat',
   'KeyboardShortcuts.Section.Navigation': 'Navigation',
   'KeyboardShortcuts.Section.MediaViewer': 'Media Viewer',
-  'KeyboardShortcuts.Section.Stories': 'Stories',
   'KeyboardShortcuts.Section.MediaEditor': 'Media Editor',
   'KeyboardShortcuts.Section.Other': 'Other',
   'KeyboardShortcuts.Action.Bold': 'Bold',

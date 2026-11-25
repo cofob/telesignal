@@ -412,6 +412,8 @@ export default class VideoPlayer extends ControlsHover {
           } else if((isFaster || getIsKeyCombo(e, WEBK_VIEWER_COMBOS.slowerPlayback)) && this.canSeek) {
             this.playbackRateButton.controls.changeRateByAmount(isFaster ? 1 : -1);
           } else if(wrapper.classList.contains('ckin__fullscreen') && getIsKeyboardShortcut(e, 'seekVideo') && this.canSeek) {
+            // * `seekVideo` is one shortcut for both directions, which users cannot rebind: its defaults are the arrows,
+            // * ArrowLeft back and ArrowRight forward, as Web A's `VideoPlayer`
             if(e.key === 'ArrowLeft') appMediaPlaybackController.seekBackward({action: 'seekbackward'});
             else appMediaPlaybackController.seekForward({action: 'seekforward'});
           } else {
