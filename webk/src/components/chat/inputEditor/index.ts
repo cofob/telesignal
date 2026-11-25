@@ -22,7 +22,8 @@ import {
   instantViewStyles
 } from '@components/instantViewFormatting';
 import getRichValueWithCaret from '@helpers/dom/getRichValueWithCaret';
-import {handleMarkdownShortcut, isEditorShortcutModifier} from '@helpers/dom/markdown';
+import {handleMarkdownShortcut} from '@helpers/dom/markdown';
+import {getIsKeyboardShortcut} from '@lib/keyboardShortcuts';
 import type {MarkdownType} from '@helpers/dom/getRichElementValue';
 import classNames from '@helpers/string/classNames';
 import type {Document, MessageEntity, PageBlock, Photo, RichMessage, RichText} from '@layer';
@@ -1879,10 +1880,9 @@ class TiptapChatInputEditor implements ChatInputEditor {
               this.remappingNewLineShortcut = false;
             }
           }
-          // The browser's and the system's keys stay theirs: what is taken here is Ctrl (Cmd on a Mac) and a
-          // letter alone, and only where it does something — a field without links leaves Ctrl+K to the
-          // browser's search
-          if(event.code === 'KeyK' && isEditorShortcutModifier(event) && this.requestLinkEditor()) {
+          // The browser's and the system's keys stay theirs: the link shortcut (Web A's `link`, Mod+K) is taken only
+          // where it does something — a field without links leaves it to the browser's search
+          if(getIsKeyboardShortcut(event, 'link') && this.requestLinkEditor()) {
             event.preventDefault();
             return true;
           }

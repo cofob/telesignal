@@ -5,12 +5,16 @@
  * hands to Web K, or takes from it, no longer has the shape that Web K expects. It holds types only.
  */
 
+import type * as webKKeyboardShortcuts from '../../../webk/src/lib/signal/keyboardShortcutsApi';
+import type * as webKKeyCombos from '../../../webk/src/lib/signal/keyCombosApi';
 import type {
   SignalAdminRights, SignalAttachment, SignalAudio, SignalBannedRights, SignalChat, SignalContact, SignalDocument,
   SignalInitialArgs, SignalMessage, SignalMethodName, SignalPhoto, SignalReadState, SignalSticker, SignalStickerSet,
   SignalUser, SignalVideo, SignalVoice, SignalWebPage,
 } from '../../../webk/src/lib/signal/signalApi';
 import type { ThreadReadState } from '../../types';
+import type * as keyCombos from '../../util/keyboardShortcuts/keyCombos';
+import type * as keyboardShortcuts from '../../util/keyboardShortcuts/registry';
 import type {
   ApiAttachment, ApiAudio, ApiChat, ApiChatAdminRights, ApiChatBannedRights, ApiContact, ApiDocument, ApiInitialArgs,
   ApiMessage, ApiPhoto, ApiSticker, ApiStickerSet, ApiUser, ApiVideo, ApiVoice, ApiWebPageFull,
@@ -51,3 +55,19 @@ export type WebKActionTypes = Assert<Extends<WebKActionType, ApiMessageAction['t
 export type WebKAttachment = Assert<Extends<SignalAttachment, ApiAttachment>>;
 export type WebKContact = Assert<Extends<SignalContact, ApiContact>>;
 export type WebKInitialArgs = Assert<Extends<SignalInitialArgs, ApiInitialArgs>>;
+
+// The keyboard shortcuts that Web K takes from Web A (`@signal-app/keyboard-shortcuts`, `@signal-app/key-combos`) are as
+// Web K describes them, with the same ids both ways
+type WebKShortcutId = webKKeyboardShortcuts.KeyboardShortcutId;
+export type WebKKeyboardShortcutIds = Assert<Extends<keyboardShortcuts.KeyboardShortcutId, WebKShortcutId>>;
+export type WebAKeyboardShortcutIds = Assert<Extends<WebKShortcutId, keyboardShortcuts.KeyboardShortcutId>>;
+export type WebKKeyboardShortcuts = Assert<Extends<
+  Pick<typeof keyboardShortcuts, keyof typeof webKKeyboardShortcuts>, typeof webKKeyboardShortcuts
+>>;
+// The labels read only the names of keys from the translation function, which Web K passes as a plain function
+type KeyLabelFunctions = 'getKeyComboLabels' | 'getKeyComboText' | 'getKeyLabel';
+export type WebKKeyCombos = Assert<Extends<
+  Pick<typeof keyCombos, Exclude<keyof typeof webKKeyCombos, KeyLabelFunctions>>,
+  Omit<typeof webKKeyCombos, KeyLabelFunctions>
+>>;
+export type WebKKeyLabels = Assert<Extends<KeyLabelFunctions, keyof typeof keyCombos>>;

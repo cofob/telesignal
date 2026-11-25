@@ -14,6 +14,8 @@ export type WebASharedSettings = {
   signalSealedSenderProxyUrl?: string,
   // * the shortcuts changed from their defaults, by Web A's id: a combo, or `false` for none
   keyboardShortcuts?: Record<string, string | false>,
+  // * the keys that send a message, which the defaults of sending and new lines follow
+  messageSendKeyCombo?: 'enter' | 'ctrl-enter',
   // * the desktop app asks where to save each download (`lib/signal/desktopFiles`)
   shouldAskWhereToSave?: boolean,
   // * the window title of the desktop app names the open chat (`lib/signal/desktopIm`); on unless set to `false`

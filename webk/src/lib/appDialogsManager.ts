@@ -70,6 +70,7 @@ import callsController from '@lib/calls/callsController';
 import conferenceInvitesController from '@lib/calls/conferenceInvitesController';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import {bindActiveWindowListener} from '@helpers/appWindow';
+import {getIsKeyboardShortcut} from '@lib/keyboardShortcuts';
 import noop from '@helpers/noop';
 import pause from '@helpers/schedulers/pause';
 import apiManagerProxy from '@lib/apiManagerProxy';
@@ -595,11 +596,11 @@ export class AppDialogsManager {
 
     setOnClick(() => selectTab);
 
-    // * Web A's Ctrl+Shift+1–9: the folder of that place in the bar (`openFolderByNumber`), Shift's digit read
-    // * from the key's place
+    // * Web A's Ctrl+Shift+1–9: the folder of that place in the bar (`openFolderByNumber`, `lib/keyboardShortcuts`),
+    // * Shift's digit read from the key's place
     bindActiveWindowListener((w) => w.document, 'keydown', (e: KeyboardEvent) => {
       const match = FOLDER_DIGIT_CODE.exec(e.code);
-      if(!match || !e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return;
+      if(!match || !getIsKeyboardShortcut(e, 'openFolderByNumber')) return;
       const index = +match[1] - 1;
       if(index && !folderItems[index]) return;
       cancelEvent(e);

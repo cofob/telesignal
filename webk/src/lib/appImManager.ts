@@ -1,5 +1,6 @@
 import isKeyboardControl, {keepsKeyFromComposer, shouldPreserveKeyboardFocus} from '@helpers/dom/isKeyboardControl';
 import placeCaretAtEnd from '@helpers/dom/placeCaretAtEnd';
+import {getIsKeyboardShortcut} from '@lib/keyboardShortcuts';
 import isTargetAnInput from '@helpers/dom/isTargetAnInput';
 import {isWebPageUrl} from '@lib/richTextProcessor/matchUrlProtocol';
 import type {GroupCallId, MyGroupCall} from '@appManagers/appGroupCallsManager';
@@ -1335,8 +1336,8 @@ export class AppImManager extends EventListenerBase<{
       const isSelectionCollapsed = document.getSelection().isCollapsed;
       // * Web A's Mod+C for selected messages copies their text, where no text is selected on the page
       if(
-        this.chat?.selection?.isSelecting && isSelectionCollapsed && e.code === 'KeyC' &&
-        (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !isTargetAnInput(e.target as HTMLElement)
+        this.chat?.selection?.isSelecting && isSelectionCollapsed && getIsKeyboardShortcut(e, 'copySelectedMessages') &&
+        !isTargetAnInput(e.target as HTMLElement)
       ) {
         cancelEvent(e);
         void this.chat.contextMenu.copySelectedMessages();
@@ -1388,11 +1389,18 @@ export class AppImManager extends EventListenerBase<{
       ) {
         handoffScroll();
         return;
-      } else if(e.altKey && (key === 'ArrowUp' || key === 'ArrowDown')) {
+      }
+
+      // * Web A's shortcuts of the chat by its registry and its user's changes (`lib/keyboardShortcuts`)
+      const isNextChat = getIsKeyboardShortcut(e, 'nextChat');
+      const isEditLast = getIsKeyboardShortcut(e, 'editLastMessage');
+      const isReplyToPrevious = getIsKeyboardShortcut(e, 'replyToPreviousMessage');
+      const isReplyToNext = getIsKeyboardShortcut(e, 'replyToNextMessage');
+      if(isNextChat || getIsKeyboardShortcut(e, 'previousChat')) {
         cancelEvent(e);
         managers.dialogsStorage.getNextDialog(
           this.chat.peerId,
-          key === 'ArrowDown',
+          isNextChat,
           appDialogsManager.filterId,
           appDialogsManager.xd?.getShownPeerIds()
         ).then((dialog) => {
@@ -1401,7 +1409,10 @@ export class AppImManager extends EventListenerBase<{
           }
         });
         return;
-      } else if((key === 'ArrowUp' || key === 'ArrowDown') && composerTakesKeys && this.chat?.type !== ChatType.Scheduled && this.chat?.type !== ChatType.Welcome) {
+      } else if(
+        (isEditLast || isReplyToPrevious || isReplyToNext) && composerTakesKeys &&
+        this.chat?.type !== ChatType.Scheduled && this.chat?.type !== ChatType.Welcome
+      ) {
         // In chats/channels where the user can't post (read-only broadcasts, restricted groups,
         // unjoined chats), there's no message to edit, so let ArrowUp/Down scroll the chat instead.
         if(chat?.input && !chat.input.canSendPlain()) {
@@ -1413,12 +1424,12 @@ export class AppImManager extends EventListenerBase<{
           !appDialogsManager.contextMenu?.hasAddToFolderOpen() &&
           !chat?.input?.editMsgId
         ) {
-          const forReply = e.metaKey || e.ctrlKey;
+          const forReply = !isEditLast;
           if(!forReply && !chat?.input?.isInputEmpty()) {
             return;
           }
 
-          const up = key === 'ArrowUp';
+          const up = !isReplyToNext;
           const {replyToMsgId} = this.chat.input;
           const {peerId, threadId} = this.chat;
           if((!forReply && !up) || (forReply && !up && !replyToMsgId)) {
@@ -1473,13 +1484,17 @@ export class AppImManager extends EventListenerBase<{
         }
 
         return;
-      } else if(key === 'ArrowDown') {
+      } else if(key === 'ArrowUp' || key === 'ArrowDown') {
+        // * where nothing can be posted, the arrows scroll the chat
+        if(chat?.input && !chat.input.canSendPlain()) handoffScroll();
         return;
       }
 
-      const hasModifier = e.altKey || e.ctrlKey || e.metaKey || e.shiftKey;
       // * Web A's Space while a voice message is recorded pauses it or goes on (`pauseVoiceRecording`)
-      if(key === ' ' && !hasModifier && !targetIsInput && !isKeyboardControl(target) && chat?.input?.recording) {
+      if(
+        getIsKeyboardShortcut(e, 'pauseVoiceRecording') && !targetIsInput && !isKeyboardControl(target) &&
+        chat?.input?.recording
+      ) {
         cancelEvent(e);
         chat.input.toggleRecordingPause();
         return;
@@ -1487,7 +1502,7 @@ export class AppImManager extends EventListenerBase<{
 
       // * Web A's Tab puts the caret in the composer (`focusMessageInput`), from where no other control has the focus
       if(
-        key === 'Tab' && !hasModifier && composerTakesKeys && !targetIsInput && this.isChatColumnShown() &&
+        getIsKeyboardShortcut(e, 'focusMessageInput') && composerTakesKeys && !targetIsInput && this.isChatColumnShown() &&
         (target === target.ownerDocument.body || target === chat?.bubbles?.scrollable?.container) &&
         chat?.input?.messageInput?.isContentEditable
       ) {
@@ -1499,7 +1514,7 @@ export class AppImManager extends EventListenerBase<{
       // * Web A's Delete or Backspace for selected messages: they are deleted
       if(
         chat?.selection?.isSelecting && chat.selection.selectionDeleteBtn && !targetIsInput && isSelectionCollapsed &&
-        (key === 'Delete' || key === 'Backspace') && !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey
+        getIsKeyboardShortcut(e, 'deleteSelectedMessages')
       ) {
         cancelEvent(e);
         chat.selection.selectionDeleteBtn.click();
