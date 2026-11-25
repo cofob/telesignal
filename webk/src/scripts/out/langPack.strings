@@ -4655,7 +4655,6 @@
 "StorageQuota.CacheSizeLimit" = "Cache size limit";
 "StorageQuota.FailedToCalculate" = "Failed to calculate";
 "StorageQuota.CacheSizeLimitAuto" = "Auto";
-"PostsSearch.TabName" = "Posts";
 "EditThisPhoto" = "Edit this photo";
 "EditThisVideo" = "Edit this video";
 "ReplacePhoto" = "Replace photo";

@@ -59,7 +59,6 @@ import wrapPeerTitle from '@components/wrappers/peerTitle';
 import wrapRichText from '@lib/richTextProcessor/wrapRichText';
 import {getManagersSession, isSessionLeaving} from '@lib/accounts/getCurrentAccount';
 import {tryDecodeURIComponent} from '@helpers/string/parseUriParams';
-import type {AppManagers} from '@lib/managers';
 
 /**
  * For a lookup whose failure is only a miss: any error is one but MIDDLEWARE, the end of the account

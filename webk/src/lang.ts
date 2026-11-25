@@ -5231,7 +5231,6 @@ const lang = {
   'StorageQuota.FailedToCalculate': 'Failed to calculate',
   'StorageQuota.CacheSizeLimitAuto': 'Auto',
 
-  'PostsSearch.TabName': 'Posts',
 
   'EditThisPhoto': 'Edit this photo',
   'EditThisVideo': 'Edit this video',

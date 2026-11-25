@@ -1510,7 +1510,6 @@ export class AppSidebarLeft extends SidebarSlider {
         );
       }
 
-
       // spot input
       searchSuper.changeQuery({
         peerId: selectedPeerId,
