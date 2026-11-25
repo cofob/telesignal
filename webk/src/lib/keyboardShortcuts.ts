@@ -66,10 +66,11 @@ export const WEBK_MESSAGES_SECTION: WebKOwnShortcutSection = {
     {titleKey: 'KeyboardShortcuts.Action.JumpToInputEnd', combo: () => 'Ctrl+PageDown'}
   ]
 };
-// * the viewers' keys that the registry has no ids for, which a handler matches with `getIsKeyCombo`
+// * the viewers' keys that the registry has no ids for, which a handler matches with `getIsKeyCombo`; zoom also takes
+// * Ctrl on macOS, as Web K always did
 export const WEBK_VIEWER_COMBOS = {
-  zoomIn: 'Mod+=',
-  zoomOut: 'Mod+-',
+  zoomIn: ['Mod+=', 'Ctrl+='],
+  zoomOut: ['Mod+-', 'Ctrl+-'],
   toggleFullscreen: 'F',
   toggleMute: 'M',
   fasterPlayback: 'Alt+=',
@@ -79,8 +80,8 @@ export const WEBK_VIEWER_COMBOS = {
 // * the rows of those keys, which the settings screen shows after the registry's of the same section
 export const WEBK_VIEWER_SHORTCUTS: Partial<Record<KeyboardShortcutSection, WebKOwnShortcutSection['shortcuts']>> = {
   mediaViewer: [
-    {titleKey: 'KeyboardShortcuts.Action.ZoomIn', combo: () => WEBK_VIEWER_COMBOS.zoomIn},
-    {titleKey: 'KeyboardShortcuts.Action.ZoomOut', combo: () => WEBK_VIEWER_COMBOS.zoomOut}
+    {titleKey: 'KeyboardShortcuts.Action.ZoomIn', combo: () => WEBK_VIEWER_COMBOS.zoomIn[0]},
+    {titleKey: 'KeyboardShortcuts.Action.ZoomOut', combo: () => WEBK_VIEWER_COMBOS.zoomOut[0]}
   ],
   storyViewer: [
     {titleKey: 'KeyboardShortcuts.Action.CloseStories', combo: () => WEBK_VIEWER_COMBOS.closeStories}
@@ -148,9 +149,11 @@ export function getInlineKeyboardShortcut(e: KeyboardEvent, nextId: KeyboardShor
   return isNext !== isDocumentRTL() ? 'next' : 'previous';
 }
 
-/** Whether a key event is exactly a combo that Web K handles outside the registry (`WEBK_VIEWER_COMBOS`) */
-export function getIsKeyCombo(e: KeyboardEvent, combo: string) {
-  return getKeyComboFromEvent(e) === normalizeKeyCombo(combo);
+/** Whether a key event is exactly one of the combos that Web K handles outside the registry (`WEBK_VIEWER_COMBOS`) */
+export function getIsKeyCombo(e: KeyboardEvent, combos: string | readonly string[]) {
+  const eventCombo = getKeyComboFromEvent(e);
+  const list = typeof combos === 'string' ? [combos] : combos;
+  return !!eventCombo && list.some((combo) => normalizeKeyCombo(combo) === eventCombo);
 }
 
 /** Reads the user's changes now, and again whenever the window comes back, where Web A may have changed them */
