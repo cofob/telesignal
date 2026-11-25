@@ -21,6 +21,7 @@ import {IS_FIREFOX} from '@environment/userAgent';
 import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 import I18n from '@lib/langPack';
 import {readWebASharedSettings, updateWebASharedSettings} from '@lib/signal/webAState';
+import {useAppSettings} from '@stores/appSettings';
 
 export type ResolvedKeyboardShortcutCombo = {combo: string, condition?: KeyboardShortcutCondition};
 // * the shortcuts changed from their defaults: a combo, or `false` for none
@@ -172,7 +173,19 @@ async function loadKeyboardShortcuts() {
   if(!settings) return;
 
   setOverrides(parseOverrides(settings.keyboardShortcuts));
+  if(settings.messageSendKeyCombo === undefined && getLegacySendShortcut() === 'ctrlEnter') {
+    await setMessageSendKeyCombo('ctrl-enter');
+    return;
+  }
+
   setSendKeyCombo(settings.messageSendKeyCombo === 'ctrl-enter' ? 'ctrl-enter' : 'enter');
+}
+
+// * the choice that earlier versions of Web K kept in their own settings, which goes to the shared ones once, while Web A
+// * has none
+function getLegacySendShortcut() {
+  const [appSettings] = useAppSettings();
+  return (appSettings as {sendShortcut?: 'enter' | 'ctrlEnter'}).sendShortcut;
 }
 
 // * only the ids of the registry, each with a combo that has a key or `false`

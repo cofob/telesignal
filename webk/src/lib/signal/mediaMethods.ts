@@ -16,6 +16,14 @@ import tsNow from '@helpers/tsNow';
 // * the provider's `ApiMediaFormat.Progressive`: `downloadMedia` answers the byte range it is asked for
 const MEDIA_FORMAT_PROGRESSIVE = 1;
 
+/**
+ * The provider's `ApiOnProgress`: the fraction of a download, called while the provider fetches the whole attachment;
+ * `isCanceled` set on it makes the provider stop the download once no request still waits for it
+ */
+export type SignalFileProgress = {(fraction: number): void, isCanceled?: boolean};
+// * Web K's download loop hands the progress of a part over with the part's request (`ApiFileManager.requestFilePart`)
+type GetFileParams = MethodDeclMap['upload.getFile']['req'] & {onProgress?: SignalFileProgress};
+
 export function buildMediaMethodHandlers(host: SignalMethodHost): SignalMethodHandlers {
   return {
     'messages.getAllStickers': () => getAllStickers(host),
@@ -93,7 +101,7 @@ async function setStickerSetInstalled(host: SignalMethodHost, stickerset: InputS
 }
 
 /** A part of a media of the provider, which Web K's download loop asks for part by part */
-async function getFile(host: SignalMethodHost, params: MethodDeclMap['upload.getFile']['req']): Promise<UploadFile.uploadFile> {
+async function getFile(host: SignalMethodHost, params: GetFileParams): Promise<UploadFile.uploadFile> {
   const url = getFileUrl(host, params.location);
   if(!url) throw makeError('SIGNAL_METHOD_UNSUPPORTED' as ErrorType);
 
@@ -103,7 +111,7 @@ async function getFile(host: SignalMethodHost, params: MethodDeclMap['upload.get
     mediaFormat: MEDIA_FORMAT_PROGRESSIVE,
     start: offset,
     end: offset + params.limit - 1
-  });
+  }, params.onProgress);
   if(!media) throw makeError('SIGNAL_FILE_UNAVAILABLE' as ErrorType);
 
   return {_: 'upload.file', type: {_: 'storage.fileUnknown'}, mtime: 0, bytes: new Uint8Array(media.arrayBuffer)};

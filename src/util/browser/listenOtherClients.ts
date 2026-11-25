@@ -30,6 +30,8 @@ export default function listenOtherClients() {
       if (settings) getActions().applyOtherClientProxySettings(settings);
       const keyboardShortcuts = parseKeyboardShortcuts(data.settings);
       if (keyboardShortcuts) getActions().setSharedSettingOption({ keyboardShortcuts });
+      const messageSendKeyCombo = parseMessageSendKeyCombo(data.settings);
+      if (messageSendKeyCombo) getActions().setSharedSettingOption({ messageSendKeyCombo });
       return;
     }
 
@@ -84,4 +86,12 @@ function parseKeyboardShortcuts(settings: unknown) {
   });
 
   return shortcuts;
+}
+
+// The keys that send a message, which the other frontend's settings change too
+function parseMessageSendKeyCombo(settings: unknown) {
+  if (typeof settings !== 'object' || !settings || !('messageSendKeyCombo' in settings)) return undefined;
+  const value = settings.messageSendKeyCombo;
+
+  return value === 'enter' || value === 'ctrl-enter' ? value : undefined;
 }

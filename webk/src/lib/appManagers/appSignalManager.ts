@@ -62,6 +62,7 @@ import type {SignalAuthState} from '@lib/signal/registrationTypes';
 import makeError from '@helpers/makeError';
 import {storeSignalWebPages} from '@lib/signal/media';
 import {buildOutgoingMedia} from '@lib/signal/outgoingMedia';
+import {restoreMissingDialogs} from '@lib/signal/dialogsSync';
 import noop from '@helpers/noop';
 import {ColorRgb, hexToRgb, mixColors, rgbaToHexa} from '@helpers/color';
 import {ConnectionStatus, SIGNAL_CONNECTION_NAME} from '@lib/connectionStatus';
@@ -126,6 +127,9 @@ export default class AppSignalManager extends AppManager {
     const {initApi} = await getProvider();
     this.isStarted = true;
     await initApi(this.onUpdate, {...args, userAgent: navigator.userAgent});
+    restoreMissingDialogs(this.createMethodHost(), this.dialogsStorage, this.appMessagesManager).catch((err) => {
+      this.log.error('restoring the chats that came back failed', err);
+    });
   }
 
   /**
@@ -737,8 +741,9 @@ export default class AppSignalManager extends AppManager {
   /**
    * Forwards each message as a new one. Every copy has a local id that is registered with the `random_id` of its
    * pending copy before the engine stores it, so the copy's `updateMessageID` goes out with its message, first: Web K
-   * finalizes a pending copy only when the id comes before the message. A copy that is not sent fails the request,
-   * which marks the pending copies of the request as failed.
+   * finalizes a pending copy only when the id comes before the message. The request fails, marking all its pending
+   * copies as failed, only when no copy was sent; otherwise it succeeds and only the copies that were not sent are
+   * marked as failed.
    */
   private async forwardMessages(params: MethodDeclMap['messages.forwardMessages']['req']): Promise<Updates> {
     const fromChat = {id: toSignalPeerId(this.getInputPeerId(params.from_peer))};
@@ -765,9 +770,16 @@ export default class AppSignalManager extends AppManager {
       setTimeout(() => localIds.forEach((localId) => this.pendingForwardCopies.delete(localId)), SEND_TIMEOUT_MS);
       throw err;
     });
-    if(!storedIds?.every((id) => id !== undefined)) {
+    if(!storedIds?.some((id) => id !== undefined)) {
       throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
     }
+
+    // * a request with copies that were sent succeeds, and only the copies that were not are marked failed: a failure
+    // * of the request would mark the sent ones too
+    storedIds.forEach((id, index) => {
+      const message = id === undefined && this.appMessagesManager.getPendingMessage(params.random_id[index]);
+      if(message) this.appMessagesManager.toggleError(message, makeError('SIGNAL_SEND_FAILED' as ErrorType));
+    });
 
     return {_: 'updates', updates: [], users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
   }

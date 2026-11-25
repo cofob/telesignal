@@ -145,8 +145,8 @@ export class AccountController extends StaticUtilityClass {
   private static normalizeLegacySlot(stored: StoredAccountSessionData | undefined): StoredAccountSessionData | undefined {
     if(!stored || stored.isLinked || !stored.dcId || stored.userId === undefined) return stored;
 
-    const {pushKey, date, userId, firstName, lastName, phone, avatarUri, color, emojiStatusId, isTest} = stored;
-    return {isLinked: true, pushKey, date, userId, firstName, lastName, phone, avatarUri, color, emojiStatusId, isTest};
+    const {pushKey, date, userId, firstName, lastName, phone, avatarUri, color, emojiStatusId} = stored;
+    return {isLinked: true, pushKey, date, userId, firstName, lastName, phone, avatarUri, color, emojiStatusId};
   }
 
   /**
