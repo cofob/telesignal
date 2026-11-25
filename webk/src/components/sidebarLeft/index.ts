@@ -71,7 +71,7 @@ import {makeMediaSize} from '@helpers/mediaSize';
 import ReactionElement from '@components/chat/reaction';
 import setBlankToAnchor from '@lib/richTextProcessor/setBlankToAnchor';
 import AccountController from '@lib/accounts/accountController';
-import {MAX_ACCOUNTS, MAX_ACCOUNTS_FREE} from '@lib/accounts/constants';
+import {MAX_ACCOUNTS_FREE} from '@lib/accounts/constants';
 import {getCurrentAccount} from '@lib/accounts/getCurrentAccount';
 import {createProxiedManagersForAccount} from '@lib/getProxiedManagers';
 import limitSymbols from '@helpers/string/limitSymbols';
@@ -788,7 +788,7 @@ export class AppSidebarLeft extends SidebarSlider {
       onClick: this.addAccount,
       verify: async() => {
         const totalAccounts = await AccountController.getTotalAccounts();
-        return totalAccounts < MAX_ACCOUNTS && !!(await AccountController.getFreeAccountNumber());
+        return totalAccounts < MAX_ACCOUNTS_FREE && !!(await AccountController.getFreeAccountNumber());
       }
     }, newSubmenu, {
       icon: 'savedmessages',
@@ -1890,14 +1890,12 @@ export class AppSidebarLeft extends SidebarSlider {
       AccountController.getTotalAccounts(),
       AccountController.getFreeAccountNumber()
     ]);
-    if(totalAccounts >= MAX_ACCOUNTS || !accountNumber) return;
-
-    const hasSomeonePremium = await apiManagerProxy.hasSomeonePremium();
-
-    if(totalAccounts === MAX_ACCOUNTS_FREE && !hasSomeonePremium) {
+    if(totalAccounts >= MAX_ACCOUNTS_FREE) {
       showAccountsLimitPopup();
       return;
     }
+
+    if(!accountNumber) return;
 
     // * TeleSignal: the link screen of the new slot is a page of its own, whose engine runs in the slot's worker
     // * (`lib/signal/accountSlot`), as Web A opens `?account=N`. The first slot is free only when the account there

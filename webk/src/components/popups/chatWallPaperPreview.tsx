@@ -26,7 +26,6 @@ import {useAppConfig} from '@stores/appState';
 import I18n, {i18n} from '@lib/langPack';
 import {I18nTsx} from '@helpers/solid/i18n';
 import rootScope from '@lib/rootScope';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import {getManagersSession, isSessionLeaving} from '@lib/accounts/getCurrentAccount';
 import type {AppManagers} from '@lib/managers';
@@ -75,13 +74,7 @@ function ForWhom(props: {
         <PopupElement.FooterButton
           langKey="ApplyWallpaperForMeAndPeer"
           langArgs={[props.name]}
-          iconRight={rootScope.premium ? undefined : 'premium_lock'}
           callback={() => {
-            if(!rootScope.premium) {
-              hotReloadGuard.showPremiumPopup({feature: 'wallpapers'});
-              return false;
-            }
-
             choose('both');
           }}
         />

@@ -68,11 +68,6 @@ export default async function generateTitleIcons({
             const gift = await rootScope.managers.appGiftsManager.getGiftBySlug(emojiStatus.slug);
             hotReloadGuard.showStarGiftInfoPopup({gift});
             busy = false;
-          } else {
-            hotReloadGuard.showPremiumPopup({
-              peerId,
-              emojiStatusId: emojiStatus.document_id
-            });
           }
         });
 
@@ -83,18 +78,6 @@ export default async function generateTitleIcons({
       elements.push(container);
     } else if((peer as User.user).pFlags.premium && !isPremiumFeaturesHidden) {
       const premiumIcon = generatePremiumIcon();
-
-      if(clickableEmojiStatus) {
-        premiumIcon.classList.add('clickable');
-        const detach = attachClickEvent(premiumIcon, (e) => {
-          e.stopPropagation();
-          hotReloadGuard.showPremiumPopup({
-            peerId
-          });
-        });
-
-        wrapOptions.middleware.onDestroy(detach);
-      }
 
       elements.push(premiumIcon);
     }

@@ -123,7 +123,6 @@ import {modifyAckedPromise} from '@helpers/modifyAckedResult';
 import ChatSendAs from '@components/chat/sendAs';
 import filterAsync from '@helpers/array/filterAsync';
 import InputFieldAnimated from '@components/inputFieldAnimated';
-import getStickerEffectThumb from '@appManagers/utils/stickers/getStickerEffectThumb';
 import {STICKERS_POPUP_KIND} from '@components/popups/stickers';
 import PopupElementTsx from '@components/popups/indexTsx';
 import overlayCounter from '@helpers/overlayCounter';
@@ -177,7 +176,6 @@ import splitStringByLength from '@helpers/string/splitStringByLength';
 import PaidMessagesInterceptor, {PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import asyncThrottle from '@helpers/schedulers/asyncThrottle';
 import focusInput from '@helpers/dom/focusInput';
-import showChecklistPopup from '@components/popups/checklist';
 import assumeType from '@helpers/assumeType';
 import {formatFullSentTime} from '@helpers/date';
 import useStars from '@stores/stars';
@@ -348,12 +346,7 @@ export default class ChatInput {
       media: this.createMediaServices(),
       ai: this.getAiEditorContext(),
       isAiHidden: () => this.inputState.store.messageCount !== 1,
-      canInsertMap: async() => {
-        if(!await this.managers.appMessagesManager.isRichMessageMapAvailable()) return false;
-        if(rootScope.premium) return true;
-        hotReloadGuard.showPremiumPopup();
-        return false;
-      },
+      canInsertMap: () => this.managers.appMessagesManager.isRichMessageMapAvailable(),
       getPremiumRequired: async() => {
         const state = await this.managers.appMessagesManager.getRichMessagePostingState();
         return state.mode === 'premium' && !state.allowed;
@@ -578,8 +571,6 @@ export default class ChatInput {
 
   private botStartBtn: HTMLButtonElement;
   private unblockBtn: HTMLButtonElement;
-  private onlyPremiumBtn: HTMLButtonElement;
-  private onlyPremiumBtnText: I18n.IntlElement;
   private frozenBtn: HTMLButtonElement;
   private welcomeLimitPlate: HTMLElement;
   private welcomeLimitText: I18n.IntlElement;
@@ -805,7 +796,7 @@ export default class ChatInput {
     c.classList.add('chat-input-control', 'chat-input-wrapper');
     this.inputContainer.append(c);
 
-    this.paidMessageInterceptor = new PaidMessagesInterceptor(this.chat, this.managers);
+    this.paidMessageInterceptor = new PaidMessagesInterceptor();
     this.getMiddleware().onDestroy(() => {
       this.paidMessageInterceptor.dispose();
     });
@@ -1412,35 +1403,6 @@ export default class ChatInput {
         if(contactPeerId) this.managers.appMessagesManager.sendContact({peerId, threadId, contactPeerId});
       },
       verify: () => !this.editMsgId && !this.ephemeralComposer && !this.isWelcomeComposer
-    }, {
-      icon: 'checkround',
-      richMessageAction: 'standaloneChecklist',
-      text: 'Checklist',
-      onClick: async() => {
-        if(this.ephemeralComposer) {
-          return;
-        }
-
-        if(this.chat.peerId.isAnyChat()) {
-          const action: ChatRights = 'send_polls';
-          if(!(await this.chat.canSend(action))) {
-            toastNew({langPackKey: POSTING_NOT_ALLOWED_MAP[action]});
-            return;
-          }
-        }
-
-        if(!rootScope.premium) {
-          hotReloadGuard.showPremiumPopup();
-          return;
-        }
-
-        if(this.ephemeralComposer) {
-          return;
-        }
-
-        showChecklistPopup({chat: this.chat});
-      },
-      verify: () => !this.editMsgId && !this.chat.isMonoforum && !this.ephemeralComposer && !this.isWelcomeComposer
     }];
     // * TeleSignal: Signal sends photos, videos, files, polls and contacts; the other attachments are Telegram's
     this.attachMenuButtons = this.attachMenuButtons.filter(({richMessageAction}) => SIGNAL_ATTACH_ACTIONS.has(richMessageAction));
@@ -1712,8 +1674,6 @@ export default class ChatInput {
     this.joinBtn = this.chat.topbar && makeControlButton('ChannelJoin', true);
     this.channelMuteBtn = makeControlButton('ChatList.Context.Mute');
     this.channelMuteBtn.classList.add('hide');
-    this.onlyPremiumBtnText = new I18n.IntlElement({key: 'Chat.Input.PremiumRequiredButton', args: [0, document.createElement('a')]});
-    this.onlyPremiumBtn = makeControlButton(this.onlyPremiumBtnText.element);
     const frozenText = document.createElement('span');
     frozenText.classList.add('chat-input-frozen-text');
     const frozenText1 = i18n('Chat.Input.FrozenButton1');
@@ -1732,9 +1692,6 @@ export default class ChatInput {
 
     attachClickEvent(this.botStartBtn, this.startBot, {listenerSetter: this.listenerSetter});
     attachClickEvent(this.unblockBtn, this.unblockUser, {listenerSetter: this.listenerSetter});
-    attachClickEvent(this.onlyPremiumBtn, () => {
-      hotReloadGuard.showPremiumPopup();
-    }, {listenerSetter: this.listenerSetter});
     attachClickEvent(this.frozenBtn, () => {
       showFrozenPopup();
     }, {listenerSetter: this.listenerSetter});
@@ -1797,7 +1754,6 @@ export default class ChatInput {
         this.unblockBtn,
         this.joinBtn,
         this.channelMuteBtn,
-        this.onlyPremiumBtn,
         this.frozenBtn,
         this.welcomeLimitPlate,
         this.pinnedControlBtn,
@@ -2936,7 +2892,6 @@ export default class ChatInput {
       ackedPeerFull,
       ackedScheduledMids,
       setSendAsCallback,
-      peerTitleShort,
       isPremiumRequired,
       appConfig,
       autoDeletePeriod,
@@ -2955,7 +2910,6 @@ export default class ChatInput {
       modifyAckedPromise(this.managers.acknowledged.appProfileManager.getProfileByPeerId(peerId)),
       btnScheduled && !this.chat.threadId ? modifyAckedPromise(this.managers.acknowledged.appMessagesManager.getScheduledMessages(peerId)) : undefined,
       sendAs ? (sendAs.setPeerId(peerId), sendAs.updateManual(true)) : undefined,
-      wrapPeerTitle({peerId, onlyFirstName: true}),
       this.chat.isPremiumRequiredToContact(),
       apiManagerProxy.getAppConfig(),
       modifyAckedPromise(this.chat.getAutoDeletePeriod()),
@@ -3100,15 +3054,6 @@ export default class ChatInput {
         const good = !haveSomethingInControl && this.chat.isForum && !this.chat.isForumTopic && this.chat.type === ChatType.Chat;
         haveSomethingInControl ||= good;
         this.replyInTopicOverlay.classList.toggle('hide', !good);
-      }
-
-      if(this.chat && this.onlyPremiumBtn) {
-        const good = !haveSomethingInControl && !isBot && peerId.isUser() && isPremiumRequired;
-        haveSomethingInControl ||= good;
-        this.onlyPremiumBtnText.compareAndUpdate({
-          args: [peerTitleShort, this.onlyPremiumBtnText.args[1]]
-        });
-        this.onlyPremiumBtn.classList.toggle('hide', !good);
       }
 
       if(this.chat) {
@@ -4166,11 +4111,6 @@ export default class ChatInput {
       textElement = i18n('SlowmodeSendError');
     } else {
       const chatFull = await managers.appProfileManager.getChatFull(chatId) as ChatFull.channelFull;
-      // * a booster sends without waiting, as tdesktop has it; the other slow mode limits still hold
-      if(await managers.appChatsManager.isRestrictionLiftedByBoosts(chatId)) {
-        return false;
-      }
-
       const getLeftDuration = () => Math.max(0, (chatFull.slowmode_next_send_date || 0) - tsNow(true));
       if(!getLeftDuration()) {
         return false;
@@ -5112,11 +5052,6 @@ export default class ChatInput {
         // * meanwhile (in another tab): that one stays, and this send just failed
         this.setAiSendStyle(undefined);
         sayWhyNotSent('AiEditor.ApplyOnSend.StyleMissing', (link) => [formatAiSendStyleLabel(style), link]);
-      } else if(result?.isPremiumFlood) {
-        sayWhyNotSent('AiEditor.ApplyOnSend.PremiumFlood', (link) => [
-          link,
-          anchorCallback(() => hotReloadGuard.showPremiumPopup())
-        ]);
       } else {
         sayWhyNotSent('AiEditor.ApplyOnSend.Error', (link) => [link]);
       }
@@ -5448,15 +5383,13 @@ export default class ChatInput {
     force = false,
     clearDraft = false,
     silent = false,
-    target,
-    ignoreNoPremium
+    target
   }: {
     document: MyDocument | DocId,
     force?: boolean,
     clearDraft?: boolean,
     silent?: boolean,
-    target?: HTMLElement,
-    ignoreNoPremium?: boolean
+    target?: HTMLElement
   }) {
     if(!this.verifyEphemeralCommand() || !(await this.checkWelcomeMessagesLimit())) {
       return false;
@@ -5486,11 +5419,6 @@ export default class ChatInput {
       }
 
       this.scheduleSending(() => this.sendMessageWithDocument({document, force: true, clearDraft, silent, target}));
-      return false;
-    }
-
-    if(document.sticker && getStickerEffectThumb(document) && !rootScope.premium && !ignoreNoPremium) {
-      hotReloadGuard.showPremiumPopup({feature: 'premium_stickers'});
       return false;
     }
 

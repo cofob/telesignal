@@ -26,7 +26,7 @@ import CheckboxFieldTsx from '@components/checkboxFieldTsx';
 import Button from '@components/buttonTsx';
 import attachPlainMessageEditor from '@components/chat/inputEditor/plainField';
 import getRichValueWithCaret from '@helpers/dom/getRichValueWithCaret';
-import {PremiumGiftBubble} from '@components/chat/bubbles/premiumGift';
+import {ServiceStickerBubble} from '@components/chat/bubbles/serviceStickerBubble';
 import {formatMonthsDuration} from '@helpers/date';
 import wrapRichText from '@lib/richTextProcessor/wrapRichText';
 import {render} from 'solid-js/web';
@@ -940,7 +940,7 @@ function ChosenGiftPage(props: {
                 wrapStickerOptions={{play: true, loop: false}}
               />
             ) : (
-              <PremiumGiftBubble
+              <ServiceStickerBubble
                 title={i18n('ActionGiftPremiumTitle2', [formatMonthsDuration(props.chosenGift.months, false)])}
                 subtitle={
                   textWithEntities() ?

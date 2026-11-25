@@ -38,8 +38,6 @@ import ListenerSetter from '@helpers/listenerSetter';
 import Icon from '@components/icon';
 import wrapEmojiText from '@richTextProcessor/wrapEmojiText';
 import apiManagerProxy from '@lib/apiManagerProxy';
-import {hideToast, toastNew} from '@components/toast';
-import wrapPeerTitle from '@components/wrappers/peerTitle';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import SelectorSearch from '@components/selectorSearch';
 import formatNumber from '@helpers/number/formatNumber';
@@ -451,22 +449,6 @@ export default class AppSelectPeers {
 
       let key: PeerId | string = target.dataset.peerId;
       key = key.isPeerId() ? key.toPeerId() : key;
-
-      if(key.isPeerId() && target.classList.contains('is-premium-locked')) {
-        wrapPeerTitle({peerId: key, onlyFirstName: true}).then((title) => {
-          toastNew({
-            langPackKey: 'OnlyPremiumCanMessage',
-            langPackArguments: [
-              title,
-              anchorCallback(() => {
-                hideToast();
-                hotReloadGuard.showPremiumPopup();
-              })
-            ]
-          });
-        });
-        return;
-      }
 
       const adding = !this.selected.has(key);
       if(this.onSelect) {

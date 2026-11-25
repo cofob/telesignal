@@ -3,44 +3,19 @@ import confirmationPopup, {
   PopupConfirmationOptions
 } from '@components/confirmationPopup';
 import {toastNew} from '@components/toast';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 /** `plain`: the sender chose to remove the rich formatting (`richMessageToPlainMessage`). */
 export type RichMessagePostingChoice = 'rich' | 'plain' | 'cancel';
 
 type RichMessagePostingChoiceDependencies = {
   confirm: typeof confirmationPopup,
-  showError: () => void,
-  showPremium: () => void
+  showError: () => void
 };
 
 const DEFAULT_DEPENDENCIES: RichMessagePostingChoiceDependencies = {
   confirm: confirmationPopup,
-  showError: () => toastNew({langPackKey: 'Error.AnError'}),
-  showPremium: () => hotReloadGuard.showPremiumPopup()
+  showError: () => toastNew({langPackKey: 'Error.AnError'})
 };
-
-export function createRichMessagePremiumConfirmation(
-  showPremium: () => void
-): PopupConfirmationOptions {
-  // as Android has it: Premium is the offer, removing the formatting the way out
-  const removeFormattingButton: PopupConfirmationOptions['button'] = {
-    langKey: 'RichMessage.RemoveFormatting',
-    isSecondary: true
-  };
-  return {
-    titleLangKey: 'RichMessage.PremiumRequired.Title',
-    descriptionLangKey: 'RichMessage.PremiumRequired.Text',
-    closable: true,
-    footer: true,
-    button: removeFormattingButton,
-    buttons: [{
-      langKey: 'RichMessage.SubscribeToPremium',
-      isCancel: true,
-      callback: showPremium
-    }, removeFormattingButton]
-  };
-}
 
 export function createRichMessageUnavailableConfirmation(): PopupConfirmationOptions {
   return {
@@ -66,9 +41,8 @@ export default async function getRichMessagePostingChoice(
   if(state.allowed) return 'rich';
 
   try {
-    await dependencies.confirm(state.mode === 'premium' ?
-      createRichMessagePremiumConfirmation(dependencies.showPremium) :
-      createRichMessageUnavailableConfirmation());
+    // * TeleSignal: there is no Premium to offer, so a Premium-only posting is just unavailable
+    await dependencies.confirm(createRichMessageUnavailableConfirmation());
     return 'plain';
   } catch{
     return 'cancel';

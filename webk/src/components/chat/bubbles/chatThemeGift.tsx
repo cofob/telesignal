@@ -1,7 +1,7 @@
 import {JSX} from 'solid-js';
 import {MyStarGift} from '@appManagers/appGiftsManager';
 import {i18n} from '@lib/langPack';
-import {PremiumGiftBubble} from '@components/chat/bubbles/premiumGift';
+import {ServiceStickerBubble} from '@components/chat/bubbles/serviceStickerBubble';
 import {StarGiftPreview} from '@components/stargifts/starGiftPreview';
 import {StickerTsxExtraOptions} from '@components/wrappers/sticker';
 import styles from '@components/chat/bubbles/chatThemeGift.module.scss';
@@ -14,7 +14,7 @@ export function ChatThemeGiftBubble(props: {
   onView: () => void
 }) {
   return (
-    <PremiumGiftBubble
+    <ServiceStickerBubble
       media={
         <StarGiftPreview
           gift={props.gift}

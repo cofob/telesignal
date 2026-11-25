@@ -3,7 +3,7 @@
  * (data_premium_limits.cpp, data_message_reactions.cpp)
  */
 const LIMIT_DEFAULTS = {
-  dialogs_pinned_limit_default: 5,
+  dialogs_pinned_limit_default: 4,
   dialogs_pinned_limit_premium: 10,
   dialogs_folder_pinned_limit_default: 100,
   dialogs_folder_pinned_limit_premium: 200,

@@ -87,9 +87,7 @@ const LINK_OVERRIDES = {
   'edit': 'AppEditProfileTab',
   'edit/log-out': 'AppSettingsTab',
   'profile-photo': 'AppEditProfileTab',
-  'privacy/forwards': 'AppPrivacyForwardMessagesTab',
-  'privacy/voice': 'AppPrivacyVoicesTab',
-  'privacy/messages': 'AppPrivacyMessagesTab'
+  'privacy/forwards': 'AppPrivacyForwardMessagesTab'
 };
 
 /**
@@ -112,7 +110,6 @@ const LINK_HIGHLIGHTS = {
   'privacy/2sv/change-email': 'TwoStepAuth.ChangeEmail',
   'privacy/passcode/change': 'PasscodeLock.ChangePasscode',
   'privacy/passcode/auto-lock': 'PasscodeLock.AutoLock',
-  'privacy/messages/set-price': 'PaidMessages.SetPrice',
   'appearance/themes': 'ColorTheme',
   'appearance/stickers-and-emoji/emoji/suggest': 'GeneralSettings.EmojiPrediction'
 };

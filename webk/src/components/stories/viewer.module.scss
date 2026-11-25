@@ -564,41 +564,6 @@ $color-inactive: rgba(255, 255, 255, .5);
         }
       }
 
-      // * a group's story the member may not answer until the group is boosted: the plate stands where the
-      // * reply field would, and opens the boosts
-      &Locked {
-        display: flex;
-        align-items: center;
-        gap: .5rem;
-        min-width: 0;
-        height: 2.5rem;
-        padding-inline: .5rem .375rem;
-        border-radius: $border-radius-medium;
-        cursor: pointer;
-        font-weight: var(--font-weight-normal);
-
-        @include hover-global(gray, background-color, false);
-
-        &Icon {
-          flex: 0 0 auto;
-          font-size: 1.25rem;
-        }
-
-        &Text {
-          @include text-overflow(true);
-        }
-
-        &Button {
-          flex: 0 0 auto;
-          padding: .125rem .5rem;
-          border-radius: 1rem;
-          background-color: rgba(255, 255, 255, .1);
-          color: #fff;
-          font-size: var(--font-size-14);
-          font-weight: var(--font-weight-bold);
-        }
-      }
-
       :global {
         .btn-icon {
           color: currentColor;

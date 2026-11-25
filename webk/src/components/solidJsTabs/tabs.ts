@@ -1,5 +1,5 @@
-import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
-import {AccountPassword, ChannelParticipant, ChatAdminRights, ChatParticipant, ConnectedBot, DialogFilter, ExportedChatlistInvite, GlobalPrivacySettings, MediaArea, Passkey} from '@layer';
+import deferredPromise from '@helpers/cancellablePromise';
+import {AccountPassword, ChannelParticipant, ChatAdminRights, ChatParticipant, ConnectedBot, DialogFilter, ExportedChatlistInvite, MediaArea, Passkey} from '@layer';
 import type SidebarSlider from '@components/slider';
 import type {SliderSuperTab} from '@components/slider';
 import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId';
@@ -19,17 +19,6 @@ import type {
 } from '@components/appSelectPeers';
 import type {IsPeerType} from '@appManagers/appPeersManager';
 import type {AppChatFull} from '@appManagers/appProfileManager';
-
-
-type AppPrivacyMessagesTabPayload = {
-  onSaved: (globalPrivacy: CancellablePromise<GlobalPrivacySettings.globalPrivacySettings>) => void;
-};
-
-export const AppPrivacyMessagesTab =
-  scaffoldSolidJSTab<AppPrivacyMessagesTabPayload>({
-    title: 'PrivacyMessages',
-    getComponentModule: () => import('../sidebarLeft/tabs/privacy/messages/tab')
-  });
 
 
 export const AppNotificationsTab =
@@ -266,12 +255,6 @@ export const AppPrivacyCallsTab =
     getComponentModule: () => import('../sidebarLeft/tabs/privacy/calls')
   });
 
-export const AppPrivacyVoicesTab =
-  scaffoldSolidJSTabEventable({
-    title: 'PrivacyVoiceMessages',
-    getComponentModule: () => import('../sidebarLeft/tabs/privacy/voices')
-  });
-
 export const AppPrivacyAddToGroupsTab =
   scaffoldSolidJSTabEventable({
     title: 'PrivacySettings.Groups',
@@ -307,23 +290,6 @@ export const AppPrivacyPhoneNumberTab =
     title: 'PrivacyPhone',
     getComponentModule: () => import('../sidebarLeft/tabs/privacy/phoneNumber')
   });
-
-type AppPrivacyGlobalTabEvents = {
-  privacy: (globalPrivacy: Promise<GlobalPrivacySettings>) => void
-};
-
-export const AppPrivacyLastSeenTab =
-  scaffoldSolidJSTabEventable<GlobalPrivacySettings, AppPrivacyGlobalTabEvents>({
-    title: 'PrivacyLastSeen',
-    getComponentModule: () => import('../sidebarLeft/tabs/privacy/lastSeen')
-  });
-
-export const AppPrivacyGiftsTab =
-  scaffoldSolidJSTabEventable<GlobalPrivacySettings, AppPrivacyGlobalTabEvents>({
-    title: 'PrivacyGifts',
-    getComponentModule: () => import('../sidebarLeft/tabs/privacy/gifts')
-  });
-
 
 /** TeleSignal: the linked devices of the Signal account, which the settings open from their own row */
 export const AppLinkedDevicesTab =

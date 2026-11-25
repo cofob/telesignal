@@ -18,10 +18,8 @@ import {copyTextToClipboard} from '@helpers/clipboard';
 import {getSponsoredMessageButtons} from '@components/chat/contextMenu';
 import {showAdReport} from '@components/popups/reportAd';
 import createMiddleware from '@helpers/solid/createMiddleware';
-import Button from '@components/buttonTsx';
 import RippleElement from '@components/rippleElement';
 import {createTopbarPlate, TopbarPlateController} from '@components/chat/topbarPlate';
-import I18n from '@lib/langPack';
 import A11yButton from '@components/a11yButton';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import rootScope from '@lib/rootScope';
@@ -126,14 +124,6 @@ function SponsoredPlateBody(props: {
           </div>
         </div>
       </RippleElement>
-      <Button.Icon
-        icon="close"
-        aria-label={I18n.format('Premium.Boarding.NoAds.Action', true)}
-        onClick={(e) => {
-          e.stopPropagation();
-          hotReloadGuard.showPremiumPopup({feature: 'no_ads'});
-        }}
-      />
     </Show>
   );
 }

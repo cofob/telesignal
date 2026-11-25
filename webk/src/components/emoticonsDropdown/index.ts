@@ -687,14 +687,14 @@ export class EmoticonsDropdown extends DropdownHover {
     return {stickyIntersector, setActive, setActiveStatic};
   };
 
-  public onMediaClick = async(e: {target: EventTarget | Element}, clearDraft = false, silent?: boolean, ignoreNoPremium?: boolean) => {
+  public onMediaClick = async(e: {target: EventTarget | Element}, clearDraft = false, silent?: boolean) => {
     const target = findUpTag(e.target as HTMLElement, 'DIV');
     if(!target) return false;
 
     const docId = target.dataset.docId;
     if(!docId) return false;
 
-    return this.sendDocId({document: docId, clearDraft, silent, target, ignoreNoPremium});
+    return this.sendDocId({document: docId, clearDraft, silent, target});
   };
 
   public async sendDocId(options: Parameters<ChatInput['sendMessageWithDocument']>[0]) {

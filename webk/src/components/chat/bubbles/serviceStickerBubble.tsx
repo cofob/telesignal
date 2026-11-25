@@ -5,13 +5,13 @@ import Button from '@components/buttonTsx';
 import LottieAnimation from '@components/lottieAnimation';
 import {LottieOptions} from '@lib/lottie/lottiePlayer';
 
-import styles from '@components/chat/bubbles/premiumGift.module.scss';
+import styles from '@components/chat/bubbles/serviceStickerBubble.module.scss';
 import stylesCommon from '@components/chat/bubbles/service.module.scss';
 import classNames from '@helpers/string/classNames';
 import {MyDocument} from '@appManagers/appDocsManager';
 import {StickerTsx} from '@components/wrappers/sticker';
 
-export function PremiumGiftBubble(props: {
+export function ServiceStickerBubble(props: {
   class?: string
   assetName?: LottieAssetName
   sticker?: MyDocument

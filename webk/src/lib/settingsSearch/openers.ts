@@ -74,24 +74,12 @@ const openTab = async(
  * it declares one and nothing otherwise.
  */
 const SECTION_OPENERS: {[sectionId: string]: SectionOpener} = {
-  AppPrivacyLastSeenTab: async(slider, middleware) => {
-    const settings = await rootScope.managers.appPrivacyManager.getGlobalPrivacySettings();
-    return openTab(slider, hotReloadGuard.tabs.AppPrivacyLastSeenTab, middleware, settings);
-  },
-  AppPrivacyGiftsTab: async(slider, middleware) => {
-    const settings = await rootScope.managers.appPrivacyManager.getGlobalPrivacySettings();
-    return openTab(slider, hotReloadGuard.tabs.AppPrivacyGiftsTab, middleware, settings);
-  },
   AppLinkedDevicesTab: async(slider, middleware) => {
     return openTab(slider, hotReloadGuard.tabs.AppLinkedDevicesTab, middleware);
   },
   AppBlockedUsersTab: async(slider, middleware) => {
     const {peerIds} = await rootScope.managers.appUsersManager.getBlocked();
     return openTab(slider, hotReloadGuard.tabs.AppBlockedUsersTab, middleware, {peerIds});
-  },
-  AppPrivacyMessagesTab: (slider, middleware) => {
-    // opened on its own, so there is no privacy row waiting for the new value
-    return openTab(slider, hotReloadGuard.tabs.AppPrivacyMessagesTab, middleware, {onSaved: () => {}});
   },
   // and so is the cloud password while one is set
   AppTwoStepVerificationTab: async(slider, middleware) => {
