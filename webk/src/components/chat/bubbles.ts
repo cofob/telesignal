@@ -7346,6 +7346,11 @@ export default class ChatBubbles {
       return;
     }
 
+    // * a basic group, which every Signal group is, has no channel state to subscribe to
+    if(!(await this.managers.appPeersManager.isChannel(peerId))) {
+      return;
+    }
+
     const middleware = this.getMiddleware();
     const needFetchInterval = await this.managers.appMessagesManager.isFetchIntervalNeeded(peerId);
     const needFetchNew = !!savedPosition?.mids || needFetchInterval;
