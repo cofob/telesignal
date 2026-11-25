@@ -19,6 +19,7 @@ import type {
   WebPage
 } from '@layer';
 import {EXTENSION_MIME_TYPE_MAP, MIME_TYPE_ALIASES} from '@environment/mimeTypeMap';
+import {toPeerId} from '@lib/signal/builders';
 import type {
   SignalAlbumItem,
   SignalAudio,
@@ -41,6 +42,8 @@ const STICKER_MIME_TYPE = 'image/webp';
 // * the size the provider's photos and thumbnails have: the full image, under the type of the one Web K asks for
 const PHOTO_SIZE_TYPE = 'x';
 const THUMBNAIL_SIZE_TYPE = 'm';
+// * the provider's user id of a shared contact without a chat (Web A's `UNREGISTERED_CONTACT_ID`)
+const UNREGISTERED_CONTACT_ID = '0';
 
 // * the MIME types Web K knows; a Signal file of another type is an octet stream, as a file of unknown type is
 const KNOWN_MIME_TYPES: Set<string> = new Set(Object.values(EXTENSION_MIME_TYPE_MAP));
@@ -234,15 +237,21 @@ function isKnownMimeType(mimeType: string): mimeType is MTMimeType {
   return KNOWN_MIME_TYPES.has(mimeType);
 }
 
-function buildContactMedia(contact: SignalContact): MessageMedia.messageMediaContact {
+/**
+ * A shared contact as Web A's `Contact` reads it: the user of its existing chat, else its ACI, which gets a chat
+ * only when messaged (`getChatByAci` of `userMethods.ts`), else neither
+ */
+export type SignalContactMedia = MessageMedia.messageMediaContact & {signal_aci?: string};
+
+function buildContactMedia(contact: SignalContact): SignalContactMedia {
   return {
     _: 'messageMediaContact',
     phone_number: contact.phoneNumber,
     first_name: contact.firstName,
     last_name: contact.lastName,
     vcard: contact.vcard ?? '',
-    // * a contact without a chat of its own: messaging it creates one
-    user_id: 0
+    user_id: contact.userId !== UNREGISTERED_CONTACT_ID ? toPeerId(contact.userId) : 0,
+    signal_aci: contact.aci
   };
 }
 

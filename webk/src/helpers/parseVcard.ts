@@ -86,6 +86,14 @@ export function sortVcardItems(items: VcardItem[]) {
   return items.slice().sort((a, b) => getKindIndex(a.type) - getKindIndex(b.type));
 }
 
+// * TeleSignal: `N` lists the family name first (RFC 6350 section 6.2.2: family, given, additional names, prefixes,
+// * suffixes); the name reads with its prefix and given name first, as the bubble's name does
+const NAME_COMPONENT_ORDER = [3, 1, 2, 0, 4];
+
+function orderNameComponents(components: string[]) {
+  return NAME_COMPONENT_ORDER.map((index) => components[index] ?? '');
+}
+
 export default function parseVcard(data: string): VcardItem[] {
   const items: VcardItem[] = [];
   // a line that goes on is folded onto the next one, which starts with a space or a tab
@@ -116,9 +124,13 @@ export default function parseVcard(data: string): VcardItem[] {
     }
 
     const separator = STRUCTURED_SEPARATORS[type];
-    value = separator === undefined ?
-      unescapeValue(value) :
-      value.split(/(?<!\\);/).map(unescapeValue).filter(Boolean).join(separator);
+    if(separator === undefined) {
+      value = unescapeValue(value);
+    } else {
+      const components = value.split(/(?<!\\);/);
+      value = (type === 'name' ? orderNameComponents(components) : components)
+      .map(unescapeValue).filter(Boolean).join(separator);
+    }
 
     if(
       value &&

@@ -210,7 +210,9 @@ export type SignalContact = {
   firstName: string,
   lastName: string,
   phoneNumber: string,
+  // `'0'` for a contact without a chat
   userId: string,
+  aci?: string,
   vcard?: string
 };
 
@@ -395,6 +397,7 @@ export type SignalMethodName =
   | 'fetchUsernameLink'
   | 'fetchUsers'
   | 'forwardMessages'
+  | 'getChatByAci'
   | 'getChatByUsername'
   | 'hideAllChatJoinRequests'
   | 'hideChatJoinRequest'
