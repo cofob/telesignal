@@ -35,7 +35,7 @@ pnpm lint           # oxlint on the whole repo (config: .oxlintrc.json)
 pnpm lint:fix       # Same, with auto-fix
 ```
 
-Debug query params: `?test=1` (test DCs), `?debug=1` (verbose logging), `?noSharedWorker=1` (disable shared worker), `?noPfs=1` (turns off Perfect Forward Secrecy — temporary auth keys, `src/lib/mtproto/tempAuthKeys.ts`; on by default), `?a11y=1` (the keyboard and screen-reader layer — see "Accessibility"; off by default), `?rtl=1` (lays the app out right to left in whatever language is loaded — see "Right-to-left"), `?memoryWatch=1` (keeps a memory history of the tab — see "Memory").
+Debug query params: `?test=1` (test DCs), `?debug=1` (verbose logging), `?noSharedWorker=1` (disable shared worker), `?a11y=1` (the keyboard and screen-reader layer — see "Accessibility"; off by default), `?rtl=1` (lays the app out right to left in whatever language is loaded — see "Right-to-left"), `?memoryWatch=1` (keeps a memory history of the tab — see "Memory").
 
 **Settings → Experimental** (a click on the version line at the bottom of Settings) switches the same flags without
 editing a URL, and keeps them on for the whole site: `localStorage['experimental_flags']`, read by `@config/modes`
@@ -299,7 +299,6 @@ src/
 │   └── ...           # 200+ feature folders
 ├── lib/
 │   ├── appManagers/  # 55+ domain managers (chats, users, messages, etc.)
-│   ├── mtproto/      # MTProto protocol implementation
 │   ├── storages/     # IndexedDB/localStorage wrappers
 │   ├── rootScope.ts  # Global event emitter & app context
 │   └── mainWorker/   # Background worker logic
