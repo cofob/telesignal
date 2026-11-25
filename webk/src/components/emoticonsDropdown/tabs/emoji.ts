@@ -51,7 +51,6 @@ import {
   openGroupSetTab,
   setGroupSetHidden
 } from '@components/emoticonsDropdown/groupSetSection';
-import {PAID_REACTION_EMOJI_DOCID} from '@lib/customEmoji/constants';
 import {getStickerSetInputById} from '@lib/appManagers/utils/stickers/getStickerSetInput';
 import {
   EmojiSkinTone,
@@ -1270,7 +1269,6 @@ export default class EmojiTab extends EmoticonsTabC<EmojiTabCategory, {emojis: A
   // }
 
   public canUseEmoji(emoji: ReturnType<typeof getEmojiFromElement>, category?: EmojiTabCategory, showToast?: boolean) {
-    if(emoji.docId === PAID_REACTION_EMOJI_DOCID) return true
     if(
       emoji.docId &&
       !rootScope.premium && (

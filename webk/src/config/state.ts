@@ -213,8 +213,6 @@ export type State = {
   dialogsPaginationOffsets: DialogsStorage['dialogsPaginationOffsets'],
   pinnedOrders: DialogsStorage['pinnedOrders'],
   botCommands: {[peerId: PeerId]: {[botId: string]: BotCommand[]}},
-  // the permanent code that removes the message fee of the own QR code, kept across opens
-  noPaidMessagesToken: {token: string, url: string, permanent?: boolean} | null,
   // contactsList: UserId[],
   contactsListCachedTime: number,
   updates: Partial<{
@@ -604,7 +602,6 @@ export const STATE_INIT: State = {
   dialogsPaginationOffsets: {},
   pinnedOrders: {},
   botCommands: {},
-  noPaidMessagesToken: null,
   // contactsList: [],
   contactsListCachedTime: 0,
   updates: {},

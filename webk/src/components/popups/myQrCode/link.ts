@@ -6,7 +6,7 @@ import type {Caption} from '@components/popups/myQrCode/caption';
 
 /**
  * Which link the own profile's code carries, and the arithmetic of a code that expires. Pure, so it is tested alone;
- * the state that holds them is `linkState.ts` and `feeCode.ts`.
+ * the state that holds them is `linkState.ts`.
  */
 
 export type OwnLinkKind = 'username' | 'phone' | 'contact';

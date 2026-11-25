@@ -54,7 +54,6 @@ export type LottieAssetName =
   | 'Congratulations'
   | 'large_lastseen'
   | 'large_readtime'
-  | 'StarReaction'
   | 'UtyanPasscode'
   | 'Diamond'
   | 'UtyanRestricted'

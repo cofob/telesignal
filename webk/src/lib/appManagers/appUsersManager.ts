@@ -32,7 +32,6 @@ import {NULL_PEER_ID, TEST_NO_STORIES} from '@appManagers/constants';
 import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
 import pause from '@helpers/schedulers/pause';
 import createSerializedQueue from '@helpers/createSerializedQueue';
-import type {State} from '@config/state';
 
 export type User = MTUser.user;
 const TOP_PEER_TYPES = ['correspondents', 'bots_inline', 'bots_app', 'bots_guestchat'] as const;
@@ -77,15 +76,6 @@ export class AppUsersManager extends AppManager {
   private contactsKnown: boolean;
 
   private getTopPeersPromises: {[type in TopPeerType]?: Promise<MyTopPeer[]>};
-  // * the asks for a no-paid-messages code in the order they were sent, and the newest whose answer decided what is
-  // * kept: an older answer that comes later neither brings back a code a newer one replaced nor keeps a revoked one.
-  // * Every change of what is kept waits for the one before it, and looks at the order only when its turn comes.
-  private noPaidTokenAsks = 0;
-  private noPaidTokenKeptAsk = 0;
-  // * whether the permanent code is the mode, as last chosen on the screen: a code that comes after the screen has gone
-  // * is kept in the mode chosen, as Android writes the mode when it is chosen
-  private noPaidTokenPermanent: boolean;
-  private noPaidTokenWrites = createSerializedQueue();
   // * until when the server asked to wait, per list: nothing is asked again before that
   private topPeersFloods: {[type in TopPeerType]?: number};
   // * moves on every flip of `contacts.toggleTopPeers`: a list asked for before it is of the other setting
@@ -457,53 +447,6 @@ export class AppUsersManager extends AppManager {
       processResult: (user) => {
         this.saveApiUser(user);
         return this.getUser(user.id);
-      }
-    });
-  }
-
-  /**
-   * The code that lets non-contacts message the own profile for free. The newest permanent one is kept in the state,
-   * to be shown at once on the next open, and a revoke drops it; whether it is the mode is the screen's to say
-   * (`setKeptNoPaidMessagesTokenPermanent`). Only the answer to a newer ask than the one that decided it touches it.
-   */
-  public async exportNoPaidMessagesToken(options: {revoke?: boolean, temporary?: boolean} = {}) {
-    const ask = ++this.noPaidTokenAsks;
-    const token = await this.apiManager.invokeApi('contacts.exportNoPaidMessagesToken', {
-      revoke: options.revoke ? true : undefined,
-      temporary: options.temporary ? true : undefined
-    });
-
-    if(!token.expires || options.revoke) {
-      await this.noPaidTokenWrites.enqueue(async() => {
-        if(ask <= this.noPaidTokenKeptAsk) return;
-        this.noPaidTokenKeptAsk = ask;
-        if(!token.expires) {
-          const kept = await this.getKeptNoPaidMessagesToken();
-          const permanent = this.noPaidTokenPermanent ?? !!kept?.permanent;
-          await this.appStateManager.pushToState('noPaidMessagesToken', {token: token.token, url: token.url, permanent});
-        } else {
-          // * a revoke has killed every code before it, the kept one too
-          await this.appStateManager.pushToState('noPaidMessagesToken', null);
-        }
-      });
-    }
-
-    return this.withLocalExpiry(token);
-  }
-
-  /** The kept permanent code, and whether permanent was the mode last: only then it comes back as the mode */
-  public async getKeptNoPaidMessagesToken(): Promise<State['noPaidMessagesToken']> {
-    const state = await this.appStateManager.getState();
-    return state.noPaidMessagesToken || null;
-  }
-
-  /** Going back to the fee or to a temporary code revokes nothing: the token stays, only the mode is not permanent */
-  public setKeptNoPaidMessagesTokenPermanent(permanent: boolean) {
-    this.noPaidTokenPermanent = permanent;
-    return this.noPaidTokenWrites.enqueue(async() => {
-      const kept = await this.getKeptNoPaidMessagesToken();
-      if(kept && !!kept.permanent !== permanent) {
-        await this.appStateManager.pushToState('noPaidMessagesToken', {...kept, permanent});
       }
     });
   }
