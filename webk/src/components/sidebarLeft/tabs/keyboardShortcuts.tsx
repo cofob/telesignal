@@ -18,7 +18,6 @@ import {
   setKeyboardShortcut,
   setMessageSendKeyCombo,
   WEBK_MESSAGES_SECTION,
-  WEBK_VIEWER_SECTIONS,
   type ResolvedKeyboardShortcutCombo,
   type WebKOwnShortcutSection
 } from '@lib/keyboardShortcuts';
@@ -138,6 +137,14 @@ function getPlainShortcutsMatching(section: WebKOwnShortcutSection, query: Short
   });
 }
 
+const PlainShortcutRow = (props: WebKOwnShortcutSection['shortcuts'][number]) => (
+  <Row>
+    <Row.Title titleRight={<Keys groups={[getKeyComboLabels(props.combo(), lang)]} />} titleRightSecondary>
+      {i18n(props.titleKey as LangPackKey)}
+    </Row.Title>
+  </Row>
+);
+
 // * the send row is a choice rather than a shortcut, which a search leaves out, as Web A's does
 const PlainShortcutsSection = (props: {section: WebKOwnShortcutSection, query: ShortcutQuery, hasQuery: boolean}) => {
   const shown = () => getPlainShortcutsMatching(props.section, props.query);
@@ -149,15 +156,7 @@ const PlainShortcutsSection = (props: {section: WebKOwnShortcutSection, query: S
         <Show when={hasSendRow()}>
           <SendShortcutRow />
         </Show>
-        <For each={shown()}>
-          {({titleKey, combo}) => (
-            <Row>
-              <Row.Title titleRight={<Keys groups={[getKeyComboLabels(combo(), lang)]} />} titleRightSecondary>
-                {i18n(titleKey as LangPackKey)}
-              </Row.Title>
-            </Row>
-          )}
-        </For>
+        <For each={shown()}>{(shortcut) => <PlainShortcutRow {...shortcut} />}</For>
       </Section>
     </Show>
   );
@@ -188,10 +187,13 @@ const KeyboardShortcutsTab = () => {
     ], combos()[id].map((resolved) => resolved.combo));
   };
   const shownSections = createMemo(() => getShownKeyboardShortcutSections()
-  .map((section) => ({...section, ids: section.ids.filter((id) => getIsShortcutMatch(id, section.titleKey))}))
-  .filter(({ids}) => ids.length));
-  const hasPlainMatch = () => [WEBK_MESSAGES_SECTION, ...WEBK_VIEWER_SECTIONS]
-  .some((section) => getPlainShortcutsMatching(section, parsedQuery()).length);
+  .map((section) => ({
+    ...section,
+    ids: section.ids.filter((id) => getIsShortcutMatch(id, section.titleKey)),
+    ownShortcuts: getPlainShortcutsMatching({titleKey: section.titleKey, shortcuts: section.ownShortcuts}, parsedQuery())
+  }))
+  .filter(({ids, ownShortcuts}) => ids.length || ownShortcuts.length));
+  const hasPlainMatch = () => getPlainShortcutsMatching(WEBK_MESSAGES_SECTION, parsedQuery()).length > 0;
 
   const inputSearch = new InputSearch({placeholder: 'Search', onChange: setQuery});
 
@@ -365,14 +367,12 @@ const KeyboardShortcutsTab = () => {
       <div class={styles.search}>{inputSearch.container}</div>
       <PlainShortcutsSection section={WEBK_MESSAGES_SECTION} query={parsedQuery()} hasQuery={hasQuery()} />
       <For each={shownSections()}>
-        {({titleKey, descriptionKey, ids}) => (
+        {({titleKey, descriptionKey, ids, ownShortcuts}) => (
           <Section name={titleKey as LangPackKey} caption={descriptionKey as LangPackKey}>
             <For each={ids}>{(id) => <ShortcutRow id={id} />}</For>
+            <For each={ownShortcuts}>{(shortcut) => <PlainShortcutRow {...shortcut} />}</For>
           </Section>
         )}
-      </For>
-      <For each={WEBK_VIEWER_SECTIONS}>
-        {(section) => <PlainShortcutsSection section={section} query={parsedQuery()} hasQuery={hasQuery()} />}
       </For>
       <Show when={hasQuery() && !shownSections().length && !hasPlainMatch()}>
         <Section>

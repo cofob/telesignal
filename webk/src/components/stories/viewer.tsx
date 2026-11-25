@@ -5,7 +5,7 @@ import createFocusTrap, {FocusTrap} from '@helpers/dom/focusTrap';
 import {animateSingle} from '@helpers/animation';
 import {bindActiveWindowListener, getAppWindow, getOverlayRoot} from '@helpers/appWindow';
 import cancelEvent from '@helpers/dom/cancelEvent';
-import getInlineArrowKeys from '@helpers/dom/getInlineArrowKeys';
+import {getInlineKeyboardShortcut, getIsKeyboardShortcut, getIsKeyCombo, WEBK_VIEWER_COMBOS} from '@lib/keyboardShortcuts';
 import {DEFAULT_MENU_WINDOW_MARGIN} from '@helpers/positionMenu';
 import overlayCounter from '@helpers/overlayCounter';
 import throttle from '@helpers/schedulers/throttle';
@@ -3656,12 +3656,12 @@ export default function StoriesViewer(props: {
   // * fix `ended` property
   actions.viewerReady(false);
 
-  const CANCELABLE_KEYS: Set<string> = new Set([
-    'ArrowRight',
-    'ArrowLeft',
-    'ArrowDown',
-    'Space'
-  ]);
+  const getStoryKeyAction = (e: KeyboardEvent) => {
+    const direction = getInlineKeyboardShortcut(e, 'nextStory', 'previousStory');
+    if(direction) return direction;
+    if(getIsKeyboardShortcut(e, 'toggleStoryPlayback')) return 'toggle';
+    if(getIsKeyCombo(e, WEBK_VIEWER_COMBOS.closeStories)) return 'close';
+  };
 
   const onKeyDown = (e: KeyboardEvent) => {
     if(Modes.a11y && shouldPreserveKeyboardFocus(e)) return;
@@ -3677,7 +3677,8 @@ export default function StoriesViewer(props: {
       return;
     }
 
-    if(CANCELABLE_KEYS.has(e.key) || CANCELABLE_KEYS.has(e.code)) {
+    const action = getStoryKeyAction(e);
+    if(action) {
       cancelEvent(e);
     } else if(!keepsKeyFromComposer(e)) {
       const input = activeStoryContainer.querySelector<HTMLElement>('.input-message-input');
@@ -3691,24 +3692,18 @@ export default function StoriesViewer(props: {
       }
     }
 
-    if(e.key === 'ArrowDown') {
+    if(action === 'close') {
       throttledKeyDown.clear();
       close();
       return;
     }
 
-    throttledKeyDown(e);
+    if(action) throttledKeyDown(action);
   };
 
-  const throttledKeyDown = throttle((e: KeyboardEvent) => {
-    const inlineKeys = getInlineArrowKeys();
-    if(e.key === inlineKeys.next) {
-      actions.goToNearestStorySafe(true);
-    } else if(e.key === inlineKeys.previous) {
-      actions.goToNearestStorySafe(false);
-    } else if(e.code === 'Space') {
-      actions.toggle();
-    }
+  const throttledKeyDown = throttle((action: 'next' | 'previous' | 'toggle') => {
+    if(action === 'toggle') actions.toggle();
+    else actions.goToNearestStorySafe(action === 'next');
   }, 200, true);
 
   // Follow the active window so the stories keyboard handler keeps firing when the overlay
@@ -4111,6 +4106,7 @@ export default function StoriesViewer(props: {
   const navigationItem: NavigationItem = {
     type: 'stories',
     noBlurOnPop: Modes.a11y,
+    onEscape: (e) => getIsKeyboardShortcut(e, 'closeStoryViewer'),
     onPop: () => {
       if(animating) {
         return false;
