@@ -363,7 +363,7 @@ export default class ChatInput {
         this.emoticonsDropdown?.toggle(false);
         this.autocompleteHelperController?.hideOtherHelpers();
       },
-      onReadOnlyClick: () => toastNew({langPackKey: this.chat.isTemporaryThread ? 'WaitForTopicCreation' : POSTING_NOT_ALLOWED_MAP.send_plain}),
+      onReadOnlyClick: () => toastNew({langPackKey: POSTING_NOT_ALLOWED_MAP.send_plain}),
       onChooseMedia: (selection, action) => {void this.onAttachClick(false, true, true, selection, false, action);},
       ref: (field) => {this.richMessageInput = field; this.messageInput = field.input;}
     }), this.middlewareHelper.get()));
@@ -2933,7 +2933,7 @@ export default class ChatInput {
       if(this.messageInput) {
         this.updateMessageInput(
           canSend || haveSomethingInControl,
-          canSendPlain && !this.chat.isTemporaryThread,
+          canSendPlain,
           placeholderParams,
           peerId.isUser() ? options.text : undefined,
           peerId.isUser() ? options.entities : undefined

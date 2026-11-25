@@ -1621,7 +1621,6 @@ export class AppMessagesManager extends AppManager {
         };
       }
 
-      replyTo.pFlags.forum_topic = true;
       replyTo.reply_to_top_id = topMsgId;
     }
 
@@ -15066,9 +15065,7 @@ export class AppMessagesManager extends AppManager {
       random_id: draft.randomId,
       reply_to: draft.threadId ? {
         _: 'messageReplyHeader',
-        pFlags: {
-          forum_topic: true
-        },
+        pFlags: {},
         reply_to_top_id: draft.threadId,
         reply_to_msg_id: draft.threadId
       } : undefined

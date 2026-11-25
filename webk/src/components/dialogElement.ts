@@ -727,8 +727,8 @@ export class DialogElement {
     batch?: boolean
   ) {
     // * `setBadgeState` skips a badge whose visibility `lastBadgeState` says is unchanged, so
-    // * out-of-band toggles (`toggleAvatarUnreadBadges` on sidebar collapse / forum tab) must
-    // * keep it in sync — otherwise reading the last unread topic can't hide the avatar badge
+    // * out-of-band toggles (`toggleAvatarUnreadBadges` on sidebar collapse) must keep it in
+    // * sync — otherwise reading the last unread message can't hide the avatar badge
     if(this.lastBadgeState) {
       this.lastBadgeState[key] = hasBadge;
     }

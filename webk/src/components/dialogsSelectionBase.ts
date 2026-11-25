@@ -115,7 +115,7 @@ export type DialogsSelectionBaseOptions = {
   getHeader: () => HTMLElement,
   /**
    * the list the selection is made in, in `dialogsStorage`'s own filter id space - for a list that
-   * is one of its filters (the chats, the topics of a forum)
+   * is one of its filters
    */
   getFilterId?: () => number,
   getSortedList: () => DialogsSelectionList,

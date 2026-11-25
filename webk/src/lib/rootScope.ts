@@ -64,7 +64,7 @@ export type BroadcastEvents = {
 
   'emoji_status_change': void,
 
-  /** `threadId` scopes the change to one forum topic; absent = the whole peer. */
+  /** `threadId` scopes the change to one thread; absent = the whole peer. */
   'peer_pinned_messages': {peerId: PeerId, threadId?: number, mids?: number[], pinned?: boolean, unpinAll?: true},
   'peer_pinned_hidden': {peerId: PeerId, threadId?: number, maxId: number},
   'peer_typings': {peerId: PeerId, threadId?: number, typings: UserTyping[]},
@@ -278,8 +278,6 @@ export type BroadcastEvents = {
   'star_gift_upgrade': {gift: MyStarGift, savedId?: Long, fromMsgId?: number},
 
 
-  'botforum_pending_topic_created': {peerId: PeerId, tempId: number, newId?: number},
-  'botforum_pending_topic_failed': {peerId: PeerId, tempId: number},
   'promo_data_update': MyPromoData,
   'unconfirmed_authorizations_update': UnconfirmedAuthorization[],
 

@@ -47,7 +47,6 @@ import useIsNightTheme from '@hooks/useIsNightTheme';
 import namedPromises from '@helpers/namedPromises';
 import {isVerificationBot} from '@components/chat/utils';
 import {isSensitive} from '@helpers/restrictions';
-import {isTempId} from '@appManagers/utils/messages/isTempId';
 import {usePeer} from '@stores/peers';
 import {useAppSettings} from '@stores/appSettings';
 import useHistoryStorage from '@stores/historyStorages';
@@ -170,7 +169,6 @@ export default class Chat extends EventListenerBase<{
   public isAnonymousSending: boolean;
   public isUserBlocked: boolean;
   public isPremiumRequired: boolean;
-  public isTemporaryThread: boolean;
   public noInput: boolean;
 
   public stealthMode: StoriesStealthMode | undefined;
@@ -1179,7 +1177,6 @@ export default class Chat extends EventListenerBase<{
       this.appImManager.dispatchEvent('peer_changing', this);
       this.peerIdSignal[1](this.peerId = peerId || NULL_PEER_ID);
       this.threadId = threadId;
-      this.isTemporaryThread = isTempId(threadId);
       this.noInput = [ChatType.Static, ChatType.Logs].includes(type);
       this.middlewareHelper.clean();
       // A fresh peer change always shows the chat next, so its background must publish normally;
@@ -1285,18 +1282,6 @@ export default class Chat extends EventListenerBase<{
       getHistoryStorageKey(forKey),
       getHistoryStorageKey({...forKey, threadId: undefined})
     );
-
-    if(options.fromTemporaryThread) {
-      return Promise.resolve({
-        cached: true,
-        promise: this.finishPeerChange({
-          peerId,
-          middleware: () => {
-            return this.peerId === peerId && this.threadId === threadId;
-          }
-        })
-      });
-    }
 
     const bubblesSetPeerPromise = this.bubbles.setPeer({...options, samePeer, sameSearch});
     this.setPeerPromiseStartedAt = Date.now();

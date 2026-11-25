@@ -7442,22 +7442,11 @@ export default class ChatBubbles {
 
     const middleware = this.getMiddleware();
 
-    const {isBroadcast, isLikeGroup, peerId, isTemporaryThread, noInput} = this.chat;
+    const {isBroadcast, isLikeGroup, peerId, noInput} = this.chat;
 
     return () => {
       this.chatInner.classList.toggle('has-rights', canWrite);
       this.container.classList.toggle('is-chat-input-hidden', !canWrite && !this.chat.appConfig.freeze_since_date);
-
-      const tmpThreadCls = 'is-temporary-thread';
-      if(!isTemporaryThread && this.container.classList.contains(tmpThreadCls)) {
-        setTimeout(() => {
-          if(!middleware()) return;
-          this.container.classList.remove(tmpThreadCls);
-        }, 200); // leave some time for the message to appear
-      }
-      if(isTemporaryThread) {
-        this.container.classList.add(tmpThreadCls);
-      }
 
       [this.chatInner, this.remover].forEach((element) => {
         element.classList.toggle('is-chat', isLikeGroup);

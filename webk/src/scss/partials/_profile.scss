@@ -81,25 +81,6 @@
         }
       }
 
-      // A topic has no photo carousel — its icon is a single, fixed-size
-      // avatar-120 centered in the (collapsed) header, instead of a full-size
-      // photo that scales down.
-      &.is-topic {
-        .profile-avatars-avatar {
-          position: absolute;
-          inset: 0;
-          min-width: 0;
-          height: auto;
-          padding-bottom: 0;
-          align-items: center;
-          justify-content: center;
-
-          .avatar {
-            position: static !important;
-          }
-        }
-      }
-
       // While a new profile photo is uploading, the header is locked collapsed
       // and shows a cancellable progress ring centered on the avatar.
       &.is-avatar-uploading {
@@ -522,11 +503,6 @@
         border-radius: 50%;
       }
 
-      // The topic icon is already avatar-120 — don't shrink it like a full photo.
-      .profile-avatars-container.is-topic .profile-avatars-avatar.active {
-        transform: none;
-      }
-
       .avatar-star {
         opacity: 1;
       }
@@ -577,11 +553,6 @@
         .profile-avatars-avatar.active {
           transform: translateY(calc(-3% - var(--profile-actions-room) / 2)) scale(calc(120 / 400));
         }
-
-        // * a topic's icon is not scaled down, only centred
-        .profile-avatars-container.is-topic .profile-avatars-avatar.active {
-          transform: translateY(calc(var(--profile-actions-room) / -2));
-        }
       }
 
       .has-stories .profile-avatars-avatar-first {
@@ -627,10 +598,6 @@
 
       .show-when {
         background-color: rgba(255, 255, 255, .2);
-      }
-
-      .topic-name-button {
-        --primary-color: #fff;
       }
 
       .peer-typing-container {
@@ -822,12 +789,6 @@
     .show-when {
       margin-inline-start: .25rem;
       cursor: pointer;
-      pointer-events: all;
-    }
-
-    // the subtitle lives inside the avatars header, which is pointer-events:
-    // none — opt the topic's forum button back in, like .show-when above
-    .topic-name-button {
       pointer-events: all;
     }
   }

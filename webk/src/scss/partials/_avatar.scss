@@ -151,23 +151,6 @@
     border-radius: var(--avatar-border-radius-forum);
   }
 
-  &.is-monoforum {
-    border-bottom-left-radius: 0;
-    mask-image: url('/assets/img/monoforum-avatar-mask.svg');
-    mask-size: 100% 100%;
-  }
-
-  &.is-topic {
-    position: relative;
-    background: none;
-    border-radius: 0;
-
-    .topic-icon {
-      --size: inherit;
-      // --custom-emoji-size: var(--size);
-    }
-  }
-
   &.is-online {
     position: relative;
 

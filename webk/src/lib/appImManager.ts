@@ -220,7 +220,6 @@ export type ChatSetPeerOptions = {
   entities?: MessageEntity[],
   call?: string | number,
   isDeleting?: boolean,
-  fromTemporaryThread?: boolean,
   messages?: MyMessage[]
 } & Partial<ChatSearchKeys>;
 

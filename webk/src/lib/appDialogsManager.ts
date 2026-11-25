@@ -168,8 +168,8 @@ const TEST_TOP_NOTIFICATION = true ? undefined : (): ChatlistsChatlistUpdates =>
 
 /**
  * Which selection governs which chat list. The main list and the archive share one (the chats of
- * whichever folder is on screen); an open forum tab has its own, for its topics - so a row is asked
- * about through the list it is in rather than through one selection everybody knows.
+ * whichever folder is on screen) - a row is asked about through the list it is in rather than
+ * through one selection everybody knows.
  */
 const SELECTION_BY_LIST: WeakMap<HTMLElement, DialogsSelectionBase> = new WeakMap();
 
