@@ -64,7 +64,7 @@ import {storeSignalWebPages} from '@lib/signal/media';
 import {buildOutgoingMedia} from '@lib/signal/outgoingMedia';
 import noop from '@helpers/noop';
 import {ColorRgb, hexToRgb, mixColors, rgbaToHexa} from '@helpers/color';
-import {ConnectionStatus} from '@lib/connectionStatus';
+import {ConnectionStatus, SIGNAL_CONNECTION_NAME} from '@lib/connectionStatus';
 import tsNow from '@helpers/tsNow';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 
@@ -1054,7 +1054,7 @@ export default class AppSignalManager extends AppManager {
       _: 'networkerStatus',
       status,
       dcId: SIGNAL_DC_ID,
-      name: 'NET-' + SIGNAL_DC_ID,
+      name: SIGNAL_CONNECTION_NAME,
       isFileNetworker: false,
       isFileDownload: false,
       isFileUpload: false

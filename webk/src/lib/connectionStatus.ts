@@ -1,3 +1,6 @@
+// * TeleSignal: the name the Signal engine's connection is reported under (`appSignalManager.onConnectionState`)
+export const SIGNAL_CONNECTION_NAME = 'NET-2';
+
 export enum ConnectionStatus {
   Connected,
   Connecting,

@@ -1,11 +1,8 @@
-import type {DcId} from '@types';
 import {MOUNT_CLASS_TO} from '@config/debug';
 
 import type {AppInstance} from '@lib/singleInstance';
-import type {UserAuth} from '@appManagers/constants';
 import LocalStorageController from '@lib/localStorage';
 import {StoredAccountSessionData} from '@lib/accounts/types';
-
 
 type StorageValues = {
   state_id: number,
@@ -19,7 +16,6 @@ type StorageValues = {
   // (@lib/passcode/keyHandoff) — kept only so old, on-disk values can be purged
   encryption_key?: string,
 
-  server_time_offset: number,
   xt_instance: AppInstance,
   kz_version: 'K' | 'Z',
   tgme_sync: {
@@ -35,42 +31,11 @@ type StorageValues = {
   should_animate_main?: number
 }
 
-/**
- * @deprecated use these keys only for going to and from 'A' (a.k.a. 'Z') version
- */
-type DeprecatedStorageValues = {
-  dc: DcId,
-  user_auth: UserAuth,
-
-  dc1_auth_key: string,
-  dc2_auth_key: string,
-  dc3_auth_key: string,
-  dc4_auth_key: string,
-  dc5_auth_key: string,
-
-  dc1_server_salt: string,
-  dc2_server_salt: string,
-  dc3_server_salt: string,
-  dc4_server_salt: string,
-  dc5_server_salt: string,
-
-  dc1_hash: string, // WebA only
-  dc2_hash: string, // WebA only
-  dc3_hash: string, // WebA only
-  dc4_hash: string, // WebA only
-  dc5_hash: string, // WebA only
-
-  auth_key_fingerprint: string // = dc${App.baseDcId}_auth_key.slice(0, 8)
-};
-
-const sessionStorage = new LocalStorageController<StorageValues & DeprecatedStorageValues>([
+const sessionStorage = new LocalStorageController<StorageValues>([
   'account1',
   'account2',
   'account3',
-  'account4',
-  'auth_key_fingerprint',
-  'user_auth',
-  'dc'
+  'account4'
 ]);
 
 MOUNT_CLASS_TO.appStorage = sessionStorage;

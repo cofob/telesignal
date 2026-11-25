@@ -4,8 +4,6 @@ import {ActiveAccountNumber} from '@lib/sessionStorage';
 
 export type DcId = number;
 export type TrueDcId = 1 | 2 | 3 | 4 | 5;
-export type DcAuthKey = `dc${TrueDcId}_auth_key`;
-export type DcServerSalt = `dc${TrueDcId}_server_salt`;
 
 export type InvokeApiOptions = Partial<{
   dcId: DcId,

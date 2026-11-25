@@ -1,25 +1,16 @@
-import App from '@config/app';
 import DEBUG from '@config/debug';
 import {CommonState as StateCommon, State, COMMON_STATE_INIT, STATE_INIT, AppTheme} from '@config/state';
 import compareVersion from '@helpers/compareVersion';
 import copy from '@helpers/object/copy';
 import validateInitObject from '@helpers/object/validateInitObject';
-import {UserAuth} from '@appManagers/constants';
 import sessionStorage from '@lib/sessionStorage';
-import {recordPromiseBound} from '@helpers/recordPromise';
 import {StoragesResults} from '@appManagers/utils/storages/loadStorages';
 import {LogTypes, logger} from '@lib/logger';
-import {AccountSessionData, ActiveAccountNumber} from '@lib/accounts/types';
+import {ActiveAccountNumber} from '@lib/accounts/types';
 import StateStorage from '@lib/stateStorage';
 import AccountController from '@lib/accounts/accountController';
-import getAuthKeyFingerprint from '@lib/accounts/authKeyFingerprint';
+import noop from '@helpers/noop';
 import commonStateStorage from '@lib/commonStateStorage';
-import {TrueDcId} from '@types';
-import {getOldDatabaseState} from '@config/databases/state';
-import {IDB} from '@lib/files/idb';
-import createStorages from '@appManagers/utils/storages/createStorages';
-import isObject from '@helpers/object/isObject';
-import AppStorage from '@lib/storage';
 
 export type LoadStateResult = {
   state: State,
@@ -29,10 +20,7 @@ export type LoadStateResult = {
   oldVersion: string,
   pushedKeys: Set<keyof State>,
   userId: UserId
-  refetchStorages?: boolean
 };
-
-const TEST_MULTI_MIGRATION = false;
 
 const REFRESH_EVERY = 24 * 60 * 60 * 1000; // 1 day
 // const REFRESH_EVERY = 1e3;
@@ -248,42 +236,7 @@ const STATE_STEPS = {
         writer.push('authState', copy(STATE_INIT.authState));
       }
     }
-  },
-  CHANGED_AUTH: async(writer: ReturnType<typeof StateWriter>) => {
-    const [authKeyFingerprint, baseDcAuthKey] = await Promise.all([
-      sessionStorage.get('auth_key_fingerprint'),
-      sessionStorage.get(`dc${App.baseDcId}_auth_key`)
-    ]);
-
-    if(!baseDcAuthKey) {
-      return;
-    }
-
-    const _authKeyFingerprint = getAuthKeyFingerprint(baseDcAuthKey);
-    if(!authKeyFingerprint) { // * migration, preserve settings
-      writer.reset(/* {preserveCommonKeys: ['settings']} */);
-    } else if(authKeyFingerprint !== _authKeyFingerprint) {
-      writer.reset();
-    }
-
-    if(authKeyFingerprint !== _authKeyFingerprint) {
-      await sessionStorage.set({
-        auth_key_fingerprint: _authKeyFingerprint
-      });
-    }
   }
-  // STATE_ID: async(writer: ReturnType<typeof StateWriter>) => {
-  //   const stateId = await sessionStorage.get('state_id');
-  //   if(writer.state.stateId !== stateId) {
-  //     if(stateId !== undefined) {
-  //       writer.reset([]);
-  //     }
-
-  //     await sessionStorage.set({
-  //       state_id: writer.state.stateId
-  //     });
-  //   }
-  // }
 };
 
 async function loadStateForAccount(accountNumber: ActiveAccountNumber): Promise<LoadStateResult> {
@@ -306,11 +259,11 @@ async function loadStateForAccount(accountNumber: ActiveAccountNumber): Promise<
   const userId = AccountController.isSignedIn(accountData) ? accountData.userId : undefined;
   STATE_STEPS.CHANGED_USER(writer, userId);
 
-  // * a slot with a DC is a signed-in account to Web A: what an older version kept of a sign-in, finished or
-  // * not, goes where a sign-in keeps it now (see ApiManager.setBaseDcId). Web A's own slots are left alone
-  if(!accountData.userId && accountData.dcId && !AccountController.isForeign(accountData)) {
+  // * a slot with a DC is a signed-in account to Web A (`loadSlotSession`): a Telegram sign-in that an older version
+  // * left unfinished is no account, and its DC goes once. Web A's own slots are left alone
+  if(!accountData.userId && accountData.dcId && !accountData.isLinked && !AccountController.isForeign(accountData)) {
     await AccountController.update(accountNumber, (data) => {
-      return !data.userId && data.dcId ? {dcId: undefined, sign_in_dc_id: data.sign_in_dc_id || data.dcId} : undefined;
+      return !data.userId && data.dcId ? {dcId: undefined} : undefined;
     });
   }
 
@@ -318,8 +271,6 @@ async function loadStateForAccount(accountNumber: ActiveAccountNumber): Promise<
     writer.state.authState = {_: 'authStateSignedIn'};
   }
 
-  // await STATE_STEPS.STATE_ID(writer);
-  if(accountNumber === 1) await STATE_STEPS.CHANGED_AUTH(writer);
   STATE_STEPS.REFRESH(writer);
   STATE_STEPS.VALIDATE(writer, STATE_INIT);
   STATE_STEPS.VALIDATE(commonWriter, COMMON_STATE_INIT);
@@ -351,185 +302,6 @@ async function loadStateForAccount(accountNumber: ActiveAccountNumber): Promise<
   };
 }
 
-async function loadOldState(): Promise<LoadStateResult> {
-  const log = logger('STATE-LOADER');
-  const stateStorage = new StateStorage('old');
-
-  const totalPerf = performance.now();
-  const recordPromise = recordPromiseBound(log);
-
-  const migrateToStateKeys = [
-    'playbackParams',
-    'chatContextMenuHintWasShown',
-    'seenTooltips',
-    'translations'
-  ];
-  const commonKeys = migrateToStateKeys.concat(COMMON_KEYS);
-
-  const arr = await Promise.all([
-    ...commonKeys.map((key) => (stateStorage as typeof commonStateStorage).get(key as any)),
-    ...ALL_KEYS.map((key) => recordPromise(stateStorage.get(key), 'state ' + key)),
-    (stateStorage as typeof commonStateStorage).get('langPack'),
-    recordPromise(sessionStorage.get('user_auth'), 'auth')
-  ]);
-
-  log.warn('promises', performance.now() - totalPerf);
-
-  const commonWriter = CommonStateWriter(log);
-  const migrateToStateSettingsValues = arr.splice(0, migrateToStateKeys.length);
-  const settingsKeyIndex = COMMON_KEYS.indexOf('settings');
-  if(isObject(arr[settingsKeyIndex])) { // * migrate values to settings
-    migrateToStateSettingsValues.forEach((value, i) => {
-      arr[settingsKeyIndex][migrateToStateKeys[i]] = value;
-    });
-  }
-  commonWriter.readFromArray(arr.splice(0, COMMON_KEYS.length));
-
-  const writer = StateWriter(log);
-  writer.readFromArray(arr.splice(0, ALL_KEYS.length));
-
-  const langPack = arr.shift();
-  const auth = arr.shift() as UserAuth | number;
-  if(auth) {
-    // ! Warning ! DON'T delete this
-    writer.state.authState = {_: 'authStateSignedIn'};
-  } else {
-    // * signed out, maybe by Web A, which knows nothing of what is kept of the first account: none of it
-    writer.reset();
-  }
-
-  // await STATE_STEPS.STATE_ID(writer);
-  await STATE_STEPS.CHANGED_AUTH(writer);
-  STATE_STEPS.REFRESH(writer);
-  STATE_STEPS.VALIDATE(writer, STATE_INIT);
-  STATE_STEPS.VALIDATE(commonWriter, COMMON_STATE_INIT);
-  STATE_STEPS.MIGRATE_THEMES(commonWriter);
-  const {newVersion, oldVersion} = STATE_STEPS.VERSION(writer);
-
-  if(DEBUG) {
-    log('state res', writer.state, copy(writer.state));
-  }
-
-  log.warn('total', performance.now() - totalPerf);
-
-  // * set to pushed keys so it'll migrate to new state
-  for(const key in writer.state) {
-    writer.push(key as keyof State, writer.state[key as keyof State]);
-  }
-
-  // * migrate langPack
-  if(langPack) {
-    await commonStateStorage.set({langPack});
-  }
-
-  const oldDb = getOldDatabaseState();
-  const clearPromises = oldDb.stores.map((store) => {
-    const stateStorage = new AppStorage(oldDb, store.name);
-    return stateStorage.clear();
-  });
-  await Promise.all(clearPromises);
-
-  return {
-    state: writer.state,
-    pushedKeys: writer.pushedKeys,
-    newVersion,
-    oldVersion,
-    resetStorages: writer.resetStorages,
-    common: commonWriter.state,
-    userId: typeof(auth) === 'number' ? auth : (auth?.id ? +auth.id : undefined)
-  };
-}
-
-async function moveAccessKeysToMultiAccountFormat() {
-  const data: Partial<AccountSessionData> = {};
-
-  const resetKeysPromise = (async() => {
-    const callbacks: (() => Promise<any>)[] = [];
-    for(let i = 1; i <= 5; i++) {
-      const authKeyKey = `dc${i as TrueDcId}_auth_key` as const;
-      const serverSaltKey = `dc${i as TrueDcId}_server_salt` as const;
-
-      [data[authKeyKey], data[serverSaltKey]] = await Promise.all([
-        sessionStorage.get(authKeyKey),
-        sessionStorage.get(serverSaltKey)
-      ]);
-
-      callbacks.push(() => {
-        return Promise.all([
-          sessionStorage.delete(authKeyKey),
-          sessionStorage.delete(serverSaltKey)
-        ]);
-      });
-    }
-
-    return () => {
-      return Promise.all(callbacks.map((cb) => cb()));
-    };
-  })();
-
-  const [userAuth, fingerprint, dc, resetKeys] = await Promise.all([
-    sessionStorage.get(`user_auth`),
-    sessionStorage.get(`auth_key_fingerprint`),
-    sessionStorage.get('dc'),
-    resetKeysPromise
-  ]);
-
-  // ! not clearing old keys for legacy
-  // * clear old keys
-  // await Promise.all([
-  //   sessionStorage.delete('user_auth'),
-  //   sessionStorage.delete('auth_key_fingerprint'),
-  //   resetKeys()
-  // ]);
-
-  data['auth_key_fingerprint'] = fingerprint;
-  data['userId'] = typeof(userAuth) === 'string' || typeof(userAuth) === 'number' ? +userAuth : (userAuth?.id ? +userAuth.id : undefined);
-  // * without it the base DC would be asked, where an account of another one is not signed in
-  const dcId = +(isObject<UserAuth>(userAuth) && userAuth.dcID) || +dc;
-  if(dcId) {
-    data['dcId'] = dcId as TrueDcId;
-  }
-
-  await AccountController.update(1, data, true);
-}
-
-async function moveStoragesToMultiAccountFormat() {
-  const storages = createStorages(undefined);
-  const storagesNew = createStorages(1);
-  const [users, chats, dialogs] = await Promise.all([
-    storages.users.getAll(),
-    storages.chats.getAll(),
-    storages.dialogs.getAll()
-  ]);
-
-  const toObject = (arr: any[], prop: string) => {
-    return arr.reduce((acc, item) => {
-      acc[item[prop]] = item;
-      return acc;
-    }, {});
-  };
-
-  await Promise.all([
-    storagesNew.users.set(toObject(users, 'id')),
-    storagesNew.chats.set(toObject(chats, 'id')),
-    storagesNew.dialogs.set(toObject(dialogs, 'peerId'))
-  ]);
-}
-
-/**
- * Whether the first account is kept in its slot already, and not only the old way (`user_auth`,
- * `dc2_auth_key`), which Web A writes beside the slot too. Its slot may lack a key of the base DC: an
- * account it signs in to by a link from another app starts at its own DC
- */
-async function checkIfHasMultiAccount() {
-  const accountData = await AccountController.get(1);
-  return !!accountData.userId || AccountController.hasAuthKey(accountData);
-}
-
-function deleteOldDatabase() {
-  return IDB.deleteDatabaseByName(getOldDatabaseState().name);
-}
-
 async function applyBuildVersionToStorage() {
   const sessionBuild = await sessionStorage.get('k_build');
   if(sessionBuild !== BUILD && (!sessionBuild || sessionBuild < BUILD)) {
@@ -538,51 +310,19 @@ async function applyBuildVersionToStorage() {
 }
 
 async function loadStateForAllAccounts() {
-  if(TEST_MULTI_MIGRATION) {
-    // * clear all storages to test migration
-    await Promise.all([1, 2, 3, 4].map(async(i) => {
-      const storages = createStorages(i as ActiveAccountNumber);
-      for(const key in storages) {
-        await storages[key as keyof typeof storages].clear();
-      }
-      await new StateStorage(i as ActiveAccountNumber).clear();
-    }));
-    await commonStateStorage.clear();
-  }
-
   const perf = performance.now();
-  const hasMultiAccount = await checkIfHasMultiAccount() && !TEST_MULTI_MIGRATION;
 
-  // await pause(15000);
+  // * the Telegram session values that earlier versions kept beside the slots go once; a failure leaves them unread
+  AccountController.clearLegacySessionKeys().catch(noop);
 
-  let stateForFirstAccount: LoadStateResult;
-
-  const restPromise = Promise.all([
+  const [stateForFirstAccount, ...rest] = await Promise.all([
+    loadStateForAccount(1),
     loadStateForAccount(2),
     loadStateForAccount(3),
     loadStateForAccount(4)
   ]);
 
-  if(!hasMultiAccount) {
-    stateForFirstAccount = await loadOldState();
-    await Promise.all([
-      moveAccessKeysToMultiAccountFormat(),
-      moveStoragesToMultiAccountFormat()
-    ]);
-    stateForFirstAccount.refetchStorages = true;
-
-    if(!TEST_MULTI_MIGRATION) {
-      deleteOldDatabase(); // * don't wait for the result
-    }
-  } else {
-    // * before its auth key is compared with the copy kept for Web A, which may be left behind a passcode turned on
-    await AccountController.removeLegacyCopyBehindPasscode();
-    stateForFirstAccount = await loadStateForAccount(1);
-  }
-
   applyBuildVersionToStorage();
-
-  const [...rest] = await restPromise;
 
   if(DEBUG) {
     console.log('loadStateForAllAccounts time', performance.now() - perf);

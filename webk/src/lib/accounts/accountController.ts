@@ -1,24 +1,31 @@
 import {MOUNT_CLASS_TO} from '@config/debug';
-import App from '@config/app';
 import Modes from '@config/modes';
-import tsNow from '@helpers/tsNow';
 import type {EmojiStatus, User} from '@layer';
 
 import sessionStorage from '@lib/sessionStorage';
-import DeferredIsUsingPasscode from '@lib/passcode/deferredIsUsingPasscode';
 import StaticUtilityClass from '@lib/staticUtilityClass';
 
 import {AccountSessionData, ActiveAccountNumber, SessionUserFields, StoredAccountSessionData} from '@lib/accounts/types';
-import getAuthKeyFingerprint from '@lib/accounts/authKeyFingerprint';
-import {DC_IDS} from '@lib/accounts/constants';
-import bytesToHex from '@helpers/bytes/bytesToHex';
-import randomize from '@helpers/array/randomize';
 import noop from '@helpers/noop';
 import {toPeerId, toSignalPeerId} from '@lib/signal/builders';
 
 const ACCOUNT_NUMBERS: ActiveAccountNumber[] = [1, 2, 3, 4];
-// * the first account's keys, by DC, as they are kept for Web A beside its slot as well, without a passcode only
-const LEGACY_KEYS = DC_IDS.map((dcId) => [`dc${dcId}_auth_key`, `dc${dcId}_server_salt`] as const);
+// * the Telegram session that earlier versions kept beside the first slot, as Web A's `clearLegacySessionKeys` lists it
+const LEGACY_SESSION_KEYS = [
+  'user_auth',
+  'dc',
+  'auth_key_fingerprint',
+  ...[1, 2, 3, 4, 5].flatMap((dcId) => [`dc${dcId}_auth_key`, `dc${dcId}_hash`, `dc${dcId}_server_salt`])
+] as const;
+// * what earlier versions wrote into a slot of a Telegram sign-in: a slot's next write leaves it out
+const LEGACY_SLOT_FIELDS = [
+  'auth_key_fingerprint',
+  'push_key',
+  'push_key_fingerprint',
+  'sign_in_dc_id',
+  'temp_auth_keys',
+  ...[1, 2, 3, 4, 5].flatMap((dcId) => [`dc${dcId}_auth_key`, `dc${dcId}_server_salt`])
+];
 const SESSION_USER_FIELDS: (keyof SessionUserFields)[] = ['firstName', 'lastName', 'phone', 'color', 'isPremium', 'emojiStatusId'];
 
 type AccountDataChanges = Partial<AccountSessionData> | ((data: AccountSessionData) => Partial<AccountSessionData> | undefined);
@@ -69,10 +76,6 @@ export class AccountController extends StaticUtilityClass {
     }
   }
 
-  static hasAuthKey(accountData: Partial<AccountSessionData>) {
-    return DC_IDS.some((dcId) => accountData[`dc${dcId}_auth_key`]);
-  }
-
   static isSignedIn(accountData: AccountSessionData) {
     // * TeleSignal: a slot of Telegram's earlier versions holds no Signal account
     return !!accountData.userId && !!accountData.isLinked && !this.isForeign(accountData);
@@ -120,7 +123,7 @@ export class AccountController extends StaticUtilityClass {
     return Object.keys(changes).length ? changes as SessionUserFields : undefined;
   }
 
-  static async get(accountNumber: ActiveAccountNumber, updating?: boolean) {
+  static async get(accountNumber: ActiveAccountNumber) {
     const stored: StoredAccountSessionData = await sessionStorage.get(`account${accountNumber}`);
     const data = {...stored} as AccountSessionData;
     // * TeleSignal: the slot keeps Web A's id of the user, which Web K moves past its own small ids
@@ -128,41 +131,7 @@ export class AccountController extends StaticUtilityClass {
       data.userId = toPeerId(stored.userId);
     }
 
-    if(!updating && !this.isForeign(data) && this.fillMissingData(data)) {
-      await this.update(accountNumber, data);
-    }
-
     return data;
-  }
-
-  static fillMissingData(data: AccountSessionData) {
-    return [
-      this.fillFingerprint(data),
-      this.fillPushKey(data)
-    ].some(Boolean);
-  }
-
-  static fillFingerprint(data: AccountSessionData) {
-    if(!data.auth_key_fingerprint) {
-      const authKey = data[`dc${App.baseDcId}_auth_key`];
-      if(!authKey) {
-        return false;
-      }
-
-      data.auth_key_fingerprint = authKey ? getAuthKeyFingerprint(authKey) : undefined;
-      return true;
-    }
-
-    return false;
-  }
-
-  static fillPushKey(data: AccountSessionData) {
-    if(!data.push_key && data.userId) {
-      data.push_key = bytesToHex(randomize(new Uint8Array(256)));
-      return true;
-    }
-
-    return false;
   }
 
   /**
@@ -185,7 +154,7 @@ export class AccountController extends StaticUtilityClass {
   }
 
   private static async write(accountNumber: ActiveAccountNumber, changes: AccountDataChanges, overrideAll: boolean) {
-    const prevData = await this.get(accountNumber, true);
+    const prevData = await this.get(accountNumber);
     // * Web A's account of the other servers stays as Web A wrote it
     if(this.isForeign(prevData)) {
       return prevData;
@@ -200,8 +169,9 @@ export class AccountController extends StaticUtilityClass {
       ...(overrideAll ? {} : prevData),
       ...data
     };
-
-    this.fillMissingData(updatedData);
+    for(const field of LEGACY_SLOT_FIELDS) {
+      delete (updatedData as Record<string, unknown>)[field];
+    }
 
     // * as Web A writes and compares it
     const stored: StoredAccountSessionData = {...updatedData};
@@ -213,10 +183,6 @@ export class AccountController extends StaticUtilityClass {
       [`account${accountNumber}`]: stored
     });
 
-    if(accountNumber === 1) {
-      await this.updateStorageForLegacy(updatedData);
-    }
-
     (async() => {
       sessionStorage.set({
         number_of_accounts: await this.getTotalAccounts()
@@ -226,85 +192,20 @@ export class AccountController extends StaticUtilityClass {
     return updatedData;
   }
 
-  /**
-   * Empties the slot of an account that logged out, with the first account's copy beside it (`user_auth`), which a
-   * start would otherwise take for the account again
-   */
+  /** Empties the slot of an account that logged out */
   static async remove(accountNumber: ActiveAccountNumber) {
     await this.whenUpdated(accountNumber);
     await sessionStorage.delete(`account${accountNumber}`);
-    if(accountNumber === 1) {
-      await this.updateStorageForLegacy(null);
-    }
 
     await sessionStorage.set({number_of_accounts: await this.getTotalAccounts()});
   }
 
   /**
-   * Use `null` when needing to remove the values (e.g. when enabling passcode)
+   * Removes the Telegram session values that earlier versions kept beside the first slot for Web A, as Web A's
+   * `clearLegacySessionKeys` does: nothing reads them. Only the plain copies go; a copy behind a passcode stays unread
    */
-  static async updateStorageForLegacy(accountData: Partial<AccountSessionData> | null) {
-    if(accountData !== null && await DeferredIsUsingPasscode.isUsingPasscode()) return; // We can't expose keys if there's a passcode set
-
-    if(accountData === null) accountData = {};
-
-    const obj: Parameters<typeof sessionStorage['set']>[0] = {};
-    const toClear: (keyof typeof obj)[] = [];
-
-    const set = <T extends keyof typeof obj>(key: T, value: typeof obj[T]) => {
-      if(value) obj[key] = value;
-      else toClear.push(key);
-    };
-
-    for(const [authKeyKey, serverSaltKey] of LEGACY_KEYS) {
-      set(authKeyKey, accountData[authKeyKey]);
-      set(serverSaltKey, accountData[serverSaltKey]);
-    }
-
-    accountData['auth_key_fingerprint'] && set('auth_key_fingerprint', accountData['auth_key_fingerprint']);
-    set('user_auth', accountData['userId'] && {
-      date: tsNow(true),
-      id: accountData.userId,
-      dcID: accountData.dcId || 0
-    });
-    set('dc', accountData.dcId);
-
-    await Promise.all([
-      sessionStorage.set(obj),
-      Promise.all(toClear.map((key) => sessionStorage.delete(key)))
-    ]);
-  }
-
-  /**
-   * Turning the passcode on removes the plain copy of the keys (`updateStorageForLegacy(null)`) once the worker has the
-   * accounts encrypted. Turning it on that stopped before then leaves the copy in localStorage, where nothing removes it
-   * with the passcode on: a start does. A key goes only while it is the first account's own as the encrypted store
-   * keeps it, so the copy is never the only one; another one is Web A's, which signs in on the same origin, and stays
-   * with its salt
-   */
-  static async removeLegacyCopyBehindPasscode() {
-    if(!(await DeferredIsUsingPasscode.isUsingPasscode())) return;
-
-    const copied = await Promise.all(LEGACY_KEYS.map((keys) => Promise.all(keys.map((key) => sessionStorage.get(key)))));
-    if(!copied.flat().some(Boolean)) return;
-
-    const accountData = await this.get(1);
-    let hadCopy = false;
-    await Promise.all(LEGACY_KEYS.map(([authKeyKey, serverSaltKey], idx) => {
-      const [authKey, serverSalt] = copied[idx];
-      if(authKey && authKey !== accountData[authKeyKey]) return;
-
-      hadCopy ||= !!authKey;
-      return Promise.all([
-        authKey && sessionStorage.deleteIfEqual(authKeyKey, authKey),
-        serverSalt && sessionStorage.deleteIfEqual(serverSaltKey, serverSalt)
-      ]);
-    }));
-
-    // * the rest of what turning it on removes, which the encrypted store keeps by then
-    if(hadCopy) {
-      await Promise.all([sessionStorage.delete('user_auth'), sessionStorage.delete('dc')]);
-    }
+  static async clearLegacySessionKeys() {
+    await Promise.all(LEGACY_SESSION_KEYS.map((key) => sessionStorage.localStorageProxy('delete', key)));
   }
 }
 

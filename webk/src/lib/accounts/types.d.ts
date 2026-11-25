@@ -1,4 +1,4 @@
-import {DcAuthKey, DcServerSalt, TrueDcId} from '@types';
+import {TrueDcId} from '@types';
 
 export type ActiveAccountNumber = 1 | 2 | 3 | 4;
 
@@ -20,18 +20,13 @@ export type SessionUserInfo = {
 
 export type SessionUserFields = Omit<SessionUserInfo, 'avatarUri'>;
 
-type A = Record<DcAuthKey, string> &
-  Record<DcServerSalt, string> &
-  SessionUserInfo &
+type A = SessionUserInfo &
   {
-    auth_key_fingerprint: string,
-    push_key?: string,
-    push_key_fingerprint?: string,
     // * stored as a string, the way Web A compares it (AccountController turns it back)
     userId: PeerId,
+    // * what Web A's sessions of earlier versions carry: Web A takes a slot with it for a stored session
+    // * (`loadSlotSession`), so it is only read, and cleared from a slot without an account (`loadState`)
     dcId: TrueDcId,
-    // * the DC a sign-in not finished yet goes to: `dcId` would make the slot a stored session to Web A
-    sign_in_dc_id?: TrueDcId,
     date: number,
     // * Web A's account of the test servers: they share the slots with the production ones there
     isTest?: true,
