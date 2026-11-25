@@ -599,6 +599,8 @@ export default class AppSearchSuper {
   public searchGroups?: {[group in SearchGroupType]: SearchGroup};
   public asChatList? = false;
   public hideEmptyTabs? = true;
+  // * TeleSignal: the tabs of the message filters stay while empty, as Web A's profile shows them, with the empty state
+  public keepEmptyMediaTabs?: boolean;
   public onChangeTab?: (mediaTab: SearchSuperMediaTab) => void;
   public showSender? = false;
   public useMainProfileTab?: boolean;
@@ -645,7 +647,7 @@ export default class AppSearchSuper {
     'showSender' |
     'managers' |
     'scrollOffset'
-  > & Partial<Pick<AppSearchSuper, 'storiesArchive' | 'onLengthChange' | 'onMediaCountersChange' | 'openSavedDialogsInner' | 'slider' | 'useMainProfileTab'>>) {
+  > & Partial<Pick<AppSearchSuper, 'storiesArchive' | 'onLengthChange' | 'onMediaCountersChange' | 'openSavedDialogsInner' | 'slider' | 'useMainProfileTab' | 'keepEmptyMediaTabs'>>) {
     safeAssign(this, options);
     this.mediaTabsDefaultOrder = [...this.mediaTabs];
 
@@ -1132,7 +1134,7 @@ export default class AppSearchSuper {
   // * counter-driven tabs are hidden while empty (see loadFirstTime), so they have to appear
   // * (and disappear) on the fly when their counter crosses zero
   private updateMediaTabVisibility(type: SearchSuperMediaType) {
-    if(!this.hideEmptyTabs || this.firstLoad) {
+    if(!this.hideEmptyTabs || this.firstLoad || this.keepEmptyMediaTabs) {
       return;
     }
 
@@ -3125,13 +3127,14 @@ export default class AppSearchSuper {
     mediaTabs.forEach((mediaTab) => {
       const counter = counters.find((c) => c.filter._ === mediaTab.inputFilter);
 
-      mediaTab.menuTab.classList.toggle('hide', !counter.count);
+      const isShown = !!counter.count || this.keepEmptyMediaTabs;
+      mediaTab.menuTab.classList.toggle('hide', !isShown);
       mediaTab.menuTab.classList.remove('active');
       // mediaTab.contentTab.classList.toggle('hide', !counter.count);
 
       this.setCounter(mediaTab.type, counter.count);
 
-      if(counter.count) {
+      if(isShown) {
         ++count;
       }
     });
