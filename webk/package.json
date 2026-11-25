@@ -60,7 +60,6 @@
     "@babel/core": "^8.0.1",
     "@babel/preset-env": "^8.0.2",
     "@babel/preset-typescript": "^8.0.1",
-    "@cryptography/aes": "^0.1.1",
     "@cryptography/sha1": "^0.2.0",
     "@cryptography/sha256": "^0.2.0",
     "@peculiar/webcrypto": "^1.7.1",

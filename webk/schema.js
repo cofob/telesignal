@@ -20,12 +20,7 @@ if(sourceContent) {
   writeFileSync(path, replaced);
 }
 
-execSync(`node ${__dirname}/src/scripts/format_schema.js`);
-const formattedSchema = readFileSync(`${__dirname}/src/scripts/out/schema.json`, 'utf8');
-
-const schemaTsPath = `${__dirname}/src/lib/mtproto/schema.ts`;
-const schemaTs = readFileSync(schemaTsPath, 'utf8');
-const replaced = schemaTs.replace(/(export default )\{.+?( as )/, `$1${formattedSchema}$2`);
-writeFileSync(schemaTsPath, replaced);
+// * TeleSignal: no MTProto runtime schema is left (the managers speak Telegram's shapes through the Signal adapter),
+// * so only the types of the layer are generated
 
 execSync(`npm run generate-mtproto-types`);

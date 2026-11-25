@@ -56,9 +56,6 @@ importers:
       '@babel/preset-typescript':
         specifier: ^8.0.1
         version: 8.0.1(@babel/core@8.0.1)
-      '@cryptography/aes':
-        specifier: ^0.1.1
-        version: 0.1.1
       '@cryptography/sha1':
         specifier: ^0.2.0
         version: 0.2.0
@@ -877,9 +874,6 @@ packages:
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
-
-  '@cryptography/aes@0.1.1':
-    resolution: {integrity: sha512-PcYz4FDGblO6tM2kSC+VzhhK62vml6k6/YAkiWtyPvrgJVfnDRoHGDtKn5UiaRRUrvUTTocBpvc2rRgTCqxjsg==}
 
   '@cryptography/sha1@0.2.0':
     resolution: {integrity: sha512-qlMD9LvSs8fL3+coW3CP4xwLoeWxXTnuFuCiC5r/SEh6Od8YI28OjtAiMwAavw9I0d9Ow3Z9zHwgEEaMwJrFVw==}
@@ -4588,8 +4582,6 @@ snapshots:
   '@bramus/specificity@2.4.2':
     dependencies:
       css-tree: 3.2.1
-
-  '@cryptography/aes@0.1.1': {}
 
   '@cryptography/sha1@0.2.0': {}
 

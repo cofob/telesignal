@@ -14,7 +14,6 @@
     "src/solid/**",
     "src/opus-recorder/**",
     "src/**/*.js",
-    "src/lib/mtproto/schema.ts",
     "src/config/emoji.ts",
     "src/countries.ts",
     "src/config/currencies.ts",
@@ -71,7 +70,6 @@
       "src/lib/appManagers/**",
       "src/lib/crypto/**",
       "src/lib/mainWorker/**",
-      "src/lib/mtproto/**",
       "src/lib/serviceWorker/**"
     ],
     "rules": {"tweb/managers-before-await": "off"}
