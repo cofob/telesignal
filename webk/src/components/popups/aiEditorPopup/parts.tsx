@@ -9,7 +9,6 @@ import Scrollable, {ScrollableContextValue} from '@components/scrollable2';
 import {Skeleton} from '@components/skeleton';
 import deferredPromise from '@helpers/cancellablePromise';
 import {copyTextToClipboard} from '@helpers/clipboard';
-import anchorCallback from '@helpers/dom/anchorCallback';
 import createContextMenu from '@helpers/dom/createContextMenu';
 import {keepMe} from '@helpers/keepMe';
 import prepareTextWithEntitiesForCopying from '@helpers/prepareTextWithEntitiesForCopying';
@@ -25,7 +24,6 @@ import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {children, createComputed, createEffect, createMemo, createReaction, createResource, createSignal, createUniqueId, For, JSX, Match, onCleanup, ParentProps, Show, Switch} from 'solid-js';
 import {Transition, TransitionGroup} from 'solid-transition-group';
 import {EmojifyCheckbox, previewStyles, processEntities} from '@components/popups/previewCard';
-import {usePopupContext} from '../indexTsx';
 import styles from './bodyContent.module.scss';
 import {useAiEditorPopupContext} from './context';
 import showCreateTonePopup from './createTonePopup';
@@ -140,13 +138,12 @@ export const Result = (props: {
   onPendingChange?: (pending: boolean) => void;
   composeMessageWithAiArgs?: ComposeMessageWithAiArgs;
 }) => {
-  const {rootScope, toastNew, wrapRichText, showPremiumPopup} = useHotReloadGuard();
+  const {rootScope, toastNew, wrapRichText} = useHotReloadGuard();
   const {
     richMessage,
     resultTextSignal: [, setResultText],
     resultRichMessageSignal: [, setResultRichMessage]
   } = useAiEditorPopupContext();
-  const popupContext = usePopupContext();
 
   let appearDeferred = props.isAppearing ? deferredPromise<void>() : undefined;
 
@@ -187,8 +184,6 @@ export const Result = (props: {
 
   let scrollableRef: HTMLDivElement, scrollableContextRef: ScrollableContextValue;
   const [skeletonHeight, setSkeletonHeight] = createSignal<number>();
-
-  const isPremiumFloodError = createMemo(() => composedMessage.error instanceof ComposeError && composedMessage.error.isPremiumFlood);
 
   const textToRender = createMemo(() => {
     if(composedMessage.state !== 'ready') return;
@@ -292,17 +287,7 @@ export const Result = (props: {
             </Match>
             <Match when>
               <div class={previewStyles.error}>
-                <Show when={isPremiumFloodError()} fallback={<I18nTsx key='AiEditor.ComposeError' />}>
-                  <I18nTsx
-                    key='AiEditor.PremiumFlood'
-                    args={[
-                      anchorCallback(() => {
-                        popupContext?.hide();
-                        showPremiumPopup();
-                      })
-                    ]}
-                  />
-                </Show>
+                <I18nTsx key='AiEditor.ComposeError' />
               </div>
             </Match>
           </Switch>

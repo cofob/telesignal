@@ -2602,7 +2602,7 @@ const Stories = (props: {
     };
 
     updateReplyMode();
-    // * the member's rights, and the boosts the member has given, change while the story is open
+    // * the member's rights change while the story is open
     const listenerSetter = createListenerSetter();
     const onChatUpdate = (id: ChatId) => id === chatId && updateReplyMode();
     listenerSetter.add(rootScope)('chat_update', onChatUpdate);

@@ -1,4 +1,4 @@
-import {Component, createEffect, createSignal, JSX, onMount, Show, Signal, untrack} from 'solid-js';
+import {Component, createSignal, JSX, onMount, Show, Signal} from 'solid-js';
 import type {MyDialogFilter} from '@lib/storages/filters';
 import type {DialogFilter, DialogFilterSuggested} from '@layer';
 import {LottieLoader} from '@lib/lottie/lottieLoader';
@@ -28,10 +28,8 @@ import {IconTsx} from '@components/iconTsx';
 import {mountSolidComponent} from '@helpers/solid/wrapSolidComponent';
 import type {Middleware} from '@helpers/middleware';
 import ListenerSetter from '@helpers/listenerSetter';
-import CheckboxFieldTsx from '@components/checkboxFieldTsx';
 import {FolderTagColorDot} from '@components/folderTags/folderTag';
 import {getFolderTagColor, useFolderTagsShown} from '@stores/folderTags';
-import usePremiumFeaturesHidden from '@stores/premiumFeaturesHidden';
 
 type FolderRow = {
   container: HTMLElement,
@@ -48,9 +46,8 @@ type FolderRow = {
 const ChatFolders: Component = () => {
   const [tab] = useSuperTab<typeof AppChatFoldersTab>();
   const promiseCollector = usePromiseCollector();
-  const {AppEditFolderTab, appSidebarLeft, lottieLoader, appImManager, showPremiumPopup, usePremium} = useHotReloadGuard();
+  const {AppEditFolderTab, appSidebarLeft, lottieLoader, appImManager} = useHotReloadGuard();
   const p = tab.payload;
-  const isPremium = usePremium();
   const tagsShown = useFolderTagsShown();
 
   const filtersRendered: {[filterId: number]: FolderRow} = {};
@@ -282,24 +279,6 @@ const ChatFolders: Component = () => {
   const name = 'theme';
   const stateKey = joinDeepPath('settings', 'tabsInSidebar');
 
-  // * the folder tags are Premium's: without it the switch is locked, and offers Premium instead
-  const premiumFeaturesHidden = usePremiumFeaturesHidden();
-
-  const tagsChecked = createSignal(untrack(tagsShown));
-  createEffect(() => tagsChecked[1](tagsShown()));
-
-  const onTagsToggle = (checked: boolean) => {
-    if(!isPremium()) {
-      tagsChecked[1](false);
-      showPremiumPopup({feature: 'folder_tags'});
-      return;
-    }
-
-    tab.managers.filtersStorage.toggleDialogFilterTags(checked).catch(() => {
-      tagsChecked[1](untrack(tagsShown));
-    });
-  };
-
   onMount(() => {
     tab.container.classList.add('chat-folders-container');
     tab.scrollable.container.classList.add('chat-folders');
@@ -432,21 +411,6 @@ const ChatFolders: Component = () => {
         classList={{hide: suggestedHidden()}}
         contentProps={{ref: (el) => suggestedContent = el}}
       />
-      <Show when={!premiumFeaturesHidden()}>
-        <Section caption={isPremium() ? 'FolderShowTagsInfo' : 'FolderShowTagsInfoPremium'}>
-          <Row>
-            <Row.CheckboxFieldToggle>
-              <CheckboxFieldTsx
-                toggle
-                signal={tagsChecked}
-                lockIcon={isPremium() ? undefined : 'premium_lock'}
-                onChange={onTagsToggle}
-              />
-            </Row.CheckboxFieldToggle>
-            <Row.Title>{i18n('FolderShowTags')}</Row.Title>
-          </Row>
-        </Section>
-      </Show>
       <Section name="FiltersView">
         <form>
           <Row>

@@ -17,7 +17,6 @@ import apiManagerProxy from '@lib/apiManagerProxy';
 import {ButtonIconTsx} from '@components/buttonIconTsx';
 import {IconTsx} from '@components/iconTsx';
 import createMiddleware from '@helpers/solid/createMiddleware';
-import showTooltip from '@components/tooltip';
 import {usePeer} from '@stores/peers';
 import buttonKeyDown from '@helpers/solid/buttonKeyDown';
 import Modes from '@config/modes';
@@ -202,7 +201,7 @@ export default function SimilarChannels(props: {
       return;
     }
 
-    const [messagesChats, defaultLimit, premiumLimit, isPremiumFeaturesHidden] = d;
+    const [messagesChats, defaultLimit, , isPremiumFeaturesHidden] = d;
     const count = (messagesChats as MessagesChats.messagesChatsSlice).count ?? messagesChats.chats.length;
     const hasMore = count > defaultLimit && !isPremiumFeaturesHidden;
     const rendered: Map<HTMLElement, Chat.channel> = new Map();
@@ -245,42 +244,19 @@ export default function SimilarChannels(props: {
         return;
       }
 
-      if(premium()) {
-        showPickUserPopup({
-          onSelect: ([first]) => {
-            hotReloadGuard.appImManager.setInnerPeer(first);
-          },
-          peerType: ['custom'],
-          getMoreCustom: async() => {
-            return {
-              result: messagesChats.chats.map((chat) => chat.id.toPeerId(true)),
-              isEnd: true
-            };
-          },
-          titleLangKey: 'SimilarChannels',
-          noSearch: true
-        });
-        return;
-      }
-
-      const anchor = anchorCallback(() => {
-        close();
-        hotReloadGuard.showPremiumPopup();
-      });
-      anchor.classList.add('primary');
-
-      const {close} = showTooltip({
-        element: target.querySelector('.similar-channels-channel-avatar-stack, .similar-channels-channel-avatar'),
-        container: target.parentElement,
-        vertical: 'top',
-        textElement: i18n(
-          'SimilarChannels.Unlock',
-          [
-            premiumLimit,
-            anchor
-          ]
-        ),
-        icon: 'star'
+      showPickUserPopup({
+        onSelect: ([first]) => {
+          hotReloadGuard.appImManager.setInnerPeer(first);
+        },
+        peerType: ['custom'],
+        getMoreCustom: async() => {
+          return {
+            result: messagesChats.chats.map((chat) => chat.id.toPeerId(true)),
+            isEnd: true
+          };
+        },
+        titleLangKey: 'SimilarChannels',
+        noSearch: true
       });
     });
     onCleanup(detach);

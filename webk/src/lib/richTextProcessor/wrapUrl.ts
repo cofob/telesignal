@@ -91,7 +91,6 @@ export default function wrapUrl(url: string, safe?: boolean) {
       case 'voicechat':
       case 'call':
       case 'invoice':
-      case 'boost':
       case 'giftcode':
       case 'share':
       case 'nft':

@@ -251,8 +251,6 @@ export type BroadcastEvents = {
 
   'stars_balance': {balance: Long, fulfilledReservedStars?: number, ton: boolean},
 
-  'file_speed_limited': {increaseTimes: number, isUpload: boolean},
-
   'config': Config,
   'app_config': MTAppConfig,
   'managers_ready': void, // ! inner

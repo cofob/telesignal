@@ -1,6 +1,4 @@
 import {Accessor, createSignal, createUniqueId, For, JSX, Setter} from 'solid-js';
-import anchorCallback from '@helpers/dom/anchorCallback';
-import cancelEvent from '@helpers/dom/cancelEvent';
 import replaceContent from '@helpers/dom/replaceContent';
 import {wrapSolidComponent} from '@helpers/solid/wrapSolidComponent';
 import {InputPrivacyKey, InputPrivacyRule, PrivacyRule} from '@layer';
@@ -15,7 +13,6 @@ import Row from '@components/rowTsx';
 import Scrollable from '@components/scrollable';
 import Section, {SectionParts} from '@components/section';
 import {SliderSuperTabEventable} from '@components/sliderTab';
-import {hideToast, toastNew} from '@components/toast';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import bindManagersToAccount from '@lib/accounts/bindManagersToAccount';
 import {getCurrentAccount} from '@lib/accounts/getCurrentAccount';
@@ -58,7 +55,6 @@ export default class PrivacySection {
   private loadedRules: PrivacyRule[];
   private loadedState: string;
 
-  private setLocked: Setter<boolean>;
   private setSelectedType: Setter<PrivacyType>;
 
   constructor(public options: {
@@ -72,9 +68,6 @@ export default class PrivacySection {
     skipTypes?: PrivacyType[],
     exceptionTexts?: [LangPackKey, LangPackKey],
     managers: AppManagers,
-    premiumOnly?: boolean,
-    premiumCaption?: PrivacySectionStr,
-    premiumError?: LangPackKey,
     myContactsAndPremium?: boolean,
     privacyType?: PrivacyType,
     allowMiniApps?: boolean,
@@ -109,9 +102,7 @@ export default class PrivacySection {
     }
 
     const [selectedType, setSelectedType] = createSignal<PrivacyType>();
-    const [locked, setLocked] = createSignal(false);
     this.setSelectedType = setSelectedType;
-    this.setLocked = setLocked;
 
     let radioContent!: HTMLElement, radioCaption!: HTMLElement;
     const radioContainer = wrapSolidComponent(() => {
@@ -126,27 +117,12 @@ export default class PrivacySection {
         >
           <form>
             <For each={radioOptions}>{({type, langKey}) => {
-              const isLocked = () => locked() && type !== PrivacyType.Everybody;
               return (
-                <Row
-                  clickable={isLocked() ? (event) => {
-                    cancelEvent(event);
-                    toastNew({
-                      langPackKey: options.premiumError,
-                      langPackArguments: [
-                        anchorCallback(() => {
-                          hideToast();
-                          hotReloadGuard.showPremiumPopup();
-                        })
-                      ]
-                    });
-                  } : undefined}
-                >
+                <Row>
                   <Row.RadioField>
                     <RadioFieldTsx
                       checked={selectedType() === type}
                       class="disable-hover"
-                      locked={isLocked()}
                       name={name}
                       value={String(type)}
                       onChange={(checked) => checked && this.onRadioChange(type)}
@@ -281,38 +257,15 @@ export default class PrivacySection {
       this.loadedRules = rules || [];
       this.loadedState = this.getEditedState(originalType);
 
-      if(options.premiumOnly) {
-        const toggleLock = () => {
-          const locked = this.isLocked();
-          this.setLocked(locked);
-
-          this.setRadio(this.isLocked() ? PrivacyType.Everybody : originalType);
-          if(this.exceptionsSection) {
-            this.exceptionsSection.container.classList.toggle('hide', locked);
-          }
-        };
-
-        toggleLock();
-        options.tab.listenerSetter.add(rootScope)('premium_toggle', toggleLock);
-      } else {
-        this.setRadio(this.isLocked() ? PrivacyType.Everybody : originalType);
-      }
+      this.setRadio(originalType);
 
       options.tab.eventListener.addEventListener('destroy', this.onTabDestroy, {once: true});
     });
   }
 
-  public isLocked() {
-    return this.options.premiumOnly && !rootScope.premium;
-  }
-
   public onTabDestroy = async() => {
     // * a save on the way out reaches the account it was made in, even once the tab is on another one
     const managers = bindManagersToAccount(rootScope.managers, getCurrentAccount());
-    if(this.isLocked()) {
-      return;
-    }
-
     if(!this.options.inputKey) {
       return;
     }
@@ -399,7 +352,7 @@ export default class PrivacySection {
     ]);
   }
 
-  private replaceCaption(caption: PrivacySectionStr = this.isLocked() ? this.options.premiumCaption : this.options.captions[this.type]) {
+  private replaceCaption(caption: PrivacySectionStr = this.options.captions[this.type]) {
     const captionElement = this.radioSection.caption;
     if(!caption) {
       captionElement.replaceChildren();

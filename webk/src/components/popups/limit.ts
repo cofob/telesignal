@@ -3,22 +3,17 @@ import {ApiLimitType} from '@appManagers/apiManagerMethods';
 import rootScope from '@lib/rootScope';
 import showPeerPopup, {PopupPeerButton} from '@components/popups/peer';
 import LimitLine from '@components/limit';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 type LimitStrings = {
   title: LangPackKey,
   description: LangPackKey,
-  descriptionPremium: LangPackKey,
-  descriptionLocked: LangPackKey,
   icon: Icon
 };
 
 // * every list of pins says it the same way, with its own numbers
 const PIN_LIMIT: LimitStrings = {
   title: 'LimitReached',
-  description: 'LimitReachedPinDialogs',
-  descriptionPremium: 'LimitReachedPinDialogsPremium',
-  descriptionLocked: 'LimitReachedPinDialogsLocked',
+  description: 'LimitReachedPinDialogsLocked',
   icon: 'limit_pin_filled'
 };
 
@@ -28,31 +23,23 @@ const a: {[type in ApiLimitType]?: LimitStrings} = {
   folderPin: PIN_LIMIT,
   folders: {
     title: 'LimitReached',
-    description: 'LimitReachedFolders',
-    descriptionPremium: 'LimitReachedFoldersPremium',
-    descriptionLocked: 'LimitReachedFoldersLocked',
+    description: 'LimitReachedFoldersLocked',
     icon: 'limit_folders'
   },
   folderPeers: {
     title: 'LimitReached',
-    description: 'LimitReachedChatInFolders',
-    descriptionPremium: 'LimitReachedChatInFoldersPremium',
-    descriptionLocked: 'LimitReachedChatInFoldersLocked',
+    description: 'LimitReachedChatInFoldersLocked',
     icon: 'limit_folders'
   },
   chatlistInvites: {
     title: 'LimitReached',
-    description: 'LimitReachedSharedFolderInvites',
-    descriptionPremium: 'LimitReachedSharedFolderInvitesPremium',
-    descriptionLocked: 'LimitReachedSharedFolderInvitesLocked',
+    description: 'LimitReachedSharedFolderInvitesLocked',
     icon: 'limit_link'
   },
   savedPin: PIN_LIMIT,
   channels: {
     title: 'LimitReached',
-    description: 'LimitReachedCommunities',
-    descriptionPremium: 'LimitReachedCommunitiesPremium',
-    descriptionLocked: 'LimitReachedCommunitiesLocked',
+    description: 'LimitReachedCommunitiesLocked',
     icon: 'limit_chat_filled'
   }
 };
@@ -66,50 +53,26 @@ export type LimitPopupContext = {
   onCloseAfterTimeout: (callback: () => void) => void
 };
 
+/** The limit of the list, which Signal has no way to raise: the popup only says it is reached */
 export default async function showLimitPopup(
   type: keyof typeof a,
   popupRef?: (context: LimitPopupContext) => void
 ) {
-  const feature: PremiumPromoFeatureType = 'double_limits';
-
-  const [appConfig, limit, limitPremium] = await Promise.all([
-    rootScope.managers.apiManager.getAppConfig(),
-    ...[false, true].map((v) => rootScope.managers.apiManager.getLimit(type, v))
-  ]);
-  const isLocked = appConfig.premium_purchase_blocked;
-  const isPremium = isLocked ? undefined : rootScope.premium;
+  const limit = await rootScope.managers.apiManager.getLimit(type);
   const strings = a[type];
 
-  const buttons: PopupPeerButton[] = isPremium === undefined ? [{
+  const buttons: PopupPeerButton[] = [{
     langKey: 'LimitReached.Ok',
     isCancel: true
-  }] : (isPremium ? [{
-    langKey: 'OK',
-    isCancel: true
-  }] : [{
-    langKey: 'IncreaseLimit',
-    callback: () => {
-      hotReloadGuard.showPremiumPopup({feature});
-    },
-    iconRight: 'premium_double_filled'
-  }, {
-    langKey: 'Cancel',
-    isCancel: true
-  }]);
+  }];
 
   const limitLine = new LimitLine({
-    limitPremium,
     hint: {
       icon: strings.icon,
-      content: '' + (isPremium ? limitPremium : limit)
+      content: '' + limit
     }
   });
-
-  if(isPremium !== undefined) {
-    limitLine.setProgress(isPremium ? 1 : 0.5);
-  } else {
-    limitLine.container.querySelector('.limit-line')?.remove();
-  }
+  limitLine.container.querySelector('.limit-line')?.remove();
 
   // the picker `channelsTooMuch` builds lives here, where the popup body used to be
   const body = popupRef ? document.createElement('div') : undefined;
@@ -118,8 +81,8 @@ export default async function showLimitPopup(
   let onCloseAfterTimeout: () => void;
   const handle = showPeerPopup('popup-limit', {
     buttons,
-    descriptionLangKey: isPremium === undefined ? strings.descriptionLocked : (isPremium ? strings.descriptionPremium : strings.description),
-    descriptionLangArgs: isPremium ? [limitPremium] : [limit, limitPremium],
+    descriptionLangKey: strings.description,
+    descriptionLangArgs: [limit],
     titleLangKey: strings.title,
     contentBefore: limitLine.container,
     content: body,

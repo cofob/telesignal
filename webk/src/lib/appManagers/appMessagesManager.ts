@@ -10782,7 +10782,7 @@ export class AppMessagesManager extends AppManager {
       const chatId = peerId.toChatId();
       this.appProfileManager.modifyCachedFullChat<ChatFull.channelFull>(chatId, (chatFull) => {
         const chat = this.appChatsManager.getChat(chatId) as Chat.channel;
-        if(!(chatFull.slowmode_seconds && !chat.admin_rights) || this.appChatsManager.isRestrictionLiftedByBoosts(chatId)) {
+        if(!(chatFull.slowmode_seconds && !chat.admin_rights)) {
           return false;
         }
         chatFull.slowmode_next_send_date = message.date + chatFull.slowmode_seconds;

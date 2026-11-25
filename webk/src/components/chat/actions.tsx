@@ -2,7 +2,7 @@ import type ChatTopbar from '@components/chat/topbar';
 import Chat from '@components/chat/chat';
 import {ChatType} from '@components/chat/chatType';
 import {LangPackKey, i18n} from '@lib/langPack';
-import {DocumentAttribute, EmojiStatus, PeerSettings} from '@layer';
+import {PeerSettings} from '@layer';
 import {AppManagers} from '@lib/managers';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import rootScope from '@lib/rootScope';
@@ -18,14 +18,11 @@ import {toastNew} from '@components/toast';
 import formatUserPhone from '@components/wrappers/formatUserPhone';
 import {formatFullSentTime} from '@helpers/date';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
-import wrapEmojiStatus from '@components/wrappers/emojiStatus';
 import createMiddleware from '@helpers/solid/createMiddleware';
-import {attachClickEvent} from '@helpers/dom/clickEvent';
 import setInnerHTML from '@helpers/dom/setInnerHTML';
 import {AckedResult} from '@lib/superMessagePort';
 import {Accessor, createSignal, For, Show} from 'solid-js';
 import TopbarPlate, {createTopbarPlate, TopbarPlateController} from '@components/chat/topbarPlate';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {hotListen} from '@helpers/hotModule';
 import noop from '@helpers/noop';
 
@@ -55,7 +52,6 @@ type ActionDef = {
 type PeerSettingsActionDef = ActionDef & {key: PeerSettingsKey};
 
 /** The badge next to an unknown sender's name, when it is worth explaining. */
-type NoteworthyEmojiStatus = EmojiStatus.emojiStatus | EmojiStatus.emojiStatusCollectible;
 
 /**
  * The `request_chat_*` peer settings, which describe the join request that made this
@@ -95,7 +91,6 @@ export type ChatActionsPlate = TopbarPlateController & {
 function ActionsPlateBody(props: {
   buttons: Accessor<ActionDef[] | undefined>,
   requestChat: Accessor<RequestChatInfo | undefined>,
-  emojiStatus: Accessor<NoteworthyEmojiStatus | undefined>,
   canClose: Accessor<boolean>,
   onClose: () => void,
   onRequestChatClick: (info: RequestChatInfo) => void
@@ -138,25 +133,6 @@ function ActionsPlateBody(props: {
               <TopbarPlate.CloseButton onClick={props.onClose} />
             </Show>
           </div>
-          {/* keyed for the same reason as the join-request line: the note is built
-              imperatively, so a swap between two statuses has to rebuild it */}
-          <Show keyed when={props.emojiStatus()}>
-            {(status) => {
-              const middleware = createMiddleware().get();
-              const emoji = document.createElement('span');
-              wrapEmojiStatus({emojiStatus: status, wrapOptions: {middleware}}).then((wrapped) => {
-                if(middleware()) emoji.replaceWith(wrapped);
-              });
-
-              const link = document.createElement('a');
-              link.append(i18n('BoostingPremium'));
-              attachClickEvent(link, () => hotReloadGuard.showPremiumPopup({feature: 'emoji_status'}));
-
-              const text = i18n('ReportSpamUserEmojiStatusHint', [emoji, link]);
-              text.classList.add('pinned-actions-text');
-              return text;
-            }}
-          </Show>
         </>
       }
     >
@@ -193,7 +169,6 @@ export default function createChatActionsPlate(
 ): ChatActionsPlate {
   const [buttons, setButtons] = createSignal<ActionDef[] | undefined>();
   const [requestChat, setRequestChat] = createSignal<RequestChatInfo | undefined>();
-  const [emojiStatus, setEmojiStatus] = createSignal<NoteworthyEmojiStatus | undefined>();
   const [canClose, setCanClose] = createSignal(false);
   const [disabled, setDisabled] = createSignal(false);
 
@@ -368,7 +343,6 @@ export default function createChatActionsPlate(
       <ActionsPlateBody
         buttons={buttons}
         requestChat={requestChat}
-        emojiStatus={emojiStatus}
         canClose={canClose}
         onClose={onClose}
         onRequestChatClick={showRequestChatInfoPopup}
@@ -474,45 +448,6 @@ export default function createChatActionsPlate(
     });
   };
 
-  /**
-   * The badge is worth a word only when it carries information: a collectible, or a
-   * custom emoji of the sender's own. The recolorable ones every Premium subscriber
-   * picks from say nothing, and tdesktop skips them the same way (its `coloredSetId`
-   * check — here the `text_color` attribute that makes an emoji follow the text).
-   *
-   * Resolving the document can hit the network, so this runs after the plate is up
-   * rather than on the chat-open path, and the note simply appears once it lands.
-   */
-  const refreshEmojiStatusNote = async() => {
-    const peerId = currentPeerId;
-    const status = peerId?.isUser() && peerSettingsActions.length ?
-      apiManagerProxy.getUser(peerId.toUserId())?.emoji_status :
-      undefined;
-
-    let noteworthy: NoteworthyEmojiStatus;
-    if(status && 'document_id' in status) {
-      if(status._ === 'emojiStatusCollectible') {
-        noteworthy = status;
-      } else {
-        const doc = await managers.appEmojiManager.getCustomEmojiDocument(status.document_id);
-        const attribute = doc?.attributes.find((attr) => {
-          return attr._ === 'documentAttributeCustomEmoji';
-        }) as DocumentAttribute.documentAttributeCustomEmoji;
-        if(!attribute?.pFlags?.text_color) {
-          noteworthy = status;
-        }
-      }
-    }
-
-    if(currentPeerId !== peerId || emojiStatus() === noteworthy) {
-      return;
-    }
-
-    setEmojiStatus(noteworthy);
-    // the note is a line of its own, so the plate just got taller or shorter
-    topbar.setFloating();
-  };
-
   const listenerSetter = new ListenerSetter();
 
   // The topic's `closed` flag arrives as a `messageActionTopicEdit` service message.
@@ -543,14 +478,6 @@ export default function createChatActionsPlate(
 
     recomputePeerSettings();
     applyState();
-    refreshEmojiStatusNote();
-  });
-
-  // The badge itself can be set, swapped or dropped while we sit in the chat.
-  listenerSetter.add(rootScope)('user_update', (userId) => {
-    if(currentPeerId === userId.toPeerId(false)) {
-      refreshEmojiStatusNote();
-    }
   });
 
   const unsetOwn = (peerId: PeerId) => {
@@ -560,7 +487,6 @@ export default function createChatActionsPlate(
     peerSettingsActions = [];
     requestChatInfo = undefined;
     canReopenTopic = false;
-    setEmojiStatus(undefined);
     applyState();
   };
 
@@ -579,7 +505,6 @@ export default function createChatActionsPlate(
       chat.bubbles.setPeerSettings(peerId, settings);
 
       applyState();
-      refreshEmojiStatusNote();
       peerSettingsCallback?.();
     };
   };

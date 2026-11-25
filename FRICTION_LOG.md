@@ -179,18 +179,14 @@ and boosts and statistics are removed. What remains of bots are inline buttons i
 `replyMarkupLayout`, URL authorization) and the bot command cache that ephemeral messages read (`appProfileManager`,
 `appMessagesManager`).
 
-Stars, gifts, Premium and payments are one knot rather than separable clusters. Every gift and Stars purchase goes
-through `popups/payment.tsx`, the Premium popup applies gift codes through `popups/giftLink.tsx`, and
-`hotReloadGuard` hands the gift, Stars and Premium popups to about 50 files, most of them Premium upsell calls on
-locked features (`input.ts`, `contextMenu.ts`, `peerProfile.tsx`, privacy tabs, folders, translation, stories). Three
-parts run through code Signal chats use: paid messages and the Stars balance (`stores/stars.ts`,
-`paidMessagesInterceptor.ts`, `priceChangedInterceptor`, `pendingUndoableMessage.ts`, `chat.ts`, `appMessagesManager`
-and about ten send popups), collectible chat themes (`appManagers/utils/gifts/getUniqueGiftAttributes.ts` and
-`giftPatternSymbols.ts` in `themeChooser.tsx`, `chatBackground.tsx`, `patternRenderer.ts` and the QR code theme), and
-components that only live in gift files (`DelimiterWithText` in `chat/giveaway.tsx`, which `addChatUsers.ts` and two
-popups use; `PremiumGiftBubble` in `bubbles/premiumGift.tsx`, which wallpaper messages use). `popups/limit.ts` shows
-Signal's limits too; its locked variant needs no Premium. A removal would first move the shared components and theme
-helpers out, make paid sending inert with the send path's price at zero, and replace each upsell call. Communities are
+Stars, gifts, Premium and payments are partly removed: paid sending is inert (`PaidMessagesInterceptor` never asks
+for a payment), no screen offers Premium any more, and the limit popup only states Signal's limit. Their popups
+(`popups/premium.tsx`, `stars*.tsx`, `payment*.tsx`, `*gift*.tsx`, `starReaction.tsx`), the `stars`, `stargifts` and
+`premium` directories and the gift bubbles remain, still reached from `hotReloadGuard`, the composer and topbar gift
+buttons (`input.ts` `btnSendGift` and `giftControlBtn`, `topbar.ts`), the profile's gifts tab and birthday gift
+(`peerProfile.tsx`, `appSearchSuper.ts`, `sharedMedia.tsx`, `birthdaySuggestions.tsx`), the QR code's gift panel,
+paid reactions (`contextMenu.ts`, `reaction.ts`, `reactionsMenu.ts`), the gift, giveaway and invoice service messages
+in `bubbles.ts`, and the Stars and gift links in `internalLinkProcessor.ts`. Communities are
 60 files that 21 files outside them import, among them the chat list's `dialogs.ts`, `sortedDialogList.ts`,
 `archiveDialog.tsx`, `appDialogsManager.ts` and `dialogsContextMenu.ts`. Forums stay: `isForum` is false for Signal
 chats, and topic thread ids run through the same chat, history and dialog code, so they go with the Telegram shapes of the managers. About 140

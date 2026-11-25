@@ -26,7 +26,6 @@ import {TabManagers} from '@lib/managers';
 import {createStoriesViewerWithPeer} from '@components/stories/viewer';
 import {simulateClickEvent} from '@helpers/dom/clickEvent';
 import shake from '@helpers/dom/shake';
-import showPremiumPopup from '@components/popups/premium';
 import getPremiumLinkRef from '@helpers/getPremiumLinkRef';
 import rootScope from '@lib/rootScope';
 import showGiftLinkPopup from '@components/popups/giftLink';
@@ -862,7 +861,7 @@ export class InternalLinkProcessor {
           // destinations that are a screen of their own: tdesktop opens the
           // Premium and Credits sections, and ours live in popups
           case 'premium':
-            return showPremiumPopup();
+            return showUnsupportedLinkToast();
           case 'stars':
             return showStarsPopup();
           case 'stars/gift':
@@ -1018,11 +1017,9 @@ export class InternalLinkProcessor {
     // that is the status button in the chat list header.
     const statusBtn = appSidebarLeft.sidebarEl.querySelector<HTMLElement>('.sidebar-emoji-status');
 
-    // no button means no premium — the same promo the control itself
-    // shows when it is used without it (tdesktop: ShowPremiumPreviewBox).
-    // Nothing to reach, so nothing is closed to reach it.
+    // no button means no emoji status to set: the link has nothing to open
     if(!statusBtn) {
-      return showPremiumPopup({feature: 'emoji_status'});
+      return showUnsupportedLinkToast();
     }
 
     return appImManager.selectTab(APP_TABS.CHATLIST).then(async() => {
@@ -1546,13 +1543,8 @@ export class InternalLinkProcessor {
   };
 
   public processPremiumFeaturesLink = async(link: InternalLink.InternalLinkPremiumFeatures) => {
-    if(rootScope.premium) {
-      toastNew({langPackKey: 'Premium.Offset.AlreadyHave'});
-      return;
-    }
-
-    // * a bare tg://premium_offer is reported as tdesktop reports it
-    showPremiumPopup({ref: link.ref || 'deeplink'});
+    // * TeleSignal: Signal has no Premium to offer
+    showUnsupportedLinkToast();
   };
 
   public processGiftCodeLink = (link: InternalLink.InternalLinkGiftCode) => {

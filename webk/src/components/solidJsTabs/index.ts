@@ -8,7 +8,6 @@ import {
   AppKeyboardShortcutsTab,
   AppLanguageTab,
   AppNotificationsTab,
-  AppPrivacyMessagesTab,
   AppPasskeysTab,
   AppSettingsTab,
   AppSpeakersAndCameraTab
@@ -28,7 +27,6 @@ export {
   AppKeyboardShortcutsTab,
   AppLanguageTab,
   AppNotificationsTab,
-  AppPrivacyMessagesTab,
   AppPasskeysTab,
   AppSettingsTab,
   AppSpeakersAndCameraTab

@@ -9,10 +9,8 @@ import {i18n} from '@lib/langPack';
 import rootScope from '@lib/rootScope';
 import appMediaPlaybackController, {MediaSearchContext} from '@components/appMediaPlaybackController';
 import Icon from '@components/icon';
-import {hideToast, toastNew} from '@components/toast';
 import wrapDocument from '@components/wrappers/document';
 import {SpinnerElement} from '@components/spinner';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {getBubbleBackground} from '@components/chat/bubbleShape';
 import {onMediaSpoilerClick} from '@components/wrappers/mediaSpoiler';
 
@@ -205,17 +203,6 @@ export function wrapRoundVideoBubble({
   }
 
   async function showAudio() {
-    if(!rootScope.getPremium()) {
-      toastNew({
-        langPackKey: 'AudioAndVideoTranscription.PremiumAlert',
-        langPackArguments: [anchorCallback(() => {
-          hideToast();
-          hotReloadGuard.showPremiumPopup({feature: 'voice_to_text'});
-        })]
-      });
-      return;
-    }
-
     if(isTranscribeDisabled) return;
     isTranscribeDisabled = true;
 

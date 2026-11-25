@@ -20,7 +20,6 @@ import Icon from '@components/icon';
 import PeerTitle from '@components/peerTitle';
 import SetTransition from '@components/singleTransition';
 import getChatMembersString from '@components/wrappers/getChatMembersString';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 
 const SEND_AS_ANIMATION_DURATION = 300;
@@ -166,11 +165,6 @@ export default class ChatSendAs {
 
       return {
         onClick: idx ? async() => {
-          if(sendAsPeer.needPremium && !rootScope.premium) {
-            hotReloadGuard.showPremiumPopup();
-            return;
-          }
-
           const currentPeerId = this.peerId;
           this.changeSendAsPeerId(sendAsPeerId);
 
