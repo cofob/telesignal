@@ -22,7 +22,7 @@ import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
 import callbackify from '@helpers/callbackify';
 import {isTempId} from '@appManagers/utils/messages/isTempId';
 
-export type PeerType = 'channel' | 'chat' | 'megagroup' | 'group' | 'saved' | 'savedDialog' | 'monoforum' | 'monoforum_thread' | 'botforum_thread';
+export type PeerType = 'channel' | 'chat' | 'megagroup' | 'group' | 'saved' | 'savedDialog';
 // * a few messages per `min` peer are enough: one of them is still around when it is needed
 const MESSAGES_WITH_PEER_LIMIT = 3;
 
@@ -186,10 +186,6 @@ export class AppPeersManager extends AppManager {
     return !peerId.isUser() && this.appChatsManager.isMegagroup(peerId.toChatId());
   }
 
-  public isForum(peerId: PeerId) {
-    return !peerId.isUser() && this.appChatsManager.isForum(peerId.toChatId());
-  }
-
   public isAnyGroup(peerId: PeerId): boolean {
     return !peerId.isUser() &&
       !this.appChatsManager.isBroadcast(peerId.toChatId());
@@ -257,22 +253,6 @@ export class AppPeersManager extends AppManager {
 
   public isSavedDialog(peerId: PeerId, threadId?: number) {
     return !!(peerId === this.peerId && threadId);
-  }
-
-  public isMonoforum(peerId: PeerId): boolean {
-    return !peerId.isUser() && this.appChatsManager.isMonoforum(peerId.toChatId());
-  }
-
-  public isBotforum(peerId?: PeerId): boolean {
-    return peerId?.isUser() && this.appUsersManager.isBotforum(peerId.toChatId());
-  }
-
-  public canManageBotforumTopics(peerId?: PeerId): boolean {
-    return peerId?.isUser() && this.appUsersManager.canManageBotforumTopics(peerId.toChatId());
-  }
-
-  public canManageDirectMessages(peerId?: PeerId) {
-    return peerId && !peerId.isUser() && this.appChatsManager.canManageDirectMessages(peerId.toChatId());
   }
 
   /* public getInputPeer(peerString: string): InputPeer {
@@ -388,10 +368,6 @@ export class AppPeersManager extends AppManager {
   public getDialogType(peerId: PeerId, threadId?: number): PeerType {
     if(this.peerId === peerId && threadId) {
       return 'savedDialog';
-    } else if(this.isMonoforum(peerId)) {
-      return threadId ? 'monoforum_thread' : 'monoforum';
-    } else if(this.isBotforum(peerId) && threadId) {
-      return 'botforum_thread';
     } else if(this.isMegagroup(peerId)) {
       return 'megagroup';
     } else if(this.isChannel(peerId)) {
@@ -411,9 +387,6 @@ export class AppPeersManager extends AppManager {
       case 'megagroup':
       case 'group':
         return this.appChatsManager.hasRights(peerId.toChatId(), 'delete_chat') ? 'DeleteMega' : 'ChatList.Context.LeaveGroup' satisfies LangPackKey;
-
-      case 'monoforum':
-        return 'ChatList.Context.LeaveMonoforum' satisfies LangPackKey;
 
       default:
         return 'ChatList.Context.DeleteChat' satisfies LangPackKey;

@@ -14,7 +14,6 @@ import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId'
 import isEphemeralMessageId from '@appManagers/utils/messageId/isEphemeralMessageId';
 import draftsAreEqual from '@appManagers/utils/drafts/draftsAreEqual';
 import isObject from '@helpers/object/isObject';
-import getPeerId from '@appManagers/utils/peers/getPeerId';
 import createSerializedQueue, {SerializedQueue} from '@helpers/createSerializedQueue';
 import ctx from '@environment/ctx';
 import forgetFailedRequest from '@helpers/forgetFailedRequest';
@@ -472,14 +471,10 @@ export class AppDraftsManager extends AppManager {
     if(this.isEmptyDraft(localDraft)) {
       draftObj = {_: 'draftMessageEmpty'};
 
-      let monoforumPeerId = monoforumThreadId;
-      if(!monoforumPeerId && (this.appPeersManager.isMonoforum(peerId) && (serverDraft?.reply_to?._ === 'inputReplyToMessage' || serverDraft?.reply_to?._ === 'inputReplyToMonoForum')))
-        monoforumPeerId = getPeerId(serverDraft.reply_to.monoforum_peer_id);
-
-      if(monoforumPeerId)
+      if(monoforumThreadId)
         params.reply_to = {
           _: 'inputReplyToMonoForum',
-          monoforum_peer_id: this.appPeersManager.getInputPeerById(monoforumPeerId)
+          monoforum_peer_id: this.appPeersManager.getInputPeerById(monoforumThreadId)
         };
     } else {
       assumeType<DraftMessage.draftMessage>(localDraft);
@@ -681,12 +676,9 @@ export class AppDraftsManager extends AppManager {
         if(this.drafts[key] !== cleared[key]) continue;
         const [strPeerId, strThreadId] = key.split('_');
         const peerId = strPeerId.toPeerId();
-        // * a monoforum's draft is kept under the thread's peer, a forum's under the topic
-        const isMonoforum = !!strThreadId && this.appPeersManager.isMonoforum(peerId);
         this.dropDraft({
           peerId,
-          threadId: strThreadId && !isMonoforum ? +strThreadId : undefined,
-          monoforumThreadId: isMonoforum ? strThreadId.toPeerId() : undefined
+          threadId: strThreadId ? +strThreadId : undefined
         });
       }
     });

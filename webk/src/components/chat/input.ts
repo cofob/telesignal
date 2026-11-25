@@ -97,7 +97,7 @@ import indexOfAndSplice from '@helpers/array/indexOfAndSplice';
 import showDeleteMessagesPopup from '@components/popups/deleteMessages';
 import fixSafariStickyInputFocusing, {IS_STICKY_INPUT_BUGGED} from '@helpers/dom/fixSafariStickyInputFocusing';
 import showPeerPopup from '@components/popups/peer';
-import {BOT_START_PARAM, GENERAL_TOPIC_ID, NULL_PEER_ID, REPLIES_PEER_ID, SEND_WHEN_ONLINE_TIMESTAMP} from '@appManagers/constants';
+import {BOT_START_PARAM, NULL_PEER_ID, REPLIES_PEER_ID, SEND_WHEN_ONLINE_TIMESTAMP} from '@appManagers/constants';
 import DropdownHover from '@helpers/dropdownHover';
 import {positionMenuTrigger} from '@helpers/positionMenu';
 import {getAppWindow, getOverlayRoot} from '@helpers/appWindow';
@@ -128,7 +128,6 @@ import wrapReply from '@components/wrappers/reply';
 import {getEmojiFromElement} from '@components/emoticonsDropdown/tabs/emoji';
 import RichInputHandler from '@helpers/dom/richInputHandler';
 import draftsAreEqual from '@appManagers/utils/drafts/draftsAreEqual';
-import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import {ObjectURLScope} from '@helpers/objectUrlScope';
 import type {RichMessageValidationResult} from '@appManagers/utils/richMessage/validateRichMessage';
 import forEachReverse from '@helpers/array/forEachReverse';
@@ -252,7 +251,6 @@ if(import.meta.hot) {
   });
 }
 
-const REPLY_IN_TOPIC = false;
 // * the composer's height with one line in it, beyond which the chat makes room
 export const CHAT_INPUT_BASE_HEIGHT = 48;
 
@@ -581,7 +579,6 @@ export default class ChatInput {
   private sendAs: ChatSendAs;
   public sendAsPeerId: PeerId;
 
-  private replyInTopicOverlay: HTMLDivElement;
   private restoreInputLock: () => void;
 
   private freezedFocused: boolean;
@@ -1159,12 +1156,6 @@ export default class ChatInput {
     this.newMessageWrapper = this.richMessageInput.row;
     this.inputMessageContainer = this.richMessageInput.content;
 
-    if(REPLY_IN_TOPIC) {
-      this.replyInTopicOverlay = document.createElement('div');
-      this.replyInTopicOverlay.classList.add('reply-in-topic-overlay', 'hide');
-      this.replyInTopicOverlay.append(i18n('Chat.Input.ReplyToAnswer'));
-    }
-
     if(!this.excludeParts.emoticons) this.btnToggleEmoticons = this.createButtonIcon('smile toggle-emoticons', {noRipple: true, ariaLabel: 'Emoji'});
 
     if(this.goDownBtn) {
@@ -1347,7 +1338,7 @@ export default class ChatInput {
       onClick: () => this.openPollCreation(),
       verify: () => {
         if(this.editMsgId || this.ephemeralComposer || this.isWelcomeComposer) return;
-        return (!this.chat.isMonoforum && this.chat.peerId.isAnyChat()) || this.chat.isBot || this.chat.peerId === rootScope.myId;
+        return this.chat.peerId.isAnyChat() || this.chat.isBot || this.chat.peerId === rootScope.myId;
       }
     }, {
       // * TeleSignal: a contact card, as Web A's attach menu sends it (`ShareContactModal`)
@@ -1704,10 +1695,7 @@ export default class ChatInput {
       ].filter(Boolean)
     }) as HTMLElement;
 
-    this.controlContainer.append(...[
-      controlPlate,
-      this.replyInTopicOverlay
-    ].filter(Boolean));
+    this.controlContainer.append(controlPlate);
   }
 
   private setChatListeners() {
@@ -1746,12 +1734,6 @@ export default class ChatInput {
         this.chat.peerId === peerId &&
         this.messageInputEditor?.hasPendingRichMediaUploads()
       ) return;
-
-      // We don't have draft functionality when in the global monoforum chat, but we still need to clear the input right after sending the message
-      if(!draft && force && this.chat.peerId === peerId && this.chat.isMonoforum) {
-        this.setDraft(draft, true, force);
-        return;
-      }
 
       if(this.chat.threadId !== threadId || this.chat.monoforumThreadId !== monoforumThreadId || this.chat.peerId !== peerId || PEER_EXCEPTIONS.has(this.chat.type)) return;
       // a forced clear is our OWN send completing (clearDraft: true): what was still to be saved went with it, and
@@ -2132,17 +2114,9 @@ export default class ChatInput {
     return true;
   }
 
-  public isReplyInTopicOverlayNeeded() {
-    return REPLY_IN_TOPIC &&
-      this.chat.isForum &&
-      !this.chat.isForumTopic &&
-      !this.replyToMsgId &&
-      this.chat.type === ChatType.Chat;
-  }
-
   public getJoinButtonType() {
-    const {peerId, threadId, isMonoforum} = this.chat;
-    if(peerId.isUser() || isMonoforum) {
+    const {peerId, threadId} = this.chat;
+    if(peerId.isUser()) {
       return;
     }
 
@@ -2160,8 +2134,7 @@ export default class ChatInput {
       return 'request';
     }
 
-    // Forum topics need a Join action even when ordinary comment threads allow non-members to send.
-    if((chat as MTChat.channel).pFlags.join_to_send || !threadId || this.chat.isForumTopic) {
+    if((chat as MTChat.channel).pFlags.join_to_send || !threadId) {
       return 'join';
     }
   }
@@ -2171,7 +2144,7 @@ export default class ChatInput {
    * not subscribed at all. Drives the "can't write" plate (join / mute + gift).
    */
   public async isChannelControlNeeded() {
-    if(!this.joinBtn || this.chat.type !== ChatType.Chat || this.chat.peerId.isUser() || this.chat.isMonoforum) {
+    if(!this.joinBtn || this.chat.type !== ChatType.Chat || this.chat.peerId.isUser()) {
       return false;
     }
 
@@ -2213,7 +2186,6 @@ export default class ChatInput {
       this.chat.type === ChatType.Pinned ||
       (this.chat.type === ChatType.Saved && this.chat.threadId !== this.chat.peerId) ||
       await this.chat.isStartButtonNeeded() ||
-      this.isReplyInTopicOverlayNeeded() ||
       (this.chat.peerId.isUser() && (this.chat.isUserBlocked || this.chat.isPremiumRequired)) ||
       this.getJoinButtonType() ||
       await this.isChannelControlNeeded() ||
@@ -2415,7 +2387,6 @@ export default class ChatInput {
       const webPageOptions = this.webPageOptions;
       const hasLargeMedia = !!webPage?.pFlags?.has_large_media;
       const replyTo = this.getReplyTo();
-      const isBotforumAllChats = this.chat.isBotforum && !this.chat.threadId;
       draft = {
         _: 'draftMessage',
         date: tsNow(true),
@@ -2426,7 +2397,7 @@ export default class ChatInput {
           no_webpage: richMessage ? true : this.noWebPage,
           invert_media: !richMessage && this.invertMedia || undefined
         },
-        reply_to: !isBotforumAllChats && replyTo ? {
+        reply_to: replyTo ? {
           _: 'inputReplyToMessage',
           reply_to_msg_id: replyTo.replyToMsgId,
           top_msg_id: this.chat.threadId,
@@ -2466,13 +2437,11 @@ export default class ChatInput {
   }
 
   public saveDraft() {
-    const isMonoforumParent = this.chat.isMonoforum && !this.chat.monoforumThreadId;
     if(
       !this.chat.peerId ||
       this.editMsgId ||
       this.suppressDraftSyncForUnsupportedRichMessage ||
-      PEER_EXCEPTIONS.has(this.chat.type) ||
-      isMonoforumParent
+      PEER_EXCEPTIONS.has(this.chat.type)
     ) {
       return;
     }
@@ -2617,11 +2586,7 @@ export default class ChatInput {
     const isCurrent = () => middleware() && generation === this.inputValueGeneration && contentIsCurrent(this.messageInputEditor);
 
     if(!draft) {
-      const isMonoforumParent = this.chat.isMonoforum && !this.chat.monoforumThreadId;
-
-      draft = !isMonoforumParent ?
-        await this.managers.appDraftsManager.getDraft(this.chat.peerId, this.chat.threadId || this.chat.monoforumThreadId) :
-        undefined;
+      draft = await this.managers.appDraftsManager.getDraft(this.chat.peerId, this.chat.threadId || this.chat.monoforumThreadId);
 
       if(!isCurrent()) return false;
 
@@ -2764,7 +2729,6 @@ export default class ChatInput {
     // * only a channel or a supergroup can be written to as someone else (ChatSendAs.updateManual)
     if(
       this.chat?.isChannel &&
-      !this.chat.isMonoforum &&
       (this.chat.type === ChatType.Chat || this.chat.type === ChatType.Discussion)
     ) {
       let firstChange = true;
@@ -2861,7 +2825,6 @@ export default class ChatInput {
     }) : undefined;
 
     return () => {
-      const {isMonoforum, canManageDirectMessages, monoforumThreadId} = this.chat;
       // console.warn('[input] finishpeerchange start');
 
       chatInput.classList.toggle('hide', this.chat.noInput);
@@ -2921,7 +2884,7 @@ export default class ChatInput {
         // Regular megagroups keep using getJoinButtonType(). The Replies chat
         // always gets Mute.
         const cantPost = (isBroadcast || isBroadcastGroup) && !canSend &&
-          this.chat.type === ChatType.Chat && !peerId.isUser() && !this.chat.isMonoforum;
+          this.chat.type === ChatType.Chat && !peerId.isUser();
         const showJoin = !!type || (cantPost && !!channel?.pFlags?.left);
         const showMute = (cantPost && !channel?.pFlags?.left) || this.isRepliesChat(peerId);
         const good = !haveSomethingInControl && (showJoin || showMute);
@@ -2978,12 +2941,6 @@ export default class ChatInput {
         this.openChatBtn.classList.toggle('hide', !good);
       }
 
-      if(REPLY_IN_TOPIC && this.chat) {
-        const good = !haveSomethingInControl && this.chat.isForum && !this.chat.isForumTopic && this.chat.type === ChatType.Chat;
-        haveSomethingInControl ||= good;
-        this.replyInTopicOverlay.classList.toggle('hide', !good);
-      }
-
       if(this.chat) {
         const good = !haveSomethingInControl && !isBot && peerId.isUser();
         haveSomethingInControl ||= good;
@@ -2996,8 +2953,6 @@ export default class ChatInput {
           this.btnAutoDeletePeriod.classList.toggle('hide', !(canManageAutoDelete && period));
         });
       }
-
-      haveSomethingInControl ||= this.chat.isBotforum && this.chat.canManageBotforumTopics;
 
       this.botStartBtn.classList.toggle('hide', haveSomethingInControl);
 
@@ -3034,11 +2989,6 @@ export default class ChatInput {
       };
       if(options.deferInputLayout) options.deferInputLayout(applyLayout);
       else applyLayout();
-
-      this.inputState.set({
-        isMonoforumAllChats: isMonoforum && canManageDirectMessages && !monoforumThreadId,
-        isReplying: !!this.helperType
-      });
 
       this.peerChanging = false;
       this.refreshStreamStoppable();
@@ -3089,25 +3039,19 @@ export default class ChatInput {
   }): Promise<Parameters<ChatInput['updateMessageInputPlaceholder']>[0]> {
     this.placeholderParamsMiddlewareHelper.clean();
     canSend ??= await this.chat.canSend('send_plain');
-    const {peerId, threadId, isForum, type} = this.chat;
+    const {peerId, threadId, type} = this.chat;
     let key: LangPackKey, args: FormatterArguments;
     if(!canSend) {
       key = 'Channel.Persmission.MessageBlock';
     } else if(type === ChatType.Welcome) {
       key = 'WelcomeMessages.Placeholder';
-    } else if(threadId && !isForum && !peerId.isUser()) {
+    } else if(threadId && !peerId.isUser()) {
       key = 'Comment';
     } else if(
       (peerState ? peerState.isBroadcast : await this.managers.appPeersManager.isBroadcast(peerId)) ||
       (peerState ? peerState.isBroadcastGroup : await this.managers.appPeersManager.isBroadcastGroup(peerId))
     ) {
       key = 'ChannelBroadcast';
-    } else if(this.chat.isMonoforum && this.chat.canManageDirectMessages) {
-      key = this.chat.monoforumThreadId || this.inputState.store.isReplying ?
-        'Message' :
-        'ChannelDirectMessages.ChooseMessage';
-    } else if(this.chat.isBotforum && !this.chat.canManageBotforumTopics && !this.chat.threadId) {
-      key = 'OffThreadMessage'
     } else if(
       (this.sendAsPeerId !== undefined && this.sendAsPeerId !== rootScope.myId) ||
       (peerState ? peerState.isAnonymousSending : await this.managers.appMessagesManager.isAnonymousSending(peerId))
@@ -3123,14 +3067,6 @@ export default class ChatInput {
       } else {
         // * a group's story is answered in the group, for everyone there to read
         key = peerId.isUser() ? 'Story.ReplyPlaceholder' : 'Story.CommentPlaceholder';
-      }
-    } else if(isForum && type === ChatType.Chat && !threadId) {
-      const topic = await this.managers.dialogsStorage.getForumTopic(peerId, GENERAL_TOPIC_ID);
-      if(topic) {
-        key = 'TypeMessageIn';
-        args = [wrapEmojiText(topic.title)];
-      } else {
-        key = 'Message';
       }
     } else {
       key = 'Message';
@@ -3535,9 +3471,7 @@ export default class ChatInput {
       this.lastTimeType = 0;
       this.managers.appMessagesManager.setTyping(
         this.chat.peerId,
-        {_: 'sendMessageCancelAction'},
-        undefined,
-        this.chat.threadId
+        {_: 'sendMessageCancelAction'}
       );
     }
   }
@@ -3576,7 +3510,7 @@ export default class ChatInput {
     const isEmpty = !richValue.trim();
     if(isEmpty) {
       if(this.lastTimeType) {
-        this.managers.appMessagesManager.setTyping(this.chat.peerId, {_: 'sendMessageCancelAction'}, undefined, this.chat.threadId);
+        this.managers.appMessagesManager.setTyping(this.chat.peerId, {_: 'sendMessageCancelAction'});
       }
 
       MarkupTooltip.getInstance().hide();
@@ -3599,7 +3533,7 @@ export default class ChatInput {
       const time = Date.now();
       if(!this.ephemeralComposer && !this.isWelcomeComposer && (time - this.lastTimeType) >= 6000 && isUserInput) {
         this.lastTimeType = time;
-        this.managers.appMessagesManager.setTyping(this.chat.peerId, {_: 'sendMessageTypingAction'}, undefined, this.chat.threadId);
+        this.managers.appMessagesManager.setTyping(this.chat.peerId, {_: 'sendMessageTypingAction'});
       }
     }
 
@@ -3896,9 +3830,9 @@ export default class ChatInput {
   }
 
   // * guest-chat messages (a message that begins with a guest bot's @username) can be sent
-  // * everywhere except broadcast channels and monoforums
+  // * everywhere except broadcast channels
   private canSendGuestChat() {
-    return !this.chat.isBroadcast && !this.chat.isMonoforum;
+    return !this.chat.isBroadcast;
   }
 
   public setShrinking(value?: boolean, classNames?: string[]) {
@@ -4398,10 +4332,6 @@ export default class ChatInput {
     const totalEntities = mergeEntities(apiEntities, myEntities);
 
     return {value, totalEntities};
-  }
-
-  public canPaste() {
-    return this.inputState.canPaste();
   }
 
   // Flags that apply to a single send only. Every send path must drop them,
@@ -5036,7 +4966,7 @@ export default class ChatInput {
       !this.ownSends.length ||
       chat.peerId !== peerId ||
       chat.threadId !== threadId ||
-      (chat.monoforumThreadId !== monoforumThreadId && !(chat.isMonoforum && !chat.monoforumThreadId))
+      chat.monoforumThreadId !== monoforumThreadId
     ) {
       return false;
     }
@@ -5502,14 +5432,6 @@ export default class ChatInput {
     };
 
     if(quote) result.replyToQuote = quote;
-    if(
-      message?._ === 'message' &&
-      message?.saved_peer_id &&
-      this.chat.isMonoforum
-    ) {
-      result.replyToMonoforumPeerId = getPeerId(message.saved_peer_id);
-    }
-
     return result;
   }
 
@@ -5734,8 +5656,6 @@ export default class ChatInput {
       this.notifyChatInputHeight();
       this.t();
     }
-
-    if(!type) this.inputState.set({isReplying: false});
   }
 
   private t() {
@@ -5884,7 +5804,6 @@ export default class ChatInput {
       this.updateSendBtn();
     }, 0);
 
-    this.inputState.set({isReplying: true});
 
     return container;
   }

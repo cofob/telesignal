@@ -72,12 +72,8 @@ export class AutonomousDialogList extends AutonomousDialogListBase<Dialog> {
     this.needPlaceholderAtFirstTime = true;
 
     this.listenerSetter.add(rootScope)('peer_typings', async({peerId, typings}) => {
-      const [dialog, isForum] = await Promise.all([
-        this.managers.appMessagesManager.getDialogOnly(peerId),
-        this.managers.appPeersManager.isForum(peerId)
-      ]);
-
-      if(!dialog || isForum) return;
+      const dialog = await this.managers.appMessagesManager.getDialogOnly(peerId);
+      if(!dialog) return;
 
       if(typings.length) {
         this.setTyping(dialog);

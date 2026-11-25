@@ -1,7 +1,6 @@
 import {Component, createSignal, onMount, Show} from 'solid-js';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import findUpClassName from '@helpers/dom/findUpClassName';
-import shake from '@helpers/dom/shake';
 import toggleDisability from '@helpers/dom/toggleDisability';
 import {Chat} from '@layer';
 import hasRights from '@appManagers/utils/chats/hasRights';
@@ -11,7 +10,6 @@ import rootScope from '@lib/rootScope';
 import Button from '@components/buttonTsx';
 import Section from '@components/section';
 import confirmationPopup from '@components/confirmationPopup';
-import {toastNew} from '@components/toast';
 import getPeerTitle from '@components/wrappers/getPeerTitle';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import {handleChannelsTooMuch} from '@components/popups/channelsTooMuch';
@@ -138,12 +136,6 @@ const ChatDiscussion: Component = () => {
         }
 
         if(busy) {
-          return;
-        }
-
-        if(await tab.managers.appPeersManager.isForum(peerId)) {
-          toastNew({langPackKey: 'ChannelTopicsDiscussionForbidden'});
-          shake(el);
           return;
         }
 

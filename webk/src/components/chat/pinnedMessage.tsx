@@ -28,7 +28,6 @@ import TopbarPlate, {createTopbarPlate, TopbarPlateController} from '@components
 import {createSignal, JSX} from 'solid-js';
 import classNames from '@helpers/string/classNames';
 import getWebPageActionOnClick from '@components/chat/getWebPageActionOnClick';
-import getMessageThreadId from '@appManagers/utils/messages/getMessageThreadId';
 import {setDirection} from '@helpers/dom/setInnerHTML';
 
 /**
@@ -270,13 +269,7 @@ export default function createChatPinnedMessage(
    * topic would reset and refetch the plate of every other open topic.
    */
   function isOurPinUpdate(threadId: number | undefined, updatedMids: number[] | undefined) {
-    if(threadId) return threadId === chat.threadId;
-    if(!chat.threadId || !chat.isForum || !updatedMids?.length) return true;
-    return updatedMids.some((mid) => {
-      const message = chat.getMessage(mid);
-      // not cached — can't rule it out, so assume it's ours and refetch
-      return !message || getMessageThreadId(message, {isForum: true}) === chat.threadId;
-    });
+    return !threadId || threadId === chat.threadId;
   }
 
   // * `updatedMids`, not `mids`: the closure's own `mids` (this plate's pin list)

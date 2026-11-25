@@ -52,7 +52,6 @@ export type BroadcastEvents = {
 
   'chat_full_update': ChatId,
   'chat_update': ChatId,
-  'chat_toggle_forum': {chatId: ChatId, enabled: boolean},
   'chat_participant': Update.updateChannelParticipant,
   'chat_participant_rank': {chatId: ChatId, userId: UserId, rank: string},
   'chat_participation': {chatId: ChatId, left: boolean},

@@ -195,8 +195,8 @@ export default async function selectRequestPeers({
         return false;
       }
 
-      if((peerType as RequestPeerType.requestPeerTypeChat).forum !== undefined &&
-        (peerType as RequestPeerType.requestPeerTypeChat).forum !== !!(peer as MTChat.channel).pFlags.forum) {
+      // * no chat of Signal is a forum
+      if((peerType as RequestPeerType.requestPeerTypeChat).forum) {
         return false;
       }
 

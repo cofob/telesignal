@@ -10,7 +10,6 @@ import {NULL_PEER_ID, REPLIES_PEER_ID, VERIFICATION_CODES_BOT_ID} from '@appMana
 import ChatBubbles, {SERVICE_AS_REGULAR, STICKY_OFFSET} from '@components/chat/bubbles';
 import forEachReverse from '@helpers/array/forEachReverse';
 import partition from '@helpers/array/partition';
-import getMessageThreadId from '@appManagers/utils/messages/getMessageThreadId';
 import {avatarNew} from '@components/avatarNew';
 import {MiddlewareHelper} from '@helpers/middleware';
 import {ChatType} from './chatType';
@@ -647,10 +646,7 @@ export default class BubbleGroups {
       !item1.single &&
       !item2.single &&
       isOut1 === this.chat.isOutMessage(item2.message) &&
-      (!this.chat.isAllMessagesForum || getMessageThreadId(item1.message, {isForum: true}) === getMessageThreadId(item2.message, {isForum: true})) &&
-      (!this.chat.isBotforum || getMessageThreadId(item1.message, {isBotforum: true}) === getMessageThreadId(item2.message, {isBotforum: true})) &&
-      (!this.chat.isMonoforum || getMessageThreadId(item1.message) === getMessageThreadId(item2.message)) &&
-      (!isOut1 || item1.message.fromId === rootScope.myId || this.chat.isMonoforum) && // * group anonymous sending
+      (!isOut1 || item1.message.fromId === rootScope.myId) && // * group anonymous sending
       item1.message.peerId === item2.message.peerId &&
       (item1.message as Message.message).post_author === (item2.message as Message.message).post_author;
   }

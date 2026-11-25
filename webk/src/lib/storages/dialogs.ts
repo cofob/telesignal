@@ -193,15 +193,6 @@ export default class DialogsStorage extends AppManager {
       }
     });
 
-    this.rootScope.addEventListener('chat_toggle_forum', ({chatId, enabled}) => {
-      const peerId = chatId.toPeerId(true);
-      if(!enabled) {
-        this.flushForumTopicsCache(peerId);
-      }
-
-      this.processChangedUnreadOrUnmuted(peerId);
-    });
-
     this.rootScope.addEventListener('user_auth', () => {
       this.rootScope.addEventListener('premium_toggle', () => {
         [FOLDER_ID_ALL, FOLDER_ID_ARCHIVE].forEach((folderId) => {
@@ -550,7 +541,7 @@ export default class DialogsStorage extends AppManager {
   }
 
   public getFilterType(filterId: number) {
-    if(filterId && filterId < 0 || this.appPeersManager.isBotforum(filterId)) return FilterType.Forum;
+    if(filterId && filterId < 0) return FilterType.Forum;
     else if(filterId === this.appPeersManager.peerId) return FilterType.Saved;
     else return FilterType.Folder;
   }
@@ -691,7 +682,7 @@ export default class DialogsStorage extends AppManager {
 
     let verify: (d: Folder['dialogs'][0]) => boolean;
     if(topicOrSavedId) {
-      if(this.isFilterIdForForum(folderId) || this.appPeersManager.isBotforum(peerId)) {
+      if(this.isFilterIdForForum(folderId)) {
         verify = (dialog) => (dialog as ForumTopic).id === topicOrSavedId;
       } else {
         verify = (dialog) => (dialog as SavedDialog).savedPeerId === topicOrSavedId;
@@ -721,7 +712,7 @@ export default class DialogsStorage extends AppManager {
 
   public getAnyDialog(peerId: PeerId, topicOrSavedId?: number) {
     if(topicOrSavedId) {
-      return peerId.isUser() && !this.appPeersManager.isBotforum(peerId) ? this.savedDialogs[topicOrSavedId] : this.getForumTopic(peerId, topicOrSavedId);
+      return peerId.isUser() ? this.savedDialogs[topicOrSavedId] : this.getForumTopic(peerId, topicOrSavedId);
     }
 
     return this.dialogs[peerId];
@@ -933,49 +924,7 @@ export default class DialogsStorage extends AppManager {
     removing?: boolean
   ) {
     const {peerId} = dialog;
-    const isForum = this.appPeersManager.isForum(peerId);
     const isTopic = isForumTopic(dialog);
-    // * a forum's unread state lives in its topics, not in its dialog
-    const isForumAggregate = isForum && !isTopic && !(dialog as Dialog).pFlags.view_forum_as_messages;
-    if(isForumAggregate && removing) {
-      // * the forum is leaving this folder (deleted, left, archived) — its topics are still cached
-      // * and still unread, so recomputing the aggregate here would re-add the very peer that's
-      // * being removed. No messages were ever counted for a forum either, hence the zero.
-      addMessagesCount = 0;
-      toggleDialog = toggleUnmuted = toggleMentions = false;
-    } else if(isForumAggregate) {
-      const forumUnreadCount = this.getForumUnreadCount(peerId);
-      if(forumUnreadCount instanceof Promise) {
-        forumUnreadCount.then(({count, hasUnmuted}) => {
-          dialog = this.getDialogOnly(peerId);
-          const folder = this.getFolder(folderId);
-          if(
-            !dialog ||
-            !this.appPeersManager.isForum(peerId) ||
-            !folder ||
-            !folder.dialogs.some((dialog) => dialog.peerId === peerId)
-          ) {
-            return;
-          }
-
-          this.modifyFolderUnreadCount(
-            folderId,
-            0,
-            false,
-            false,
-            false,
-            dialog
-          );
-        });
-
-        return;
-      } else {
-        addMessagesCount = 0;
-        toggleDialog = forumUnreadCount.count > 0;
-        toggleUnmuted = forumUnreadCount.hasUnmuted;
-      }
-    }
-
     const folder = this.getFolder(folderId);
     if(addMessagesCount) {
       folder.unreadMessagesCount = Math.max(0, folder.unreadMessagesCount + addMessagesCount);
@@ -1934,7 +1883,6 @@ export default class DialogsStorage extends AppManager {
     } = options;
 
     const isForum = this.isFilterIdForForum(filterId);
-    const isBotforum = this.appPeersManager.isBotforum(filterId);
     const isVirtualFilter = this.isVirtualFilter(filterId);
     const preparePromise = this.prepareFolderForFilter(filterId);
     if(preparePromise) {
@@ -1963,11 +1911,11 @@ export default class DialogsStorage extends AppManager {
         this.cachedResults.query = query;
         this.cachedResults.folderId = filterId;
 
-        const index = (isForum || isBotforum) ? this.getForumTopicsCache(filterId).index : this.dialogsIndex;
+        const index = isForum ? this.getForumTopicsCache(filterId).index : this.dialogsIndex;
         const results = index.search(query);
 
         const dialogs: DialogsStorage['cachedResults']['dialogs'] = [];
-        if(isForum || isBotforum) for(const topicId of results) {
+        if(isForum) for(const topicId of results) {
           const topic = this.getForumTopic(filterId, topicId);
           if(topic) {
             dialogs.push(topic);
@@ -2010,7 +1958,7 @@ export default class DialogsStorage extends AppManager {
       // ! only server search pages by the local results' tail — the regular topic list is paged by
       // ! the stored pagination offsets (see `updateForumTopicsPaginationOffsets`), because the
       // ! locally sorted list is poisoned by drafts and by-id-fetched topics
-      offsetTopic: (isForum || isBotforum) && query ? curDialogStorage[curDialogStorage.length - 1] as ForumTopic : undefined
+      offsetTopic: isForum && query ? curDialogStorage[curDialogStorage.length - 1] as ForumTopic : undefined
     }).then((result) => {
       if(query) {
         return this.getDialogs({
@@ -2194,7 +2142,7 @@ export default class DialogsStorage extends AppManager {
   }
 
   public getForumTopicById(peerId: PeerId, topicId?: number): Promise<ForumTopic> {
-    if(!this.appPeersManager.isForum(peerId) && !this.appPeersManager.isBotforum(peerId)) {
+    if(peerId) {
       return Promise.reject(makeError('CHANNEL_FORUM_MISSING'));
     }
 
@@ -2377,7 +2325,7 @@ export default class DialogsStorage extends AppManager {
   }
 
   public getForumUnreadCount(peerId: PeerId, ignoreIfAsMessages?: boolean) {
-    if(!this.appPeersManager.isForum(peerId)) {
+    if(peerId) {
       return;
     }
 
@@ -2417,9 +2365,6 @@ export default class DialogsStorage extends AppManager {
     }
 
     const peerId = forumTopic.peerId;
-
-    // Note: currently, it doesn't matter if the user can't create the topics inside the botforum. We allow the user to manage the topics anyway.
-    if(this.appPeersManager.isBotforum(peerId)) return true;
 
     if(!peerId.isAnyChat()) return false;
 

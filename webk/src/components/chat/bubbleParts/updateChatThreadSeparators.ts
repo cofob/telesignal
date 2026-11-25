@@ -2,9 +2,7 @@ import type {Message} from '@layer';
 import type {AdminLog} from '@appManagers/appChatsManager';
 import type Chat from '@components/chat/chat';
 import forEachReverse from '@helpers/array/forEachReverse';
-import getMessageThreadId from '@appManagers/utils/messages/getMessageThreadId';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
-import apiManagerProxy from '@lib/apiManagerProxy';
 import type {BubbleElementAddons} from '@components/chat/types';
 import ChatThreadSeparator from '@components/chat/bubbleParts/chatThreadSeparator';
 import SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
@@ -16,14 +14,7 @@ type SeparatorItem = {
 
 type SeparatorChat = Pick<Chat,
   'hashtagType' |
-  'isMonoforum' |
-  'canManageDirectMessages' |
-  'monoforumThreadId' |
-  'isBotforum' |
-  'threadId' |
-  'isAllMessagesForum' |
   'isOutMessage' |
-  'peerId' |
   'bubbles'
 >;
 
@@ -33,14 +24,8 @@ function removeSeparator(item: SeparatorItem) {
 }
 
 export default function updateChatThreadSeparators(items: SeparatorItem[], chat: SeparatorChat) {
-  const isMyMessagesSearch = chat.hashtagType === 'my';
-  const isMonoforum = !isMyMessagesSearch && chat.isMonoforum && chat.canManageDirectMessages && !chat.monoforumThreadId;
-  const isBotforum = !isMyMessagesSearch && chat.isBotforum && !chat.threadId;
-  const isForum = !isMyMessagesSearch && chat.isAllMessagesForum;
-
-  const canHaveSeparators = isMyMessagesSearch || isMonoforum || isBotforum || isForum;
-
-  if(!canHaveSeparators) {
+  // * only the search of my messages in every chat tells their chats apart
+  if(chat.hashtagType !== 'my') {
     items.forEach(removeSeparator);
     return;
   }
@@ -49,58 +34,16 @@ export default function updateChatThreadSeparators(items: SeparatorItem[], chat:
 
   forEachReverse(items, (item, i) => {
     const message = item.message;
-    if(message._ === 'channelAdminLogEvent') {
+    if(message._ !== 'message' || !chat.isOutMessage(message)) {
       removeSeparator(item);
       return;
     }
 
-    let peerId: PeerId;
-    let threadId: number;
-    let targetPeerId: PeerId;
-    let targetThreadId: number;
-    let targetMonoforumThreadId: PeerId;
-    let key: number | string;
-
-    if(isMyMessagesSearch) {
-      if(message._ !== 'message' || !chat.isOutMessage(message)) {
-        removeSeparator(item);
-        return;
-      }
-
-      peerId = message.peerId;
-      const isResultForum = apiManagerProxy.isForum(peerId);
-      const isResultBotforum = apiManagerProxy.isBotforum(peerId);
-      const isResultMonoforum = apiManagerProxy.isMonoforum(peerId);
-      const savedPeerId = getPeerId(message.saved_peer_id);
-
-      threadId = savedPeerId || (isResultForum || isResultBotforum || isResultMonoforum ? getMessageThreadId(message, {
-        isForum: isResultForum,
-        isBotforum: isResultBotforum
-      }) : undefined);
-      targetPeerId = peerId;
-      if(isResultMonoforum) {
-        targetMonoforumThreadId = threadId as PeerId;
-      } else {
-        targetThreadId = threadId;
-      }
-      key = `${peerId}_${threadId || ''}`;
-    } else {
-      const savedPeerId = isMonoforum ? getPeerId(message.saved_peer_id) : undefined;
-      threadId = isBotforum ?
-        getMessageThreadId(message, {isBotforum: true}) :
-        isForum ? getMessageThreadId(message, {isForum: true}) : undefined;
-
-      peerId = savedPeerId || chat.peerId;
-      key = savedPeerId || threadId;
-      targetPeerId = isMonoforum ? chat.peerId : peerId;
-      targetThreadId = isMonoforum ? undefined : threadId;
-      targetMonoforumThreadId = isMonoforum ? savedPeerId : undefined;
-    }
-
-    if(!key) {
-      removeSeparator(item);
-      return;
-    }
+    const peerId = message.peerId;
+    const threadId: number = message.saved_peer_id && getPeerId(message.saved_peer_id);
+    const targetPeerId = peerId;
+    const targetThreadId = threadId;
+    const key = `${peerId}_${threadId || ''}`;
 
     const bubbleAddons = item.bubble as BubbleElementAddons;
 
@@ -117,7 +60,6 @@ export default function updateChatThreadSeparators(items: SeparatorItem[], chat:
         threadId,
         targetPeerId,
         targetThreadId,
-        targetMonoforumThreadId,
         index: -i
       });
       item.bubble.classList.add('has-chat-thread-separator');
@@ -135,7 +77,6 @@ export default function updateChatThreadSeparators(items: SeparatorItem[], chat:
       threadId,
       targetPeerId,
       targetThreadId,
-      targetMonoforumThreadId,
       index: -i
     });
     item.bubble.classList.add('has-chat-thread-separator');

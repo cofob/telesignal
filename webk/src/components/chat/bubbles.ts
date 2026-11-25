@@ -2380,7 +2380,7 @@ export default class ChatBubbles {
         this.updateGradient = true;
       }
 
-      if(this.chat.threadId && getMessageThreadId(message, {isForum: this.chat.isForum}) !== this.chat.threadId) {
+      if(this.chat.threadId && getMessageThreadId(message) !== this.chat.threadId) {
         return;
       }
 
@@ -2728,7 +2728,7 @@ export default class ChatBubbles {
       if(this.chat.type !== ChatType.Pinned) {
         const isInThread = (bubble: HTMLElement) => {
           const message = threadId && this.chat.getMessageByPeer(peerId, +bubble.dataset.mid);
-          return !threadId || (!!message && getMessageThreadId(message, {isForum: this.chat.isForum}) === threadId);
+          return !threadId || (!!message && getMessageThreadId(message) === threadId);
         };
         const getPinned = () => new Set(
           Array.from(this.chatInner.querySelectorAll<HTMLElement>('.bubble .time-pinned'))
@@ -4264,17 +4264,9 @@ export default class ChatBubbles {
           const {mid} = splitFullMid(getBubbleFullMid(bubble) || EMPTY_FULL_MID);
 
           if(peerId !== NULL_PEER_ID) {
-            const chat = this.chat.peer;
-            const linkedChat = chat?._ === 'channel' && chat?.pFlags?.monoforum && chat?.linked_monoforum_id ?
-              apiManagerProxy.getChat(chat.linked_monoforum_id) :
-              undefined;
-
-            const shouldOpenAsMonoforum = this.chat.isMonoforum && this.chat.canManageDirectMessages && peerId !== linkedChat?.id?.toPeerId();
-
             this.chat.appImManager.setInnerPeer({
               ...additionalSetPeerProps,
-              peerId: shouldOpenAsMonoforum ? this.peerId : peerId,
-              monoforumThreadId: shouldOpenAsMonoforum ? peerId : undefined
+              peerId
             });
             this.chat.appImManager.clickIfSponsoredMessage((bubble as any).message);
           } else {
@@ -4433,7 +4425,7 @@ export default class ChatBubbles {
             this.peerId :
             message.peerId;
 
-        if(this.chat.type === ChatType.Discussion && !this.chat.isForum) {
+        if(this.chat.type === ChatType.Discussion) {
           ({peerId: replyToPeerId, mid: replyToMid} = await this.getDiscussionReplyTarget(replyToPeerId, replyToMid));
         }
 
@@ -4947,10 +4939,7 @@ export default class ChatBubbles {
 
     if(
       this.chat.threadId &&
-      getMessageThreadId(message, {
-        isForum: this.chat.isForum,
-        isBotforum: this.chat.isBotforum
-      }) !== this.chat.threadId
+      getMessageThreadId(message) !== this.chat.threadId
     ) {
       return false;
     }
@@ -5761,7 +5750,7 @@ export default class ChatBubbles {
       return;
     }
 
-    if(this.chat.threadId && getMessageThreadId(message, {isForum: this.chat.isForum}) !== this.chat.threadId) {
+    if(this.chat.threadId && getMessageThreadId(message) !== this.chat.threadId) {
       return;
     }
 
@@ -6550,7 +6539,7 @@ export default class ChatBubbles {
   private getReadMaxIdAndDialog(peerId: PeerId) {
     return Promise.all([
       this.managers.appMessagesManager.getReadMaxIdIfUnread(peerId, this.chat.threadId),
-      this.chat.getDialogOrTopic()
+      this.chat.getDialogOrSaved()
     ]);
   }
 
@@ -6650,7 +6639,7 @@ export default class ChatBubbles {
       } else if(this.chat.type === ChatType.Search) {
         lastMsgFullMid = topMessageFullMid;
       } else if(topMessageFullMid !== EMPTY_FULL_MID) {
-        let dialog: Awaited<ReturnType<Chat['getDialogOrTopic']>>;
+        let dialog: Awaited<ReturnType<Chat['getDialogOrSaved']>>;
         if(!options.savedReaction) {
           [readMaxId, dialog] = await m(readMaxIdAndDialogPromise || this.getReadMaxIdAndDialog(peerId));
         }
@@ -7237,7 +7226,7 @@ export default class ChatBubbles {
         }
       });
 
-      if(chatType === ChatType.Chat && !this.chat.isForumTopic) {
+      if(chatType === ChatType.Chat) {
         const dialog = await m(
           monoforumThreadId ?
             this.managers.monoforumDialogsStorage.getDialogByParent(peerId, monoforumThreadId) :
@@ -9296,8 +9285,7 @@ export default class ChatBubbles {
           ));
         } else if(action._ === 'messageActionPaidMessagesRefunded') {
           const peerTitle = new PeerTitle();
-          const savedPeerId = this.chat.canManageDirectMessages && getPeerId(message.saved_peer_id);
-          promise = peerTitle.update({peerId: savedPeerId || this.peerId, onlyFirstName: true, wrapOptions});
+          promise = peerTitle.update({peerId: this.peerId, onlyFirstName: true, wrapOptions});
 
           s.append(i18n(
             our ? 'PaidMessages.StarsRefundedByYou' : 'PaidMessages.StarsRefundedToYou',
@@ -11632,7 +11620,7 @@ export default class ChatBubbles {
     const showNameForVerificationCodes = isMessageForVerificationBot(message) && !message.pFlags.local;
     // const needName = ((peerId.isAnyChat() && (peerId !== message.fromId || our)) && message.fromId !== rootScope.myId) || message.viaBotId;
 
-    const iPostedAsSomeoneElse = message.fromId !== rootScope.myId && !this.chat.isMonoforum;
+    const iPostedAsSomeoneElse = message.fromId !== rootScope.myId;
 
     // * a guest-chat message shows "<bot> for <visitor>" and the bot's avatar, even in a 1-on-1
     const guestChatViaFromId = getGuestChatViaFromId(message);
@@ -14399,11 +14387,6 @@ export default class ChatBubbles {
       return;
     }
 
-    // * the aggregated monoforum admin view has no single unread cursor to draw a delimiter for
-    if(this.chat.isMonoforum && this.chat.canManageDirectMessages && !this.chat.monoforumThreadId) {
-      return;
-    }
-
     const middleware = this.getMiddleware();
 
     const {peerId, threadId, monoforumThreadId} = this.chat;
@@ -14414,7 +14397,7 @@ export default class ChatBubbles {
     const historyStorage = this.chat.historyStorage;
     const mirroredReadMaxId = historyStorage?.readMaxId;
     const mirroredMaxId = historyStorage?.maxId;
-    const useMirror = this.chat.type === ChatType.Chat && !threadId && !monoforumThreadId && !this.chat.isMonoforum &&
+    const useMirror = this.chat.type === ChatType.Chat && !threadId && !monoforumThreadId &&
       historyStorage?.type === 'history' && !historyStorage.searchHistory &&
       Number.isFinite(mirroredReadMaxId) && Number.isFinite(mirroredMaxId);
     const readMaxId = useMirror ? getReadMaxIdIfUnread({

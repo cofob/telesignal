@@ -644,11 +644,10 @@ export default class ChatTopbar {
       text: 'Delete',
       onClick: () => {
         showDeleteDialogPopup(
-          this.chat.monoforumThreadId || this.peerId,
+          this.peerId,
           undefined,
           undefined,
-          this.chat.threadId,
-          this.chat.monoforumThreadId ? this.peerId : undefined
+          this.chat.threadId
         );
       },
       verify: this.verifyIfCanDeleteChat

@@ -758,10 +758,7 @@ export class AppImManager extends EventListenerBase<{
 
     apiManagerProxy.addEventListener('notificationBuild', async(options) => {
       if('message' in options) {
-        const {accountNumber} = options;
-        const managers = createProxiedManagersForAccount(accountNumber);
-        const isForum = await managers.appPeersManager.isForum(options.message.peerId);
-        const threadId = getMessageThreadId(options.message, {isForum});
+        const threadId = getMessageThreadId(options.message);
 
         if(
           this.chat.peerId === options.message.peerId &&
@@ -1822,11 +1819,6 @@ export class AppImManager extends EventListenerBase<{
     threadId: number
   } & Pick<ChatSetPeerOptions, 'stack' | 'wholeAlbum'>) {
     const managers = bindManagersToSession(this.managers);
-    if(await managers.appChatsManager.isForum(options.peerId.toChatId()) || await managers.appPeersManager.isBotforum(options.peerId)) {
-      await managers.dialogsStorage.getForumTopicOrReload(options.peerId, options.threadId);
-      return this.setInnerPeer(options);
-    }
-
     return managers.appMessagesManager.reloadMessage(options.peerId, options.threadId).then(async(message) => {
       if(!message) {
         options.lastMsgId = undefined;
@@ -3030,10 +3022,6 @@ export class AppImManager extends EventListenerBase<{
       return;
     }
 
-    if(!chatInput.canPaste()) {
-      return;
-    }
-
     if(insertAsRichMedia) {
       // dropped on "Send as a file": file blocks, music an audio
       await chatInput.insertRichMediaFiles(files as File[], richMediaPasteTarget, attachType === 'document');
@@ -3444,7 +3432,7 @@ export class AppImManager extends EventListenerBase<{
       if(options.threadId) {
         if(options.peerId === rootScope.myId) {
           options.type = ChatType.Saved;
-        } else if(!apiManagerProxy.isForum(options.peerId) && !apiManagerProxy.isBotforum(options.peerId)) {
+        } else {
           options.type = ChatType.Discussion;
         }
       }
@@ -3876,7 +3864,7 @@ export class AppImManager extends EventListenerBase<{
       return;
     }
 
-    chat.managers.appMessagesManager.setTyping(chat.peerId, {_: cancel ? 'sendMessageCancelAction' : 'sendMessageChooseStickerAction'}, undefined, chat.threadId);
+    chat.managers.appMessagesManager.setTyping(chat.peerId, {_: cancel ? 'sendMessageCancelAction' : 'sendMessageChooseStickerAction'});
   }
 
   public isSamePeer(options1: {peerId: PeerId, threadId?: number, monoforumThreadId?: PeerId, type?: ChatType}, options2: typeof options1) {
@@ -4033,8 +4021,6 @@ export class AppImManager extends EventListenerBase<{
         return;
       }
 
-      const threadId = this.chat?.peerId === peerId ? this.chat.threadId : undefined;
-
       const bubble = findUpClassName(container, 'bubble');
       managers.appMessagesManager.setTyping(peerId, {
         _: 'sendMessageEmojiInteraction',
@@ -4044,7 +4030,7 @@ export class AppImManager extends EventListenerBase<{
           _: 'dataJSON',
           data: JSON.stringify(data)
         }
-      }, true, threadId);
+      }, true);
 
       data.a.length = 0;
     }, 1000, false);

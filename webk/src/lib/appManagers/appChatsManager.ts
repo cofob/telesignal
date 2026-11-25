@@ -208,8 +208,7 @@ export class AppChatsManager extends AppManager {
     } else {
       const oldPhotoId = ((oldChat as Chat.chat).photo as ChatPhoto.chatPhoto)?.photo_id;
       const newPhotoId = ((chat as Chat.chat).photo as ChatPhoto.chatPhoto)?.photo_id;
-      const toggledForum = (oldChat as Chat.channel).pFlags.forum !== (chat as Chat.channel).pFlags.forum;
-      const changedPhoto = oldPhotoId !== newPhotoId || toggledForum;
+      const changedPhoto = oldPhotoId !== newPhotoId;
       const changedEmojiStatus = ((oldChat as Chat.channel).emoji_status as EmojiStatus.emojiStatus)?.document_id !==
         ((chat as Chat.channel).emoji_status as EmojiStatus.emojiStatus)?.document_id;
 
@@ -245,10 +244,6 @@ export class AppChatsManager extends AppManager {
 
       if(changedTitle || changedAnyBadge) {
         this.rootScope.dispatchEvent('peer_title_edit', {peerId});
-      }
-
-      if(toggledForum) {
-        this.rootScope.dispatchEvent('chat_toggle_forum', {chatId: chat.id, enabled: !!(chat as Chat.channel).pFlags.forum});
       }
 
       if(changedProfileSignatures) {
@@ -351,11 +346,6 @@ export class AppChatsManager extends AppManager {
     return !!(chat as Chat.channel)?.pFlags?.megagroup;
   }
 
-  public isForum(id: ChatId) {
-    const chat = this.chats[id];
-    return !!(chat as Chat.channel)?.pFlags?.forum;
-  }
-
   public isBroadcast(id: ChatId) {
     return this.isChannel(id) && !this.isMegagroup(id);
   }
@@ -363,12 +353,6 @@ export class AppChatsManager extends AppManager {
   public isBroadcastGroup(id: ChatId) {
     const chat: Chat = this.chats[id];
     return !!(chat as Chat.channel)?.pFlags?.gigagroup;
-  }
-
-  public isMonoforum(id: ChatId) {
-    const chat: Chat = this.chats[id];
-    // * a channel we lost access to keeps the flag too (`channelForbidden.monoforum`)
-    return !!((chat?._ === 'channel' || chat?._ === 'channelForbidden') && chat.pFlags?.monoforum);
   }
 
   public isInChat(id: ChatId) {
@@ -385,16 +369,6 @@ export class AppChatsManager extends AppManager {
     }
 
     return good;
-  }
-
-  public canManageDirectMessages(chatId: ChatId) {
-    let chat = this.getChat(chatId);
-    if(chat?._ !== 'channel') return false;
-
-    if(chat?.pFlags?.monoforum && chat?.linked_monoforum_id) chat = this.getChat(chat.linked_monoforum_id);
-    if(chat?._ !== 'channel') return false;
-
-    return !!(chat.admin_rights?.pFlags?.manage_direct_messages);
   }
 
   /**

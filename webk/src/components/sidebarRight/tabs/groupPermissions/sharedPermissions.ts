@@ -59,9 +59,7 @@ export class ChatPermissions extends CheckboxFields<PermissionsCheckboxFieldsFie
 
   public async construct() {
     const options = this.options;
-    const peerId = options.chatId.toPeerId(true);
     const chat = this.chat = apiManagerProxy.getChat(options.chatId) as Chat.chat | Chat.channel;
-    const isForum = apiManagerProxy.isForum(peerId);
     const defaultBannedRights = this.defaultBannedRights = chat.default_banned_rights;
     const rights = this.rights = options.participant ? combineParticipantBannedRights(chat as Chat.channel, options.participant.banned_rights) : defaultBannedRights;
     this.untilDate = rights.until_date || BANNED_RIGHTS_UNTIL_FOREVER;
@@ -83,7 +81,6 @@ export class ChatPermissions extends CheckboxFields<PermissionsCheckboxFieldsFie
       {flags: ['send_media'], text: 'UserRestrictionsSendMedia', exceptionText: 'UserRestrictionsNoSendMedia', nested: mediaNested},
       {flags: ['invite_users'], text: 'UserRestrictionsInviteUsers', exceptionText: 'UserRestrictionsNoInviteUsers'},
       {flags: ['pin_messages'], text: 'UserRestrictionsPinMessages', exceptionText: 'UserRestrictionsNoPinMessages'},
-      isForum && {flags: ['manage_topics'], text: 'CreateTopicsPermission', exceptionText: 'UserRestrictionsNoChangeInfo'},
       // * whether members may set their own tags (desktop puts it right before the group's info)
       {flags: ['edit_rank'], text: options.forChat ? 'UserRestrictionsEditRank' : 'UserRestrictionsEditRankSingle', exceptionText: 'UserRestrictionsNoEditRank'},
       {flags: ['change_info'], text: 'UserRestrictionsChangeInfo', exceptionText: 'UserRestrictionsNoChangeInfo'}
@@ -223,7 +220,6 @@ export class ChatAdministratorRights extends CheckboxFields<AdministratorRightsC
     const options = this.options;
     const chat = options.chat as Chat.chat | Chat.channel;
     const isBroadcast = !!(chat as Chat.channel)?.pFlags.broadcast;
-    const isForum = !!(chat as Chat.channel)?.pFlags.forum;
     const rights = this.rights = options.rights ?? (options.participant ? options.participant.admin_rights : undefined);
 
     const manageMessagesNested: AdministratorRightsCheckboxFieldsField[] = isBroadcast && [
@@ -257,7 +253,6 @@ export class ChatAdministratorRights extends CheckboxFields<AdministratorRightsC
       !isBroadcast && {flags: ['ban_users'], text: 'EditAdminBanUsers'},
       !isBroadcast && {flags: ['invite_users'], text: 'EditAdminAddUsersViaLink'},
       !isBroadcast && {flags: ['pin_messages'], text: 'EditAdminPinMessages'},
-      isForum && {flags: ['manage_topics'], text: 'ManageTopicsPermission'},
       {flags: ['manage_call'], text: isBroadcast ? 'StartVoipChatPermission' : 'Channel.EditAdmin.ManageCalls'},
       // * others' tags; a basic group's admin is not given it by default, as its legacy rights lack it (desktop)
       !isBroadcast && {flags: ['manage_ranks'], text: 'EditAdminManageRanks', checked: rights || chat._ !== 'chat' ? undefined : false},

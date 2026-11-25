@@ -23,7 +23,7 @@ import AppSharedMediaTab from '@components/sidebarRight/tabs/sharedMediaTab';
 import noop from '@helpers/noop';
 import middlewarePromise from '@helpers/middlewarePromise';
 import indexOfAndSplice from '@helpers/array/indexOfAndSplice';
-import {Message, WallPaper, Chat as MTChat, Reaction, AvailableReaction, MessageEntity, PaymentsPaymentForm, InputPeer, User, StoriesStealthMode, Theme} from '@layer';
+import {Message, WallPaper, Reaction, AvailableReaction, MessageEntity, PaymentsPaymentForm, InputPeer, User, StoriesStealthMode, Theme} from '@layer';
 import {getChatBackgroundFromFullPeer} from '@components/chat/chatTheme';
 import {toastNew} from '@components/toast';
 import animationIntersector, {AnimationItemGroup} from '@components/animationIntersector';
@@ -168,15 +168,9 @@ export default class Chat extends EventListenerBase<{
   public isLikeGroup: boolean;
   public isAnyGroup: boolean;
   public isMegagroup: boolean;
-  public isForum: boolean;
-  public isAllMessagesForum: boolean;
   public isAnonymousSending: boolean;
   public isUserBlocked: boolean;
   public isPremiumRequired: boolean;
-  public isMonoforum: boolean;
-  public isBotforum: boolean;
-  public canManageDirectMessages: boolean;
-  public canManageBotforumTopics: boolean;
   public isTemporaryThread: boolean;
   public noInput: boolean;
 
@@ -877,42 +871,14 @@ export default class Chat extends EventListenerBase<{
     const onChatOrFullUpdate = async(chatId: ChatId) => {
       const {peerId} = this;
       if(peerId.isAnyChat() && peerId.toChatId() === chatId) {
-        const {
-          isAnonymousSending,
-          canManageDirectMessages
-        } = await namedPromises({
-          isAnonymousSending: this.managers.appMessagesManager.isAnonymousSending(peerId),
-          canManageDirectMessages: this.managers.appPeersManager.canManageDirectMessages(peerId)
-        });
-
+        const isAnonymousSending = await this.managers.appMessagesManager.isAnonymousSending(peerId);
         if(peerId === this.peerId) {
-          this.canManageDirectMessages = canManageDirectMessages;
           this.isAnonymousSending = isAnonymousSending;
         }
       }
     };
 
     this.bubbles.listenerSetter.add(rootScope)('chat_update', onChatOrFullUpdate);
-
-    this.bubbles.listenerSetter.add(rootScope)('botforum_pending_topic_created', ({peerId, tempId, newId}) => {
-      if(peerId !== this.peerId || (this.threadId && this.threadId !== tempId)) return;
-
-      !newId && this.input.clearInput();
-
-      this.setPeer({
-        peerId,
-        threadId: newId || tempId,
-        fromTemporaryThread: !!newId
-      });
-    });
-
-    // * the topic could not be made: the chat leaves it for the bot's own, where the next send makes another, or it
-    // * would follow none of the topics made after
-    this.bubbles.listenerSetter.add(rootScope)('botforum_pending_topic_failed', ({peerId, tempId}) => {
-      if(peerId !== this.peerId || this.threadId !== tempId) return;
-      this.setPeer({peerId});
-    });
-
 
     const freezeObservers = (freeze: boolean) => {
       const cb = () => {
@@ -1092,10 +1058,6 @@ export default class Chat extends EventListenerBase<{
     else this.searchSignal?.(undefined);
   }
 
-  public get isForumTopic() {
-    return !!(this.isForum && this.threadId);
-  }
-
   public get isSensitive() {
     // * read when asked: a peer the page does not know yet as the chat opens (its own user) comes later
     return isSensitive((usePeer(this.peerId) as User.user)?.restriction_reason || []);
@@ -1110,11 +1072,7 @@ export default class Chat extends EventListenerBase<{
       searchTab?.close();
     }
 
-    const isForum = apiManagerProxy.isForum(peerId);
-    const isBotforum = apiManagerProxy.isBotforum(peerId);
-    const canManageBotforumTopics = apiManagerProxy.canManageBotforumTopics(peerId);
-
-    if(threadId && !isForum && !isBotforum) {
+    if(threadId) {
       options.type = options.peerId === rootScope.myId ? ChatType.Saved : ChatType.Discussion;
     }
 
@@ -1136,9 +1094,7 @@ export default class Chat extends EventListenerBase<{
       isBot,
       isAnonymousSending,
       isUserBlocked,
-      isPremiumRequired,
-      chat,
-      canManageDirectMessages
+      isPremiumRequired
     } = await m(namedPromises({
       noForwards: this.managers.appPeersManager.noForwards(peerId),
       isRestricted: this.managers.appPeersManager.isPeerRestricted(peerId),
@@ -1150,15 +1106,8 @@ export default class Chat extends EventListenerBase<{
       isBot: this.managers.appPeersManager.isBot(peerId),
       isAnonymousSending: this.managers.appMessagesManager.isAnonymousSending(peerId),
       isUserBlocked: peerId.isUser() && this.managers.appProfileManager.isCachedUserBlocked(peerId),
-      isPremiumRequired: this.isPremiumRequiredToContact(peerId),
-      chat: peerId.isAnyChat() && this.peer as MTChat,
-      canManageDirectMessages: this.managers.appPeersManager.canManageDirectMessages(peerId)
+      isPremiumRequired: this.isPremiumRequiredToContact(peerId)
     }, this.log));
-
-    // ! WARNING: TEMPORARY, HAVE TO GET TOPIC
-    if(isForum && threadId) {
-      await m(this.managers.dialogsStorage.getForumTopicOrReload(peerId, threadId));
-    }
 
     this.noForwards = noForwards;
     this.isLikeGroup = isLikeGroup;
@@ -1167,16 +1116,9 @@ export default class Chat extends EventListenerBase<{
     this.isBroadcast = isBroadcast;
     this.isChannel = isChannel;
     this.isBot = isBot;
-    this.isForum = isForum;
-    // welcome messages belong to the chat, not to a topic: no topic separators or grouping there
-    this.isAllMessagesForum = isForum && !threadId && type !== ChatType.Welcome;
     this.isAnonymousSending = isAnonymousSending;
     this.isUserBlocked = isUserBlocked;
     this.isPremiumRequired = isPremiumRequired;
-    this.isMonoforum = !!(chat?._ === 'channel' && chat?.pFlags?.monoforum);
-    this.isBotforum = isBotforum;
-    this.canManageDirectMessages = canManageDirectMessages;
-    this.canManageBotforumTopics = canManageBotforumTopics;
 
     this.isRestricted = isRestricted;
 
@@ -1200,8 +1142,7 @@ export default class Chat extends EventListenerBase<{
     if(!this.excludeParts.sharedMedia) {
       this.sharedMediaTab = hotReloadGuard.appSidebarRight.createSharedMediaTab();
       this.sharedMediaTabs.push(this.sharedMediaTab);
-      const linkedMonoforumId = (chat?._ === 'channel' && chat.pFlags?.monoforum && chat.linked_monoforum_id)?.toPeerId?.(true);
-      this.sharedMediaTab.setPeer(this.monoforumThreadId || linkedMonoforumId || peerId, threadId);
+      this.sharedMediaTab.setPeer(this.monoforumThreadId || peerId, threadId);
     }
 
     this.input?.clearHelper(); // костыль
@@ -1249,11 +1190,6 @@ export default class Chat extends EventListenerBase<{
       this.peerIdSignal[1](this.peerId = peerId || NULL_PEER_ID);
       this.threadId = threadId;
       this.monoforumThreadId = monoforumThreadId;
-      // `onChangePeer` (async) only assigns `isForum` after awaiting the topic reload. Set it
-      // synchronously here too so the `chat_update` listener in bubbles doesn't compare the new
-      // peer against a stale `isForum` mid-transition and reset us to the forum root — which would
-      // drop the threadId when opening a just-created topic in a cold (not-yet-warm) forum.
-      this.isForum = apiManagerProxy.isForum(this.peerId);
       this.isTemporaryThread = isTempId(threadId);
       this.noInput = [ChatType.Static, ChatType.Logs].includes(type);
       this.middlewareHelper.clean();
@@ -1578,8 +1514,8 @@ export default class Chat extends EventListenerBase<{
     return !!history.length;
   }
 
-  public getDialogOrTopic() {
-    return this.managers.dialogsStorage.getAnyDialog(this.peerId, (this.isForum || this.type === ChatType.Saved) && this.threadId);
+  public getDialogOrSaved() {
+    return this.managers.dialogsStorage.getAnyDialog(this.peerId, this.type === ChatType.Saved && this.threadId);
   }
 
   public getHistoryMaxId() {
@@ -1593,12 +1529,7 @@ export default class Chat extends EventListenerBase<{
     if(this.type === ChatType.Search && this.hashtagType !== 'this') return true;
     if(this.type === ChatType.Logs) return true;
 
-    const {isBotforum, isLikeGroup} = await namedPromises({
-      isLikeGroup: this.managers.appPeersManager.isLikeGroup(peerId),
-      isBotforum: this.managers.appPeersManager.isBotforum(peerId)
-    });
-
-    return !isBotforum && isLikeGroup;
+    return this.managers.appPeersManager.isLikeGroup(peerId);
   }
 
   public resetSearch() {
@@ -1632,10 +1563,9 @@ export default class Chat extends EventListenerBase<{
       this.managers.appPeersManager.isBot(this.peerId),
       this.managers.appMessagesManager.getDialogOnly(this.peerId),
       this.getHistoryStorage(true),
-      this.peerId.isUser() ? this.managers.appProfileManager.isCachedUserBlocked(this.peerId.toUserId()) : undefined,
-      this.managers.appPeersManager.isBotforum(this.peerId)
-    ]).then(([isBot, dialog, historyStorage, isUserBlocked, isBotforum]) => {
-      if(!isBot || isVerificationBot(this.peerId) || isBotforum) {
+      this.peerId.isUser() ? this.managers.appProfileManager.isCachedUserBlocked(this.peerId.toUserId()) : undefined
+    ]).then(([isBot, dialog, historyStorage, isUserBlocked]) => {
+      if(!isBot || isVerificationBot(this.peerId)) {
         return false;
       }
 
@@ -1707,11 +1637,6 @@ export default class Chat extends EventListenerBase<{
   }
 
   public isPinnedMessagesNeeded() {
-    // A forum topic (and the view-as-messages mode) is a `Chat` like any other,
-    // so the type alone decides. The old `|| this.isForum` also matched a
-    // forum's Pinned / Scheduled / Search tabs — which grew `Static` / `Logs`
-    // exclusions one at a time and still put a pinned plate inside the forum's
-    // own pinned-messages list, where no other peer has one.
     return this.type === ChatType.Chat;
   }
 
@@ -1818,12 +1743,8 @@ export default class Chat extends EventListenerBase<{
 
     if(this.peerId.isUser()) return true;
 
-    const {chat, isMonoforum}  = await namedPromises({
-      chat: this.managers.appChatsManager.getChat(this.peerId.toChatId()),
-      isMonoforum: this.managers.appChatsManager.isMonoforum(this.peerId.toChatId())
-    });
-
-    return !isMonoforum && hasRights(chat, 'change_info');
+    const chat = await this.managers.appChatsManager.getChat(this.peerId.toChatId());
+    return hasRights(chat, 'change_info');
   }
 
   public toggleChatIfMedium() {

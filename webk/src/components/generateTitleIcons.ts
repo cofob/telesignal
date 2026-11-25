@@ -1,6 +1,5 @@
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import {Chat, User} from '@layer';
-import {i18n} from '@lib/langPack';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import rootScope from '@lib/rootScope';
 import generateFakeIcon from '@components/generateFakeIcon';
@@ -17,7 +16,6 @@ export default async function generateTitleIcons({
   noBotVerifiedIcon,
   noFakeIcon,
   noPremiumIcon,
-  noDirectMessagesBadge,
   peer,
   wrapOptions,
   clickableEmojiStatus = false
@@ -28,7 +26,6 @@ export default async function generateTitleIcons({
   noBotVerifiedIcon?: boolean,
   noFakeIcon?: boolean,
   noPremiumIcon?: boolean,
-  noDirectMessagesBadge?: boolean,
   clickableEmojiStatus?: boolean,
   peer?: Chat | User
 }): Promise<{elements: HTMLElement[]; botVerification?: HTMLElement;}> {
@@ -78,13 +75,6 @@ export default async function generateTitleIcons({
 
   if((peer as Chat.channel).pFlags.verified && !noVerifiedIcon) {
     elements.push(generateVerifiedIcon());
-  }
-
-  if(peer?._ === 'channel' && peer.pFlags?.monoforum && !noDirectMessagesBadge) {
-    const span = document.createElement('span');
-    span.append(i18n('ChannelDirectMessages.Badge'));
-    span.classList.add('peer-title-direct-badge');
-    elements.push(span);
   }
 
   let botVerification: HTMLElement;

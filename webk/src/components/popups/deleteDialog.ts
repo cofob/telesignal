@@ -20,8 +20,8 @@ export default async function showDeleteDialogPopup(
   // actionType: 'leave' | 'delete',
   peerType?: PeerType,
   onSelect?: (promise: Promise<any>) => void,
-  threadId?: number,
-  monoforumParentPeerId?: number
+  /** The Saved Messages sublist */
+  threadId?: number
 ) {
   const managers = bindManagersToSession(rootScope.managers);
   const isSavedDialog = await managers.appPeersManager.isSavedDialog(peerId, threadId);
@@ -31,12 +31,11 @@ export default async function showDeleteDialogPopup(
 
   const peerTitleElement = await wrapPeerTitle({
     peerId: isSavedDialog ? threadId : peerId,
-    threadId: isSavedDialog ? undefined : threadId,
     meAsNotes: isSavedDialog
   });
 
   if(peerType === undefined) {
-    peerType = await managers.appPeersManager.getDialogType(monoforumParentPeerId || peerId, monoforumParentPeerId ? peerId : threadId);
+    peerType = await managers.appPeersManager.getDialogType(peerId, threadId);
   }
 
   /* const callbackFlush = (checked: PopupPeerButtonCallbackCheckboxes) => {
@@ -53,11 +52,7 @@ export default async function showDeleteDialogPopup(
   const callbackDelete = (e: MouseEvent, checked: PopupPeerButtonCallbackCheckboxes) => {
     let promise: Promise<any>;
 
-    if(monoforumParentPeerId) {
-      promise = managers.appMessagesManager.flushHistory({peerId: monoforumParentPeerId, justClear: false, revoke: true, monoforumThreadId: peerId});
-    } else if(isSavedDialog) {
-      promise = managers.appMessagesManager.flushHistory({peerId, justClear: false, revoke: true, threadOrSavedId: threadId});
-    } else if(threadId) {
+    if(isSavedDialog) {
       promise = managers.appMessagesManager.flushHistory({peerId, justClear: false, revoke: true, threadOrSavedId: threadId});
     } else if(peerId.isUser()) {
       promise = managers.appMessagesManager.flushHistory({peerId, justClear: false, revoke: checkboxes ? !!checked.size : undefined});
@@ -73,7 +68,6 @@ export default async function showDeleteDialogPopup(
   };
 
   let title: LangPackKey,
-    titleArgs: FormatterArguments,
     description: LangPackKey,
     descriptionArgs: FormatterArguments,
     buttons: PopupPeerOptions['buttons'],
@@ -106,18 +100,6 @@ export default async function showDeleteDialogPopup(
       break;
     }
 
-    case 'monoforum': {
-      title = 'LeaveMonoforum';
-      description = 'MonoforumLeaveAlertWithName';
-      descriptionArgs = [peerTitleElement];
-      buttons = [{
-        langKey: 'LeaveMonoforum',
-        isDanger: true,
-        callback: callbackLeave
-      }];
-      break;
-    }
-
     /* case 'megagroup': {
       title = 'Leave Group?';
       description = `Are you sure you want to leave this group?`;
@@ -130,18 +112,6 @@ export default async function showDeleteDialogPopup(
       break;
     } */
 
-    case 'monoforum_thread': {
-      title = 'DeleteChatUser';
-      description = 'AreYouSureDeleteThisChatWithUser';
-      descriptionArgs = [peerTitleElement];
-
-      buttons = [{
-        langKey: 'DeleteChatUser',
-        isDanger: true,
-        callback: callbackDelete
-      }];
-      break;
-    }
     case 'chat': {
       title = 'DeleteChatUser';
       description = 'AreYouSureDeleteThisChatWithUser';
@@ -189,19 +159,8 @@ export default async function showDeleteDialogPopup(
     }
 
     case 'megagroup':
-    case 'group':
-    case 'botforum_thread': {
-      if(threadId) {
-        title = 'DeleteTopics';
-        titleArgs = [1];
-        description = 'DeleteSelectedTopic';
-        descriptionArgs = [peerTitleElement];
-        buttons = [{
-          langKey: 'Delete',
-          isDanger: true,
-          callback: callbackDelete
-        }];
-      } else if(/* actionType === 'delete' &&  */await managers.appChatsManager.hasRights(peerId.toChatId(), 'delete_chat')) {
+    case 'group': {
+      if(/* actionType === 'delete' &&  */await managers.appChatsManager.hasRights(peerId.toChatId(), 'delete_chat')) {
         title = 'DeleteMegaMenu';
         description = 'AreYouSureDeleteAndExit';
         buttons = [{
@@ -232,7 +191,6 @@ export default async function showDeleteDialogPopup(
     peerId,
     threadId,
     titleLangKey: title,
-    titleLangArgs: titleArgs,
     descriptionLangKey: description,
     descriptionLangArgs: descriptionArgs,
     buttons,

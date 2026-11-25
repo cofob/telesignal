@@ -26,6 +26,5 @@ export default function canPollPeerStories(peer: User | Chat) {
 
   return peer?._ === 'channel' &&
     !!peer.pFlags.left &&
-    !peer.pFlags.min &&
-    !peer.pFlags.monoforum;
+    !peer.pFlags.min;
 }
