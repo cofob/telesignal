@@ -1,12 +1,11 @@
 import App from '@config/app';
 import ctx from '@environment/ctx';
-import longFromBytes from '@helpers/long/longFromBytes';
 import tsNow from '@helpers/tsNow';
 import createSerializedQueue from '@helpers/createSerializedQueue';
 import noop from '@helpers/noop';
 import readBlobAsDataURL from '@helpers/blob/readBlobAsDataURL';
 import {AccountAuthorizations, AuthSignIn, AuthSignUp, Authorization, EmailVerification, EmailVerifyPurpose, InputCheckPasswordSRP, InputPasskeyCredential, Update, User, UserProfilePhoto} from '@layer';
-import {DcId, TrueDcId} from '@types';
+import {DcId} from '@types';
 import AccountController from '@lib/accounts/accountController';
 import type {SessionUserFields} from '@lib/accounts/types';
 import {AppManager} from '@appManagers/manager';
@@ -397,30 +396,6 @@ export default class AppAccountManager extends AppManager {
 
   public deletePasskey(id: string) {
     return this.apiManager.invokeApiSingle('account.deletePasskey', {id});
-  }
-
-  public initPasskeyLogin() {
-    return this.apiManager.invokeApi('auth.initPasskeyLogin', {
-      api_hash: App.hash,
-      api_id: App.id
-    });
-  }
-
-  public async finishPasskeyLogin(credential: InputPasskeyCredential, fromDcId?: TrueDcId) {
-    const fromAuthKey = fromDcId ? await this.apiManager.getAuthKeyFromHex((await AccountController.get(this.getAccountNumber()))[`dc${fromDcId as TrueDcId}_auth_key`]) : undefined;
-    return this.apiManager.invokeApi('auth.finishPasskeyLogin', {
-      credential,
-      ...(fromDcId ? {
-        from_dc_id: fromDcId,
-        from_auth_key_id: longFromBytes(fromAuthKey.id)
-      } : {})
-    }, {ignoreErrors: true}).then(async(authorization) => {
-      if(authorization._ === 'auth.authorization') {
-        await this.apiManager.setUser(authorization.user);
-      }
-
-      return authorization;
-    });
   }
 
   /**

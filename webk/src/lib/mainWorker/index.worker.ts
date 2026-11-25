@@ -142,7 +142,7 @@ port.addMultipleEventsListeners({
 
   setLogBufferEnabled: (enabled) => setLogBufferEnabled(enabled),
 
-  state: ({state, resetStorages, pushedKeys, newVersion, oldVersion, userId, accountNumber, common, refetchStorages}) => {
+  state: ({state, resetStorages, pushedKeys, newVersion, oldVersion, userId, accountNumber, common}) => {
     // if(haveState) {
     //   return;
     // }
@@ -169,7 +169,6 @@ port.addMultipleEventsListeners({
 
     appStateManager.resetStoragesPromise.resolve({
       storages: resetStorages,
-      refetch: refetchStorages,
       callback: async() => {
         const promises: Promise<any>[] = [];
 

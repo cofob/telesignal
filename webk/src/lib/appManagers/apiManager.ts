@@ -26,7 +26,6 @@ import {AppStoragesManager} from '@appManagers/appStoragesManager';
 import commonStateStorage from '@lib/commonStateStorage';
 import CacheStorageController from '@lib/files/cacheStorage';
 import {ActiveAccountNumber} from '@lib/accounts/types';
-import makeError from '@helpers/makeError';
 import EncryptedStorageLayer from '@lib/encryptedStorageLayer';
 import {getCommonDatabaseState} from '@config/databases/state';
 import clearSignalLocalData from '@signal-app/clear-local-data';
@@ -144,15 +143,6 @@ export class ApiManager extends ApiManagerMethods {
 
     IDB.closeDatabases();
     globalRootScope.dispatchEvent('logging_out', {});
-  }
-
-  // * Telegram's passkey sign-in from another data center, which Signal has not
-  public getAuthKeyFromHex(_authKeyHex: string): Promise<{id: Uint8Array}> {
-    return Promise.reject(makeError('SIGNAL_METHOD_UNSUPPORTED' as ErrorType));
-  }
-
-  public getNetworkerVoid(_dcId: DcId) {
-    return Promise.resolve();
   }
 
   public setLanguage(langCode: string) {
