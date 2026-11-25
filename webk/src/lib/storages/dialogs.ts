@@ -31,7 +31,6 @@ import getMessageThreadId from '@appManagers/utils/messages/getMessageThreadId';
 import {AppStoragesManager} from '@appManagers/appStoragesManager';
 import defineNotNumerableProperties from '@helpers/object/defineNotNumerableProperties';
 import setDialogIndex from '@appManagers/utils/dialogs/setDialogIndex';
-import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import {BroadcastEvents} from '@lib/rootScope';
 import assumeType from '@helpers/assumeType';
 import makeError from '@helpers/makeError';
