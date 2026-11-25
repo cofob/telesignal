@@ -126,7 +126,7 @@ export class AccountController extends StaticUtilityClass {
   }
 
   static async get(accountNumber: ActiveAccountNumber) {
-    const stored: StoredAccountSessionData = await sessionStorage.get(`account${accountNumber}`);
+    const stored = this.normalizeLegacySlot(await sessionStorage.get(`account${accountNumber}`));
     const data = {...stored} as AccountSessionData;
     // * TeleSignal: the slot keeps Web A's id of the user, which Web K moves past its own small ids
     if(stored?.userId !== undefined) {
@@ -134,6 +134,19 @@ export class AccountController extends StaticUtilityClass {
     }
 
     return data;
+  }
+
+  /**
+   * A slot that Web A wrote before the session became a marker holds the data center beside the account and no
+   * `isLinked`: Web A takes it for a linked account and keeps only these fields (`normalizeLegacySlotSession` in
+   * `src/util/multiaccount.ts`), and so does this client. The next write stores them. A data center without a user is a
+   * Telegram sign-in that an older version left unfinished: `loadState` clears it
+   */
+  private static normalizeLegacySlot(stored: StoredAccountSessionData | undefined): StoredAccountSessionData | undefined {
+    if(!stored || stored.isLinked || !stored.dcId || stored.userId === undefined) return stored;
+
+    const {pushKey, date, userId, firstName, lastName, phone, avatarUri, color, emojiStatusId, isTest} = stored;
+    return {isLinked: true, pushKey, date, userId, firstName, lastName, phone, avatarUri, color, emojiStatusId, isTest};
   }
 
   /**
