@@ -9,7 +9,7 @@ import I18n, {LangPackKey, i18n} from '@lib/langPack';
 import ButtonCorner from '@components/buttonCorner';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import {getPeerProfileTitleKey, renderPeerProfile} from '@components/peerProfile';
-import {Message} from '@layer';
+import {Chat as MTChat, Message} from '@layer';
 import getMessageThreadId from '@appManagers/utils/messages/getMessageThreadId';
 import liteMode from '@helpers/liteMode';
 import addChatUsers from '@components/addChatUsers';
@@ -136,7 +136,10 @@ const SharedMedia: Component = () => {
       if(chat._ === 'channel') {
         show = hasRights(chat, 'just_admin') || hasRights(chat, 'change_info');
       } else {
-        show = hasRights(chat, 'change_info') || hasRights(chat, 'change_permissions');
+        // * TeleSignal: only an admin of a Signal group (a basic group here) that we are in edits it, as in Web A
+        // * (`selectCanManage`)
+        const {admin_rights, pFlags} = chat as MTChat.chat;
+        show = !!(admin_rights || pFlags.creator) && !pFlags.left;
       }
     }
 
