@@ -314,10 +314,3 @@ The search of the settings screen is shared only in part: the key query (`parseK
 `keyCombos.ts`) is common, while the word matching of `filterKeyboardShortcuts` and its `splitWords` are copied into
 `webk/src/components/sidebarLeft/tabs/keyboardShortcuts.tsx`. Pure versions that take the environment and the settings
 as arguments would let both frontends share them.
-
-## A Web K test file sometimes fails to load in a full run
-
-`cd webk && npx vitest run` reported a whole file as failed, with none of its tests run, in 3 of about 10 full runs on
-a loaded machine (a dev server and a production build running alongside): `src/lib/calls/e2e/tests/blockchain.test.ts`
-once, an unnamed file of the same suite twice. The file passes on its own and in the next full run. The cause is not
-known; a load-time timeout of the suite is suspected.
