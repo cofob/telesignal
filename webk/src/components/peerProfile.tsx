@@ -806,7 +806,9 @@ PeerProfile.SafetyNumber = () => {
 PeerProfile.ChatStyle = () => {
   const context = useContext(PeerProfileContext);
   const {i18n} = useHotReloadGuard();
-  const chatStyle = () => (context.fullPeer as {signal_chat_style?: SignalChatStyle})?.signal_chat_style;
+  // * not for ourselves: Web A's settings show no chat colour
+  const chatStyle = () => !(context.peer as User.user)?.pFlags?.self &&
+    (context.fullPeer as {signal_chat_style?: SignalChatStyle})?.signal_chat_style;
 
   return (
     <Show when={chatStyle()}>
