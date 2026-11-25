@@ -266,14 +266,13 @@ switch in place remains: `apiManagerProxy.switchAccount` and `resetAccountMirror
 of about twenty modules, and the `notifyAllAccounts` routing of notifications to tabs of other accounts, which only
 work when one worker serves every account. Removing them means checking each listener for work it does at startup too.
 
-## Every Web K page load reports page errors with no message
+## Every Web K page load reports a page error with no message
 
-Each load of `/k/` in Chromium logs several `pageerror` events whose error is a plain object, and Solid logs
-`solid error Error: Unknown error` (seen in Playwright on the demo account while checking logout, accounts and
-settings). The app keeps working. Some of them are verified: an `unhandledrejection` listener added before the page
-loads shows `{type: 'SIGNAL_METHOD_UNSUPPORTED'}` rejections of `langpack.getLangPack` and of
-`AppReactionsManager.getSavedReactionTags`, which call methods the adapter (`appSignalManager.ts`) does not answer and
-do not catch the rejection; the stack of the others ends at `invokeApiSingleProcess`, without the method's name.
+Each load of `/k/` in Chromium logs a `pageerror` event whose error is a plain object (seen in Playwright on the demo
+account). The app keeps working. An `unhandledrejection` listener added before the page loads shows a
+`{type: 'SIGNAL_METHOD_UNSUPPORTED'}` rejection from `AppPaymentsManager.loadStarsStatus`, which asks for the Stars
+balance that the adapter (`appSignalManager.ts`) does not answer and does not catch the rejection; it goes with the
+inert Stars paths. Other Telegram methods that a manager calls without a catch would show the same way.
 
 ## Message search reads the stored messages without an index
 
@@ -323,4 +322,7 @@ around them is written twice. Web A resolves a shortcut's combos (`buildDefaultC
 state (`getGlobal`), the app environment (`IS_APP`, `IS_TAURI`, `IS_FIREFOX` of `windowEnvironment.ts` and
 `globalEnvironment.ts`, which pull in `fasterdom` and Tauri) and the settings search, so Web K cannot import them, and
 a change to the environments of the defaults, the reserved combos or the conflict rules must be made in both copies.
-Pure versions that take the environment and the settings as arguments would let both frontends share them.
+The search of the settings screen is shared only in part: the key query (`parseKeyQuery`, `getIsComboWithKeys` in
+`keyCombos.ts`) is common, while the word matching of `filterKeyboardShortcuts` and its `splitWords` are copied into
+`webk/src/components/sidebarLeft/tabs/keyboardShortcuts.tsx`. Pure versions that take the environment and the settings
+as arguments would let both frontends share them.

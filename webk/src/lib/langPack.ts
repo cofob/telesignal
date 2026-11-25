@@ -957,7 +957,7 @@ export function handleStateCleared() {
   handleUpdateLangPackTooLong({lang_code: I18n.getLastRequestedLangCode()});
 }
 
-export async function checkLangPackForUpdates() {
+async function checkLangPackForUpdates() {
   const storedLangPack = await I18n.getCacheLangPack();
   // * a pack stored before its language's direction was kept asks the server once
   if(storedLangPack.rtl === undefined) {
