@@ -47,7 +47,6 @@ import {setBadgeCount} from '@helpers/setBadgeContent';
 import createBadge from '@helpers/createBadge';
 import {ChatType} from './chatType';
 import {showRtmpStartStreamPopup} from '@components/rtmp/adminPopup';
-import showSendGiftPopup from '@components/popups/sendGift';
 import {createTopbarPlates, TopbarPlates} from '@components/chat/topbarPlates';
 import pause from '@helpers/schedulers/pause';
 import getPeerId from '@appManagers/utils/peers/getPeerId';

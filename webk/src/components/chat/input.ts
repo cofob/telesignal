@@ -37,7 +37,6 @@ import {
   DraftMessage,
   WebPage,
   Message,
-  UserFull,
   MessageMedia,
   InputReplyTo,
   Chat as MTChat,
@@ -45,13 +44,11 @@ import {
   ChatFull,
   Dialog,
   TextWithEntities,
-  GlobalPrivacySettings,
   RichMessage,
   InputMedia
 } from '@layer';
 import StickersHelper from '@components/chat/stickersHelper';
 import ChatInputPlate, {CHAT_INPUT_PLATE_SINGLE_CLASS} from '@components/chat/controlPlate';
-import showSendGiftPopup from '@components/popups/sendGift';
 import ButtonIcon from '@components/buttonIcon';
 import ButtonMenuToggle from '@components/buttonMenuToggle';
 import ListenerSetter from '@helpers/listenerSetter';
@@ -100,7 +97,7 @@ import indexOfAndSplice from '@helpers/array/indexOfAndSplice';
 import showDeleteMessagesPopup from '@components/popups/deleteMessages';
 import fixSafariStickyInputFocusing, {IS_STICKY_INPUT_BUGGED} from '@helpers/dom/fixSafariStickyInputFocusing';
 import showPeerPopup from '@components/popups/peer';
-import {BOT_START_PARAM, GENERAL_TOPIC_ID, HIDDEN_PEER_ID, NULL_PEER_ID, REPLIES_PEER_ID, SEND_WHEN_ONLINE_TIMESTAMP, SERVICE_PEER_ID} from '@appManagers/constants';
+import {BOT_START_PARAM, GENERAL_TOPIC_ID, NULL_PEER_ID, REPLIES_PEER_ID, SEND_WHEN_ONLINE_TIMESTAMP} from '@appManagers/constants';
 import DropdownHover from '@helpers/dropdownHover';
 import {positionMenuTrigger} from '@helpers/positionMenu';
 import {getAppWindow, getOverlayRoot} from '@helpers/appWindow';
@@ -178,7 +175,6 @@ import asyncThrottle from '@helpers/schedulers/asyncThrottle';
 import focusInput from '@helpers/dom/focusInput';
 import assumeType from '@helpers/assumeType';
 import {formatFullSentTime} from '@helpers/date';
-import useStars from '@stores/stars';
 import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {makeMessageMediaInputForSuggestedPost} from '@appManagers/utils/messages/makeMessageMediaInput';
 import showFrozenPopup from '@components/popups/frozen';
@@ -426,7 +422,6 @@ export default class ChatInput {
   public btnSuggestPost: HTMLElement;
 
   private btnAutoDeletePeriod: HTMLElement;
-  private btnSendGift: HTMLButtonElement;
 
   private sendMenu: SendMenu;
 
@@ -579,7 +574,6 @@ export default class ChatInput {
   private joinBtn: HTMLButtonElement;
   private channelMuteBtn: HTMLButtonElement;
   private directControlBtn: HTMLButtonElement;
-  private giftControlBtn: HTMLButtonElement;
   private controlPlate: HTMLElement;
   private rowsWrapperWrapper: HTMLDivElement;
   private controlContainer: HTMLElement;
@@ -1190,14 +1184,6 @@ export default class ChatInput {
 
     if(!this.excludeParts.emoticons) this.btnToggleEmoticons = this.createButtonIcon('smile toggle-emoticons', {noRipple: true, ariaLabel: 'Emoji'});
 
-    this.btnSendGift = this.createButtonIcon('gift toggle-send-gift float hide', {
-      noRipple: true,
-      ariaLabel: 'Chat.Menu.SendGift'
-    });
-    attachClickEvent(this.btnSendGift, () => {
-      showSendGiftPopup({peerId: this.chat.peerId});
-    }, {listenerSetter: this.listenerSetter});
-
     if(this.goDownBtn) {
       this.goDownUnreadBadge = createBadge('span', 24, 'primary');
       this.goDownBtn.append(this.goDownUnreadBadge);
@@ -1372,18 +1358,6 @@ export default class ChatInput {
       onClick: () => this.editMediaWithEditor(),
       verify: () => canEditMessageMediaWithEditor(this.editMessage)
     }, {
-      icon: 'gift',
-      richMessageAction: 'giftPremium',
-      text: 'GiftPremium',
-      onClick: () => this.chat.appImManager.giftPremium(this.chat.peerId),
-      verify: () => {
-        if(this.editMsgId || this.isWelcomeComposer) return;
-        return this.chat && Promise.all([
-          this.chat.canGiftPremium(),
-          this.managers.apiManager.getAppConfig()
-        ]).then(([canGift, {premium_gift_attach_menu_icon}]) => canGift && premium_gift_attach_menu_icon);
-      }
-    }, {
       icon: 'poll',
       richMessageAction: 'poll',
       text: 'Poll',
@@ -1456,7 +1430,6 @@ export default class ChatInput {
       this.btnScheduled,
       this.btnSuggestPost,
       this.btnAutoDeletePeriod,
-      this.btnSendGift,
       this.btnReaction,
       this.btnToggleEmoticons,
       this.fileInput
@@ -1736,11 +1709,6 @@ export default class ChatInput {
       }
     }, {listenerSetter: this.listenerSetter});
 
-    this.giftControlBtn = this.createButtonIcon('gift hide', {ariaLabel: 'Chat.Menu.SendGift'});
-    attachClickEvent(this.giftControlBtn, () => {
-      showSendGiftPopup({peerId: this.chat.peerId});
-    }, {listenerSetter: this.listenerSetter});
-
     // The control container is now a single uniform-width plate:
     // Button.Icon + Button + Button.Icon (see controlPlate.tsx). All the
     // single-button states share the centre slot — only one is ever visible.
@@ -1748,7 +1716,6 @@ export default class ChatInput {
     const controlPlate = this.controlPlate = ChatInputPlate({
       class: CHAT_INPUT_PLATE_SINGLE_CLASS,
       left: this.directControlBtn,
-      right: this.giftControlBtn,
       center: [
         this.botStartBtn,
         this.unblockBtn,
@@ -1768,10 +1735,6 @@ export default class ChatInput {
   }
 
   private setChatListeners() {
-    this.listenerSetter.add(rootScope)('global_privacy_update', () => {
-      this.updateGiftButtonVisibility();
-    });
-
     this.listenerSetter.add(rootScope)('welcome_message_new', (message) => {
       if(this.isWelcomeComposer && message.peerId === this.chat.peerId) void this.updateWelcomeMessagesLimit();
     });
@@ -1785,7 +1748,6 @@ export default class ChatInput {
 
     this.listenerSetter.add(rootScope)('peer_full_update', (peerId) => {
       if(peerId === this.chat?.peerId) {
-        this.updateGiftButtonVisibility();
         this.updateEphemeralComposer();
         if(this.previousQuery?.startsWith('/')) {
           this.previousQuery = undefined;
@@ -2889,7 +2851,6 @@ export default class ChatInput {
       canSend,
       canSendPlain,
       neededFakeContainer,
-      ackedPeerFull,
       ackedScheduledMids,
       setSendAsCallback,
       isPremiumRequired,
@@ -2897,7 +2858,6 @@ export default class ChatInput {
       autoDeletePeriod,
       canManageAutoDelete,
       peerMuted,
-      ackedGlobalPrivacy,
       isAnonymousSending
     ] = await Promise.all([
       this.managers.appPeersManager.isBroadcast(peerId),
@@ -2907,7 +2867,6 @@ export default class ChatInput {
       this.chat?.canSend('send_messages') || true,
       this.chat?.canSend('send_plain') || true,
       this.getNeededFakeContainer(startParam),
-      modifyAckedPromise(this.managers.acknowledged.appProfileManager.getProfileByPeerId(peerId)),
       btnScheduled && !this.chat.threadId ? modifyAckedPromise(this.managers.acknowledged.appMessagesManager.getScheduledMessages(peerId)) : undefined,
       sendAs ? (sendAs.setPeerId(peerId), sendAs.updateManual(true)) : undefined,
       this.chat.isPremiumRequiredToContact(),
@@ -2915,9 +2874,6 @@ export default class ChatInput {
       modifyAckedPromise(this.chat.getAutoDeletePeriod()),
       this.chat.canManageAutoDelete(),
       this.managers.appNotificationsManager.isPeerLocalMuted({peerId, respectType: false}),
-      this.btnSendGift ?
-        modifyAckedPromise(this.managers.acknowledged.appPrivacyManager.getGlobalPrivacySettings()) :
-        undefined,
       this.managers.appMessagesManager.isAnonymousSending(peerId)
     ]);
 
@@ -3012,15 +2968,11 @@ export default class ChatInput {
           this.channelMuteBtn.replaceChildren(i18n(peerMuted ? 'ChatList.Context.Unmute' : 'ChatList.Context.Mute'));
         }
 
-        // Channel "can't write" plate: write-in-direct (only when the channel
-        // has a linked direct-messages chat) on the left, gift on the right.
-        // Both are channel-only — a gigagroup or megagroup join just shows the
-        // centre button.
+        // Channel "can't write" plate: write-in-direct on the left, only when the channel has a linked
+        // direct-messages chat - a gigagroup or megagroup join just shows the centre button
         const hasDirect = !!(good && channel?.linked_monoforum_id);
-        const hasGift = good && isBroadcast;
         this.directControlBtn.classList.toggle('hide', !hasDirect);
-        this.giftControlBtn.classList.toggle('hide', !hasGift);
-        this.controlPlate.classList.toggle(CHAT_INPUT_PLATE_SINGLE_CLASS, !hasDirect && !hasGift);
+        this.controlPlate.classList.toggle(CHAT_INPUT_PLATE_SINGLE_CLASS, !hasDirect);
       }
 
       if(this.chat && this.welcomeLimitPlate) {
@@ -3071,24 +3023,6 @@ export default class ChatInput {
           if(canManageAutoDelete && period) this.btnAutoDeletePeriod.replaceChildren(createAutoDeleteIcon(period));
           this.btnAutoDeletePeriod.classList.toggle('hide', !(canManageAutoDelete && period));
         });
-      }
-
-      if(this.btnSendGift) {
-        // Default to hidden so the previous chat's state never leaks.
-        // Cached acked.result → callbackify fires synchronously inside
-        // this render closure (same tick as the hide above → no visible
-        // flicker, button settles into the correct state immediately).
-        // Cold first-load → async toggle once both fetches resolve.
-        this.btnSendGift.classList.add('hide');
-        if(this.giftButtonBasePeerEligible(peerId) && !isBot) {
-          callbackify(ackedPeerFull.result, (peerFull) => {
-            if(!middleware()) return;
-            callbackify(ackedGlobalPrivacy.result, (globalPrivacy) => {
-              if(!middleware()) return;
-              this.btnSendGift.classList.toggle('hide', !this.shouldShowGiftButton(peerFull as UserFull.userFull, globalPrivacy));
-            });
-          });
-        }
       }
 
       haveSomethingInControl ||= this.chat.isBotforum && this.chat.canManageBotforumTopics;
@@ -3176,46 +3110,6 @@ export default class ChatInput {
       duration: skipAnimation ? 0 : 300,
       useRafs
     });
-  }
-
-  private giftButtonBasePeerEligible(peerId: PeerId | undefined) {
-    return !!peerId &&
-      peerId.isUser() &&
-      peerId !== rootScope.myId &&
-      peerId !== SERVICE_PEER_ID &&
-      peerId !== REPLIES_PEER_ID &&
-      peerId !== HIDDEN_PEER_ID &&
-      this.chat?.type === ChatType.Chat;
-  }
-
-  private shouldShowGiftButton(userFull: UserFull.userFull, globalPrivacy?: GlobalPrivacySettings) {
-    if(!userFull) return false;
-    const disallowed = userFull.disallowed_gifts?.pFlags;
-    const allDisallowed = !!disallowed && !!disallowed.disallow_unlimited_stargifts &&
-      !!disallowed.disallow_limited_stargifts &&
-      !!disallowed.disallow_unique_stargifts &&
-      !!disallowed.disallow_premium_gifts &&
-      !!disallowed.disallow_stargifts_from_channels;
-    if(allDisallowed) return false;
-    const ownDisplay = !!globalPrivacy?.pFlags.display_gifts_button;
-    const peerDisplay = !!userFull.pFlags.display_gifts_button;
-    return ownDisplay || peerDisplay;
-  }
-
-  private async updateGiftButtonVisibility() {
-    if(!this.btnSendGift || !this.chat) return;
-    const peerId = this.chat.peerId;
-    if(!this.giftButtonBasePeerEligible(peerId)) {
-      this.btnSendGift.classList.add('hide');
-      return;
-    }
-    const [isBot, userFull, globalPrivacy] = await Promise.all([
-      this.managers.appPeersManager.isBot(peerId),
-      this.managers.appProfileManager.getProfile(peerId.toUserId()),
-      this.managers.appPrivacyManager.getGlobalPrivacySettings()
-    ]);
-    if(this.chat?.peerId !== peerId) return;
-    this.btnSendGift.classList.toggle('hide', isBot || !this.shouldShowGiftButton(userFull, globalPrivacy));
   }
 
   public async getPlaceholderParams(canSend?: boolean, peerState?: {
@@ -4514,10 +4408,6 @@ export default class ChatInput {
 
     if(this.btnScheduled) {
       this.btnScheduled.classList.toggle('show', isInputEmpty && this.chat.type !== ChatType.Scheduled && !this.isWelcomeComposer);
-    }
-
-    if(this.btnSendGift) {
-      this.btnSendGift.classList.toggle('show', isInputEmpty && !this.isWelcomeComposer);
     }
 
     // External listeners (e.g. star badge animation) want the icon family, not
@@ -6173,12 +6063,6 @@ export default class ChatInput {
   public async openSuggestPostPopup(initial?: SuggestedPostPayload) {
     const {default: showSuggestPostPopup} = await import('./suggestPostPopup');
     showSuggestPostPopup({HotReloadGuard: SolidJSHotReloadGuardProvider, suggestChange: !!initial?.changeMid, initialStars: initial?.stars, initialTimestamp: initial?.timestamp, onFinish: (payload) => {
-      const balance = +useStars()() || 0;
-      if(!this.chat.canManageDirectMessages && payload.stars && payload.stars > balance) {
-        hotReloadGuard.showStarsPopup({spendPurposePeerId: this.chat.peerId});
-        return;
-      }
-
       const message = initial?.changeMid ? this.chat.getMessage(initial.changeMid) as Message.message : undefined;
 
       this.setTopInfo({

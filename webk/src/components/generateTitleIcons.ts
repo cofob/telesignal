@@ -54,7 +54,6 @@ export default async function generateTitleIcons({
 
       if(clickableEmojiStatus) {
         container.classList.add('clickable');
-        let busy = false;
         const detach = attachClickEvent(container, async(e) => {
           e.stopPropagation();
           if(peerId === rootScope.myId) {
@@ -62,12 +61,6 @@ export default async function generateTitleIcons({
               managers: bindManagersToSession(rootScope.managers),
               anchorElement: container
             });
-          } else if(emojiStatus._ === 'emojiStatusCollectible') {
-            if(busy) return;
-            busy = true;
-            const gift = await rootScope.managers.appGiftsManager.getGiftBySlug(emojiStatus.slug);
-            hotReloadGuard.showStarGiftInfoPopup({gift});
-            busy = false;
           }
         });
 

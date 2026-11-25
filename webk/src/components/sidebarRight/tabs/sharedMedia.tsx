@@ -17,7 +17,6 @@ import getPeerId from '@appManagers/utils/peers/getPeerId';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import ButtonMenuToggle, {createButtonMenuVisibility} from '@components/buttonMenuToggle';
 import {useIsFrozen} from '@stores/appState';
-import {profileStarGiftsButtonMenu} from '@components/stargifts/profileList';
 import {profileStoriesButtonMenu} from '@components/stories/profileList';
 import namedPromises from '@helpers/namedPromises';
 import hasRights from '@lib/appManagers/utils/chats/hasRights';
@@ -177,10 +176,7 @@ const SharedMedia: Component = () => {
             setCollapsedOn: tab.container,
             slider: tab.slider,
             openChatStack: tab.openChatStack,
-            searchSuperContainer: tab.searchSuper.container,
-            onPinnedGiftsChange: (gifts) => {
-              tab.searchSuper.setPinnedGifts(gifts);
-            }
+            searchSuperContainer: tab.searchSuper.container
           }, HotReloadGuard));
         });
 
@@ -522,12 +518,6 @@ const SharedMedia: Component = () => {
         }
         return false;
       }
-    }),
-    ...profileStarGiftsButtonMenu({
-      get store() { return tab.searchSuper.stargiftsStore },
-      get actions() { return tab.searchSuper.stargiftsActions },
-      verify: () => lastMediaTabType === 'gifts',
-      peerId: tab.peerId
     })
   ];
   const btnMenu = ButtonMenuToggle({
@@ -558,7 +548,6 @@ const SharedMedia: Component = () => {
   const c: [SearchSuperMediaTab['type'], LangPackKey][] = [
     ['savedDialogs', 'SavedDialogsTabCount'],
     ['stories', 'StoriesCount'],
-    ['gifts', 'StarGiftsCount'],
     ['members', 'Members'],
     ['media', 'MediaFiles'],
     ['saved', 'SavedMessagesCount'],
@@ -722,9 +711,6 @@ const SharedMedia: Component = () => {
     }, {
       name: 'Stories',
       type: 'stories'
-    }, {
-      name: 'SharedMedia.Gifts',
-      type: 'gifts'
     }, {
       name: 'PeerMedia.Members',
       type: 'members'

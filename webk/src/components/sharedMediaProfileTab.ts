@@ -1,11 +1,10 @@
 import {ProfileTab} from '@layer';
 
-export type ProfileTabMediaType = 'stories' | 'gifts' | 'media' | 'files' |
+export type ProfileTabMediaType = 'stories' | 'media' | 'files' |
   'music' | 'voice' | 'links' | 'gifs';
 
 const PROFILE_TAB_BY_MEDIA_TYPE: Record<ProfileTabMediaType, ProfileTab> = {
   stories: {_: 'profileTabPosts'},
-  gifts: {_: 'profileTabGifts'},
   media: {_: 'profileTabMedia'},
   files: {_: 'profileTabFiles'},
   music: {_: 'profileTabMusic'},
@@ -14,9 +13,8 @@ const PROFILE_TAB_BY_MEDIA_TYPE: Record<ProfileTabMediaType, ProfileTab> = {
   gifs: {_: 'profileTabGifs'}
 };
 
-const MEDIA_TYPE_BY_PROFILE_TAB: Record<ProfileTab['_'], ProfileTabMediaType> = {
+const MEDIA_TYPE_BY_PROFILE_TAB: Partial<Record<ProfileTab['_'], ProfileTabMediaType>> = {
   profileTabPosts: 'stories',
-  profileTabGifts: 'gifts',
   profileTabMedia: 'media',
   profileTabFiles: 'files',
   profileTabMusic: 'music',
@@ -44,7 +42,7 @@ export function canSetMainProfileTabForMediaType(type: string, options: {
 
   return options.isEditableBroadcast ||
     options.isSavedMessages ||
-    (options.isSelf && (type === 'stories' || type === 'gifts'));
+    (options.isSelf && type === 'stories');
 }
 
 export function orderMediaTabsByMain<T extends {type: string}>(

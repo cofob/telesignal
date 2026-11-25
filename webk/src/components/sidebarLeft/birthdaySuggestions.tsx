@@ -1,7 +1,7 @@
 import type {ContactBirthdaysState} from '@appManagers/appPromoManager';
 import showBirthdayPopup, {saveMyBirthday} from '@components/popups/birthday';
-import showSendGiftPicker from '@components/popups/sendGiftPicker';
-import showSendGiftPopup from '@components/popups/sendGift';
+import showPickUserPopup from '@components/popups/pickUser';
+import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import RippleElement from '@components/rippleElement';
 import Row from '@components/rowTsx';
 import birthdayStyles from '@components/sidebarLeft/birthdaySuggestions.module.scss';
@@ -81,29 +81,22 @@ function BirthdayContactsSuggestion(props: {
     ...props.state.yesterday,
     ...props.state.tomorrow
   ]);
-  const birthdayPeerIds = createMemo(() => new Set(nearbyContacts().map(({peerId}) => peerId)));
-  const yesterdayPeerIds = createMemo(() => new Set(props.state.yesterday.map(({peerId}) => peerId)));
-  const todayPeerIds = createMemo(() => new Set(props.state.today.map(({peerId}) => peerId)));
 
-  const openGift = (peerId: PeerId) => {
-    showSendGiftPopup({peerId, birthday: birthdayPeerIds().has(peerId)});
+  const openChat = (peerId: PeerId) => {
+    hotReloadGuard.appImManager.setInnerPeer({peerId});
   };
 
   const onClick = () => {
     if(contacts().length === 1) {
-      openGift(contacts()[0].peerId);
+      openChat(contacts()[0].peerId);
       return;
     }
 
-    showSendGiftPicker({
-      prependPeerIds: nearbyContacts().map(({peerId}) => peerId),
-      getSubtitleForElement: (peerId) => {
-        const key = todayPeerIds().has(peerId) ? 'Suggestion.BirthdayContacts.Today' :
-          yesterdayPeerIds().has(peerId) ? 'Suggestion.BirthdayContacts.Yesterday' :
-          birthdayPeerIds().has(peerId) ? 'Suggestion.BirthdayContacts.Tomorrow' : undefined;
-        return key ? i18n(key) : undefined;
-      },
-      onSelect: ([{peerId}]) => openGift(peerId)
+    showPickUserPopup({
+      peerType: ['custom'],
+      getMoreCustom: async() => ({result: nearbyContacts().map(({peerId}) => peerId), isEnd: true}),
+      onSelect: ([{peerId}]) => openChat(peerId),
+      titleLangKey: 'Contacts'
     });
   };
 

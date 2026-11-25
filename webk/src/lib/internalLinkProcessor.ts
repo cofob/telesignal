@@ -1,11 +1,10 @@
 import type AppMediaViewerBase from '@components/mediaViewer/base';
 import showSharedFolderInvitePopup from '@components/popups/sharedFolderInvite';
 import showJoinChatInvitePopup from '@components/popups/joinChatInvite';
-import {createPaymentPopup} from '@components/popups/payment';
 import confirmOpenUrl from '@components/popups/confirmOpenUrl';
 import {showSharingPicker2Popup} from '@components/popups/pickUser';
 import showStickersPopup from '@components/popups/stickers';
-import {toastNew, hideToast} from '@components/toast';
+import {toastNew} from '@components/toast';
 import {MOUNT_CLASS_TO} from '@config/debug';
 import IS_GROUP_CALL_SUPPORTED from '@environment/groupCallSupport';
 import {CONFERENCE_CALL_SLUG_REGEXP} from '@lib/calls/constants';
@@ -14,7 +13,7 @@ import {PROXY_LINK_TYPES} from '@lib/richTextProcessor/wrapUrl';
 import assumeType from '@helpers/assumeType';
 import findUpAttribute from '@helpers/dom/findUpAttribute';
 import findUpClassName from '@helpers/dom/findUpClassName';
-import {User, ChatlistsChatlistInvite, Chat, InputInvoice} from '@layer';
+import {User, ChatlistsChatlistInvite, Chat} from '@layer';
 import {i18n, LangPackKey, _i18n} from '@lib/langPack';
 import {PHONE_NUMBER_REG_EXP} from '@lib/richTextProcessor';
 import appImManager, {JoinConferenceOptions} from '@lib/appImManager';
@@ -28,15 +27,8 @@ import {simulateClickEvent} from '@helpers/dom/clickEvent';
 import shake from '@helpers/dom/shake';
 import getPremiumLinkRef from '@helpers/getPremiumLinkRef';
 import rootScope from '@lib/rootScope';
-import showGiftLinkPopup from '@components/popups/giftLink';
-import showStarsPopup, {showGiftStarsPicker} from '@components/popups/stars';
-import showSendGiftPopup from '@components/popups/sendGift';
 import showMyQrCodePopup from '@components/popups/myQrCode';
-import showSendGiftPicker from '@components/popups/sendGiftPicker';
-import {prefetchStars} from '@stores/stars';
-import {getMiddleware} from '@helpers/middleware';
 import anchorCallback from '@helpers/dom/anchorCallback';
-import showStarGiftInfoPopup from '@components/popups/starGiftInfo';
 import noop from '@helpers/noop';
 import appSidebarRight from '@components/sidebarRight';
 import pause from '@helpers/schedulers/pause';
@@ -858,18 +850,14 @@ export class InternalLinkProcessor {
           case 'emoji-status':
             return this.showEmojiStatusPicker();
 
-          // destinations that are a screen of their own: tdesktop opens the
-          // Premium and Credits sections, and ours live in popups
+          // * TeleSignal: Signal has no Premium, Stars or gifts
           case 'premium':
-            return showUnsupportedLinkToast();
           case 'stars':
-            return showStarsPopup();
           case 'stars/gift':
-            return showGiftStarsPicker();
           case 'send-gift':
-            return showSendGiftPicker();
           case 'send-gift/self':
-            return showSendGiftPopup({peerId: rootScope.myId});
+          case 'ton':
+            return showUnsupportedLinkToast();
 
           // the own QR code, as tdesktop and Android open it; `/share` points at its Share button (tdesktop), where
           // Android presses it
@@ -888,8 +876,6 @@ export class InternalLinkProcessor {
               ...AppMyStoriesTab.getInitArgs(),
               isArchive: true
             });
-          case 'ton':
-            return showStarsPopup({ton: true});
 
           // tdesktop, Android and iOS open the change-email screen itself, which
           // is what the Login Email row does — not the row to point at
@@ -1285,27 +1271,6 @@ export class InternalLinkProcessor {
         return;
       }
 
-      if(chatInvite.subscription_pricing && !chatInvite.pFlags.can_refulfill_subscription) {
-        const inputInvoice: InputInvoice = {
-          _: 'inputInvoiceChatInviteSubscription',
-          hash: link.invite
-        };
-
-        const popup = await createPaymentPopup({
-          inputInvoice,
-          chatInvite,
-          noPaymentForm: true
-        });
-
-        popup.addEventListener('finish', (result) => {
-          if(result === 'paid') {
-            this.processJoinChatLink(link);
-          }
-        });
-
-        return popup;
-      }
-
       return showJoinChatInvitePopup(link.invite, chatInvite as any);
     }, (err: ApiError) => {
       if(err.type === 'INVITE_HASH_EXPIRED') {
@@ -1447,32 +1412,7 @@ export class InternalLinkProcessor {
   };
 
   public processInvoiceLink = (link: InternalLink.InternalLinkInvoice) => {
-    const managers = bindManagersToSession(this.managers);
-    return managers.appPaymentsManager.getInputInvoiceBySlug(link.slug).then((inputInvoice) => {
-      return managers.appPaymentsManager.getPaymentForm(inputInvoice).then((paymentForm) => {
-        // const message: Message.message = {
-        //   _: 'message',
-        //   date: 0,
-        //   id: 0,
-        //   peerId: 0,
-        //   peer_id: undefined,
-        //   message: '',
-        //   media: {
-        //     _: 'messageMediaInvoice',
-        //     currency: paymentForm.invoice.currency,
-        //     description: paymentForm.description,
-
-        //   }
-        // };
-        return createPaymentPopup({inputInvoice, paymentForm});
-      }, (err) => {
-        if((err as ApiError).type === 'SLUG_INVALID') {
-          toastNew({langPackKey: 'PaymentInvoiceLinkInvalid'});
-        }
-
-        throw err;
-      });
-    });
+    showUnsupportedLinkToast();
   };
 
   public processListLink = async(link: InternalLink.InternalLinkAddList) => {
@@ -1548,42 +1488,11 @@ export class InternalLinkProcessor {
   };
 
   public processGiftCodeLink = (link: InternalLink.InternalLinkGiftCode) => {
-    showGiftLinkPopup(link.slug, link.stack);
+    showUnsupportedLinkToast();
   };
 
-  public processStarsTopupLink = async(link: InternalLink.InternalLinkStarsTopup) => {
-    const middlewareHelper = getMiddleware();
-    const balance = +(await prefetchStars(middlewareHelper.get()));
-    middlewareHelper.destroy();
-
-    const purpose = link.purpose || 'topup';
-
-    const itemPrice = +link.balance;
-    if(balance >= itemPrice) {
-      toastNew({
-        langPackKey: 'Stars.TopUp.Enough',
-        langPackArguments: [
-          anchorCallback(() => {
-            hideToast();
-            const popup = showStarsPopup({
-              onTopup: () => {
-                popup.hide();
-              },
-              purpose
-            });
-          })
-        ]
-      });
-      return;
-    }
-
-    const popup = showStarsPopup({
-      itemPrice,
-      onTopup: () => {
-        popup.hide();
-      },
-      purpose
-    });
+  public processStarsTopupLink = (link: InternalLink.InternalLinkStarsTopup) => {
+    showUnsupportedLinkToast();
   };
 
   public processShareLink = async(link: InternalLink.InternalLinkShare) => {
@@ -1600,28 +1509,12 @@ export class InternalLinkProcessor {
     appImManager.setInnerPeer({peerId, threadId, monoforumThreadId});
   };
 
-  public processUniqueStarGiftLink = async(link: InternalLink.InternalLinkUniqueStarGift) => {
-    const gift = await this.managers.appGiftsManager.getGiftBySlug(link.slug).catch(noop);
-    if(!gift) {
-      toastNew({langPackKey: 'Error.AnError'});
-      return;
-    }
-
-    showStarGiftInfoPopup({gift});
+  public processUniqueStarGiftLink = (link: InternalLink.InternalLinkUniqueStarGift) => {
+    showUnsupportedLinkToast();
   };
 
-  public processStarGiftCollectionLink = async(link: InternalLink.InternalLinkStarGiftCollection) => {
-    const peer = await this.managers.appUsersManager.resolveUsername(link.domain);
-    const peerId = peer.id.toPeerId(peer._ !== 'user');
-    if(appImManager.chat.peerId !== peerId) {
-      await appImManager.setInnerPeer({peerId});
-      await pause(500);
-    }
-    appSidebarRight.toggleSidebar(true, true);
-    const sharedMediaTab = appSidebarRight.sharedMediaTab;
-    await sharedMediaTab.setSearchTab('gifts');
-    if(appSidebarRight.sharedMediaTab !== sharedMediaTab) return;
-    sharedMediaTab.searchSuper.stargiftsActions?.setFilters({chosenCollection: Number(link.id)});
+  public processStarGiftCollectionLink = (link: InternalLink.InternalLinkStarGiftCollection) => {
+    showUnsupportedLinkToast();
   };
 
   public processStoryAlbumLink = async(link: InternalLink.InternalLinkStoryAlbum) => {

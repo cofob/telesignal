@@ -87,7 +87,6 @@ import SidebarSlider from '@components/slider';
 import cancelClickOrNextIfNotClick from '@helpers/dom/cancelClickOrNextIfNotClick';
 import createElementFromMarkup from '@helpers/createElementFromMarkup';
 import numberThousandSplitter from '@helpers/number/numberThousandSplitter';
-import {ALL_COLLECTIONS_ID, StarGiftsProfileActions, StarGiftsProfileStore} from '@components/stargifts/profileStore';
 import {getFirstChild} from '@solid-primitives/refs';
 import SortedDialogList from '@components/sortedDialogList';
 import Icon from '@components/icon';
@@ -96,9 +95,6 @@ import ButtonMenuToggle from '@components/buttonMenuToggle';
 import {isSensitive} from '@helpers/restrictions';
 import {isMessageSensitive} from '@appManagers/utils/messages/isMessageRestricted';
 import {MediaSearchContext} from '@components/appMediaPlaybackController';
-import {StarGiftsProfileTab} from '@components/stargifts/profileList';
-import {MyStarGift} from '@appManagers/appGiftsManager';
-import wrapSticker from '@components/wrappers/sticker';
 import {unwrap} from 'solid-js/store';
 import {usePeer} from '@stores/peers';
 import {useAppState} from '@stores/appState';
@@ -147,7 +143,7 @@ export type SearchSuperContext = {
 
 export type SearchSuperMediaType = 'stories' | 'members' | 'media' |
   'files' | 'links' | 'music' | 'chats' | 'voice' | 'gifs' | 'groups' | 'similar' |
-  'savedDialogs' | 'saved' | 'channels' | 'gifts' | 'posts';
+  'savedDialogs' | 'saved' | 'channels' | 'posts';
 export type SearchSuperMediaTab = {
   inputFilter?: SearchSuperType,
   name: LangPackKey,
@@ -636,10 +632,6 @@ export default class AppSearchSuper {
 
   public slider: SidebarSlider;
 
-  public stargiftsStore: StarGiftsProfileStore;
-  public stargiftsActions: StarGiftsProfileActions;
-  public stargiftsSetCollection: (collectionId: number) => void;
-  private stargiftsStopReorder: () => void;
   private menuGradient: HTMLElement;
 
   constructor(options: Pick<
@@ -711,10 +703,6 @@ export default class AppSearchSuper {
           const children = Array.from(this.tabsMenu.children) as HTMLElement[];
 
           const prevChild = this.mediaTabs[prevId];
-          if(prevChild.type === 'gifts' && this.stargiftsActions?.handleSwipe(xDiff, this.stargiftsSetCollection)) {
-            return
-          }
-
           if(prevChild.type === 'stories' && this.storiesActions?.handleSwipe(xDiff, this.storiesSetAlbum)) {
             return
           }
@@ -750,7 +738,6 @@ export default class AppSearchSuper {
     const noSectionTypes: Set<SearchSuperMediaType> = new Set([
       ...GRID_MEDIA_TYPES,
       'stories',
-      'gifts',
       'chats',
       'channels',
       'posts'
@@ -835,11 +822,6 @@ export default class AppSearchSuper {
 
       const fromMediaTab = this.mediaTab;
       this.mediaTab = newMediaTab;
-      // * the collections' reorder is of their list: it ends as another is shown, whose selection may take the row
-      if(fromMediaTab?.type === 'gifts' && newMediaTab !== fromMediaTab) {
-        this.stargiftsStopReorder?.();
-      }
-
       if(!supportsSharedMediaScrollDate(newMediaTab.type)) {
         this.scrollDateBadge?.hide();
       }
@@ -2856,66 +2838,6 @@ export default class AppSearchSuper {
     this.globalPostsSearch.loadMore();
   }
 
-  private loadGifts(): Promise<void> {
-    const mediaTab = this.mediaTabsMap.get('gifts');
-    if(!mediaTab) return Promise.resolve();
-
-    if(!this.stargiftsStore) {
-      const middleware = this.middleware.get();
-      createRoot((dispose) => {
-        middleware.onClean(() => dispose());
-
-        const scrollTarget = this.scrollable.container;
-
-        const {render: giftsList, store, actions, setCollection, stopReorder} = StarGiftsProfileTab({
-          peerId: this.searchContext.peerId,
-          scrollParent: scrollTarget,
-          selectionMount: this.navScrollableContainer,
-          // * the media's selection, kept as the tabs are swiped, gives the row up - at once, or its transition would
-          // * take the row's classes off the reorder's bar as it ends; a stories' plate gives way by itself
-          onReorderStart: () => {
-            if(this.selection?.isSelecting) {
-              this.selection.cancelSelection(true);
-            }
-          },
-          onCountChange: (count) => {
-            this.setCounter('gifts', count);
-
-            mediaTab.menuTab.classList.toggle('hide', count === 0);
-            let needChangeActive = false
-            if(count === 0) {
-              needChangeActive = mediaTab.menuTab.classList.contains('active');
-              mediaTab.menuTab.classList.remove('active');
-            }
-            this.updateContainerHidden(needChangeActive);
-          }
-        });
-        createEffect(on(() => store.items, (items) => {
-          if(items.length > 0 && store.chosenCollection === ALL_COLLECTIONS_ID) {
-            this.setPinnedGifts(unwrap(items));
-          }
-        }))
-        this.stargiftsStore = store;
-        this.stargiftsActions = actions;
-        this.stargiftsSetCollection = setCollection;
-        this.stargiftsStopReorder = stopReorder;
-
-        mediaTab.itemsTab.append(getFirstChild(giftsList, (v) => v instanceof Element) as Element);
-
-        if(this.mediaTab?.type === 'gifts') {
-          this.onChangeTab?.(this.mediaTab);
-        }
-      });
-      return Promise.resolve();
-    }
-
-    if(this.stargiftsStore.loading || this.stargiftsStore.loaded) {
-      return Promise.resolve();
-    }
-
-    return this.stargiftsActions.loadNext();
-  }
-
   private loadType(options: SearchSuperLoadTypeOptions) {
     const managers = bindManagersToSession(this.managers);
     const {
@@ -2945,8 +2867,6 @@ export default class AppSearchSuper {
       promise = this.loadChannels(options);
     } else if(type === 'posts') {
       promise = this.loadPosts(options);
-    } else if(type === 'gifts') {
-      promise = this.loadGifts();
     }
 
     if(promise) {
@@ -3128,10 +3048,6 @@ export default class AppSearchSuper {
   }
 
   private canLoadMediaTab(mediaTab: SearchSuperMediaTab) {
-    if(mediaTab.type === 'gifts') {
-      return !this.stargiftsStore || (!this.stargiftsStore.loading && !this.stargiftsStore.loaded);
-    }
-
     const inputFilter = mediaTab.inputFilter;
     return !this.loaded[mediaTab.type] || (this.historyStorage[inputFilter] && this.usedFromHistory[inputFilter] < this.historyStorage[inputFilter].length);
   }
@@ -3176,9 +3092,7 @@ export default class AppSearchSuper {
       canViewMembers,
       canViewGroups,
       canViewStories,
-      canViewGifts,
-      profileTabsData,
-      maybePinnedGifts
+      profileTabsData
     ] = await Promise.all([
       this.getSearchCounters(filters),
       this.canViewSavedDialogs(),
@@ -3186,9 +3100,7 @@ export default class AppSearchSuper {
       this.canViewMembers(),
       this.canViewGroups(),
       this.canViewStories(),
-      this.canViewGifts(),
-      this.getProfileTabsData(),
-      peerId === rootScope.myId && this.managers.appGiftsManager.getPinnedGifts(peerId)
+      this.getProfileTabsData()
     ]);
 
     if(!middleware()) {
@@ -3230,10 +3142,6 @@ export default class AppSearchSuper {
     const storiesTab = this.mediaTabsMap.get('stories');
     const groupsTab = this.mediaTabsMap.get('groups');
     const similarTab = this.mediaTabsMap.get('similar');
-    const giftsTab = this.mediaTabsMap.get('gifts');
-
-    const giftsCount = profileTabsData.giftsCount ?? 0;
-    const showGiftsTab = canViewGifts && giftsCount !== 0;
 
     const a: [SearchSuperMediaTab, boolean][] = [
       [savedDialogsTab, canViewSavedDialogs],
@@ -3241,8 +3149,7 @@ export default class AppSearchSuper {
       [storiesTab, canViewStories],
       [membersTab, canViewMembers],
       [groupsTab, canViewGroups],
-      [similarTab, !!canViewSimilar],
-      [giftsTab, showGiftsTab]
+      [similarTab, !!canViewSimilar]
     ];
 
     a.forEach(([tab, value]) => {
@@ -3257,8 +3164,6 @@ export default class AppSearchSuper {
       }
     });
 
-    this.setCounter('gifts', giftsCount);
-
     if(canViewStories) {
       this.setMediaTabName(storiesTab, peerId.isUser() ? 'Stories' : 'ProfileStories');
     }
@@ -3272,10 +3177,6 @@ export default class AppSearchSuper {
           }
         });
       }
-    }
-
-    if(maybePinnedGifts) {
-      this.setPinnedGifts(maybePinnedGifts);
     }
 
     const mainMediaTabType = getMediaTypeForProfileTab(profileTabsData.mainTab);
@@ -3653,38 +3554,6 @@ export default class AppSearchSuper {
   }
 
 
-  public setPinnedGifts(gifts: MyStarGift[]) {
-    const giftsTab = this.mediaTabsMap.get('gifts')
-    const menuTabName = giftsTab?.menuTabName
-    if(!menuTabName) return;
-    menuTabName.classList.add('search-super-pinned-gifts-wrap');
-    Promise.all(gifts.slice(0, 3).map(async(gift) => {
-      const div = document.createElement('div');
-      await wrapSticker({
-        div,
-        static: true,
-        doc: gift.sticker,
-        middleware: this.middleware.get(),
-        width: 18,
-        height: 18
-      }).then(({render}) => render);
-      return div
-    })).then((gifts) => {
-      let wrap = menuTabName.querySelector('.search-super-pinned-gifts')
-      if(gifts.length === 0) {
-        wrap?.remove();
-        return;
-      }
-
-      if(!wrap) {
-        wrap = document.createElement('div');
-        wrap.className = 'search-super-pinned-gifts';
-        menuTabName.append(wrap);
-      }
-      wrap.replaceChildren(...gifts);
-    })
-  }
-
   public async canViewSavedDialogs() {
     if(this.searchContext.peerId !== rootScope.myId || this.searchContext.threadId || !this.mediaTabsMap.has('savedDialogs')) {
       return false;
@@ -3774,10 +3643,6 @@ export default class AppSearchSuper {
     }
   }
 
-  public canViewGifts() {
-    return !this.searchContext.threadId && this.mediaTabsMap.has('gifts');
-  }
-
   public async getProfileTabsData() {
     const {peerId, threadId} = this.searchContext;
     if(threadId) {
@@ -3787,7 +3652,6 @@ export default class AppSearchSuper {
     const full = await this.managers.appProfileManager.getProfileByPeerId(peerId);
     const profile = full as UserFull.userFull | ChatFull.channelFull;
     return {
-      giftsCount: profile.stargifts_count ?? 0,
       mainTab: this.useMainProfileTab ? profile.main_tab : undefined
     };
   }

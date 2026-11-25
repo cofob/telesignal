@@ -45,7 +45,7 @@ import pause from '@helpers/schedulers/pause';
 import MEDIA_MIME_TYPES_SUPPORTED from '@environment/mediaMimeTypesSupport';
 import {isConvertibleMov} from '@helpers/movToVideo';
 import IMAGE_MIME_TYPES_SUPPORTED from '@environment/imageMimeTypesSupport';
-import {NULL_PEER_ID, STARS_CURRENCY} from '@appManagers/constants';
+import {NULL_PEER_ID} from '@appManagers/constants';
 import telegramMeWebManager from '@lib/telegramMeWebManager';
 import {formatDate, ONE_DAY} from '@helpers/date';
 import createTopbarCall, {showOngoingCall, TopbarCallController} from '@components/topbarCall';
@@ -120,7 +120,6 @@ import partition from '@helpers/array/partition';
 import indexOfAndSplice from '@helpers/array/indexOfAndSplice';
 import liteMode, {LiteModeKey} from '@helpers/liteMode';
 import LottiePlayer from '@lib/lottie/lottiePlayer';
-import showGiftPremiumPopup from '@components/popups/giftPremium';
 import internalLinkProcessor from '@lib/internalLinkProcessor';
 import {INTERNAL_LINK_TYPE} from '@lib/internalLink';
 import {createStoriesViewerWithPeer} from '@components/stories/viewer';
@@ -3948,15 +3947,6 @@ export class AppImManager extends EventListenerBase<{
       (options1.type !== ChatType.Static && options2.type !== ChatType.Static) &&
       (options1.type !== ChatType.Logs && options2.type !== ChatType.Logs) &&
       (typeof(options1.type) !== typeof(options2.type) || options1.type === options2.type);
-  }
-
-  public giftPremium(peerId: PeerId) {
-    this.managers.appPaymentsManager.getPremiumGiftCodeOptions().then((giftCodeOptions) => {
-      showGiftPremiumPopup(
-        peerId,
-        giftCodeOptions.filter((option) => option.users === 1 && option.currency !== STARS_CURRENCY)
-      );
-    });
   }
 
   public requestPhone(options: {peerId: PeerId, threadId?: number}) {
