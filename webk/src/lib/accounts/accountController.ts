@@ -10,12 +10,14 @@ import noop from '@helpers/noop';
 import {toPeerId, toSignalPeerId} from '@lib/signal/builders';
 
 const ACCOUNT_NUMBERS: ActiveAccountNumber[] = [1, 2, 3, 4];
+// * the data centers of Telegram whose keys earlier versions stored
+const LEGACY_DC_IDS = [1, 2, 3, 4, 5];
 // * the Telegram session that earlier versions kept beside the first slot, as Web A's `clearLegacySessionKeys` lists it
 const LEGACY_SESSION_KEYS = [
   'user_auth',
   'dc',
   'auth_key_fingerprint',
-  ...[1, 2, 3, 4, 5].flatMap((dcId) => [`dc${dcId}_auth_key`, `dc${dcId}_hash`, `dc${dcId}_server_salt`])
+  ...LEGACY_DC_IDS.flatMap((dcId) => [`dc${dcId}_auth_key`, `dc${dcId}_hash`, `dc${dcId}_server_salt`])
 ] as const;
 // * what earlier versions wrote into a slot of a Telegram sign-in: a slot's next write leaves it out
 const LEGACY_SLOT_FIELDS = [
@@ -24,7 +26,7 @@ const LEGACY_SLOT_FIELDS = [
   'push_key_fingerprint',
   'sign_in_dc_id',
   'temp_auth_keys',
-  ...[1, 2, 3, 4, 5].flatMap((dcId) => [`dc${dcId}_auth_key`, `dc${dcId}_server_salt`])
+  ...LEGACY_DC_IDS.flatMap((dcId) => [`dc${dcId}_auth_key`, `dc${dcId}_server_salt`])
 ];
 const SESSION_USER_FIELDS: (keyof SessionUserFields)[] = ['firstName', 'lastName', 'phone', 'color', 'isPremium', 'emojiStatusId'];
 
@@ -201,11 +203,14 @@ export class AccountController extends StaticUtilityClass {
   }
 
   /**
-   * Removes the Telegram session values that earlier versions kept beside the first slot for Web A, as Web A's
-   * `clearLegacySessionKeys` does: nothing reads them. Only the plain copies go; a copy behind a passcode stays unread
+   * Removes the Telegram session values that earlier versions kept beside the first slot, as Web A's
+   * `clearLegacySessionKeys` does: nothing reads them. Only the stored keys are deleted, so a start without them
+   * writes nothing. A copy behind a passcode stays until a start after unlocking
    */
   static async clearLegacySessionKeys() {
-    await Promise.all(LEGACY_SESSION_KEYS.map((key) => sessionStorage.localStorageProxy('delete', key)));
+    const values = await Promise.all(LEGACY_SESSION_KEYS.map((key) => sessionStorage.localStorageProxy('get', key, false)));
+    const storedKeys = LEGACY_SESSION_KEYS.filter((key, idx) => values[idx] !== undefined);
+    await Promise.all(storedKeys.map((key) => sessionStorage.localStorageProxy('delete', key)));
   }
 }
 

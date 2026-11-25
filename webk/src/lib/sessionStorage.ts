@@ -5,8 +5,6 @@ import LocalStorageController from '@lib/localStorage';
 import {StoredAccountSessionData} from '@lib/accounts/types';
 
 type StorageValues = {
-  state_id: number,
-
   account1: StoredAccountSessionData,
   account2: StoredAccountSessionData,
   account3: StoredAccountSessionData,
