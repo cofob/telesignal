@@ -3857,7 +3857,6 @@ const lang = {
   'Call.StatusCalling': 'is calling you...',
   'Call.StatusGroupInvite': 'TeleSignal Group Call',
   'Call.Toast.LowBattery': '%@\'s battery is low',
-  'Contacts.PhoneNumber.NotRegistred': 'The person with this phone number is not registered on TeleSignal yet.',
   'Channel.UsernameAboutChannel': 'People can share this link with others and can find your channel using TeleSignal search.',
   'Channel.UsernameAboutGroup': 'People can share this link with others and find your group using TeleSignal search.',
   'Chat.Accessory.Forward': {
