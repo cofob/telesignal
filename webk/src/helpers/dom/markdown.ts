@@ -43,12 +43,30 @@ const FORMAT_KEYS: {[code: string]: MarkdownType} = {
   'KeyI': 'italic',
   'KeyU': 'underline',
   'KeyS': 'strikethrough',
-  'KeyK': 'link'
+  'KeyK': 'link',
+  // * TeleSignal: Web A's monospace (Mod+M) and spoiler (Mod+P) of a selection (`src/util/keyboardShortcuts/registry.ts`)
+  'KeyM': 'monospace',
+  'KeyP': 'spoiler'
 };
 
+// * Web A's Mod+Shift+M and Mod+Shift+P, which also format a selection
+const SHIFT_FORMAT_KEYS: {[code: string]: MarkdownType} = {
+  'KeyM': 'monospace',
+  'KeyP': 'spoiler'
+};
+
+// * what a contenteditable formats by itself on its key
+const SELF_FORMATTING_TYPES = new Set<MarkdownType>(['bold', 'italic', 'underline']);
+
+function getMarkdownTypeOfShortcut(e: KeyboardEvent) {
+  if(isEditorShortcutModifier(e)) return FORMAT_KEYS[e.code];
+  const isModShift = (IS_APPLE ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey) && e.shiftKey && !e.altKey;
+  return isModShift ? SHIFT_FORMAT_KEYS[e.code] : undefined;
+}
+
 export function handleMarkdownShortcut(input: HTMLElement, e: KeyboardEvent) {
-  const markdownType = FORMAT_KEYS[e.code];
-  if(!markdownType || !isEditorShortcutModifier(e)) return;
+  const markdownType = getMarkdownTypeOfShortcut(e);
+  if(!markdownType) return;
   const selection = input.ownerDocument.defaultView.getSelection();
   if(isSelectionEmpty(selection)) return;
 
@@ -56,9 +74,9 @@ export function handleMarkdownShortcut(input: HTMLElement, e: KeyboardEvent) {
     // a field that declared no links leaves Ctrl+K to the browser
     if(!getChatInputEditor(input)?.supportsMarkup('link')) return;
     void openCreateLinkPopupForInput(input);
-  } else if(!applyMarkdown({input, type: markdownType}) && markdownType === 'strikethrough') {
-    // nor is Ctrl+S, the browser's Save, taken where there is no strikethrough to make; Ctrl+B, I and U
-    // format a contenteditable by themselves, past the field's schema, and stay cancelled
+  } else if(!applyMarkdown({input, type: markdownType}) && !SELF_FORMATTING_TYPES.has(markdownType)) {
+    // nor is Ctrl+S (the browser's Save), Ctrl+M or Ctrl+P (Print) taken where there is nothing to make; Ctrl+B, I
+    // and U format a contenteditable by themselves, past the field's schema, and stay cancelled
     return;
   }
 

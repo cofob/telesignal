@@ -1362,6 +1362,16 @@ export class AppImManager extends EventListenerBase<{
       const managers = bindManagersToSession(this.managers);
       const key = e.key;
       const isSelectionCollapsed = document.getSelection().isCollapsed;
+      // * Web A's Mod+C for selected messages copies their text, where no text is selected on the page
+      if(
+        this.chat?.selection?.isSelecting && isSelectionCollapsed && e.code === 'KeyC' &&
+        (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !isTargetAnInput(e.target as HTMLElement)
+      ) {
+        cancelEvent(e);
+        void this.chat.contextMenu.copySelectedMessages();
+        return;
+      }
+
       if(
         keepsKeyFromComposer(e) ||
         (Modes.a11y && shouldPreserveKeyboardFocus(e)) ||
@@ -1493,6 +1503,16 @@ export class AppImManager extends EventListenerBase<{
 
         return;
       } else if(key === 'ArrowDown') {
+        return;
+      }
+
+      // * Web A's Delete or Backspace for selected messages: they are deleted
+      if(
+        chat?.selection?.isSelecting && chat.selection.selectionDeleteBtn && !targetIsInput && isSelectionCollapsed &&
+        (key === 'Delete' || key === 'Backspace') && !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey
+      ) {
+        cancelEvent(e);
+        chat.selection.selectionDeleteBtn.click();
         return;
       }
 

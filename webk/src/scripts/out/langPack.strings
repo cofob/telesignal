@@ -5949,6 +5949,9 @@
 "PASSWORD_HASH_INVALID" = "Incorrect password";
 "SafetyNumber.Row" = "Safety number";
 "Signal.ChatColor" = "Chat color";
+"Signal.EndGroup" = "End Group";
+"Signal.EndGroupTitle" = "End «%1$@»?";
+"Signal.EndGroupText" = "Members will no longer be able to send messages in the group. They will be notified that you ended the group, and will still have access to message history. This will end the group permanently. Are you sure you want to proceed?";
 "SafetyNumber.Title" = "Safety number";
 "SafetyNumber.MarkVerified" = "Mark as verified";
 "SafetyNumber.ClearVerification" = "Clear verification";

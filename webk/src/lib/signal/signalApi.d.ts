@@ -438,6 +438,7 @@ export type SignalMethodName =
   | 'setSignalPin'
   | 'setSignalRegistrationLock'
   | 'skipAuthRestore'
+  | 'terminateChat'
   | 'toggleChatArchived'
   | 'toggleChatPinned'
   | 'toggleDialogUnread'
