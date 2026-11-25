@@ -44,7 +44,7 @@ export const PLAIN_MESSAGE_MARK_NAMES = new Set([
  * them by, so they are listed: everything driving lists, rich blocks, tables,
  * media uploads or block reordering is left out, and what remains is caret and
  * emoji behaviour, pasted lists kept as text, pasted text kept line by line,
- * plus history.
+ * text replacements, plus history.
  */
 const PLAIN_MESSAGE_PLUGIN_NAMES = new Set([
   'chatCopiedMessagePaste',
@@ -57,6 +57,7 @@ const PLAIN_MESSAGE_PLUGIN_NAMES = new Set([
   'chatPlainListPaste',
   'chatRichMessageAttributes',
   'chatTextPaste',
+  'chatTextReplacements',
   'undoRedo'
 ]);
 

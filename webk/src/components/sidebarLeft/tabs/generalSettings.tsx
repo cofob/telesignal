@@ -26,6 +26,7 @@ import appDownloadManager from '@lib/appDownloadManager';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 import {DesktopAppSection} from './desktopAppSettings';
+import {getShouldReplaceTextShortcuts, setShouldReplaceTextShortcuts} from '@lib/signal/textReplacements';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Section 1 — text size, chat background, animations toggle, lite mode entry
@@ -293,6 +294,28 @@ const TimeFormatSection = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Section 5 — TeleSignal: the composer's text replacements, as Web A's General settings show them
+// ─────────────────────────────────────────────────────────────────────────────
+
+const KeyboardSection = () => {
+  return (
+    <Section name="Signal.Keyboard">
+      <Row>
+        <Row.CheckboxFieldToggle>
+          <CheckboxFieldTsx
+            checked={getShouldReplaceTextShortcuts()}
+            onChange={(value) => void setShouldReplaceTextShortcuts(value)}
+            toggle
+          />
+        </Row.CheckboxFieldToggle>
+        <Row.Title>{i18n('Signal.TextReplacements')}</Row.Title>
+        <Row.Subtitle>{i18n('Signal.TextReplacementsInfo')}</Row.Subtitle>
+      </Row>
+    </Section>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tab root
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -303,6 +326,7 @@ const GeneralSettings = () => {
       <ThemeSection />
       {IS_GEOLOCATION_SUPPORTED && <DistanceUnitsSection />}
       <TimeFormatSection />
+      <KeyboardSection />
       {IS_DESKTOP_APP && <DesktopAppSection />}
     </>
   );
