@@ -76,6 +76,7 @@ const KEY_QUERY_ALIASES: Record<string, string> = {
 const RE_KEY_SYMBOL = /([⌘⌃⌥⇧↵↑↓←→])/g;
 const RE_KEY_SEPARATOR = /[\s+]+/;
 const RE_WORD_DASH = /(\w)-(?=\w)/g;
+
 const MAC_MODIFIER_LABELS: Record<KeyComboModifier, string> = {
   Ctrl: '⌃',
   Alt: '⌥',
