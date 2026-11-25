@@ -8,6 +8,7 @@ import showPinMessagePopup from '@components/popups/unpinMessage';
 import showMessageInfoPopup from '@components/popups/messageInfo';
 import {copyTextToClipboard} from '@helpers/clipboard';
 import {toastNew} from '@components/toast';
+import {toSignalPeerId} from '@lib/signal/builders';
 import I18n, {i18n, LangPackKey} from '@lib/langPack';
 import findUpClassName from '@helpers/dom/findUpClassName';
 import getSelectionElementFromTarget from '@components/chat/getSelectionElementFromTarget';
@@ -1121,6 +1122,12 @@ export default class ChatContextMenu {
       notDirect: () => true,
       localName: 'views'
     }, {
+      // * TeleSignal: a stored message that did not reach everyone is sent again, as Web A's `resendMessage`
+      icon: 'rotate_right',
+      text: 'Signal.Resend',
+      onClick: this.onResendClick,
+      verify: () => this.message?._ === 'message' && !!this.message.error && !this.message.pending && this.message.mid > 0
+    }, {
       icon: 'rotate_right',
       text: 'Resend',
       onClick: () => this.handleRepay(),
@@ -1705,6 +1712,15 @@ export default class ChatContextMenu {
       getAppWindow().document.execCommand('copy');
       // cancelSelection();
     }
+  };
+
+  private onResendClick = async() => {
+    const {managers, peerId} = this;
+    const isSent = await managers.appSignalManager.callSignal('resendMessage', {
+      chat: {id: toSignalPeerId(peerId)},
+      messageId: this.message.mid
+    });
+    if(!isSent) toastNew({langPackKey: 'Signal.ResendFailed'});
   };
 
   /** The text of the selected messages to the clipboard, for Web A's Mod+C while selecting (`copySelectedMessages`) */

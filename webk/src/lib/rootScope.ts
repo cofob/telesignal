@@ -48,6 +48,8 @@ export type BroadcastEvents = {
   'signal_notification_profiles': SignalNotificationProfilesState,
   // * a change the Signal engine refused, by its lang key, which the page shows as a toast
   'signal_error': LangPackKey,
+  // * recipients whose new safety number kept our message from them (@components/popups/safetyNumberBlock)
+  'signal_safety_number_block': {messageId: number, userIds: PeerId[]},
 
   'chat_full_update': ChatId,
   'chat_update': ChatId,

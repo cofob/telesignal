@@ -414,6 +414,9 @@ export class AppImManager extends EventListenerBase<{
     this.setSettings();
     rootScope.addEventListener('settings_updated', this.setSettings);
     rootScope.addEventListener('signal_error', (langPackKey) => toastNew({langPackKey}));
+    rootScope.addEventListener('signal_safety_number_block', ({messageId, userIds}) => {
+      void import('@components/popups/safetyNumberBlock').then(({default: show}) => show(messageId, userIds));
+    });
     // * the system's reduce-motion preference moves the animation level too, under the a11y layer
     createRoot(() => createEffect(on(useReducedMotion(), this.setAnimationLevel, {defer: true})));
 

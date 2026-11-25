@@ -951,6 +951,12 @@ export default class AppSignalManager extends AppManager {
       case 'updateMessageSendFailed':
         this.onMessageSendFailed(update.localId);
         break;
+      case 'updateSafetyNumberBlock':
+        this.rootScope.dispatchEvent('signal_safety_number_block', {
+          messageId: update.messageId,
+          userIds: update.userIds.map((userId: string) => toPeerId(userId))
+        });
+        break;
       case 'deleteMessages': {
         // * the other items of an album that the provider sends as one message are not messages of their own
         const droppedIds: number[] = update.ids.filter((id: number) => this.pendingSends.has(id));

@@ -256,6 +256,7 @@ export type SignalMessage = {
   } | {type: 'story' | 'ephemeral'},
   reactions?: SignalReactions,
   sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed',
+  isPartiallySent?: true,
   isDelivered?: true,
   isEdited?: boolean,
   editDate?: number,
@@ -436,6 +437,8 @@ export type SignalMethodName =
   | 'setSignalContactDiscovery'
   | 'setSignalPin'
   | 'setSignalRegistrationLock'
+  | 'resendMessage'
+  | 'sendMessageAnyway'
   | 'skipAuthRestore'
   | 'terminateChat'
   | 'toggleChatArchived'

@@ -256,8 +256,11 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
     edit_date: message.isEdited ? message.editDate || message.date : undefined,
     ttl_period: message.ttlPeriod,
     grouped_id: message.groupedId,
-    // * Web K shows a message with an error as failed, as it does a send of its own that failed
-    error: message.sendingState === 'messageSendingStateFailed' ? {type: 'SIGNAL_SEND_FAILED' as ErrorType, code: 400} : undefined
+    // * Web K shows a message with an error as failed, as it does a send of its own that failed; one that some
+    // * recipients did not get is sent again from the same menu, as in Web A (`selectAllowedMessageActionsSlow`)
+    error: message.sendingState === 'messageSendingStateFailed' || message.isPartiallySent ?
+      {type: 'SIGNAL_SEND_FAILED' as ErrorType, code: 400} :
+      undefined
   };
 }
 
