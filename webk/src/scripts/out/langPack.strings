@@ -2053,9 +2053,6 @@
 "Signal.Desktop.MenuSelectAll" = "Select All";
 "Signal.Desktop.MenuWindow" = "Window";
 "Signal.Desktop.MenuMinimize" = "Minimize";
-"Signal.Desktop.LinkTitle" = "Open Signal link";
-"Signal.Desktop.LinkText" = "Signal links open in the A version. Switch to it to open this link?";
-"Signal.Desktop.LinkConfirm" = "Switch";
 "Signal.Desktop.UpdateFailed" = "The update could not be installed. Try again later.";
 "OpenUrlTitle" = "Open Link";
 "OpenUrlAlert2" = "Do you want to open %1$s?";
