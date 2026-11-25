@@ -2498,26 +2498,12 @@ const lang = {
   'Update': 'UPDATE',
   'Reactions': 'Reactions',
   'DoubleTapSetting': 'Quick Reaction',
-  'AllowReactions': 'Allow Reactions',
   'EnableReactionsGroupInfo': 'Allow members to react to group messages.',
-  'AvailableReactions': 'Available reactions',
-  'ReactionAddReactionsHint': 'Add Reactions...',
-  'ReactionAddEmojiFromAnyPack': 'You can add emoji from any emoji pack as a reaction.',
-  'ReactionCreateOwnEmojiPacks': 'You can also [create your own](https://t-me.invalid/stickers) emoji packs and use them.',
   'ReactionReachLvlForReactionShort': {
     'one_value': 'Your channel needs to reach Level **%2$d** to add **%1$d** custom emoji as reactions.',
     'other_value': 'Your channel needs to reach Level **%2$d** to add **%1$d** custom emoji as reactions.'
   },
   'ReactionCustomReactions': 'Custom Reactions',
-  'ReactionMaxCountError': {
-    'one_value': 'You can select at most %1$d reaction.',
-    'other_value': 'You can select at most %1$d reactions.'
-  },
-  'ReactionApplyChangesDialog': 'You have changed the list of reactions. Apply changes?',
-  'MaximumReactionsHeader': 'Maximum reactions per post',
-  'MaximumReactionsInfo': 'Limit the number of different reactions that can be added to a post, including already published posts.',
-  'ChannelEnablePaidReactions': 'Enable Paid Reactions',
-  'ChannelEnablePaidReactionsInfo': 'Switch this on to let your subscribers set paid reactions with TeleSignal Stars, which you will be able to withdraw later as GRAM. [Learn More >](https://telegram-org.invalid/tos/stars)',
   'NobodyViewed': 'Nobody viewed',
   'MessageSeen': {
     'one_value': 'Seen',
@@ -2695,13 +2681,6 @@ const lang = {
     'one_value': '%1$d Emoji Pack',
     'other_value': '%1$d Emoji Packs'
   },
-  'ReactionsAll': 'All',
-  'EnableSomeReactionsInfo': 'Members of the group can use only certain approved emoji as reactions to messages.',
-  'EnableAllReactionsInfo': 'Members of the group can use any emoji as reactions to messages.',
-  'DisableReactionsInfo': 'Members of the group can’t add any reactions to messages.',
-  'OnlyAllowThisReactions': 'Only allow these reactions',
-  'AllReactions': 'All reactions',
-  'SomeReactions': 'Some reactions',
   'NoReactions': 'No reactions',
   'LimitReached': 'Limit Reached',
   'LimitReachedPinDialogsLocked': 'Sorry, you can\'t pin more than %1$d chats to the top. Unpin some that are currently pinned.',
@@ -3861,23 +3840,8 @@ const lang = {
   'QRCode.CreatingLink': 'Creating link…',
   'QRCode.Saved': 'QR code saved',
   'QRCode.Share': 'Share QR Code',
-  'QRCode.NoPaid.RemoveStarsFee': 'Remove %s fee',
   'QRCode.RemoveEmoji': 'Remove %s',
-  'QRCode.NoPaid.Free': 'Free',
   'QRCode.NoPaid.ExpiresIn': 'Expires in %s',
-  'QRCode.NoPaid.NoTimeLimit': 'No time limit',
-  'QRCode.NoPaid.Menu.Reset': 'Reset Code',
-  'QRCode.NoPaid.Menu.DisableTimer': 'Disable timer',
-  'QRCode.NoPaid.Menu.DisableTimerInfo': 'Stays free, no time limit',
-  'QRCode.NoPaid.Menu.EnableTimer': 'Enable timer',
-  'QRCode.NoPaid.Menu.EnableTimerInfo': 'Expires in 1 minute',
-  'QRCode.NoPaid.Menu.RestoreFee': 'Restore message fee',
-  'QRCode.NoPaid.Toast.Expired': 'Code expired, fee is back',
-  'QRCode.NoPaid.Toast.Expires': 'This code will expire in 1 minute',
-  'QRCode.NoPaid.Toast.Expiring': 'This code is about to expire.',
-  'QRCode.NoPaid.Toast.FeeRestored': 'Message fee restored',
-  'QRCode.NoPaid.Toast.NewCode': 'New code created',
-  'QRCode.NoPaid.Toast.NoTimeLimit': 'Code stays free, no time limit',
   'QRCode.LinkExpiring': 'This link is about to expire.',
   'InviteLink.ContextGetQRCode': 'Get QR Code',
   'InviteLink.QRCode.Title': 'Invite by QR Code',
@@ -4469,7 +4433,6 @@ const lang = {
   'PrivacySettingsController.Everbody': 'Everybody',
   'PrivacySettingsController.MyContacts': 'My Contacts',
   'PrivacySettingsController.Nobody': 'Nobody',
-  'PrivacySettingsController.Paid': 'Paid',
   'PrivacySettingsController.NeverShare': 'Never Share With',
   'PrivacySettingsController.AlwaysShare': 'Always Share With',
   'PrivacySettingsController.NeverAllow': 'Never Allow',
@@ -4814,7 +4777,6 @@ const lang = {
   'PasscodeLock.LogoutPopup.Description': 'Are you sure you want to log out?',
   'PasscodeLock.TurnOff.Description': 'Are you sure you want to turn passcode off?',
 
-  'PaidMessages.NewChatDescription': '%s charges %d for each message',
   'PaidMessages.FeeForMessages': {
     'one_value': 'Fee for %d message',
     'other_value': 'Fee for %d messages'
@@ -4844,9 +4806,6 @@ const lang = {
   },
   'NoPaidMessagesToken.Used': '%s used your QR code and can message you for free',
   'NoPaidMessagesToken.UsedOut': 'You used the QR code of %s and can message them for free',
-  'NoPaidMessagesToken.Imported': 'You can now message **%s** for free.',
-  'NoPaidMessagesToken.Invalid': 'This free messages link is invalid or has expired.',
-  'NoPaidMessagesToken.UserInvalid': 'This free messages link can\'t be used.',
 
   'UnsavedChanges': 'Unsaved Changes',
   'UnsavedChangesDescription': 'Are you sure you want to discard all changes?',
@@ -4938,7 +4897,6 @@ const lang = {
   'ChannelDirectMessages.Manage': 'Direct Messages',
   'ChannelDirectMessages.ViewChats': 'View Chats',
   'ChannelDirectMessages.Welcome': 'Send a direct message to the administrator of\n%s',
-  'ChannelDirectMessages.WelcomePaid': '%s\ncharges %s per message to its admin',
   'ChannelDirectMessages.ChooseMessage': 'Choose a message to reply to',
   'ChannelDirectMessages.ThreadsCount': {
     'one_value': '%d Chat',
@@ -5274,21 +5232,6 @@ const lang = {
   'StorageQuota.CacheSizeLimitAuto': 'Auto',
 
   'PostsSearch.TabName': 'Posts',
-  'PostsSearch.Title': 'Global Search',
-  'PostsSearch.Description': 'Type a keyword to search for posts from public channels.',
-  'PostsSearch.TitleLimited': 'Limit Reached',
-  'PostsSearch.DescriptionLimited': {
-    'one_value': 'You can make up to %d search query per day.',
-    'other_value': 'You can make up to %d search queries per day.'
-  },
-  'PostsSearch.FreeSearches': {
-    'one_value': '%d free search remaining today',
-    'other_value': '%d free searches remaining today.'
-  },
-  'PostsSearch.NeedPremium': 'Global search is a Premium feature.',
-  'PostsSearch.SearchFor': 'Search for %s',
-  'PostsSearch.FreeUnlocksIn': 'free search unlocks in %s',
-  'PostsSearch.StarsSpent': '**%s** spent on extra search',
 
   'EditThisPhoto': 'Edit this photo',
   'EditThisVideo': 'Edit this video',

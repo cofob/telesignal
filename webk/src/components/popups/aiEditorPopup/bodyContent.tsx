@@ -324,7 +324,7 @@ export const AiEditorPopupBodyContent = () => {
                   onEffect: setEffect
                 });
 
-                sendMenu.setPeerParams({peerId, isPaid: false});
+                sendMenu.setPeerParams({peerId});
               });
             }
 

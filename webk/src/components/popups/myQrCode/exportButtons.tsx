@@ -1,7 +1,7 @@
 import Button from '@components/buttonTsx';
 import {toastNew} from '@components/toast';
 import {shareToPeers} from '@components/popups/shareUrl';
-import I18n, {LangPackKey} from '@lib/langPack';
+import I18n from '@lib/langPack';
 import copyQrCode from '@helpers/qrCode/copyQrCode';
 import createDownloadAnchor from '@helpers/dom/createDownloadAnchor';
 import {ObjectURLScope} from '@helpers/objectUrl';
@@ -16,9 +16,7 @@ export type ExportActionsOptions = {
   /** The file name without extension: the username or the title */
   fileName: () => string,
   /** When the code on screen runs out (unix seconds); absent, or `undefined`, for a code that does not */
-  expires?: () => number | undefined,
-  /** The toast of the refusal: the fee code says its own */
-  expiringToast?: LangPackKey | (() => LangPackKey)
+  expires?: () => number | undefined
 };
 
 /** Within `EXPIRY_CUTOFF_SECONDS` of its end a code would be dead on arrival */
@@ -53,7 +51,7 @@ export function createExportActions(options: ExportActionsOptions) {
 
   const refuse = (expires = options.expires?.()) => {
     if(!endsSoon(expires)) return false;
-    toastNew({langPackKey: (typeof options.expiringToast === 'function' ? options.expiringToast() : options.expiringToast) ?? 'QRCode.LinkExpiring'});
+    toastNew({langPackKey: 'QRCode.LinkExpiring'});
     return true;
   };
 

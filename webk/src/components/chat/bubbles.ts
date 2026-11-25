@@ -182,7 +182,7 @@ import isUnreadByReadCursor from '@appManagers/utils/messages/isUnreadByReadCurs
 import {setPeerLanguageLoaded} from '@stores/peerLanguage';
 import ButtonIcon from '@components/buttonIcon';
 import showAboutAdPopup from '@components/popups/aboutAd';
-import numberThousandSplitter, {numberThousandSplitterForStars} from '@helpers/number/numberThousandSplitter';
+import numberThousandSplitter from '@helpers/number/numberThousandSplitter';
 import wrapGeo from '@components/wrappers/geo';
 import safePlay from '@helpers/dom/safePlay';
 import flatten from '@helpers/array/flatten';
@@ -683,7 +683,6 @@ type EmptyPlaceholderType =
   | 'greeting'
   | 'restricted'
   | 'premiumRequired'
-  | 'paidMessages'
   | 'directChannelMessages'
   | 'topic'
   | 'logs'
@@ -10115,7 +10114,6 @@ export default class ChatBubbles {
       timeSpan = bubble.timeSpan = MessageRender.setTime({
         chat: this.chat,
         chatType: this.chat.type,
-        groupedMessagesCount: groupedMessages?.length,
         message,
         reactionsMessage,
         isOut,
@@ -13400,46 +13398,12 @@ export default class ChatBubbles {
       subtitle.classList.add('center', BASE_CLASS + '-subtitle');
 
       elements.push(stickerDiv, subtitle);
-    } else if(type === 'paidMessages') {
-      const stickerDiv = document.createElement('div');
-      stickerDiv.classList.add(BASE_CLASS + '-sticker');
-      stickerDiv.append(Icon('premium_restrict_filled'));
-
-      const starsAmount = await this.managers.appPeersManager.getStarsAmount(this.peerId); // should be cached probably here
-
-      const starsElement = document.createElement('span');
-      starsElement.classList.add(BASE_CLASS + '-stars');
-      starsElement.append(
-        Icon('star', BASE_CLASS + '-star-icon'),
-        numberThousandSplitterForStars(starsAmount)
-      );
-
-      const subtitle = i18n('PaidMessages.NewChatDescription', [
-        await wrapPeerTitle({peerId: this.peerId, onlyFirstName: true}),
-        starsElement
-      ]);
-      subtitle.classList.add('center', BASE_CLASS + '-subtitle');
-
-      elements.push(stickerDiv, subtitle);
     } else if(type === 'directChannelMessages') {
       const stickerDiv = document.createElement('div');
       stickerDiv.classList.add(BASE_CLASS + '-sticker');
       stickerDiv.append(Icon('round_chats_filled'));
 
-      const starsAmount = await this.managers.appPeersManager.getStarsAmount(this.peerId);
-
-      let starsElement: HTMLElement;
-
-      if(starsAmount) {
-        starsElement = document.createElement('span');
-        starsElement.classList.add(BASE_CLASS + '-stars');
-        starsElement.append(
-          Icon('star', BASE_CLASS + '-star-icon'),
-          numberThousandSplitterForStars(starsAmount)
-        );
-      }
-
-      const subtitle = i18n(starsAmount ? 'ChannelDirectMessages.WelcomePaid' : 'ChannelDirectMessages.Welcome', [await wrapPeerTitle({peerId: this.peerId}), starsElement]);
+      const subtitle = i18n('ChannelDirectMessages.Welcome', [await wrapPeerTitle({peerId: this.peerId})]);
       subtitle.classList.add('center', BASE_CLASS + '-subtitle');
 
       elements.push(stickerDiv, subtitle);
@@ -13618,10 +13582,6 @@ export default class ChatBubbles {
         const requirement = await this.managers.appUsersManager.getRequirementToContact(this.peerId.toUserId());
         if(requirement._ === 'requirementToContactPremium') {
           renderPromise = this.renderEmptyPlaceholder('premiumRequired', bubble, message, elements);
-        } else if(
-          requirement._ === 'requirementToContactPaidMessages'
-        ) {
-          renderPromise = this.renderEmptyPlaceholder('paidMessages', bubble, message, elements);
         } else {
           renderPromise = this.renderEmptyPlaceholder('greeting', bubble, message, elements);
         }

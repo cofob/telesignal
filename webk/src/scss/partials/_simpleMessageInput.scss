@@ -75,7 +75,7 @@
     }
   }
 
-  // * round, as the chat's Send; a price widens it into a pill
+  // * round, as the chat's Send
   &-confirm {
     --size: 2.5rem;
     flex: 0 0 auto;
@@ -97,10 +97,6 @@
       display: grid;
       place-items: center;
       pointer-events: none;
-
-      &-item {
-        grid-area: 1 / 1;
-      }
     }
 
     // * the chat's Send plane: its size and the nudge that centres it by eye
@@ -108,16 +104,6 @@
       font-size: 1.375rem;
       margin-inline-start: -3px;
       margin-bottom: -1px;
-    }
-
-    &-inner {
-      display: flex;
-      align-items: center;
-      gap: 0.125rem;
-
-      &-star {
-        font-size: 1.125rem;
-      }
     }
   }
 

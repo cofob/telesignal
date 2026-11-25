@@ -100,7 +100,6 @@ import {usePeer} from '@stores/peers';
 import {useAppState} from '@stores/appState';
 import {AutonomousSavedDialogList} from '@components/autonomousDialogList/savedDialogs';
 import liteMode from '@helpers/liteMode';
-import {wrapGlobalPostsSearch} from './sidebarLeft/globalPostsSearch';
 import createMiddleware from '@helpers/solid/createMiddleware';
 import Tabs from '@components/tabs';
 import Section from '@components/section';
@@ -143,7 +142,7 @@ export type SearchSuperContext = {
 
 export type SearchSuperMediaType = 'stories' | 'members' | 'media' |
   'files' | 'links' | 'music' | 'chats' | 'voice' | 'gifs' | 'groups' | 'similar' |
-  'savedDialogs' | 'saved' | 'channels' | 'posts';
+  'savedDialogs' | 'saved' | 'channels';
 export type SearchSuperMediaTab = {
   inputFilter?: SearchSuperType,
   name: LangPackKey,
@@ -741,8 +740,7 @@ export default class AppSearchSuper {
       ...GRID_MEDIA_TYPES,
       'stories',
       'chats',
-      'channels',
-      'posts'
+      'channels'
     ]);
     for(const mediaTab of this.mediaTabs) {
       const container = document.createElement('div');
@@ -2827,19 +2825,6 @@ export default class AppSearchSuper {
     this.loaded[mediaTab.type] = true;
   }
 
-  globalPostsSearch: ReturnType<typeof wrapGlobalPostsSearch>;
-  private async loadPosts({mediaTab, middleware}: SearchSuperLoadTypeOptions) {
-    if(!this.globalPostsSearch) {
-      this.globalPostsSearch = wrapGlobalPostsSearch({
-        middleware,
-        query: this.searchContext.query
-      });
-      mediaTab.itemsTab.append(this.globalPostsSearch.dom);
-    }
-
-    this.globalPostsSearch.loadMore();
-  }
-
   private loadType(options: SearchSuperLoadTypeOptions) {
     const managers = bindManagersToSession(this.managers);
     const {
@@ -2867,8 +2852,6 @@ export default class AppSearchSuper {
       promise = this.loadSavedDialogs(options);
     } else if(type === 'channels') {
       promise = this.loadChannels(options);
-    } else if(type === 'posts') {
-      promise = this.loadPosts(options);
     }
 
     if(promise) {
@@ -3713,7 +3696,6 @@ export default class AppSearchSuper {
     this.membersParticipantMap = undefined;
     this.membersMiddlewareHelper?.destroy();
     this.membersMiddlewareHelper = undefined;
-    this.globalPostsSearch = undefined;
     // * the last query's paging, whose middleware may be let go only once its results are off screen
     this._loadSavedDialogs = undefined;
   }

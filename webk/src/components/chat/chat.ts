@@ -1765,10 +1765,7 @@ export default class Chat extends EventListenerBase<{
   }
 
   public async sendReaction(options: SendReactionOptions) {
-    await this.managers.appReactionsManager.sendReaction({
-      ...options,
-      count: options.count ?? 1
-    });
+    await this.managers.appReactionsManager.sendReaction(options);
   }
 
   public async getAutoDeletePeriod(): Promise<AckedResult<number>> {

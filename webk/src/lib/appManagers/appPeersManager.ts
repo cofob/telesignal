@@ -275,15 +275,6 @@ export class AppPeersManager extends AppManager {
     return peerId && !peerId.isUser() && this.appChatsManager.canManageDirectMessages(peerId.toChatId());
   }
 
-  /**
-   * The amount of stars necessary to be paid for every message if the target peer had enabled it
-   */
-  public getStarsAmount(peerId: PeerId, onlyCached?: boolean): MaybePromise<number | undefined> {
-    if(peerId.isUser()) return this.appUsersManager.getStarsAmount(peerId.toUserId(), undefined, onlyCached);
-
-    return this.appChatsManager.getStarsAmount(peerId.toChatId());
-  }
-
   /* public getInputPeer(peerString: string): InputPeer {
     var firstChar = peerString.charAt(0);
     var peerParams = peerString.substr(1).split('_');

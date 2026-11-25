@@ -30,7 +30,7 @@ import {QrCard} from '@components/popups/myQrCode/card';
 import {backdropColors} from '@components/popups/myQrCode/colors';
 import exportImage from '@components/popups/myQrCode/exportImage';
 import {PatternField} from '@components/popups/myQrCode/field';
-import {ExpiryPill, FeePill} from '@components/popups/myQrCode/feePill';
+import {ExpiryPill} from '@components/popups/myQrCode/expiryPill';
 import createQrLink from '@components/popups/myQrCode/linkState';
 import createLayerStack from '@components/popups/myQrCode/layerStack';
 import {BUILT_IN_BACKDROPS, usableBackdrops} from '@components/popups/myQrCode/backdropTable';
@@ -179,7 +179,7 @@ function MyQrCodePopup(props: {
 
   /* The link and what is written under the code */
   const username = createMemo(() => getPeerActiveUsernames(peer)[0]);
-  // the own profile: username, phone or a contact link, and the fee code; anyone else: a plain link
+  // the own profile: username, phone or a contact link; anyone else: a plain link
   const own = createQrLink({managers, peer: peer as User.user, enabled: isSelf});
   const url = createMemo(() => {
     if(own.enabled) return own.url();
@@ -204,8 +204,8 @@ function MyQrCodePopup(props: {
   });
 
   const ready = () => size().width > 0;
-  // the fee pill, or for a contact link the time left, stands under the card
-  const pillShown = () => own.fee.visible() || own.kind() === 'contact';
+  // for a contact link the time left stands under the card
+  const pillShown = () => own.kind() === 'contact';
   const surface = createMemo(() => surfaceGeometry(size().width, size().height, {captioned: !!caption(), pill: pillShown()}));
   const cardRect = createMemo<Rect>(() => {
     const {width, card, cardTop} = surface();
@@ -442,8 +442,7 @@ function MyQrCodePopup(props: {
     makeImage,
     url,
     fileName: () => username() || props.title,
-    expires: own.expires,
-    expiringToast: () => own.fee.isExpiring() ? 'QRCode.NoPaid.Toast.Expiring' : 'QRCode.LinkExpiring'
+    expires: own.expires
   });
 
   // the backdrop's wave goes for a new colour; the card itself stands still, at its size, whatever changes (Android
@@ -453,9 +452,8 @@ function MyQrCodePopup(props: {
   const cardMiddle = () => cardRect().top + (cardLayout()?.shift ?? 0) + surface().card.height * (cardLayout()?.scale ?? 1) / 2;
   let cardPlace: HTMLDivElement;
 
-  // the export buttons step back for a panel, and while the free code runs on its minute: such a code is not one to
-  // hand out, as on Android; nor is one of the other kind, still on screen while the code asked for is on its way
-  const exportAway = () => !!panel() || own.fee.mode() === 'temporary' || own.fee.pending();
+  // the export buttons step back for a panel
+  const exportAway = () => !!panel();
 
   let shareButton: HTMLElement;
   if(props.highlightShare) {
@@ -568,8 +566,8 @@ function MyQrCodePopup(props: {
             introStart={introStart}
             qrRef={(get) => { getQr = get; }}
           />
-          <Show when={own.fee.visible()} fallback={own.kind() === 'contact' && <ExpiryPill away={!!panel()} left={own.left} top={surface().card.height + PILL_GAP} />}>
-            <FeePill away={!!panel()} fee={own.fee} top={surface().card.height + PILL_GAP} foreground={() => colors().foreground} />
+          <Show when={pillShown()}>
+            <ExpiryPill away={!!panel()} left={own.left} top={surface().card.height + PILL_GAP} />
           </Show>
         </div>
         <PopupElement.CloseButton class={styles.close} />

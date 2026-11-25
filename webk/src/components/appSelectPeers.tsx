@@ -35,13 +35,10 @@ import {Middleware, MiddlewareHelper, getMiddleware} from '@helpers/middleware';
 import {createSignal, Setter, JSX, createRoot, createEffect} from 'solid-js';
 import DialogsPlaceholder from '@helpers/dialogsPlaceholder';
 import ListenerSetter from '@helpers/listenerSetter';
-import Icon from '@components/icon';
 import wrapEmojiText from '@richTextProcessor/wrapEmojiText';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import SelectorSearch from '@components/selectorSearch';
-import formatNumber from '@helpers/number/formatNumber';
-import namedPromises from '@helpers/namedPromises';
 import createContextMenu from '@helpers/dom/createContextMenu';
 import {ButtonMenuItemOptionsVerifiable} from '@components/buttonMenu';
 import {FOLDER_ID_ALL, REAL_FOLDERS} from '@lib/appManagers/constants';
@@ -149,8 +146,6 @@ export default class AppSelectPeers {
   public section: SectionParts;
 
   public participants: Map<PeerId, ChatParticipant | ChannelParticipant> = new Map();
-  public starsAmountByPeer: Map<PeerId, number> = new Map();
-  public onStarsAmountUpdate: () => void;
   private listenerSetter: ListenerSetter;
   public getMoreCustom: (q: string, middleware: () => boolean) => Promise<{result: PeerId[], isEnd: boolean}>;
 
@@ -326,52 +321,6 @@ export default class AppSelectPeers {
 
       if(!this.promise) {
         this.processPlaceholderOnResults();
-      }
-
-      if(this.chatRightsActions?.some((action) => action.startsWith('send_'))) {
-        Promise.all(peerIds.map(async(peerId) => {
-          const userId = peerId.toUserId();
-
-          const {requirement, starsAmount, canManageDirectMessages} = await namedPromises({
-            requirement: managers.appUsersManager.getRequirementToContact(userId),
-            starsAmount: managers.appPeersManager.getStarsAmount(peerId),
-            canManageDirectMessages: peerId.isAnyChat() && managers.appChatsManager.canManageDirectMessages(peerId.toChatId())
-          });
-
-          return {peerId, userId, requirement, requiredStars: starsAmount, canManageDirectMessages};
-        })).then((result) => {
-          for(const {peerId, requirement, requiredStars, canManageDirectMessages} of result) {
-            this.starsAmountByPeer.set(peerId.toPeerId(false), +requiredStars || 0);
-
-            const element = this.getElementByKey(peerId.toPeerId(false));
-            if(!element) {
-              continue;
-            }
-
-            if(requirement?._ === 'requirementToContactPremium') {
-              const lock = Icon('premium_lock', 'selector-premium-lock');
-              element.append(lock);
-              element.classList.add('is-premium-locked');
-            } else if(+requiredStars && !canManageDirectMessages) {
-              const starsAmount = formatNumber(+requiredStars, 1);
-
-              const starsBadge = document.createElement('span');
-              starsBadge.classList.add('stars-badge-base', 'dialog-stars-badge');
-
-              const starsBadgeStars = document.createElement('span');
-              starsBadgeStars.append(starsAmount + '');
-
-              starsBadge.append(
-                Icon('star', 'stars-badge-base__icon'),
-                starsBadgeStars
-              );
-
-              element.append(starsBadge);
-            }
-          }
-
-          this.onStarsAmountUpdate?.();
-        });
       }
     };
 

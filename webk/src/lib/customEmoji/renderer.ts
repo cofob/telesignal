@@ -25,8 +25,7 @@ import CustomEmojiElement, {CustomEmojiElements} from '@lib/customEmoji/element'
 import assumeType from '@helpers/assumeType';
 import {IS_WEBM_SUPPORTED} from '@environment/videoSupport';
 import {observeResize, unobserveResize} from '@components/resizeObserver';
-import {CUSTOM_EMOJI_FADE_IN_DURATION, CUSTOM_EMOJI_FRAME_INTERVAL, PAID_REACTION_EMOJI_DOCID} from '@lib/customEmoji/constants';
-import lottieLoader from '@lib/lottie/lottieLoader';
+import {CUSTOM_EMOJI_FADE_IN_DURATION, CUSTOM_EMOJI_FRAME_INTERVAL} from '@lib/customEmoji/constants';
 import StickerType from '@config/stickerType';
 import {Accessor, createEffect, createMemo, createRoot, createSignal, on, Setter} from 'solid-js';
 import readValue from '@helpers/solid/readValue';
@@ -979,29 +978,8 @@ export class CustomEmojiRendererElement extends HTMLElement {
     }
   }
 
-  private async wrapPaidReactionEmoji(element: CustomEmojiElement): ReturnType<typeof wrapSticker> {
-    const size = this.size;
-    const player = await lottieLoader.loadAnimationAsAsset({
-      container: element,
-      width: size.width,
-      height: size.height,
-      loop: true,
-      autoplay: CUSTOM_EMOJI_INSTANT_PLAY,
-      sync: true
-    }, 'StarReaction')
-
-    return {
-      width: size.width,
-      height: size.height,
-      downloaded: true,
-      load: () => Promise.resolve(player),
-      render: undefined as any
-    }
-  }
-
   private wrap({
     doc,
-    isPaidReactionEmoji,
     addCustomEmojis,
     usingOwnQueue,
     lazyLoadQueue,
@@ -1010,7 +988,6 @@ export class CustomEmojiRendererElement extends HTMLElement {
     loadPromises
   }: {
     doc: MyDocument,
-    isPaidReactionEmoji?: boolean,
     addCustomEmojis: Parameters<typeof wrapRichText>[1]['customEmojis'],
     usingOwnQueue?: boolean,
     lazyLoadQueue?: LazyLoadQueue | false,
@@ -1069,7 +1046,7 @@ export class CustomEmojiRendererElement extends HTMLElement {
     }
 
     const _loadPromises: Promise<any>[] = [];
-    const promise = isPaidReactionEmoji ? this.wrapPaidReactionEmoji(newElementsArray[0]) : wrapSticker({
+    const promise = wrapSticker({
       div: newElementsArray,
       doc,
       width: size.width,
@@ -1399,23 +1376,7 @@ export class CustomEmojiRendererElement extends HTMLElement {
       const missing: DocId[] = [];
       const cachedPromises = docs.map((doc, idx) => {
         if(!doc) {
-          const docId = docIds[idx];
-          if(docId === PAID_REACTION_EMOJI_DOCID) {
-            return this.wrap({
-              ...wrapOptions,
-              doc: {
-                _: 'document',
-                id: docId,
-                attributes: [],
-                // * an editor's emoji are not in the page, its canvas draws them: the Stars' animation
-                // * plays there as any animated emoji does
-                ...(this.isSelectable && {sticker: StickerType.Lottie, animated: true})
-              } as MyDocument,
-              isPaidReactionEmoji: true,
-              loadPromises
-            });
-          }
-          missing.push(docId);
+          missing.push(docIds[idx]);
           return;
         }
 

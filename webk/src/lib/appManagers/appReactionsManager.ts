@@ -69,8 +69,7 @@ export type SendReactionOptions = {
   // onlyLocal?: boolean,
   onlyLocalWithUpdate?: boolean,
   onlyReturn?: boolean,
-  sendAsPeerId?: PeerId,
-  count?: number
+  sendAsPeerId?: PeerId
 };
 
 export type ReactionsContext = Pick<Message.message, 'peerId' | 'mid' | 'reactions'>;
@@ -670,8 +669,7 @@ export class AppReactionsManager extends AppManager {
     // onlyLocal,
     onlyLocalWithUpdate,
     onlyReturn,
-    sendAsPeerId,
-    count
+    sendAsPeerId
   }: SendReactionOptions): Promise<MessageReactions> {
     if(this.appMessagesManager.isEphemeralMessage(message)) {
       return message.reactions;

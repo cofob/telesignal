@@ -580,7 +580,7 @@ export default function showNewMediaPopup(
         onEffect: setEffectAccessor
       });
 
-      sendMenu?.setPeerParams({peerId: chat.peerId, isPaid: false});
+      sendMenu?.setPeerParams({peerId: chat.peerId});
     }
 
     currentPopup = handle;

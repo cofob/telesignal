@@ -1,4 +1,3 @@
-import getChatReactionsSummary from '@appManagers/utils/reactions/getChatReactionsSummary';
 import {
   Component,
   createEffect,
@@ -62,19 +61,17 @@ async function loadEditChatData(
   tab: InstanceType<typeof AppEditChatTab>,
   chatId: ChatId
 ) {
-  const [chatFull, chat, appConfig, availableReactions] = await Promise.all([
+  const [chatFull, chat, appConfig] = await Promise.all([
     tab.managers.appProfileManager.getChatFull(chatId, true),
     tab.managers.appChatsManager.getChat(chatId) as Promise<EditChat>,
-    tab.managers.apiManager.getAppConfig(),
-    tab.managers.appReactionsManager.getAvailableReactions()
+    tab.managers.apiManager.getAppConfig()
   ]);
 
   return {
     chatId,
     chatFull: chatFull as EditChatFull,
     chat,
-    appConfig,
-    availableReactions
+    appConfig
   };
 }
 
@@ -121,12 +118,10 @@ function EditChatForm(props: {
   const {
     AvatarNewTsx,
     ChatType,
-    I18n,
     PeerTitleTsx,
     appImManager,
     confirmationPopup,
     i18n,
-    join,
     toastNew,
     wrapEmojiText
   } = useHotReloadGuard();
@@ -164,9 +159,6 @@ function EditChatForm(props: {
   const canManageInviteLinks = () => hasRights(chat(), 'invite_links');
   const canInviteUsers = () => hasRights(chat(), 'invite_users');
   const linkedChatId = () => channelFull()?.linked_chat_id;
-  const activeReactionEmoticons = props.data.availableReactions
-    .filter((reaction) => !reaction.pFlags.inactive)
-    .map((reaction) => reaction.reaction);
 
   const avatarEdit = new AvatarEdit((payload) => {
     uploadAvatar = payload;
@@ -224,34 +216,14 @@ function EditChatForm(props: {
       return 'DiscussionInfo';
     }
   });
-  const reactionsSubtitle = createMemo(() => {
-    const summary = getChatReactionsSummary({
-      reactions: chatFull().available_reactions,
-      isBroadcast: isBroadcast(),
-      paidEnabled: !!channelFull()?.pFlags.paid_reactions_available,
-      activeEmoticons: activeReactionEmoticons
-    });
-
-    switch(summary.type) {
-      case 'all': return i18n('ReactionsAll');
-      case 'off': return i18n('Checkbox.Disabled');
-      case 'count': return String(summary.count);
-      case 'fraction': return `${summary.selected}/${summary.total}`;
-    }
-  });
   const groupStickerSetSubtitle = (isEmoji: boolean) => {
     const set = isEmoji ? channelFull()?.emojiset : channelFull()?.stickerset;
     return set ? wrapEmojiText(set.title) : i18n('Checkbox.Disabled');
   };
   const permissionsSubtitle = createMemo(() => {
-    const permissions = PERMISSION_FLAGS.reduce((count, flag) => {
+    return PERMISSION_FLAGS.reduce((count, flag) => {
       return count + +hasRights(chat(), flag, chat().default_banned_rights);
     }, 0) + '/' + PERMISSION_FLAGS.length;
-    const paid = channel()?.send_paid_messages_stars ?
-      I18n.format('PrivacySettingsController.Paid', true) :
-      undefined;
-
-    return join([permissions, paid].filter(Boolean));
   });
   const administratorsCount = createMemo(() => {
     const participants = (chatFull() as ChatFull.chatFull).participants as ChatParticipants.chatParticipants;
@@ -615,17 +587,6 @@ function EditChatForm(props: {
               <Row.Icon icon="adduser" />
               <Row.Title>{i18n(isBroadcast() ? 'SubscribeRequests' : 'MemberRequests')}</Row.Title>
               <Row.Subtitle>{chatFull().requests_pending}</Row.Subtitle>
-            </Row>
-          </Show>
-
-          {/* TeleSignal: a Signal group takes every reaction, with no setting of its own */}
-          <Show when={canChangeInfo() && isAdmin() && isChannel()}>
-            <Row clickable={() => {
-              tab.slider.createTab(hotReloadGuard.tabs.AppChatReactionsTab).open({chatId: chatId()});
-            }}>
-              <Row.Icon icon="reactions_filled" />
-              <Row.Title>{i18n('Reactions')}</Row.Title>
-              <Row.Subtitle>{reactionsSubtitle()}</Row.Subtitle>
             </Row>
           </Show>
 

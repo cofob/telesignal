@@ -162,13 +162,17 @@ and boosts and statistics are removed. What remains of bots are inline buttons i
 `appMessagesManager`).
 
 Stars, gifts, Premium and payments are removed from the UI and from the managers' sending: paid messages, their
-repay requests and queue, suggested posts, group message charges, the composer's stars price, paid reactions and
-collectible gift themes in the QR code popup and the chat themes. `appPaymentsManager`, `appGiftsManager` and
-`appManagers/utils/gifts` stay in the worker. What still reads Stars data that Signal never sends: the forward
-popup's stars total (`forward.tsx`, `appSelectPeers.starsAmountByPeer`, the `stars` of `InputFieldMessage`), the paid
-switch of the channel reactions editor (`chatReactions.tsx`, `chatReactionsState.ts`) with the channel screens, the
-price of paid media (`sendFile`'s `stars`, next to the paid media look Signal albums borrow), and the free-messages
-code of the QR code popup (`myQrCode/feeCode.ts`).
+repay requests and queue, suggested posts, group message charges, the stars prices of the composer, the forward popup
+and the chat picker, paid reactions and their Stars emoji, the channel reactions editor, the public posts search, the
+free-messages code of the QR code popup and its `?free=` links, and collectible gift themes in the QR code popup and
+the chat themes. `appPaymentsManager`, `appGiftsManager` and `appManagers/utils/gifts` stay in the worker. What still
+reads Stars data that Signal never sends: the price of paid media (`sendFile`'s `stars`, `generateOutgoingPaidMedia`
+and the paid media bubble, whose look Signal albums borrow) and the attach popup's paid media menu that sets it
+(`newMedia.tsx`, `makePaid.tsx`), which only a broadcast channel shows; the texts of Stars, gift and paid-message
+service messages (`messageActionTextNewUnsafe.ts`, the refund text in `bubbles.ts`); the `tg://stars_topup` link,
+which answers that it is unsupported; and `rootScope`'s `stars_balance` event. Premium remains where it gates
+contact: `getRequirementToContact` and `isPremiumRequiredToContact` with the composer's and the empty chat's Premium
+notices.
 
 Communities are removed from the UI, the chat list and the managers. What is left are the guards Telegram's type
 unions need (`communityFull` and `communityForbidden` checks in `hasRights`, `appProfileManager` and the reactions
@@ -178,7 +182,7 @@ and call code) and the places that drop a community they are handed (`appChatsMa
 Forums: the group forum tab and its topic list are removed, so a forum opens no topic screen. `isForum` checks and
 topic thread ids stay in the shared chat, history and dialog code, as do the bot forum and channel direct message
 tabs (`forumTab/botforumTab.ts`, `forumTab/monoforumTab.ts`) and the topic editor, which the profile's media tabs
-open (`sidebarRight/tabs/sharedMedia.tsx`). About 140 `.invalid` links of these features remain in `src`; the strings
+open (`sidebarRight/tabs/sharedMedia.tsx`). About 100 `.invalid` links of these features remain in `src`; the strings
 that Signal chats can show point to Signal on the phone instead.
 
 ## Web A calls Note to Self «Your Cloud Storage»

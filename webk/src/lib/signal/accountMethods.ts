@@ -23,7 +23,7 @@ export function buildAccountMethodHandlers(host: SignalMethodHost): SignalMethod
     // * the notification defaults of private chats and groups, which the engine keeps on this device; a chat's own
     // * settings come with its dialog
     'account.getNotifySettings': async({peer}: {peer: InputNotifyPeer}): Promise<PeerNotifySettings> => {
-      if(peer._ === 'inputNotifyPeer' || peer._ === 'inputNotifyForumTopic' || peer._ === 'inputNotifyCommunity') {
+      if(peer._ === 'inputNotifyPeer' || peer._ === 'inputNotifyForumTopic') {
         return {_: 'peerNotifySettings'};
       }
 

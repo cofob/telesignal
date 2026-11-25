@@ -1,4 +1,4 @@
-import {createMemo, createResource, createSignal, onCleanup, Show} from 'solid-js';
+import {createMemo, createSignal, onCleanup, Show} from 'solid-js';
 import {unwrap} from 'solid-js/store';
 import {Theme, UserFull, WallPaper, WallPaperSettings} from '@layer';
 import PopupElement, {createPopup} from '@components/popups/indexTsx';
@@ -118,12 +118,6 @@ function WallPaperPreview(options: ChatWallPaperPreviewOptions & {managers: AppM
   const isImage = wallPaper._ === 'wallPaper' && !wallPaper.pFlags.pattern;
 
   const fullPeer = useFullPeer(peerId);
-  // * someone who charges for messages is not told they could apply it: as tdesktop, just the date
-  const [starsAmount] = createResource(() => {
-    return fromMessageId || peerId === rootScope.myId ?
-      0 :
-      managers.appPeersManager.getStarsAmount(peerId).catch((): number => 0);
-  });
   const [isNight, setIsNight] = createSignal(themeController.isNight());
   const [blur, setBlur] = createSignal(!!settings.pFlags.blur);
   // * a picked image is drawn blurred once its blurred copy is made; applied, it is as asked at once
@@ -262,15 +256,13 @@ function WallPaperPreview(options: ChatWallPaperPreviewOptions & {managers: AppM
       <PopupElement.Body>
         <PopupElement.Scrollable>
           <FakeBubbles class={styles.preview} contentClass={styles.messages} theme={theme()} wallPaper={drawn()}>
-            <Show when={!starsAmount.loading}>
-              <div class={classNames(serviceStyles.text, styles.service)}>
-                {fromMessageId || peerId === rootScope.myId || starsAmount() ?
-                  // * the fake messages are today's, as the chat's own date would say — and nobody else is to
-                  // * take it in Saved Messages
-                  <I18nTsx key="Date.Today" /> :
-                  <I18nTsx key="ChatBackgroundHint" args={<PeerTitleTsx peerId={peerId} onlyFirstName />} />}
-              </div>
-            </Show>
+            <div class={classNames(serviceStyles.text, styles.service)}>
+              {fromMessageId || peerId === rootScope.myId ?
+                // * the fake messages are today's, as the chat's own date would say — and nobody else is to
+                // * take it in Saved Messages
+                <I18nTsx key="Date.Today" /> :
+                <I18nTsx key="ChatBackgroundHint" args={<PeerTitleTsx peerId={peerId} onlyFirstName />} />}
+            </div>
             <BubbleLayout text={I18n.format('BackgroundColorSinglePreviewLine3', true)} tail group="single" />
             <BubbleLayout text={I18n.format('BackgroundPreviewLooksGood', true)} tail out group="single" />
           </FakeBubbles>

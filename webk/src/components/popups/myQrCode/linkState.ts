@@ -5,7 +5,6 @@ import getPeerActiveUsernames from '@appManagers/utils/peers/getPeerActiveUserna
 import {buildTelegramUserQrUrl} from '@helpers/qrCode/paintQrCode';
 import {Caption} from '@components/popups/myQrCode/caption';
 import {createCountdown} from '@components/popups/myQrCode/countdown';
-import createFeeCode from '@components/popups/myQrCode/feeCode';
 import {buildPhoneUrl, chooseOwnLink, linkCaption, OwnLinkKind} from '@components/popups/myQrCode/link';
 
 // `QrShareServer.CONTACT_TOKEN_RETRY`
@@ -18,7 +17,7 @@ const RETRY_MS = 5000;
 export default function createQrLink(options: {
   managers: AppManagers,
   peer: User.user,
-  /** Only the own profile has these links and a fee code */
+  /** Only the own profile has these links */
   enabled: boolean
 }) {
   const {managers, peer, enabled} = options;
@@ -26,7 +25,6 @@ export default function createQrLink(options: {
   const username = enabled ? getPeerActiveUsernames(peer)[0] : undefined;
   const [kind, setKind] = createSignal<OwnLinkKind | undefined>(username ? 'username' : undefined);
   const [contact, setContact] = createSignal<{url: string, expires: number}>();
-  const temporaryOnly = () => kind() === 'contact';
 
   let retryTimer: number, disposed = false;
   onCleanup(() => {
@@ -66,10 +64,8 @@ export default function createQrLink(options: {
   const contactExpires = () => kind() === 'contact' ? contact()?.expires : undefined;
   const left = createCountdown(contactExpires, () => { exportContact(); });
 
-  const fee = createFeeCode({managers, enabled, temporaryOnly, decided: () => kind() !== undefined});
-
-  /** The link without any code on it; empty while it is still being chosen */
-  const plainUrl = createMemo(() => {
+  /** The link; empty while it is still being chosen */
+  const url = createMemo(() => {
     switch(kind()) {
       case 'username': return buildTelegramUserQrUrl(username);
       case 'phone': return buildPhoneUrl(peer.phone ?? '');
@@ -77,8 +73,6 @@ export default function createQrLink(options: {
       default: return '';
     }
   });
-
-  const url = createMemo(() => fee.urlFor(plainUrl()));
 
   const caption = createMemo<Caption | undefined>(() => {
     switch(kind()) {
@@ -91,16 +85,11 @@ export default function createQrLink(options: {
   return {
     enabled,
     kind,
-    fee,
     url,
-    plainUrl,
     /** Seconds left to the contact link; the pill under the square card counts them */
     left,
     caption,
-    /** When the code on screen runs out (unix seconds): the contact link or the fee code, whichever goes first */
-    expires: () => {
-      const ends = [contactExpires(), fee.expires()].filter((end) => end !== undefined);
-      return ends.length ? Math.min(...ends) : undefined;
-    }
+    /** When the contact link on screen runs out (unix seconds) */
+    expires: contactExpires
   };
 }
