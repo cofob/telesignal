@@ -5,7 +5,7 @@
  * https://github.com/zhukov/webogram/blob/master/LICENSE
  */
 
-import {ConstructorDeclMap, Message, MessageFwdHeader, Peer, StarsAmount, Update, Updates, UpdatesChannelDifference, UpdatesDifference} from '@layer';
+import {ConstructorDeclMap, Message, MessageFwdHeader, Peer, Update, Updates, UpdatesChannelDifference, UpdatesDifference} from '@layer';
 import {LogTypes} from '@lib/logger';
 import assumeType from '@helpers/assumeType';
 import App from '@config/app';
@@ -16,8 +16,6 @@ import ctx from '@environment/ctx';
 import EventListenerBase from '@helpers/eventListenerBase';
 import applyMixins from '@helpers/applyMixins';
 import tsNow from '@helpers/tsNow';
-import formatStarsAmount from '@appManagers/utils/payments/formatStarsAmount';
-import debounce from '@helpers/schedulers/debounce';
 import copy from '@helpers/object/copy';
 import noop from '@helpers/noop';
 import pause from '@helpers/schedulers/pause';
@@ -274,30 +272,6 @@ class ApiUpdatesManager {
         log.warn('unknown update message', updateMessage);
     }
   };
-
-  public processPaidMessageUpdate(options: {paidStars: number, wereStarsReserved: boolean}) {
-    const starsStatus = this.appPaymentsManager.getCachedStarsStatus();
-
-    if(options.paidStars && starsStatus) {
-      const currentBalance = formatStarsAmount(starsStatus.balance);
-      const newBalance = currentBalance - options.paidStars;
-
-      this.appPaymentsManager.updateLocalStarsBalance(
-        formatStarsAmount(newBalance),
-        options.wereStarsReserved ? options.paidStars : undefined
-      );
-
-      this.debouncedUpdateStarsBalance();
-    }
-  }
-
-  private debouncedUpdateStarsBalance = debounce(() => {
-    const promise = this.appPaymentsManager.getStarsStatus(true);
-
-    if(promise instanceof Promise) promise.then((newStarsStatus) => {
-      this.appPaymentsManager.updateLocalStarsBalance(newStarsStatus.balance as StarsAmount.starsAmount);
-    });
-  }, 1_000, false, true);
 
   private getDifference(
     first = false,

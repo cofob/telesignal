@@ -1,4 +1,4 @@
-import {MessagesReactions, type AvailableReaction, type Message, type MessagePeerReaction, type MessagesAvailableReactions, type Reaction, type ReactionCount, type Update, type Updates, ChatReactions, Peer, Document, MessagesSavedReactionTags, SavedReactionTag, AvailableEffect, MessagesAvailableEffects, MessageReactions, PaidReactionPrivacy} from '@layer';
+import {MessagesReactions, type AvailableReaction, type Message, type MessagePeerReaction, type MessagesAvailableReactions, type Reaction, type ReactionCount, type Update, type Updates, ChatReactions, Peer, Document, MessagesSavedReactionTags, SavedReactionTag, AvailableEffect, MessagesAvailableEffects, MessageReactions} from '@layer';
 import findAndSplice from '@helpers/array/findAndSplice';
 import indexOfAndSplice from '@helpers/array/indexOfAndSplice';
 import assumeType from '@helpers/assumeType';
@@ -16,7 +16,7 @@ import reactionsEqual from '@appManagers/utils/reactions/reactionsEqual';
 import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
 import availableReactionToReaction from '@appManagers/utils/reactions/availableReactionToReaction';
 import filterReactionsAtUniqCap, {isMessageAtUniqReactionCap, resolveReactionsUniqMax} from '@appManagers/utils/reactions/filterReactionsAtUniqCap';
-import {NULL_PEER_ID, SEND_PAID_REACTION_ANONYMOUS_PEER_ID} from '@appManagers/constants';
+import {NULL_PEER_ID} from '@appManagers/constants';
 import insertInDescendSortedArray from '@helpers/array/insertInDescendSortedArray';
 import {BroadcastEvents} from '@lib/rootScope';
 import {md5} from 'js-md5';
@@ -82,7 +82,6 @@ export class AppReactionsManager extends AppManager {
   // private lastSendingTimes: Map<string, number>;
   private reactions: {[key in 'recent' | 'top' | 'tags']?: Reaction[]};
   private savedReactionsTags: Map<PeerId, MaybePromise<SavedReactionTag[]>>;
-  private paidReactionPrivacy?: PaidReactionPrivacy
 
   protected after() {
     this.clear(true);
@@ -135,7 +134,6 @@ export class AppReactionsManager extends AppManager {
 
         this.setSavedReactionTags(savedPeerId, tags);
       },
-      updatePaidReactionPrivacy: this.onUpdatePaidReactionPrivacy,
       // * changed elsewhere — cleared on another device: the next picker asks again
       updateRecentReactions: () => {
         delete this.reactions.recent;
@@ -282,10 +280,6 @@ export class AppReactionsManager extends AppManager {
         this.unshiftQuickReactionInner(p, quickReaction);
       }
 
-      if(chatFull._ === 'channelFull' && chatFull.pFlags.paid_reactions_available) {
-        p.reactions.unshift({_: 'reactionPaid'});
-      }
-
       return p;
     });
   }
@@ -411,8 +405,7 @@ export class AppReactionsManager extends AppManager {
         !peerAvailableReactions.trulyAll
       ) {
         peerAvailableReactions.reactions.sort((a, b) => {
-          if(a._ === 'reactionPaid') return -Infinity;
-          else if(a._ === 'reactionEmoji') return Infinity;
+          if(a._ === 'reactionEmoji') return Infinity;
           const idx1 = messageReactionsResults.findIndex((reactionCount) => reactionsEqual(reactionCount.reaction, a));
           const idx2 = messageReactionsResults.findIndex((reactionCount) => reactionsEqual(reactionCount.reaction, b));
           return (idx1 === -1 ? Infinity : idx1) - (idx2 === -1 ? Infinity : idx2);
@@ -691,11 +684,7 @@ export class AppReactionsManager extends AppManager {
       };
     }
 
-    const isPaidReaction = reaction._ === 'reactionPaid';
-    const [limit, paidReactionPrivacy] = await Promise.all([
-      this.apiManager.getLimit('reactions'),
-      isPaidReaction && this.getPaidReactionPrivacy()
-    ]);
+    const limit = await this.apiManager.getLimit('reactions');
 
     message = this.appMessagesManager.getMessageByPeer(message.peerId, message.mid) as Message.message;
 
@@ -808,61 +797,12 @@ export class AppReactionsManager extends AppManager {
           reaction
         };
 
-        if(isPaidReaction) {
-          reactions.results.unshift(reactionCount);
-          reactionCountIdx = 0;
-        } else {
-          reactionCountIdx = reactions.results.push(reactionCount) - 1;
-        }
+        reactionCountIdx = reactions.results.push(reactionCount) - 1;
       }
 
-      if(isPaidReaction) {
-        reactionCount.count += count;
-        reactionCount.chosen_order = -1;
-
-        reactions.top_reactors ??= [];
-        let topReactor = findAndSplice(reactions.top_reactors, (topReactor) => topReactor.pFlags.my);
-        if(!topReactor) {
-          topReactor = {
-            _: 'messageReactor',
-            count: 0,
-            pFlags: {
-              my: true
-            }
-          };
-        }
-
-        let myPeerId = sendAsPeerId;
-        if(!myPeerId) {
-          if(topReactor.pFlags.anonymous) {
-            myPeerId = SEND_PAID_REACTION_ANONYMOUS_PEER_ID;
-          } else if(topReactor.peer_id) {
-            myPeerId = this.appPeersManager.getPeerId(topReactor.peer_id);
-          } else if(paidReactionPrivacy._ === 'paidReactionPrivacyPeer') {
-            myPeerId = this.appPeersManager.getPeerId(paidReactionPrivacy.peer);
-          } else if(paidReactionPrivacy._ === 'paidReactionPrivacyDefault') {
-            myPeerId = this.appPeersManager.peerId;
-          } else {
-            myPeerId = SEND_PAID_REACTION_ANONYMOUS_PEER_ID;
-          }
-        }
-
-        delete topReactor.pFlags.anonymous;
-        if(sendAsPeerId === SEND_PAID_REACTION_ANONYMOUS_PEER_ID) {
-          topReactor.pFlags.anonymous = true;
-          myPeerId = this.appPeersManager.peerId;
-        }
-
-        topReactor.peer_id = this.appPeersManager.getOutputPeer(myPeerId);
-
-        topReactor.count += count;
-        insertInDescendSortedArray(reactions.top_reactors, topReactor, 'count');
-        topReactor.pFlags.top = reactions.top_reactors.indexOf(topReactor) < 3 || undefined;
-      } else {
-        ++reactionCount.count;
-        reactionCount.chosen_order = chosenReactions.length ? chosenReactions[0].chosen_order + 1 : 0;
-        chosenReactions.unshift(reactionCount);
-      }
+      ++reactionCount.count;
+      reactionCount.chosen_order = chosenReactions.length ? chosenReactions[0].chosen_order + 1 : 0;
+      chosenReactions.unshift(reactionCount);
 
       if(!reactions.recent_reactions && canSeeList) {
         reactions.recent_reactions = [];
@@ -901,11 +841,6 @@ export class AppReactionsManager extends AppManager {
         const id2 = (b.reaction as Reaction.reactionCustomEmoji).document_id || (b.reaction as Reaction.reactionEmoji).emoticon;
         return (b.count - a.count) || ((indexes.get(id1) ?? 0) - (indexes.get(id2) ?? 0));
       });
-
-      const paidReactionIndex = reactions.results.findIndex((reactionCount) => reactionCount.reaction._ === 'reactionPaid');
-      if(paidReactionIndex !== -1) {
-        reactions.results.unshift(reactions.results.splice(paidReactionIndex, 1)[0]);
-      }
     }
 
     if(onlyReturn) {
@@ -951,30 +886,9 @@ export class AppReactionsManager extends AppManager {
       }
 
       this.apiUpdatesManager.processUpdateMessage(updates);
-      if(isPaidReaction) this.apiUpdatesManager.processPaidMessageUpdate({
-        paidStars: count,
-        wereStarsReserved: true
-      });
     };
 
     const msgId = getServerMessageId(mid);
-    if(isPaidReaction) {
-      const currentTime = tsNow(true);
-
-      const randomPart = Math.floor(Math.random() * Math.pow(2, 32));
-      const uniqueId = bigInt(currentTime).shiftLeft(32).or(randomPart);
-      const randomId = uniqueId.toString();
-
-      this.apiManager.invokeApi('messages.sendPaidReaction', {
-        count,
-        msg_id: msgId,
-        peer: this.appPeersManager.getInputPeerById(peerId),
-        random_id: randomId,
-        private: this.peerIdToPaidReactionPrivacy(sendAsPeerId)
-      }).then(onUpdates);
-      return;
-    }
-
     const promiseKey = [peerId, mid].join('-');
     const promise = this.apiManager.invokeApi('messages.sendReaction', {
       peer: this.appPeersManager.getInputPeerById(peerId),
@@ -1217,57 +1131,4 @@ export class AppReactionsManager extends AppManager {
       savedPeerId
     });
   }
-
-  public async getPaidReactionPrivacy() {
-    if(!this.paidReactionPrivacy) {
-      const response = await this.apiManager.invokeApiSingleProcess({
-        method: 'messages.getPaidReactionPrivacy',
-        params: {}
-      });
-
-      if(!this.paidReactionPrivacy) { // (good) if not set in another request or update
-        const update = (response as Updates.updates).updates[0] as Update.updatePaidReactionPrivacy;
-        this.onUpdatePaidReactionPrivacy(update);
-      }
-    }
-
-    return this.paidReactionPrivacy;
-  }
-
-  private peerIdToPaidReactionPrivacy(peerId: PeerId) {
-    let privacy: PaidReactionPrivacy;
-    if(peerId === SEND_PAID_REACTION_ANONYMOUS_PEER_ID) {
-      privacy = {_: 'paidReactionPrivacyAnonymous'};
-    } else if(peerId === this.appPeersManager.peerId) {
-      privacy = {_: 'paidReactionPrivacyDefault'};
-    } else if(peerId) {
-      privacy = {_: 'paidReactionPrivacyPeer', peer: this.appPeersManager.getInputPeerById(peerId)};
-    }
-
-    return privacy;
-  }
-
-  public togglePaidReactionPrivacy(peerId: PeerId, mid: number, sendAsPeerId: PeerId) {
-    if(isEphemeralMessageId(mid)) {
-      return Promise.reject({type: 'MESSAGE_ID_INVALID'} as ApiError);
-    }
-
-    return this.apiManager.invokeApi('messages.togglePaidReactionPrivacy', {
-      peer: this.appPeersManager.getInputPeerById(peerId),
-      msg_id: getServerMessageId(mid),
-      private: this.peerIdToPaidReactionPrivacy(sendAsPeerId)
-    }).then(() => {
-      this.sendReaction({
-        message: this.appMessagesManager.getMessageByPeer(peerId, mid),
-        count: 0,
-        onlyLocalWithUpdate: true,
-        reaction: {_: 'reactionPaid'},
-        sendAsPeerId
-      });
-    });
-  }
-
-  private onUpdatePaidReactionPrivacy = (update: Update.updatePaidReactionPrivacy) => {
-    this.paidReactionPrivacy = update.private;
-  };
 }

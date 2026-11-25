@@ -1465,14 +1465,6 @@ const lang = {
   'MiniApps.Collapsed.Many': {
     'other_value': '%2$s & %1$d Other'
   },
-  'PaidReaction.Sent': {
-    'one_value': 'Star sent!',
-    'other_value': 'Stars sent!'
-  },
-  'PaidReaction.Sent.Anonymously': {
-    'one_value': 'Star sent anonymously!',
-    'other_value': 'Stars sent anonymously!'
-  },
   'Action.StarGiveawayPrize': {
     'one_value': 'You won a prize in a giveaway organized by **%s**.\n\nYour prize is **%1$d Star**.',
     'other_value': 'You won a prize in a giveaway organized by **%s**.\n\nYour prize is **%1$d Stars**.'
@@ -2556,7 +2548,6 @@ const lang = {
   'ResetAutomaticMediaDownloadAlert': 'Are you sure you want to reset auto-download settings?',
   'Reset': 'Reset',
   'SendMessageAsTitle': 'Send message as...',
-  'SendReactionAsTitle': 'Send reaction as...',
   'Devices': 'Devices',
   'LanguageName': 'English',
   'EditCantEditPermissionsPublic': 'This permission is not available in public groups.',
@@ -3833,7 +3824,6 @@ const lang = {
     'other_value': 'You reacted with **%d** stars.'
   },
   'StarsReactionTitle': 'Star Reaction',
-  'PaidReaction.Send': 'Send %d',
   'StarsGiveawayPrizeReceived': 'Received Prize',
   'BoostingBoostsCountTitle': {
     'one_value': '%d boost',

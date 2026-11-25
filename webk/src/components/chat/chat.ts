@@ -1765,11 +1765,6 @@ export default class Chat extends EventListenerBase<{
   }
 
   public async sendReaction(options: SendReactionOptions) {
-    // * TeleSignal: Signal has no paid reactions
-    if(options.reaction._ === 'reactionPaid') {
-      return;
-    }
-
     await this.managers.appReactionsManager.sendReaction({
       ...options,
       count: options.count ?? 1

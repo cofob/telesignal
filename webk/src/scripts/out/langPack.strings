@@ -1362,10 +1362,6 @@
 "MiniApps.Collapsed.One" = "%s";
 "MiniApps.Collapsed.Two" = "%s & %s";
 "MiniApps.Collapsed.Many_other" = "%2$s & %1$d Other";
-"PaidReaction.Sent_one" = "Star sent!";
-"PaidReaction.Sent_other" = "Stars sent!";
-"PaidReaction.Sent.Anonymously_one" = "Star sent anonymously!";
-"PaidReaction.Sent.Anonymously_other" = "Stars sent anonymously!";
 "Action.StarGiveawayPrize_one" = "You won a prize in a giveaway organized by **%s**.\n\nYour prize is **%1$d Star**.";
 "Action.StarGiveawayPrize_other" = "You won a prize in a giveaway organized by **%s**.\n\nYour prize is **%1$d Stars**.";
 "MediaEditor.Free" = "Free";
@@ -2339,7 +2335,6 @@
 "ResetAutomaticMediaDownloadAlert" = "Are you sure you want to reset auto-download settings?";
 "Reset" = "Reset";
 "SendMessageAsTitle" = "Send message as...";
-"SendReactionAsTitle" = "Send reaction as...";
 "Devices" = "Devices";
 "LanguageName" = "English";
 "EditCantEditPermissionsPublic" = "This permission is not available in public groups.";
@@ -3393,7 +3388,6 @@
 "StarsSentText_one" = "You reacted with **%d** star.";
 "StarsSentText_other" = "You reacted with **%d** stars.";
 "StarsReactionTitle" = "Star Reaction";
-"PaidReaction.Send" = "Send %d";
 "StarsGiveawayPrizeReceived" = "Received Prize";
 "BoostingBoostsCountTitle_one" = "%d boost";
 "BoostingBoostsCountTitle_other" = "%d boosts";

@@ -39,7 +39,6 @@ import partition from '@helpers/array/partition';
 import getReactionDocId from '@appManagers/utils/reactions/getReactionDocId';
 import docIdToReaction from '@appManagers/utils/reactions/docIdToReaction';
 import createEmojiReaction from '@appManagers/utils/reactions/createEmojiReaction';
-import currencyStarIcon from '@components/currencyStarIcon';
 import {cleanEmoji} from '@lib/richTextProcessor/fixEmoji';
 
 const REACTIONS_CLASS_NAME = 'btn-menu-reactions';
@@ -538,7 +537,7 @@ export class ChatReactionsMenu {
     // a native button only with the keyboard layer: it takes the focus on click
     const reactionDiv = Button(REACTION_CLASS_NAME, {
       noRipple: true,
-      ariaLabel: reaction._ === 'reactionPaid' ? 'StarsReactionTitle' : 'Reactions',
+      ariaLabel: 'Reactions',
       asDiv: !Modes.a11y
     });
     if(availableReaction?.title || reaction._ === 'reactionEmoji') {
@@ -583,46 +582,9 @@ export class ChatReactionsMenu {
     };
 
     const canUseAnimations = this.canUseAnimations();
-    const isPaidReaction = reaction._ === 'reactionPaid';
 
     this.container.append(reactionDiv);
-    if(isPaidReaction && !canUseAnimations) {
-      appearWrapper.append(currencyStarIcon() as HTMLElement);
-    } else if(isPaidReaction && canUseAnimations) {
-      const promise = lottieLoader.loadAnimationAsAsset({
-        container: appearWrapper,
-        loop: false,
-        autoplay: true,
-        width: size,
-        height: size,
-        skipRatio: 1,
-        middleware,
-        group: this.animationGroup
-      }, 'StarReactionAppear').then((player) => {
-        players.appear = player;
-
-        const selectLoadPromise = lottieLoader.loadAnimationAsAsset({
-          container: selectWrapper,
-          loop: false,
-          autoplay: false,
-          ...options
-        }, 'StarReactionSelect');
-
-        player.addEventListener('enterFrame', (frameNo) => {
-          if(player.maxFrame === frameNo) {
-            selectLoadPromise.then((selectPlayer) => {
-              assumeType<LottiePlayer>(selectPlayer);
-              appearWrapper.classList.add('hide');
-              selectWrapper.classList.remove('hide');
-
-              players.select = selectPlayer;
-            }, noop);
-          }
-        });
-      });
-
-      loadPromises.push(promise);
-    } else if(reaction._ === 'reactionEmoji' && !availableReaction?.static_icon) {
+    if(reaction._ === 'reactionEmoji' && !availableReaction?.static_icon) {
       // * a Signal emoji has no sticker, so the picker shows it as text
       const emoji = wrapEmojiText(reaction.emoticon);
       appearWrapper.classList.add(REACTION_CLASS_NAME + '-emoji');
