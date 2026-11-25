@@ -33,9 +33,7 @@ overrides:
 
 allowBuilds:
   '@parcel/watcher@2.6.0': true
-  'cpu-features@0.0.10': true
   'esbuild@0.28.2': true
-  'ssh2@1.17.0': true
 minimumReleaseAgeExclude:
   - 'baseline-browser-mapping@2.11.0'
   - 'browserslist@4.28.7'

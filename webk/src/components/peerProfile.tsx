@@ -1,8 +1,7 @@
-import {batch, children, createContext, createEffect, createMemo, createResource, createSignal, For, JSX, on, onCleanup, Show, untrack, useContext} from 'solid-js';
+import {batch, children, createContext, createEffect, createMemo, createResource, createSignal, For, JSX, onCleanup, Show, untrack, useContext} from 'solid-js';
 import {render} from 'solid-js/web';
 import Badge from '@components/badge';
 import Section from '@components/section';
-import getLinkedCommunityId from '@appManagers/utils/communities/getLinkedCommunityId';
 import numberThousandSplitter from '@helpers/number/numberThousandSplitter';
 import {useChat, usePeer} from '@stores/peers';
 import {BusinessWorkHours, Chat, ChatFull, GeoPoint, GroupCall, HelpTimezonesList, InputGroupCall, Photo, StoryItem, Document, MessageMedia, Timezone, User, UserFull, UserStatus} from '@layer';
@@ -27,8 +26,7 @@ import anchorCopy from '@helpers/dom/anchorCopy';
 import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId';
 import getPeerActiveUsernames from '@appManagers/utils/peers/getPeerActiveUsernames';
 import isCollectibleUsername from '@appManagers/utils/peers/isCollectibleUsername';
-import {appState, useAppConfig} from '@stores/appState';
-import {useCommunity, useCommunityFull} from '@stores/communities';
+import {useAppConfig} from '@stores/appState';
 import detectLanguageForTranslation from '@helpers/detectLanguageForTranslation';
 import usePeerTranslation from '@hooks/usePeerTranslation';
 import getWebFileLocation from '@helpers/getWebFileLocation';
@@ -63,8 +61,6 @@ import showAddBotToChat from '@components/popups/addBotToChat';
 import getAddBotToChatAction from '@appManagers/utils/bots/getAddBotToChatAction';
 import canReportBot from '@appManagers/utils/bots/canReportBot';
 import {showPeerReport} from '@components/popups/reportAd';
-import CommunityPeerDialogList
-from '@components/communities/communityPeerDialogList';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import type {LangPackKey} from '@lib/langPack';
@@ -280,7 +276,6 @@ const PeerProfile = (props: {
         <PeerProfile.UnofficialWarning />
         <PeerProfile.PersonalChannel />
         <PeerProfile.MainSection />
-        <PeerProfile.LinkedCommunity />
         <PeerProfile.BotVerification />
         {props.searchSuperContainer}
       </div>
@@ -1745,121 +1740,6 @@ PeerProfile.StoryPreviews = (props: {
         </StoriesProvider>
       </Show>
     </div>
-  );
-};
-
-function CommunityProfileDialog(props: {
-  community: Chat.community,
-  chatsCount?: number,
-  hidden: boolean
-}) {
-  const {appDialogsManager, appImManager, i18n} = useHotReloadGuard();
-  const middleware = createMiddleware().get();
-
-  return (
-    <Section
-      caption={props.hidden ? 'Community.HiddenInfo' : undefined}
-    >
-      <CommunityPeerDialogList
-        items={[props.community]}
-        middleware={middleware}
-        getPeerId={(community) => community.id.toPeerId(true)}
-        getCommunity={(community) => community}
-        getSubtitle={() => {
-          const chatsCount = props.chatsCount;
-          return chatsCount === undefined ?
-            i18n('Community.Title') :
-            i18n('Community.ProfileStatus', [chatsCount]);
-        }}
-        getClass={() => 'community-profile-dialog'}
-        getDataset={(community) => ({
-          communityDialog: 'true',
-          communityId: '' + community.id
-        })}
-        onClick={(community, event) => {
-          if(event.ctrlKey || event.metaKey) {
-            const row = (event.target as HTMLElement)
-            .closest<HTMLElement>('[data-community-peer-dialog]');
-            if(row) {
-              appDialogsManager.openDialogInNewTab(row);
-              cancelEvent(event);
-              return;
-            }
-          }
-
-          void appImManager.op({peer: community});
-        }}
-      />
-    </Section>
-  );
-}
-
-PeerProfile.LinkedCommunity = () => {
-  const context = useContext(PeerProfileContext);
-  const {rootScope} = useHotReloadGuard();
-  const peer = createMemo(() => {
-    return typeof(context.peer) === 'function' ?
-      context.peer() :
-      context.peer;
-  });
-  const linkedCommunityId = createMemo(() => getLinkedCommunityId(peer()));
-  const linkedCommunity = useCommunity(linkedCommunityId);
-  const linkedCommunityFull = useCommunityFull(linkedCommunityId);
-  const hasJoinedLinkedCommunity = createMemo(() => {
-    const communityId = linkedCommunityId();
-    if(!communityId) {
-      return false;
-    }
-
-    const joinedCommunityIds = appState.joinedCommunityIds;
-    if(joinedCommunityIds) {
-      return joinedCommunityIds.includes(communityId);
-    }
-
-    const community = linkedCommunity();
-    return community?._ === 'community' && !community.pFlags.left;
-  });
-  const visibleCommunity = createMemo(() => {
-    const value = peer();
-    if(
-      !value ||
-      (
-        value._ !== 'channel' &&
-        !(value._ === 'user' && value.pFlags.bot)
-      ) ||
-      !hasJoinedLinkedCommunity()
-    ) {
-      return;
-    }
-
-    const community = linkedCommunity();
-    return community?._ === 'community' ? community : undefined;
-  });
-  const linkedPeer = createMemo(() => {
-    return linkedCommunityFull()?.linked_peers.find((linked) => {
-      return getPeerId(linked.peer) === context.peerId;
-    });
-  });
-  createEffect(on(linkedCommunityId, (communityId) => {
-    if(!communityId) {
-      return;
-    }
-
-    void Promise.resolve(rootScope.managers.appProfileManager
-    .getChatFull(communityId))
-    .catch(() => {});
-  }));
-
-  return (
-    <Show keyed when={visibleCommunity()}>
-      {(community) => (
-        <CommunityProfileDialog
-          community={community}
-          chatsCount={linkedCommunityFull()?.linked_peers.length}
-          hidden={linkedPeer()?.visible === false}
-        />
-      )}
-    </Show>
   );
 };
 

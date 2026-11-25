@@ -3,7 +3,7 @@ import type {ChatInputStateContext} from './index';
 
 
 export default function useFileInput({instance, store}: ChatInputStateContext) {
-  const isMultiple = createMemo(() => !store.isEditing && !store.isSuggesting);
+  const isMultiple = createMemo(() => !store.isEditing);
 
   createEffect(() => {
     if(!instance.fileInput) return;

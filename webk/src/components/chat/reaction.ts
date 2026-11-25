@@ -25,13 +25,9 @@ import Scrollable from '@components/scrollable';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import {savedReactionTags} from '@components/chat/reactions';
 import reactionsEqual from '@appManagers/utils/reactions/reactionsEqual';
-import currencyStarIcon from '@components/currencyStarIcon';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {hotListen} from '@helpers/hotModule';
-import {Sparkles} from '@components/sparkles';
-import {AnimatedCounter} from '@components/animatedCounter';
 import getUnsafeRandomInt from '@helpers/number/getUnsafeRandomInt';
-import {IS_MOBILE} from '@environment/userAgent';
 import drawMediaToCanvas, {DrawableMedia} from '@helpers/canvas/drawMediaToCanvas';
 import forgetFailedRequest from '@helpers/forgetFailedRequest';
 import type {ReactionFlight} from '@components/chat/reactionFlight';
@@ -736,7 +732,6 @@ export default class ReactionElement extends HTMLElement {
   public flight: ReactionFlight;
   public isUnread: boolean;
   private hasTitle: boolean;
-  private paidReactionCounter: AnimatedCounter;
   private stickerPlaceholderCleanup: () => void;
   private stickerPlaceholderPending: boolean;
 
@@ -861,39 +856,6 @@ export default class ReactionElement extends HTMLElement {
 
       this.customEmojiElement.docId = reaction.document_id;
       return this.customEmojiElement;
-    } else if(reaction._ === 'reactionPaid') {
-      this.classList.add('is-paid');
-      if(!IS_MOBILE) this.append(Sparkles({mode: 'button', isDiv: true}));
-      this.stickerContainer.append(currencyStarIcon() as HTMLElement);
-    }
-  }
-
-  public setPaidReactionCounter(count: number) {
-    if(!this.paidReactionCounter) {
-      this.paidReactionCounter = new AnimatedCounter({
-        // * a count that grows rolls up, as iOS's does
-        reverse: true,
-        prefix: '+',
-        calculateWidth: true
-        // calculateWidth: (text) => {
-        //   return getTextWidth(text, `400 24 ${customProperties.getProperty('font-rounded')}`) * 1.5;
-        // }
-      });
-      this.paidReactionCounter.container.classList.add('reaction-paid-counter');
-      this.append(this.paidReactionCounter.container);
-      this.paidReactionCounter.setCount(count, true);
-    } else {
-      this.paidReactionCounter.setCount(count);
-    }
-  }
-
-  public destroyPaidReactionCounter() {
-    if(this.paidReactionCounter) {
-      const {container} = this.paidReactionCounter;
-      this.paidReactionCounter = undefined;
-      setTimeout(() => {
-        container.remove();
-      }, 300);
     }
   }
 
@@ -1032,16 +994,6 @@ export default class ReactionElement extends HTMLElement {
     const displayOn = REACTIONS_DISPLAY_COUNTER_AT[this.type];
     if(displayOn === undefined && !force && !title && !this.hasTitle) return;
     const reactionCount = this.reactionCount;
-
-    // Empty paid (star) reaction button — show just the star, never a "0" count.
-    if(reactionCount.reaction._ === 'reactionPaid' && !reactionCount.count) {
-      if(this.counter?.parentElement) {
-        this.counter.remove();
-        this.counter = undefined;
-      }
-      this.hasTitle = false;
-      return;
-    }
 
     let setTitle = false;
     if(force || title || reactionCount.count >= displayOn || (this.type === ReactionLayoutType.Block && !this.canRenderAvatars)) {

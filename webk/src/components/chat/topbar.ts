@@ -906,16 +906,6 @@ export default class ChatTopbar {
       }
     });
 
-    this.listenerSetter.add(rootScope)('monoforum_dialogs_update', async({dialogs}) => {
-      if(!this.chat.isMonoforum || !this.chat.monoforumThreadId) return;
-
-      const found = dialogs.find(dialog => dialog.parentPeerId === this.chat.peerId && dialog.peerId === this.chat.monoforumThreadId);
-      if(!found) return;
-
-      const callback = await (await this.plates.removeFee.setPeerId(this.chat.peerId)).result;
-      callback();
-    });
-
     this.listenerSetter.add(rootScope)('auto_delete_period_update', ({peerId, period}) => {
       if(peerId !== this.peerId || this.chat.type !== ChatType.Chat) return;
       this.avatar.setAutoDeletePeriod(period);
@@ -1177,7 +1167,6 @@ export default class ChatTopbar {
       status?.prepare(true),
       modifyAckedPromise(this.plates.requests.setPeerId(peerId)),
       modifyAckedPromise(this.plates.actions.setPeerId(peerId)),
-      modifyAckedPromise(this.plates.removeFee.setPeerId(peerId)),
       this.chat.type === ChatType.Chat ? modifyAckedPromise(this.chat.getAutoDeletePeriod()) : undefined,
       this.setupPinnedMessageForPeer()
     ] as const;
@@ -1188,7 +1177,6 @@ export default class ChatTopbar {
       setStatusCallback,
       setRequestsCallback,
       setActionsCallback,
-      setChatRemoveFeeCallback,
       autoDeletePeriod,
       _pinnedReady
     ] = await Promise.all(promises);
@@ -1256,10 +1244,6 @@ export default class ChatTopbar {
         this.plates.actions.unset(peerId);
       }
 
-      if(setChatRemoveFeeCallback.result instanceof Promise) {
-        this.plates.removeFee.hide();
-      }
-
       this.plates.live?.setPeerId(peerId);
       this.plates.groupCall?.setPeerId(peerId);
       this.plates.translation.setPeerId(peerId);
@@ -1274,14 +1258,6 @@ export default class ChatTopbar {
       });
 
       callbackify(setActionsCallback.result, (callback) => {
-        if(!middleware()) {
-          return;
-        }
-
-        callback();
-      });
-
-      callbackify(setChatRemoveFeeCallback.result, (callback) => {
         if(!middleware()) {
           return;
         }

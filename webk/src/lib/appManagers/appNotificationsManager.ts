@@ -902,23 +902,6 @@ export class AppNotificationsManager extends AppManager {
       // * a local edit (processLocalUpdate) or one the server pushes: newer than any answer still out
       changed: true
     });
-    if(communityId) {
-      this.appCommunitiesManager.saveCommunityNotifySettings(
-        communityId.toChatId(),
-        update.notify_settings
-      );
-      const dialogs = this.dialogsStorage.getFolderDialogs(0)
-      .concat(this.dialogsStorage.getFolderDialogs(1));
-      dialogs.forEach((dialog) => {
-        if(
-          dialog._ === 'dialog' &&
-          String(this.getLinkedCommunityId(dialog.peerId)) === String(communityId)
-        ) {
-          this.rootScope.dispatchEvent('dialog_notify_settings', dialog);
-        }
-      });
-    }
-
     this.rootScope.dispatchEvent('notify_settings', update);
   };
 }

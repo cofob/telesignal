@@ -3,7 +3,6 @@ import cancelEvent from '@helpers/dom/cancelEvent';
 import findUpClassName from '@helpers/dom/findUpClassName';
 import toggleDisability from '@helpers/dom/toggleDisability';
 import {KeyboardButton, KeyboardInlineButton, Message, ReplyMarkup, InlineQueryPeerType} from '@layer';
-import {i18n} from '@lib/langPack';
 import wrapRichText from '@lib/richTextProcessor/wrapRichText';
 import rootScope from '@lib/rootScope';
 import isEphemeralMessageId from '@appManagers/utils/messageId/isEphemeralMessageId';
@@ -88,7 +87,6 @@ function getButtonTypeHandler({
   }
 
   const peerId = chat?.peerId;
-  const messageMedia = message?.media;
   const messageMid = (replyMarkup as ReplyMarkup.replyKeyboardMarkup)?.mid || message?.mid;
   const botId = (replyMarkup as ReplyMarkup.replyKeyboardMarkup)?.fromId || message?.viaBotId || message?.fromId;
 
@@ -136,22 +134,6 @@ function getButtonTypeHandler({
           managers.appInlineBotsManager.switchInlineQuery(chosenPeerId, threadId, botId, type.query);
         });
       };
-      break;
-    }
-
-    case 'inlineButtonTypeBuy': {
-      const mediaInvoice = messageMedia?._ === 'messageMediaInvoice' ? messageMedia : undefined;
-      if(mediaInvoice?.extended_media) {
-        return;
-      }
-
-      result.classNames.push('is-buy');
-
-      if(mediaInvoice?.receipt_msg_id) {
-        result.text = i18n('Message.ReplyActionButtonShowReceipt');
-        result.classNames.push('is-receipt');
-      }
-
       break;
     }
 

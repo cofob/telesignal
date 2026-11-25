@@ -67,8 +67,6 @@ export class AppPeersManager extends AppManager {
       peerIds.push(action.inviter_id.toPeerId(false));
     } else if(action?._ === 'messageActionChatDeleteUser') {
       peerIds.push(action.user_id.toPeerId(false));
-    } else if(action?._ === 'messageActionChatJoinedViaCommunity') {
-      peerIds.push(action.community_id.toPeerId(true));
     }
 
     for(const minPeerId of peerIds) {
@@ -195,7 +193,7 @@ export class AppPeersManager extends AppManager {
   }
 
   public isCommunity(peerId: PeerId): boolean {
-    return !peerId.isUser() && this.appCommunitiesManager.isCommunity(peerId.toChatId());
+    return !peerId.isUser() && this.appChatsManager.isCommunity(peerId.toChatId());
   }
 
   public isMegagroup(peerId: PeerId) {
@@ -487,24 +485,6 @@ export class AppPeersManager extends AppManager {
     MTProtoMessagePort.getInstance<false>().invokeVoid('mirror', {
       name: 'peers',
       value: peers,
-      accountNumber: this.getAccountNumber()
-    }, port);
-
-    MTProtoMessagePort.getInstance<false>().invokeVoid('mirror', {
-      name: 'communityFull',
-      value: this.appProfileManager.getCommunityFullMirror(),
-      accountNumber: this.getAccountNumber()
-    }, port);
-
-    MTProtoMessagePort.getInstance<false>().invokeVoid('mirror', {
-      name: 'communityDialogs',
-      value: this.appCommunitiesManager.getCommunityDialogsMirror(),
-      accountNumber: this.getAccountNumber()
-    }, port);
-
-    MTProtoMessagePort.getInstance<false>().invokeVoid('mirror', {
-      name: 'communityPeerLinkRequests',
-      value: this.appCommunitiesManager.getCommunityPeerLinkRequestsMirror(),
       accountNumber: this.getAccountNumber()
     }, port);
   }

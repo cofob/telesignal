@@ -16,7 +16,6 @@ import {MiddlewareHelper} from '@helpers/middleware';
 import {ChatType} from './chatType';
 import getFwdFromName from '@appManagers/utils/messages/getFwdFromName';
 import {getGuestChatViaFromId, getMid, isMessage, isMessageForVerificationBot} from '@components/chat/utils';
-import {canHaveSuggestedPostReplyMarkup} from '@components/chat/bubbleParts/suggestedPostReplyMarkup';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import type {BubbleElementAddons} from '@components/chat/types';
 import {AdminLog} from '@appManagers/appChatsManager';
@@ -212,8 +211,6 @@ export class BubbleGroup {
     } else {
       this.avatarContainer.style.removeProperty('--reply-markup-row-count');
     }
-
-    this.avatar.node.classList.toggle('avatar-for-suggested-reply-markup', canHaveSuggestedPostReplyMarkup(message));
   }
 
   get firstTimestamp() {

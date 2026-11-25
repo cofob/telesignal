@@ -10,7 +10,6 @@ import LazyLoadQueue from '@components/lazyLoadQueue';
 import type {AudioElement} from '@components/audio';
 import {emptyMediaListLoaderFactory} from '@components/emptyMediaListLoader';
 import {PreloaderTsx} from '@components/putPreloader';
-import {PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import {i18n, LangPackKey} from '@lib/langPack';
 import rootScope from '@lib/rootScope';
 import {BotInlineResult} from '@layer';
@@ -67,14 +66,9 @@ export default function showMusicSearchPopup(options: MusicSearchPopupOptions): 
       listenerSetter.removeAll();
     });
 
-    // Every send goes through the same paid-message gate; the popup only closes once the user has
-    // actually cleared it.
     const withPayment = async(send: (sendingParams: ReturnType<Chat['getMessageSendingParams']>) => void) => {
-      const confirmedPaymentResult = await chat.input.paidMessageInterceptor.prepareStarsForPayment(1);
-      if(confirmedPaymentResult === PAYMENT_REJECTED) return;
-
       context.hide();
-      send({...chat.getMessageSendingParams(), confirmedPaymentResult});
+      send(chat.getMessageSendingParams());
       chat.input.onMessageSent(false, true);
     };
 

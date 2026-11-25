@@ -113,10 +113,7 @@ function createMarkAllAsReadHandler() {
   const markAllAsRead = async() => {
     try {
       isLoading = true;
-      rootScope.managers.dialogsStorage.markFolderAsRead(
-        FOLDER_ID_ARCHIVE,
-        true
-      );
+      rootScope.managers.dialogsStorage.markFolderAsRead(FOLDER_ID_ARCHIVE);
     } finally {
       isLoading = false;
     }
@@ -129,7 +126,7 @@ function createMarkAllAsReadHandler() {
 
 async function getUnreadCount() {
   const {unreadCount} = await rootScope.managers.dialogsStorage
-  .getFolderUnreadCount(FOLDER_ID_ARCHIVE, true);
+  .getFolderUnreadCount(FOLDER_ID_ARCHIVE);
   return unreadCount;
 };
 

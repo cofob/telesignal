@@ -14,7 +14,6 @@ import IS_LIVE_STREAM_SUPPORTED from '@environment/liveStreamSupport';
 import IS_GROUP_CALL_SUPPORTED from '@environment/groupCallSupport';
 import createChatRequestsPlate, {ChatRequestsPlate} from '@components/chat/requests';
 import createChatActionsPlate, {ChatActionsPlate} from '@components/chat/actions';
-import createChatRemoveFeePlate, {ChatRemoveFeePlate} from '@components/chat/removeFee';
 import createChatLivePlate, {ChatLivePlate} from '@components/chat/topbarLive/container';
 import createChatGroupCallPlate, {ChatGroupCallPlate} from '@components/chat/topbarGroupCall/container';
 import createChatTranslationPlate, {ChatTranslationPlate} from '@components/chat/translation';
@@ -24,7 +23,6 @@ import {TopbarPlateController} from '@components/chat/topbarPlate';
 export type TopbarPlates = {
   requests: ChatRequestsPlate,
   actions: ChatActionsPlate,
-  removeFee: ChatRemoveFeePlate,
   live: ChatLivePlate | undefined,
   groupCall: ChatGroupCallPlate | undefined,
   translation: ChatTranslationPlate,
@@ -46,16 +44,14 @@ export function createTopbarPlates(
   const live = IS_LIVE_STREAM_SUPPORTED ? createChatLivePlate(topbar, chat, managers) : undefined;
   const groupCall = IS_GROUP_CALL_SUPPORTED ? createChatGroupCallPlate(topbar, chat, managers) : undefined;
   const translation = createChatTranslationPlate(topbar, chat, managers);
-  const removeFee = createChatRemoveFeePlate(topbar, chat, managers);
   const sponsored = createChatSponsoredPlate(topbar, chat, managers);
 
   // Order matches the visual stack inside `floatingPlatesWrapper`.
-  const all = [requests, actions, live, groupCall, translation, removeFee, sponsored].filter(Boolean);
+  const all = [requests, actions, live, groupCall, translation, sponsored].filter(Boolean);
 
   return {
     requests,
     actions,
-    removeFee,
     live,
     groupCall,
     translation,

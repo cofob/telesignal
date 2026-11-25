@@ -36,7 +36,6 @@ export default function createAiEditorContext(instance: ChatInput): AiEditorCont
             sendTextParams: {richMessage, noWebPage: true},
             slowModeParams: instance.getDefaultParamsForSlowModeTooltip(),
             chatType,
-            paidMessageInterceptor: instance.paidMessageInterceptor,
             sendingParams: {
               ...sendingParams,
               silent: options?.silent,

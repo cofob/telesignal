@@ -29,10 +29,6 @@ export default class AppChatInvitesManager extends AppManager {
   ) => {
     const peerId = getPeerId(update.peer);
     this.pendingJoinRequestsRevisions.set(peerId, (this.pendingJoinRequestsRevisions.get(peerId) ?? 0) + 1);
-    if(this.appCommunitiesManager.handlePendingJoinRequestsUpdate(update)) {
-      return;
-    }
-
     const state = await this.appStateManager.getState();
     delete state.hideChatJoinRequests[peerId];
     this.appStateManager.pushToState('hideChatJoinRequests', state.hideChatJoinRequests);

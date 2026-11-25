@@ -16,6 +16,13 @@
   }
 
   .date-picker {
+    &-min-time-caption {
+      font-size: 14px;
+      color: var(--secondary-text-color);
+      padding: 0.25rem 1rem;
+      text-align: center;
+    }
+
     &-controls {
       display: flex;
       justify-content: space-between;
