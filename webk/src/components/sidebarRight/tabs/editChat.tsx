@@ -34,6 +34,8 @@ import {subscribeOn} from '@helpers/solid/subscribeOn';
 import {Chat, ChatFull, ChatParticipants} from '@layer';
 import type {LangPackKey} from '@lib/langPack';
 import rootScope from '@lib/rootScope';
+import noop from '@helpers/noop';
+import {toSignalPeerId} from '@lib/signal/builders';
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {appSettings} from '@stores/appSettings';
 import type {AppEditChatTab} from '@components/solidJsTabs/tabs';
@@ -552,6 +554,23 @@ function EditChatForm(props: {
     }
   };
 
+  // * TeleSignal: an admin ends a Signal group for everyone, which keeps it and its history in the list, as Web A's
+  // * `ManageGroup` (`terminateChat` of the provider)
+  const canTerminate = () => chat()._ === 'chat' && !(chat() as Chat.chat).pFlags.left && isAdmin();
+  const terminateChat = () => {
+    const {managers} = tab;
+    confirmationPopup({
+      titleLangKey: 'Signal.EndGroupTitle',
+      titleLangArgs: [chat().title],
+      descriptionLangKey: 'Signal.EndGroupText',
+      button: {langKey: 'Signal.EndGroup', isDanger: true}
+    }).then(async() => {
+      const isEnded = await managers.appSignalManager.callSignal('terminateChat', {chat: {id: toSignalPeerId(peerId())}});
+      if(isEnded) tab.close();
+      else toastNew({langPackKey: 'Error.AnError'});
+    }, noop);
+  };
+
   onCleanup(() => {
     alive = false;
     avatarEdit.clear();
@@ -907,6 +926,17 @@ function EditChatForm(props: {
           }}
           onRemove={removeFromCommunity}
         />
+      </Show>
+
+      <Show when={canTerminate()}>
+        <Section>
+          <Button
+            class="btn-primary btn-transparent danger"
+            icon="stop"
+            text="Signal.EndGroup"
+            onClick={terminateChat}
+          />
+        </Section>
       </Show>
 
       <Show when={canDeleteChat()}>
