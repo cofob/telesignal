@@ -2,7 +2,6 @@ import {keepsKeyFromComposer, shouldPreserveKeyboardFocus} from '@helpers/dom/is
 import isTargetAnInput from '@helpers/dom/isTargetAnInput';
 import {isWebPageUrl} from '@lib/richTextProcessor/matchUrlProtocol';
 import type {GroupCallId, MyGroupCall} from '@appManagers/appGroupCallsManager';
-import type {ApiLimitType} from '@appManagers/apiManagerMethods';
 import type GroupCallInstance from '@lib/calls/groupCallInstance';
 import type CallInstance from '@lib/calls/callInstance';
 import animationIntersector from '@components/animationIntersector';
@@ -151,7 +150,6 @@ import type {FullMid} from '@appManagers/utils/messages/fullMid';
 import getSelectedNodes from '@helpers/dom/getSelectedNodes';
 import showChatToast from '@components/chat/chatToast';
 import anchorCallback from '@helpers/dom/anchorCallback';
-import showPremiumPopup from '@components/popups/premium';
 import safeWindowOpen from '@helpers/dom/safeWindowOpen';
 import {createProxiedManagersForAccount} from '@lib/getProxiedManagers';
 import {getAccountSession, getCurrentAccount, getManagersSession, isSessionLeaving} from '@lib/accounts/getCurrentAccount';
@@ -346,24 +344,8 @@ export class AppImManager extends EventListenerBase<{
     return this.chats[this.chats.length - 1];
   }
 
-  private showLimitReplacedToast(limitType: ApiLimitType, subtitleKey: LangPackKey, subtitlePremiumKey: LangPackKey) {
-    if(rootScope.premium) {
-      toastNew({langPackKey: subtitlePremiumKey});
-      return;
-    }
-
-    this.managers.apiManager.getLimit(limitType, true).then((limitPremium) => {
-      toastNew({
-        langPackKey: subtitleKey,
-        langPackArguments: [
-          anchorCallback(() => {
-            hideToast();
-            showPremiumPopup({feature: 'double_limits'});
-          }),
-          limitPremium
-        ]
-      });
-    });
+  private showLimitReplacedToast(subtitleKey: LangPackKey) {
+    toastNew({langPackKey: subtitleKey});
   }
 
   public construct(managers: TabManagers) {
@@ -580,21 +562,6 @@ export class AppImManager extends EventListenerBase<{
       });
     });
 
-    rootScope.addEventListener('file_speed_limited', ({increaseTimes, isUpload}) => {
-      const {hide} = showChatToast({
-        icon: 'premium_speed_filled',
-        title: i18n(isUpload ? 'UploadSpeedLimited' : 'DownloadSpeedLimited'),
-        textElement: i18n(isUpload ? 'Chat.UploadLimit.Text' : 'Chat.DownloadLimit.Text', [
-          increaseTimes,
-          anchorCallback(() => {
-            hide();
-            showPremiumPopup({feature: 'faster_download'});
-          })
-        ]),
-        duration: 10000
-      });
-    });
-
     // remove scroll listener when setting chat to tray
     this.addEventListener('chat_changing', ({to}) => {
       this.toggleChatGradientAnimation(to);
@@ -766,7 +733,7 @@ export class AppImManager extends EventListenerBase<{
     rootScope.addEventListener('sticker_updated', ({type, faved, limitReached}) => {
       if(type === 'faved') {
         if(faved && limitReached) {
-          this.showLimitReplacedToast('favedStickers', 'LimitReachedFavoriteStickersSubtitle', 'LimitReachedFavoriteStickersSubtitlePremium');
+          this.showLimitReplacedToast('LimitReachedFavoriteStickersSubtitlePremium');
           return;
         }
 
@@ -782,7 +749,7 @@ export class AppImManager extends EventListenerBase<{
 
     rootScope.addEventListener('gif_updated', ({saved, limitReached}) => {
       if(saved && limitReached) {
-        this.showLimitReplacedToast('gifs', 'LimitReachedFavoriteGifsSubtitle', 'LimitReachedFavoriteGifsSubtitlePremium');
+        this.showLimitReplacedToast('LimitReachedFavoriteGifsSubtitlePremium');
         return;
       }
 

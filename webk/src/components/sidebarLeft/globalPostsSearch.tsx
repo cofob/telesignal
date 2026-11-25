@@ -226,17 +226,6 @@ export function GlobalPostsSearch(props: {
   }
 
   const button = () => {
-    if(!isPremium()) {
-      return (
-        <Button
-          class={classNames('btn-primary btn-color-primary', styles.button)}
-          onClick={() => hotReloadGuard.showPremiumPopup()}
-        >
-          {i18n('PostsSearch.SubscribeToPremium')}
-        </Button>
-      )
-    }
-
     if(!props.query || !canShowButtonAfterEmpty()) return null
 
     if(remainingUntilReset()) {

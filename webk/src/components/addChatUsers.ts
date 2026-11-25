@@ -1,9 +1,6 @@
-import {attachClickEvent} from '@helpers/dom/clickEvent';
 import {Chat, MissingInvitee, User} from '@layer';
 import {FormatterArguments, LangPackKey, i18n, join} from '@lib/langPack';
 import rootScope from '@lib/rootScope';
-import Button from '@components/button';
-import {DelimiterWithText} from '@components/delimiterWithText';
 import showPeerPopup, {PopupPeerButtonCallbackCheckboxes, PopupPeerCheckboxOptions} from '@components/popups/peer';
 import showPickUserPopup from '@components/popups/pickUser';
 import SidebarSlider from '@components/slider';
@@ -23,50 +20,22 @@ export async function handleMissingInvitees(chatId: ChatId, missingInvitees: Mis
   }
 
   const inviteLink = await rootScope.managers.appProfileManager.getChatInviteLink(chatId);
-  const premiumRequireIds: Set<PeerId> = new Set();
-  const canInviteAsPremiumIds: Set<PeerId> = new Set();
-  const missingInviteeIds = missingInvitees.map((invitee) => {
-    const peerId = invitee.user_id.toPeerId(false);
-    if(invitee.pFlags.premium_required_for_pm) {
-      premiumRequireIds.add(peerId);
-    }
-
-    if(invitee.pFlags.premium_would_allow_invite) {
-      canInviteAsPremiumIds.add(peerId);
-    }
-
-    return peerId;
-  });
-
-  const hasPremiumSection = canInviteAsPremiumIds.size > 0;
+  const missingInviteeIds = missingInvitees.map((invitee) => invitee.user_id.toPeerId(false));
 
   const getTitle = (peerId: PeerId) => wrapPeerTitle({peerId, onlyFirstName: true});
   const length = missingInviteeIds.length;
-  const title = length > 1 ? undefined : await getTitle(hasPremiumSection ? [...canInviteAsPremiumIds][0] : missingInviteeIds[0]);
-
-  const cantSendMessages = premiumRequireIds.size === missingInviteeIds.length;
-
-  const onPremiumClick = () => {
-    hotReloadGuard.showPremiumPopup();
-    popup.hide();
-  };
+  const title = length > 1 ? undefined : await getTitle(missingInviteeIds[0]);
 
   let footerButton: HTMLElement;
   const onCountUpdate = (count: number) => {
-    footerButton.replaceChildren(i18n(cantSendMessages ? 'InviteViaLink.Premium.Subscribe' : (count ? 'InviteViaLink.Send' : 'InviteViaLink.Skip')));
+    footerButton.replaceChildren(i18n(count ? 'InviteViaLink.Send' : 'InviteViaLink.Skip'));
   };
-  const initial = missingInviteeIds.filter((peerId) => !premiumRequireIds.has(peerId));
   const popup = showPickUserPopup(
     {
       peerType: ['custom'],
       getMoreCustom: async() => ({result: missingInviteeIds, isEnd: true}),
       onSelect: async(chosen) => {
         const peerIds = chosen.map((c) => c.peerId);
-        if(cantSendMessages) {
-          onPremiumClick();
-          return;
-        }
-
         const length = peerIds.length;
         if(!length) {
           return;
@@ -86,56 +55,19 @@ export async function handleMissingInvitees(chatId: ChatId, missingInvitees: Mis
       },
       onChange: onCountUpdate,
       multiSelect: true,
-      titleLangKey: hasPremiumSection ? 'InviteViaLink.Premium' : 'InviteViaLink.Title',
-      initial,
+      titleLangKey: 'InviteViaLink.Title',
+      initial: missingInviteeIds,
       headerSearch: false,
       noSearch: true,
-      footerButtonProps: /* cantSendMessages ? undefined :  */{ref: (element) => footerButton = element},
-      chatRightsActions: ['send_messages'],
-      autoHeight: cantSendMessages
+      footerButtonProps: {ref: (element) => footerButton = element},
+      chatRightsActions: ['send_messages']
     }
   );
 
-  onCountUpdate(initial.length);
-  if(hasPremiumSection) {
-    const container = document.createElement('div');
-    container.classList.add('popup-add-members-premium-container');
-
-    const subtitle = i18n('InviteViaLink.Premium.Subtitle', [length, title || length]);
-    subtitle.classList.add('popup-add-members-premium-subtitle');
-
-    container.append(
-      subtitle
-    );
-
-    if(!cantSendMessages) {
-      const header = i18n('InviteViaLink.Title');
-      header.classList.add('popup-add-members-premium-header');
-
-      const subtitle2 = i18n('InviteViaLink.Premium.Subtitle2');
-      subtitle2.classList.add('popup-add-members-premium-subtitle');
-
-      const premiumButton = Button(`btn-primary popup-gift-premium-confirm action-button shimmer`, {text: 'InviteViaLink.Premium.Subscribe'});
-      attachClickEvent(premiumButton, onPremiumClick);
-
-      container.append(
-        premiumButton,
-        DelimiterWithText({langKey: 'PremiumOr'}) as HTMLElement,
-        header,
-        subtitle2
-      );
-    } else {
-      popup.selector.list.remove();
-
-      footerButton.classList.add('popup-gift-premium-confirm', 'action-button', 'shimmer');
-    }
-
-    popup.selector.section.content.prepend(container);
-  } else {
-    const subtitle = i18n('InviteViaLink.Subtitle', [length, title || length]);
-    subtitle.classList.add('popup-add-members-subtitle');
-    popup.selector.section.content.prepend(subtitle);
-  }
+  onCountUpdate(missingInviteeIds.length);
+  const subtitle = i18n('InviteViaLink.Subtitle', [length, title || length]);
+  subtitle.classList.add('popup-add-members-subtitle');
+  popup.selector.section.content.prepend(subtitle);
 }
 
 /** what to tell of a refusal to add members: the reason where it is known, as tdesktop and Android do */
