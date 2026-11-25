@@ -141,12 +141,15 @@ async function createChat(host: SignalMethodHost, title: string, users: any[]) {
   };
 }
 
+/** Adding ourselves is joining the group, which accepts our invitation (Web A's `joinChannel` action) */
 async function addChatUser(host: SignalMethodHost, chatId: number, inputUser: any) {
   const peerId = getInputUserPeerId(host, inputUser);
   const chat = getGroupOf(host, chatId);
   if(peerId === undefined || !chat) throw makeError(GROUP_CHANGE_ERROR as ErrorType);
 
-  await applyGroupChange(host.call('addChatMembers', chat, [getUserRef(peerId)]));
+  await applyGroupChange(peerId === host.getManagers().appPeersManager.peerId ?
+    host.call('joinChannel', {channelId: chat.id, accessHash: ''}) :
+    host.call('addChatMembers', chat, [getUserRef(peerId)]));
   return {_: 'messages.invitedUsers', updates: emptyUpdates(), missing_invitees: [] as MissingInvitee[]};
 }
 

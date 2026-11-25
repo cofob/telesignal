@@ -137,14 +137,20 @@ function buildBannedRights(rights?: SignalBannedRights): ChatBannedRights.chatBa
   return {_: 'chatBannedRights', pFlags, until_date: 0};
 }
 
+/**
+ * A group as Web K keeps it. Not fields of Telegram's basic group: its avatar colour, as a user has, and
+ * `signal_not_joined` for a group that invited us, which we join by accepting the invitation
+ */
+export type SignalBuiltChat = Chat.chat & Pick<User.user, 'color'> & {signal_not_joined?: true};
+
 /** Groups only: a private conversation is its user (`buildUser`) */
-// * A group carries its avatar colour as a user does, which Telegram's basic group has no field for
 export function buildChat(chat: SignalChat): Chat.chat {
-  const result: Chat.chat & Pick<User.user, 'color'> = {
+  const result: SignalBuiltChat = {
     _: 'chat',
     pFlags: {
       creator: chat.isOwner || undefined,
-      left: chat.isForbidden || undefined,
+      // * we are not in a group that invited us until we accept, as in Web A (`selectIsChatRestricted`)
+      left: chat.isForbidden || chat.isNotJoined || undefined,
       // * Web K reads it on users and channels; a Signal group's stories are hidden the same way
       stories_hidden: chat.areStoriesHidden
     } as Chat.chat['pFlags'],
@@ -156,7 +162,8 @@ export function buildChat(chat: SignalChat): Chat.chat {
     version: 0,
     admin_rights: buildAdminRights(chat.adminRights),
     default_banned_rights: buildBannedRights(chat.defaultBannedRights),
-    color: chat.color?.color !== undefined ? {_: 'peerColor', color: chat.color.color} : undefined
+    color: chat.color?.color !== undefined ? {_: 'peerColor', color: chat.color.color} : undefined,
+    signal_not_joined: chat.isNotJoined || undefined
   };
   return result;
 }

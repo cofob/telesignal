@@ -402,6 +402,7 @@ export type SignalMethodName =
   | 'importBackupFile'
   | 'importChatInvite'
   | 'installStickerSet'
+  | 'joinChannel'
   | 'linkSignalDevice'
   | 'loadPollOptionResults'
   | 'lookUpPhoneNumber'
