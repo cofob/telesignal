@@ -314,6 +314,7 @@ export type SignalInitialArgs = {
  * provider has each of them
  */
 export type SignalMethodName =
+  | 'addChatMemberByPhoneNumber'
   | 'addChatMembers'
   | 'backUpNow'
   | 'blockUser'

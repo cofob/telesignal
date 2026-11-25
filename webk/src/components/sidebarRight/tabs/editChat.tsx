@@ -827,6 +827,14 @@ function EditChatForm(props: {
           <Row.Title>{i18n(isBroadcast() ? 'PeerInfo.Subscribers' : 'GroupMembers')}</Row.Title>
           <Row.Subtitle>{membersCount()}</Row.Subtitle>
         </Row>
+        <Show when={chat()._ === 'chat' && canInviteUsers()}>
+          <Row clickable={() => {
+            void import('@components/popups/addMemberByPhone').then(({default: show}) => show(chatId()));
+          }}>
+            <Row.Icon icon="phone" />
+            <Row.Title>{i18n('Signal.AddByPhone')}</Row.Title>
+          </Row>
+        </Show>
         <Show when={pendingInvitesCount()}>
           <Row clickable={() => {
             tab.slider.createTab(hotReloadGuard.tabs.AppPendingInvitesTab).open({chatId: chatId()});
