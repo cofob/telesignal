@@ -16,7 +16,7 @@ import {modifyMutable, produce} from 'solid-js/store';
 const MAX_SCALE = 20;
 
 export default function CropHandles() {
-  const {editorState, mediaState, isEditingForAvatar, isEditingForumAvatar} = useMediaEditorContext();
+  const {editorState, mediaState, isEditingForAvatar} = useMediaEditorContext();
 
   const isCropping = () => editorState.currentTab === 'crop';
 
@@ -375,7 +375,7 @@ export default function CropHandles() {
 
   const cropSpotlightRoundness = createMemo(() => {
     if(isEditingForAvatar) {
-      return Math.min(width(), height()) / (isEditingForumAvatar ? 3 : 2);
+      return Math.min(width(), height()) / 2;
     }
     return 0;
   });

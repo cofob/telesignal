@@ -4923,18 +4923,8 @@ export default class ChatBubbles {
   }
 
   private isMessageInCurrentThread(message: MyMessage) {
-    if(message.peerId !== this.peerId) {
-      return false;
-    }
-
-    if(
-      this.chat.threadId &&
-      getMessageThreadId(message) !== this.chat.threadId
-    ) {
-      return false;
-    }
-
-    return true;
+    return message.peerId === this.peerId &&
+      (!this.chat.threadId || getMessageThreadId(message) === this.chat.threadId);
   }
 
   private isTransientMessageInCurrentChat(message: MyMessage) {

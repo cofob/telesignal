@@ -1680,7 +1680,7 @@ export class AppDialogsManager {
       }
 
       // * Saved Messages viewed as chats opens its sublists
-      if(peerId === rootScope.myId && elem.querySelector('.is-forum') && !lastMsgId) {
+      if(peerId === rootScope.myId && elem.querySelector('.is-saved-sublists') && !lastMsgId) {
         this.toggleSavedDialogsTab();
         return;
       }

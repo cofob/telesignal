@@ -174,7 +174,6 @@ export type MediaEditorContextValue = {
   getMediaBlob: () => Promise<Blob | null>;
   canImageResultInGIF: boolean;
   isEditingForAvatar: boolean;
-  isEditingForumAvatar: boolean;
   isVideoAvatarMode: boolean;
   dontCreatePreview: boolean;
   imageType?: 'image/jpeg' | 'image/png';
@@ -260,7 +259,6 @@ export function createContextValue(props: MediaEditorProps): MediaEditorContextV
     getMediaBlob: props.getMediaBlob,
     canImageResultInGIF: props.canImageResultInGIF || false,
     isEditingForAvatar: props.isEditingForAvatar || false,
-    isEditingForumAvatar: props.isEditingForumAvatar || false,
     isVideoAvatarMode: props.isVideoAvatarMode || false,
     dontCreatePreview: props.dontCreatePreview || false,
     imageType: props.imageType,

@@ -16,7 +16,6 @@ export type DialogSelectionState = {
   /** in the list the selection was made in, which is not always the one the dialog lives in */
   pinned: boolean,
   unread: boolean,
-  forum: boolean,
   muted: boolean,
   archived: boolean,
   /** our own chat, which can be neither muted nor archived */
@@ -37,11 +36,10 @@ export default function getDialogsSelectionActions(dialogs: DialogSelectionState
     return actions;
   }
 
-  let pinned = 0, unread = 0, forums = 0, muteable = 0, muted = 0, archivable = 0, archived = 0;
+  let pinned = 0, unread = 0, muteable = 0, muted = 0, archivable = 0, archived = 0;
   for(const dialog of dialogs) {
     if(dialog.pinned) ++pinned;
     if(dialog.unread) ++unread;
-    if(dialog.forum) ++forums;
 
     if(!dialog.self) {
       ++muteable;
@@ -60,9 +58,7 @@ export default function getDialogsSelectionActions(dialogs: DialogSelectionState
   if(archivable === count) actions.archive = !archived;
   actions.delete = true;
 
-  // * a forum has no unread mark to put back, so a selection with one in it can only be read
-  if(unread) actions.read = true;
-  else if(!forums) actions.read = false;
+  actions.read = !!unread;
 
   return actions;
 }

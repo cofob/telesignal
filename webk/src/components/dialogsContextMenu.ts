@@ -194,8 +194,7 @@ export default class DialogsContextMenu {
         return !!this.dialog &&
           this.peerId !== rootScope.myId &&
           !(await managers.appNotificationsManager.isPeerLocalMuted({
-            peerId: this.peerId,
-            threadId: this.threadId
+            peerId: this.peerId
           }));
       }
     }, {
@@ -206,8 +205,7 @@ export default class DialogsContextMenu {
         return !!this.dialog &&
           this.peerId !== rootScope.myId &&
           this.managers.appNotificationsManager.isPeerLocalMuted({
-            peerId: this.peerId,
-            threadId: this.threadId
+            peerId: this.peerId
           });
       }
     }, {
@@ -226,7 +224,7 @@ export default class DialogsContextMenu {
         !this.threadId &&
         this.dialog.folder_id === FOLDER_ID_ARCHIVE &&
         this.peerId !== rootScope.myId
-        }, {
+    }, {
       icon: 'lock',
       text: 'BlockUser',
       onClick: () => blockUserWithConfirmation({peerId: this.peerId}),
@@ -307,18 +305,18 @@ export default class DialogsContextMenu {
     this.managers.appMessagesManager.toggleDialogPin({
       peerId,
       filterId,
-      topicOrSavedId: threadId
+      savedId: threadId
     }).catch((err: ApiError) => {
       showPinLimitReached(err, {filterId, isSaved});
     });
   };
 
   private onUnmuteClick = () => {
-    this.managers.appMessagesManager.togglePeerMute({peerId: this.peerId, mute: false, threadId: this.threadId});
+    this.managers.appMessagesManager.togglePeerMute({peerId: this.peerId, mute: false});
   };
 
   private onMuteClick = () => {
-    showMutePopup(this.peerId, this.threadId);
+    showMutePopup(this.peerId);
   };
 
   private onPreviewClick = () => {

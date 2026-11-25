@@ -2329,8 +2329,7 @@ export default class ChatInput {
     setBadgeCount(this.goDownUnreadBadge, count, undefined, animate);
     const isPeerLocalMuted = await this.managers.appNotificationsManager.isPeerLocalMuted({
       peerId: this.chat.peerId,
-      respectType: true,
-      threadId: this.chat.threadId
+      respectType: true
     });
     this.goDownUnreadBadge.classList.toggle('badge-gray', isPeerLocalMuted);
 

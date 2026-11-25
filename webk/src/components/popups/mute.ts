@@ -37,20 +37,17 @@ const times: {value: number, langPackKey: LangPackKey, checked?: boolean}[] = [{
 }];
 
 /**
- * Every "Mute" of a chat or a topic — the chat list, the top bar, the profile — as tdesktop's mute
+ * Every "Mute" of a chat — the chat list, the top bar, the profile — as tdesktop's mute
  * menu (`menu/menu_mute.cpp`): a duration or one of the user's own. TeleSignal: Signal keeps no sound setting of a
  * chat, only its mute, so the menu has no sound button.
  */
-export default function showMutePopup(
-  peerId: PeerId,
-  threadId?: number
-) {
+export default function showMutePopup(peerId: PeerId) {
   const managers = bindManagersToSession(rootScope.managers);
 
   let time = times.find((option) => option.checked).value;
 
   const mute = (muteUntil: number) => {
-    managers.appMessagesManager.mutePeer({peerId, muteUntil, threadId});
+    managers.appMessagesManager.mutePeer({peerId, muteUntil});
   };
 
   const buttons: PopupPeerButton[] = [{

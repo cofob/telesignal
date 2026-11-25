@@ -17,7 +17,6 @@ type OnFinishArgs = {
 type GetFileAndOpenEditorArgs = {
   dontCreatePreview?: boolean;
   isEditingForAvatar?: boolean;
-  isEditingForumAvatar?: boolean;
   canImageResultInGIF?: boolean;
   /**
    * Allowed media types in the file picker. Defaults to images only.
@@ -42,7 +41,6 @@ export async function getFileAndOpenEditor({
   onFinish,
   dontCreatePreview,
   isEditingForAvatar,
-  isEditingForumAvatar,
   canImageResultInGIF = false,
   acceptMediaTypes = ['photo'],
   shouldOpenEditor,
@@ -92,7 +90,6 @@ export async function getFileAndOpenEditor({
 
   openMediaEditorFromMediaRaw({
     isEditingForAvatar,
-    isEditingForumAvatar,
     canFinishWithoutChanges: true,
     canImageResultInGIF,
     getMediaBlob: async() => file,

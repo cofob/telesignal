@@ -12,7 +12,6 @@ import type {DialogDom} from '@components/dialogElement';
 import {ReadingManagers} from '@lib/managers';
 import getDialogIndex from '@appManagers/utils/dialogs/getDialogIndex';
 import getDialogIndexKey from '@appManagers/utils/dialogs/getDialogIndexKey';
-import {isForumTopic} from '@appManagers/utils/dialogs/isDialog';
 import {logger} from '@lib/logger';
 import rootScope from '@lib/rootScope';
 import {AnyDialog} from '@lib/storages/dialogs';
@@ -352,7 +351,6 @@ export class AutonomousDialogListBase<T extends PossibleDialog = PossibleDialog>
     const needsLastMessage = await setDialogTyping({
       dom,
       peerId: dialog.peerId,
-      threadId: isForumTopic(dialog) ? dialog.id : undefined,
       animate: true
     });
 

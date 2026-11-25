@@ -451,7 +451,7 @@ export const AvatarNew = (props: {
   const [thumb, setThumb] = createSignal<JSX.Element>();
   const [abbreviature, setAbbreviature] = createSignal<JSX.Element>();
   const [color, setColor] = createSignal<string>();
-  const [isForum, setIsForum] = createSignal(false);
+  const [isSavedSublists, setIsSavedSublists] = createSignal(false);
   const [isSubscribed, setIsSubscribed] = createSignal(false);
   const {setStoriesSegments, storyDimensions, storiesCircle} = StoriesSegments({
     size: props.size as number,
@@ -705,14 +705,14 @@ export const AvatarNew = (props: {
     abbreviature,
     icon,
     color,
-    isForum,
+    isSavedSublists,
     isSubscribed,
     storiesSegments
   }: {
     abbreviature?: JSX.Element,
     icon?: Icon,
     color?: string,
-    isForum?: boolean,
+    isSavedSublists?: boolean,
     isSubscribed?: boolean,
     storiesSegments?: StoriesSegmentsType
   }) => {
@@ -722,7 +722,7 @@ export const AvatarNew = (props: {
     setIcon(icon);
     setAbbreviature(abbreviature);
     setColor(color);
-    setIsForum(isForum);
+    setIsSavedSublists(isSavedSublists);
     setIsSubscribed(isSubscribed);
     setStoriesSegments(storiesSegments);
   };
@@ -759,14 +759,14 @@ export const AvatarNew = (props: {
     if(peerId === myId && isDialog) {
       set({
         icon: props.meAsNotes ? 'mynotes' : 'saved_filled',
-        isForum: !props.meAsNotes && appSettings.savedAsForum
+        isSavedSublists: !props.meAsNotes && appSettings.savedAsForum
       });
 
       !props.meAsNotes && createRoot((dispose) => {
         createEffect(
           on(
             () => appSettings.savedAsForum,
-            setIsForum,
+            setIsSavedSublists,
             {defer: true}
           )
         );
@@ -1013,7 +1013,7 @@ export const AvatarNew = (props: {
 
   const innerClassList = (): JSX.CustomAttributes<HTMLDivElement>['classList'] => {
     return {
-      'is-forum': isForum(),
+      'is-saved-sublists': isSavedSublists(),
       'is-relative': !!autoDeletePeriod(),
       // The video overlay is absolutely positioned (inset: 0); without a
       // positioning context it would anchor to the wrong ancestor.

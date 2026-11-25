@@ -28,7 +28,6 @@ export type AvatarEditPayload = {
 };
 
 type Options = {
-  isForum?: boolean;
   // * of the account the photo is for, when the tab may show another one (an account signed in to over
   // * the app of the tab's): the picture is uploaded by them
   managers?: AppManagers | TabManagers;
@@ -160,7 +159,6 @@ async function handleAvatarEditorResult(opts: {
 // contact photo (personal or suggested) or as the user's own fallback photo.
 export function pickAvatarAndUpload(opts: {
   managers: AppManagers;
-  isForum?: boolean;
   mode: 'fallback' | {userId: UserId; suggest?: boolean};
   onUploadStart?: (progress: CancellablePromise<InputFile>) => void;
   onUploaded?: () => void;
@@ -170,7 +168,6 @@ export function pickAvatarAndUpload(opts: {
   const managers = bindManagersToSession(opts.managers);
   getFileAndOpenEditor({
     isEditingForAvatar: true,
-    isEditingForumAvatar: opts.isForum,
     acceptMediaTypes: ['photo', 'video'],
     onFinish: ({editorResult}) => handleAvatarEditorResult({
       result: editorResult,
@@ -188,7 +185,6 @@ export function pickAvatarAndUpload(opts: {
 export async function editAndSetOwnAvatar(opts: {
   managers: AppManagers;
   photo: Photo.photo;
-  isForum?: boolean;
   onUploadStart?: (progress: CancellablePromise<InputFile>) => void;
   onUploaded?: () => void;
 }) {
@@ -209,7 +205,6 @@ export async function editAndSetOwnAvatar(opts: {
   }
 
   return openAvatarEditorWithFile(file, {
-    isForum: opts.isForum,
     onFinish: (editorResult) => handleAvatarEditorResult({
       result: editorResult,
       managers,
@@ -224,8 +219,7 @@ export async function editAndSetOwnAvatar(opts: {
 // Used when editing an existing photo (e.g. accepting a suggested profile photo).
 export async function openAvatarEditorWithFile(
   file: File | Blob,
-  {isForum, onFinish, dontCreatePreview}: {
-    isForum?: boolean;
+  {onFinish, dontCreatePreview}: {
     dontCreatePreview?: boolean;
     onFinish: (editorResult: MediaEditorFinalResult) => void;
   }
@@ -246,7 +240,6 @@ export async function openAvatarEditorWithFile(
 
   openMediaEditorFromMediaRaw({
     isEditingForAvatar: true,
-    isEditingForumAvatar: isForum,
     isVideoAvatarMode: isVideo,
     canFinishWithoutChanges: true,
     canImageResultInGIF: false,
@@ -280,7 +273,6 @@ export default class AvatarEdit {
     attachClickEvent(this.container, () => {
       getFileAndOpenEditor({
         isEditingForAvatar: true,
-        isEditingForumAvatar: options?.isForum,
         acceptMediaTypes: ['photo', 'video'],
         // * the avatar is gone by the time the file is picked and the editor loaded: it is not opened
         isAlive: () => this.container.isConnected && (options?.isAlive?.() ?? true),

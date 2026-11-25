@@ -1097,8 +1097,9 @@ export class InternalLinkProcessor {
   };
 
   /**
-   * `t.me/<bot>?game=<short_name>`: the game goes to a chat the user picks - never Saved Messages - once they confirm it, and that chat opens (tdesktop's `ShowShareGameBox`). A name
-   * that is not a bot's opens as it would without the game.
+   * `t.me/<bot>?game=<short_name>`: the game goes to a chat the user picks - never Saved Messages - once they
+   * confirm it, and that chat opens (tdesktop's `ShowShareGameBox`). A name that is not a bot's opens as it would
+   * without the game.
    */
   private async shareGame(link: InternalLink.InternalLinkMessage): Promise<unknown> {
     const managers = bindManagersToSession(this.managers);

@@ -1,9 +1,5 @@
 import type {AnyDialog} from '@lib/storages/dialogs';
-import type {Dialog, ForumTopic, SavedDialog} from '@appManagers/appMessagesManager';
-
-export function isForumTopic(dialog: AnyDialog): dialog is ForumTopic {
-  return dialog?._ === 'forumTopic';
-}
+import type {Dialog, SavedDialog} from '@appManagers/appMessagesManager';
 
 export function isSavedDialog(dialog: AnyDialog): dialog is SavedDialog {
   return dialog?._ === 'savedDialog';

@@ -179,16 +179,12 @@ unions need (`communityFull` and `communityForbidden` checks in `hasRights`, `ap
 and call code) and the places that drop a community they are handed (`appChatsManager.saveApiChat`,
 `dialogCommunity` in `dialogsStorage`, `notifyCommunity` updates in `appNotificationsManager`).
 
-Forums are removed from the UI, the chat and the managers, with the channel direct-message threads and their
-storage. What is left is the forum topic cache of `dialogsStorage` (`forumTopics`, `FilterType.Forum`,
-`getForumTopic`, `getForumTopicById`, `processTopics`, the `messages.getForumTopics` branch of `getDialogs` and its
-pagination offsets) with its callers in `appMessagesManager` (channel cutoff tops, topic mentions, `flushHistory`),
-`ForumTopic` in `AnyDialog` and its `isForumTopic` checks, and the topic notification settings (`notifyForumTopic`
-in `appNotificationsManager`, `getInputNotifyPeerById`). The cache shares the virtual filter path with the Saved
-Messages sublists, and the settings are cached under topic keys, so removing them means reworking
-`dialogsStorage`'s virtual filters and a cache migration. Saved Messages "view as chats" still uses the forum
-avatar class (`is-forum`) and the `savedAsForum` setting. About 90 `.invalid` links of the removed Telegram
-features remain in `src`; the strings that Signal chats can show point to Signal on the phone instead.
+Forums are removed from Web K, with the channel direct-message threads, the forum topic cache of `dialogsStorage`
+and the topic notification settings. What is left of them are the Telegram type unions that still name them
+(`notifyForumTopic` updates are dropped on arrival, `inputReplyToMonoForum` is excluded from what a send replies to)
+and the `savedAsForum` setting of Saved Messages "view as chats", whose name is kept because the setting is
+stored. About 90 `.invalid` links of the removed Telegram features remain in `src`; the strings that Signal chats can
+show point to Signal on the phone instead.
 
 ## Web A calls Note to Self «Your Cloud Storage»
 
