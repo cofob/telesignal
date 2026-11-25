@@ -1289,8 +1289,7 @@ const Stories = (props: {
       sendingParams: {...input.chat.getMessageSendingParams(), replyToStoryId: storyId},
       text: {text, entities},
       chatType: ChatType.Stories,
-      slowModeParams: input.getDefaultParamsForSlowModeTooltip(),
-      paidMessageInterceptor: input.paidMessageInterceptor
+      slowModeParams: input.getDefaultParamsForSlowModeTooltip()
     });
     if(!result || !result.messageCount) {
       return;

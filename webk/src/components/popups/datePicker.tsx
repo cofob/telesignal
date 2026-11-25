@@ -8,7 +8,6 @@ import {createTimeInputs, padTime} from '@components/timeInputs';
 import rootScope from '@lib/rootScope';
 import ListenerSetter from '@helpers/listenerSetter';
 import {formatTime, earliestSelectableMinuteMs} from '@helpers/date';
-import suggestPostStyles from '@components/chat/suggestPostPopup/styles.module.scss';
 import {wrapReplyMedia} from '@components/chat/replyContainer';
 import createMiddleware from '@helpers/solid/createMiddleware';
 import {Message, MessagesFilter} from '@layer';
@@ -854,8 +853,7 @@ export default function showDatePickerPopup(opts: DatePickerPopupOptions): void 
 
         <Show when={opts.minTimeDate}>
           <div class={classNames(
-            suggestPostStyles.Caption,
-            suggestPostStyles.center,
+            'date-picker-min-time-caption',
             !isMinTimeCaptionVisible() && 'hide'
           )}>
             {i18n(opts.minSendDateLangKey ?? 'SuggestedPosts.PublishingTime.MinSendTime', [formatTime(effectiveMinTime())])}

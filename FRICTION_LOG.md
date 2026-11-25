@@ -179,10 +179,14 @@ and boosts and statistics are removed. What remains of bots are inline buttons i
 `replyMarkupLayout`, URL authorization) and the bot command cache that ephemeral messages read (`appProfileManager`,
 `appMessagesManager`).
 
-Stars, gifts, Premium and payments are removed from the UI; `appPaymentsManager`, `appGiftsManager` and
-`appManagers/utils/gifts` stay in the worker, and inert paths still read Stars data that Signal never sends (the paid
-message interceptor, suggested posts and group message charges, paid reaction rendering, the stars balance store,
-collectible QR code and chat themes). Communities are removed from the UI, the chat list and the worker
+Stars, gifts, Premium and payments are removed from the UI, with the paid message interceptor, the price changed
+tooltip, the stars balance store, suggested posts, group message charges, the channel fee plate and paid reactions;
+`appPaymentsManager`, `appGiftsManager` and `appManagers/utils/gifts` stay in the worker. What still reads Stars data
+that Signal never sends: the managers' paid sending (`confirmedPaymentResult`, `repayRequestHandler`,
+`paidMessagesQueue` and the suggested post parameters in `appMessagesManager`), the composer's per-chat stars price
+(`chat.starsAmount`, the stars badge of the send button), and collectible gifts in the QR code popup
+(`popups/myQrCode`) and the chat themes (`chat/chatTheme.ts`, `themeChooser.tsx`), whose drawing paths share the
+ordinary themes'. Communities are removed from the UI, the chat list and the worker
 (`appCommunitiesManager`); the managers still recognise the Telegram community shapes they may be handed and skip or
 ignore them (`community` chats in `appChatsManager.saveApiChat`, `dialogCommunity` in `dialogsStorage`,
 `notifyCommunity` settings in `appNotificationsManager`, `communityFull` checks in `appProfileManager` and

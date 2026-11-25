@@ -21,7 +21,6 @@ import showConvertToGigagroupPopup from '@components/popups/convertToGigagroup';
 import {ChatPermissions, createSolidTabState} from './sharedPermissions';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import {usePromiseCollector} from '@components/solidJsTabs/promiseCollector';
-import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import type {AppGroupPermissionsTab} from '@components/solidJsTabs/tabs';
 import {wrapSolidComponent} from '@helpers/solid/wrapSolidComponent';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
@@ -29,7 +28,6 @@ import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 const GroupPermissions: Component = () => {
   const [tab] = useSuperTab<typeof AppGroupPermissionsTab>();
   const promiseCollector = usePromiseCollector();
-  const {HotReloadGuard} = useHotReloadGuard();
 
   let chatId = tab.payload.chatId;
 
@@ -38,7 +36,6 @@ const GroupPermissions: Component = () => {
 
   const solidState = createSolidTabState<{
     rights?: ChatBannedRights.chatBannedRights,
-    stars?: number,
     slowModeSeconds?: number,
   }>({
     tab,
@@ -56,7 +53,6 @@ const GroupPermissions: Component = () => {
   let slowmodeContent!: HTMLDivElement;
   let exceptionsAdd!: HTMLDivElement;
   let exceptionsList!: HTMLDivElement;
-  const [chargeElement, setChargeElement] = createSignal<HTMLElement>();
   const [convertRow, setConvertRow] = createSignal<HTMLElement>();
   const [slowmodeCaption, setSlowmodeCaption] = createSignal<HTMLElement>();
 
@@ -79,34 +75,6 @@ const GroupPermissions: Component = () => {
     saveCallbacks.push(() => {
       return tab.managers.appChatsManager.editChatDefaultBannedRights(chatId, chatPermissions.takeOut());
     });
-
-    if(isChannel) {
-      const {default: createChargeForMessagesSection} = await import('./chargeForMessasgesSection');
-
-      const initialStars = +chat.send_paid_messages_stars || 0;
-      solidState.setInitial({stars: initialStars});
-
-      const {element, dispose, promise} = createChargeForMessagesSection(
-        {
-          initialStars,
-          onStarsChange: (stars) => void solidState.set({stars})
-        },
-        HotReloadGuard
-      );
-
-      await promise;
-
-      setChargeElement(element);
-
-      tab.middlewareHelper.get().onDestroy(() => void dispose());
-
-      saveCallbacks.push(() => {
-        const {stars} = solidState.store;
-
-        if(initialStars === stars) return;
-        return tab.managers.appChatsManager.updateChannelPaidMessagesPrice(chat.id, stars);
-      });
-    }
 
     const chatFull = await tab.managers.appProfileManager.getChatFull(chatId);
 
@@ -378,7 +346,6 @@ const GroupPermissions: Component = () => {
       <Section name="ChannelPermissionsHeader">
         <div ref={permissionsContent} />
       </Section>
-      {chargeElement()}
       {/* * TeleSignal: Signal's groups have no slow mode or exceptions; their containers stay, hidden, for the code that fills them */}
       <div hidden>
         <Section name="Slowmode" caption={slowmodeCaption()}>

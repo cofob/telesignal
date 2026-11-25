@@ -9,7 +9,6 @@ import {avatarNew, AvatarNewTsx, StoriesSegments} from '@components/avatarNew';
 import BusinessHours from '@components/businessHours';
 import ButtonMenu, {ButtonMenuSync} from '@components/buttonMenu';
 import {ChatType} from '@components/chat/chatType';
-import PaidMessagesInterceptor from '@components/chat/paidMessagesInterceptor';
 import {pickLanguage} from '@components/chat/translation';
 import confirmationPopup from '@components/confirmationPopup';
 import confirmOpenGoogleMaps from '@components/confirmOpenGoogleMaps';
@@ -157,7 +156,6 @@ registerHotReloadGuard({
   pickLanguage,
   usePeerTranslation,
   showSharingPickerPopup,
-  PaidMessagesInterceptor,
   showForwardPopup,
   showPeerProfilePopup,
   createStoriesViewer,

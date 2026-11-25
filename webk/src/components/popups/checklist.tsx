@@ -10,7 +10,6 @@ import {ButtonIconTsx} from '@components/buttonIconTsx';
 import InputField from '@components/inputField';
 import Row from '@components/rowTsx';
 import Section from '@components/section';
-import {PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import {toastNew} from '@components/toast';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import getRichValueWithCaret from '@helpers/dom/getRichValueWithCaret';
@@ -221,11 +220,6 @@ export default function showChecklistPopup(options: ChecklistPopupOptions): void
             });
           } else {
             const sendingParams = chat.getMessageSendingParams();
-
-            const preparedPaymentResult = await chat.input.paidMessageInterceptor.prepareStarsForPayment(1);
-            if(preparedPaymentResult === PAYMENT_REJECTED) return;
-
-            sendingParams.confirmedPaymentResult = preparedPaymentResult;
 
             context.hide();
 

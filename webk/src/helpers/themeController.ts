@@ -34,8 +34,7 @@ export type AppColorName = 'primary-color' | 'message-out-primary-color' |
   'secondary-text-color' | 'message-out-background-color' |
   'saved-color' | 'message-background-color' | 'green-color' |
   'background-color' | 'body-background-color' | 'border-color' |
-  'secondary-color' | 'link-color' | 'input-search-background-color' |
-  'reaction-paid-outside-background-color' | 'reaction-paid-outside-color' | 'reaction-paid-outside-chosen-background-color';
+  'secondary-color' | 'link-color' | 'input-search-background-color';
 type AppColor = {
   rgb?: boolean,
   light?: boolean,
@@ -104,18 +103,7 @@ const appColorMap: {[name in AppColorName]: AppColor} = {
   'border-color': {},
   'secondary-color': {},
   'link-color': {},
-  'input-search-background-color': {},
-  // * a paid reaction on the wallpaper (iOS's freeform `reactionStars*` colours)
-  'reaction-paid-outside-background-color': {},
-  'reaction-paid-outside-color': {},
-  'reaction-paid-outside-chosen-background-color': {}
-};
-
-// * a paid reaction on the wallpaper in the day themes (iOS's freeform day colours)
-const PAID_REACTION_OUTSIDE_DAY_COLORS: {[name in AppColorName]?: string} = {
-  'reaction-paid-outside-background-color': '#FEF1D4',
-  'reaction-paid-outside-color': '#D3720A',
-  'reaction-paid-outside-chosen-background-color': '#FFBC2E'
+  'input-search-background-color': {}
 };
 
 const colorMap: {
@@ -140,8 +128,7 @@ const colorMap: {
     'body-background-color': '#ffffff',
     'border-color': '#e9e9e9',
     'secondary-color': '#c4c9cc',
-    'input-search-background-color': '#ffffff',
-    ...PAID_REACTION_OUTSIDE_DAY_COLORS
+    'input-search-background-color': '#ffffff'
   },
   night: {
     'primary-color': '#2c6bed',
@@ -158,10 +145,7 @@ const colorMap: {
     'body-background-color': '#121212',
     'border-color': '#2e2e2e',
     'secondary-color': '#707579',
-    'input-search-background-color': '#121212',
-    'reaction-paid-outside-background-color': '#D3720A33',
-    'reaction-paid-outside-color': '#FFD738',
-    'reaction-paid-outside-chosen-background-color': '#D3720A'
+    'input-search-background-color': '#121212'
   },
   tinted: {
     // base colors ported from Telegram-Android darkblue.attheme (Dark Blue / Tinted)
@@ -184,10 +168,7 @@ const colorMap: {
     'body-background-color': '#151E27',
     'border-color': '#0F151B',
     'secondary-color': '#7D8B99',
-    'input-search-background-color': '#212D3B',
-    'reaction-paid-outside-background-color': '#FEF1D4',
-    'reaction-paid-outside-color': '#D3720A',
-    'reaction-paid-outside-chosen-background-color': '#D3720A'
+    'input-search-background-color': '#212D3B'
   },
   light: {
     // base colors ported from Telegram-Android day.attheme (Android's "Day" / baseThemeDay)
@@ -206,8 +187,7 @@ const colorMap: {
     'body-background-color': '#FFFFFF',
     'border-color': '#DFE1E5',
     'secondary-color': '#C4C9CC',
-    'input-search-background-color': '#FFFFFF',
-    ...PAID_REACTION_OUTSIDE_DAY_COLORS
+    'input-search-background-color': '#FFFFFF'
   }
 };
 

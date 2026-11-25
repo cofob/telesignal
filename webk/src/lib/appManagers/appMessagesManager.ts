@@ -103,7 +103,7 @@ import getUnreadReactions from '@appManagers/utils/messages/getUnreadReactions';
 import isMentionUnread from '@appManagers/utils/messages/isMentionUnread';
 import canMessageHaveFactCheck from '@appManagers/utils/messages/canMessageHaveFactCheck';
 import PaidMessagesQueue from '@appManagers/utils/messages/paidMessagesQueue';
-import type {ConfirmedPaymentResult} from '@components/chat/paidMessagesInterceptor';
+import type {ConfirmedPaymentResult} from '@appManagers/utils/repayRequestHandler';
 import RepayRequestHandler, {RepayRequest} from '@appManagers/utils/repayRequestHandler';
 import getPhotoInput from '@appManagers/utils/photos/getPhotoInput';
 import {increment, MonoforumDialog} from '@lib/storages/monoforumDialogs';

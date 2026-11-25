@@ -849,9 +849,6 @@ const lang = {
     'other_value': '%d contacts have birthdays today! 🎂'
   },
   'Suggestion.BirthdayContacts.Subtitle': 'Wish them a happy birthday',
-  'Suggestion.BirthdayContacts.Yesterday': 'Birthday yesterday',
-  'Suggestion.BirthdayContacts.Today': 'Birthday today',
-  'Suggestion.BirthdayContacts.Tomorrow': 'Birthday tomorrow',
   'GiftRecipientDoesNotAccept': 'This user doesn’t accept gifts.',
   'Suggestion.PasskeySetup': 'Create Passkey! %s',
   'Suggestion.PasskeySetup.Subtitle': 'Log in safely and keep your account secure.',
@@ -3843,11 +3840,7 @@ const lang = {
     'other_value': 'You reacted with **%d** stars.'
   },
   'StarsReactionTitle': 'Star Reaction',
-  'StarsReactionText': 'Choose how many stars you want to send to **%s** to support this post.',
-  'StarsReactionTopSenders': 'Top Senders',
-  'StarsReactionShowMeInTopSenders': 'Show me in Top Senders',
   'PaidReaction.Send': 'Send %d',
-  'StarsReactionAnonymous': 'Anonymous',
   'StarsGiveawayPrizeReceived': 'Received Prize',
   'BoostingBoostsCountTitle': {
     'one_value': '%d boost',
@@ -4851,39 +4844,12 @@ const lang = {
   'PasscodeLock.LogoutPopup.Description': 'Are you sure you want to log out?',
   'PasscodeLock.TurnOff.Description': 'Are you sure you want to turn passcode off?',
 
-  'PaidMessages.ChargeForMessages': 'Charge for Messages',
-  'PaidMessages.ChargeForGroupMessagesDescription': 'If you turn this on, regular members of the group will have to pay Stars to send messages.',
-  'PaidMessages.SetPrice': 'Set your price per message',
-  'PaidMessages.SetPriceGroupDescription': 'Your group will receive %d% of the selected fee (~%d$) for each incoming messages',
-  'PaidMessages.RemoveFee': 'Remove Fee',
-  'PaidMessages.ChargeFee': 'Charge Fee',
   'PaidMessages.NewChatDescription': '%s charges %d for each message',
   'PaidMessages.MessageForStars': 'Message for %d',
-  'PaidMessages.UserChargesForOneMessageWarning': '**%s** charges **%s** per incoming message. Would you like to pay **%s** to send one message?',
-  'PaidMessages.UserChargesForMultipleMessageWarning': '**%s** charges **%s** per incoming message. Would you like to pay **%s** to send **%d messages**?',
-  'PaidMessages.PayForMessages': {
-    'one_value': 'Pay for %d message',
-    'other_value': 'Pay for %d messages'
-  },
-  'PaidMessages.MessagesSent': {
-    'one_value': '%d Message sent!',
-    'other_value': '%d Messages sent!'
-  },
-  'PaidMessages.YouPaidForMessages': {
-    'one_value': 'You paid %d Star.',
-    'other_value': 'You paid %d Stars.'
-  },
-  'PaidMessages.YouPaidToSendMessages': {
-    'one_value': 'You paid **%2$s** to send a message',
-    'other_value': 'You paid **%2$s** to send %1$d messages.'
-  },
-  'PaidMessages.YouReceivedStarsFrom': '%1$s paid %2$s to send a message',
   'PaidMessages.FeeForMessages': {
     'one_value': 'Fee for %d message',
     'other_value': 'Fee for %d messages'
   },
-  'PaidMessages.YouReceiveWithCommissionNotice': 'You receive %d% of the price that you charge for each incoming message.',
-  'PaidMessages.FullPrice': 'Full Price',
   'PaidMessages.GroupPriceChangedFree': 'Messages in this group are now free',
   'PaidMessages.GroupPriceChanged': {
     'one_value': 'Messages now cost **%d Star** in this group',
@@ -4912,11 +4878,6 @@ const lang = {
   'NoPaidMessagesToken.Imported': 'You can now message **%s** for free.',
   'NoPaidMessagesToken.Invalid': 'This free messages link is invalid or has expired.',
   'NoPaidMessagesToken.UserInvalid': 'This free messages link can\'t be used.',
-  'PaidMessages.UserPaysForMessagesNotice': '%s must pay %d for each message to you.',
-  'PaidMessages.RemoveFeeWarning': 'Are you sure you want to allow %s to message you for free?',
-  'PaidMessages.ChargeFeeWarning': 'Are you sure you want to charge %s to message you?',
-  'PaidMessages.RemoveFeeRefund': 'Refund the %d already paid',
-  'PaidMessages.PriceChanged': 'Price changed to %s',
   'PaidMessages.FailedToPayForMessage': {
     'one_value': 'You failed to pay **%2$s** to send a message',
     'other_value': 'You failed to pay **%2$s** to send %1$d messages.'
@@ -5014,7 +4975,6 @@ const lang = {
   'ChannelDirectMessages.Welcome': 'Send a direct message to the administrator of\n%s',
   'ChannelDirectMessages.WelcomePaid': '%s\ncharges %s per message to its admin',
   'ChannelDirectMessages.ChooseMessage': 'Choose a message to reply to',
-  'ChannelDirectMessages.CantChangeSuggestedPostMessage': 'Can\'t change message of this post',
   'ChannelDirectMessages.ThreadsCount': {
     'one_value': '%d Chat',
     'other_value': '%d Chats'
@@ -5024,54 +4984,12 @@ const lang = {
     'other_value': '%d Messages'
   },
 
-  'SuggestedPosts.SuggestAPost': 'Suggest a post',
-  'SuggestedPosts.SuggestAChange': 'Suggest a change',
-  'SuggestedPosts.SuggestChanges': 'Suggest Changes',
-  'SuggestedPosts.EnterPrice.Label': 'Enter Price in Stars',
-  'SuggestedPosts.EnterPrice.MinOffer': 'Minimum Offer: %d Stars',
-  'SuggestedPosts.EnterPrice.Description': 'Choose how many Stars to pay to publish this post. Setting a price is fully optional.',
-  'SuggestedPosts.PublishingTime.Label': 'Publishing Time',
-  'SuggestedPosts.PublishingTime.Anytime': 'Anytime',
-  'SuggestedPosts.PublishingTime.PublishNow': 'Publish Now',
-  'SuggestedPosts.PublishingTime.ChooseTime': 'Publish %s',
   'SuggestedPosts.PublishingTime.MinSendTime': 'Minimum send time: %s',
-  'SuggestedPosts.PublishingTime.Description': 'Select the date and time you want the post to be published. The post should remain available for at least 24 hours from this date.',
-  'SuggestedPosts.MakeAnOffer': 'Make an Offer',
-  'SuggestedPosts.Accept': 'Accept',
-  'SuggestedPosts.AcceptOffer': 'Accept Offer',
-  'SuggestedPosts.AcceptOfferDescription.ForAdmin': 'Do you want to publish this post from **%s**?',
-  'SuggestedPosts.AcceptOfferDescription.ForAdminPaid': 'Do you want to publish this post from **%s**?\nYou will receive **%s** (%d) after the post has been live for **%d hours**.',
-  'SuggestedPosts.AcceptOfferDescription.ForSubscriber': 'Do you want to allow publishing this post to **%s**?',
-  'SuggestedPosts.Reject': 'Reject',
-  'SuggestedPosts.RejectOffer': 'Reject Offer',
-  'SuggestedPosts.RejectComment.Label': 'Reject with Comment (Optional)',
-  'SuggestedPosts.RejectComment.Caption': 'You can leave an optional comment explaining why you rejected the post.',
-  'SuggestedPosts.SuggestedAPostTopInfoSubtitle.NoConditions': 'Offer the post for free',
-  'SuggestedPosts.SuggestedAPostTopInfoSubtitle.NoConditionsChange': 'Click to add terms',
-  'SuggestedPosts.SuggestedAPostTopInfoSubtitle.TimeOnly': 'Publish %s',
-  'SuggestedPosts.SuggestedAPost': '%s suggested a post',
-  'SuggestedPosts.YouSuggestedAPost': '**You** suggested a post',
-  'SuggestedPosts.SuggestedAChange': '%s suggested a change to the post',
-  'SuggestedPosts.YouSuggestedAChange': '**You** suggested a change to the post',
-  'SuggestedPosts.ApprovedAPost': '%s approved the post',
-  'SuggestedPosts.YouApprovedAPost': '**You** approved the post',
-  'SuggestedPosts.RejectedAPost': '%s %s rejected the post',
   'SuggestedPosts.GenericRejectedPost': '%s The post was rejected',
-  'SuggestedPosts.YouRejectedAPost': '%s **You** rejected the post',
   'SuggestedPosts.BalanceTooLow': '%s Balance too low to publish the suggested post',
-  'SuggestedPosts.Refund': 'The stars were returned to %s because the message was deleted',
   'SuggestedPosts.GenericRefund': 'The stars were returned because the message was deleted',
   'SuggestedPosts.AgreementReached': '%s Agreement Reached!',
-  'SuggestedPosts.AgreementReached.ToBePublished': '%s The post will be automatically published on %s',
-  'SuggestedPosts.AgreementReached.Published': '%s The post was published on %s',
-  'SuggestedPosts.AgreementReached.HasBeenCharged': '%s %s has been charged **%s**',
-  'SuggestedPosts.AgreementReached.YouHaveBeenCharged': '%s You have been charged **%s**',
-  'SuggestedPosts.AgreementReached.WillReceive': '%s %s will receive the **Stars** once the post has been live for **%d** hours',
-  'SuggestedPosts.AgreementReached.WillBeRefunded': '%s If %s removes the post before it has been live for **%d** hours, the payment will be refunded',
   'SuggestedPosts.PostSuccess': '%s The channel was awarded **%d** for publishing the post',
-  'SuggestedPosts.Price': 'Price',
-  'SuggestedPosts.Time': 'Time',
-  'SuggestedPosts.TONAmount': '%d Grams',
 
   'CreateNewTopicDescription': 'Type any message to\ncreate a new topic.',
   'NoTopics': 'No topics',

@@ -213,7 +213,6 @@ import {expandTextMatchDetails} from '@components/instantView/details';
 import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import formatStarsAmount from '@appManagers/utils/payments/formatStarsAmount';
 import {Sparkles} from '@components/sparkles';
-import addPaidServiceMessage from '@components/chat/bubbleParts/paidServiceMessage';
 import namedPromises from '@helpers/namedPromises';
 import {getCurrentNewMediaPopup} from '@components/popups/newMedia';
 import {ChatWallPaperBubble} from '@components/chat/bubbles/chatWallPaper';
@@ -231,8 +230,6 @@ import {ChecklistBubble} from '@components/chat/bubbles/checklist';
 import {getRestrictionReason} from '@helpers/restrictions';
 import {isMessageSensitive} from '@appManagers/utils/messages/isMessageRestricted';
 import {getPriceChangedActionMessageLangParams} from '@lib/lang';
-import addSuggestedPostServiceMessage, {checkIfNotMePosted} from '@components/chat/bubbleParts/suggestPostServiceMessage';
-import addSuggestedPostReplyMarkup, {canHaveSuggestedPostReplyMarkup} from '@components/chat/bubbleParts/suggestedPostReplyMarkup';
 import type {SeparatorIntersectorRoot} from '@components/chat/bubbleParts/chatThreadSeparator';
 import BotforumNewTopic from '@components/chat/bubbleParts/botforumNewTopic';
 import wrapServiceMediaBubble from '@components/chat/bubbleParts/serviceMediaBubble';
@@ -1540,12 +1537,6 @@ export default class ChatBubbles {
       // do not edit geo messages
       if(bubble.querySelector('.geo-container')) {
         return;
-      }
-
-      if(this.chat.isMonoforum && message._ === 'message' && !canHaveSuggestedPostReplyMarkup(message)) {
-        const group = bubble.closest('.bubbles-group');
-        const cls = 'avatar-for-suggested-reply-markup';
-        group?.querySelector(`.${cls}`)?.classList.remove(cls);
       }
 
       return this.safeRenderMessage({
@@ -9276,27 +9267,6 @@ export default class ChatBubbles {
       }
     });
 
-    let tmpPromise: Promise<any>;
-
-    tmpPromise = addPaidServiceMessage({
-      isAnyGroup: this.chat.isAnyGroup,
-      bubble,
-      message,
-      our,
-      peerId: this.peerId,
-      groupedMessages
-    });
-    if(tmpPromise) await tmpPromise;
-
-    tmpPromise = addSuggestedPostServiceMessage({
-      bubble,
-      message,
-      peerId: this.peerId,
-      canManageDirectMessages: this.chat.canManageDirectMessages,
-      loadPromises
-    });
-    if(tmpPromise) await tmpPromise;
-
     context.isInUnread = !isEphemeral && !previewOnly && !our &&
       !message.pFlags.out &&
       !!message.pFlags.unread;
@@ -9397,24 +9367,6 @@ export default class ChatBubbles {
             our ? 'PaidMessages.StarsRefundedByYou' : 'PaidMessages.StarsRefundedToYou',
             [+action.stars, peerTitle.element]
           ));
-        } else if(action._ === 'messageActionSuggestedPostApproval' || action._ === 'messageActionSuggestedPostRefund' || action._ === 'messageActionSuggestedPostSuccess') {
-          const {default: SuggestedPostActionContent} = await import('./bubbleParts/suggestedPostActionContent');
-          const content = new SuggestedPostActionContent;
-
-          let peerTitle;
-          if(action._ === 'messageActionSuggestedPostApproval' && checkIfNotMePosted({peerId: this.peerId, canManageDirectMessages: this.chat.canManageDirectMessages, message})) {
-            peerTitle = new PeerTitle();
-            promise = peerTitle.update({peerId: this.peerId, onlyFirstName: this.chat.canManageDirectMessages, limitSymbols: 20, wrapOptions});
-          }
-
-          content.feedProps({
-            action,
-            message,
-            canManageDirectMessages: this.chat.canManageDirectMessages,
-            fromPeerTitle: peerTitle?.element
-          });
-
-          s.append(content);
         } else if(action._ === 'messageActionSuggestBirthday') {
           const title = await wrapMessageActionTextNew({message, middleware});
           const container = wrapSolidComponent(() => SuggestBirthdayBubble({
@@ -10336,11 +10288,6 @@ export default class ChatBubbles {
         bubble.classList.add('with-reply-markup');
         contentWrapper.append(containerDiv);
       }
-    }
-
-    if(!isOut && isMessage) {
-      tmpPromise = addSuggestedPostReplyMarkup({message, bubble, contentWrapper, chat: this.chat});
-      if(tmpPromise) await tmpPromise;
     }
 
     if(isMessage) {
@@ -13696,8 +13643,7 @@ export default class ChatBubbles {
         if(requirement._ === 'requirementToContactPremium') {
           renderPromise = this.renderEmptyPlaceholder('premiumRequired', bubble, message, elements);
         } else if(
-          requirement._ === 'requirementToContactPaidMessages' &&
-          !(await this.managers.appProfileManager.hasBussinesIntro(this.peerId.toUserId()) && this.chat.starsAmount <= +this.chat.stars())
+          requirement._ === 'requirementToContactPaidMessages'
         ) {
           renderPromise = this.renderEmptyPlaceholder('paidMessages', bubble, message, elements);
         } else {

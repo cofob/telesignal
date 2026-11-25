@@ -81,7 +81,6 @@ import {MediaEditorFinalResult, MediaEditorFinalResultPayload} from '@components
 import RenderProgressCircle from '@components/mediaEditor/renderProgressCircle';
 import {delay} from '@components/mediaEditor/utils';
 import {IS_MOBILE} from '@environment/userAgent';
-import {PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import ListenerSetter from '@helpers/listenerSetter';
 import canVideoBeAnimated from '@appManagers/utils/docs/canVideoBeAnimated';
 import isEphemeralMessageId from '@appManagers/utils/messageId/isEphemeralMessageId';
@@ -1138,12 +1137,6 @@ export default function showNewMediaPopup(
       sendingParams.ephemeralReceiverId = undefined;
     }
 
-    const preparedPaymentResult = !isEphemeral && !input.editMsgId ?
-      await input.paidMessageInterceptor.prepareStarsForPayment(starsState.totalMessages()) :
-      undefined;
-    if(preparedPaymentResult === PAYMENT_REJECTED) return;
-    sendingParams.confirmedPaymentResult = preparedPaymentResult;
-
     let effect = effectAccessor?.();
     iterate((sendFileParams) => {
       if(caption && sendFileParams.length !== length) {
@@ -2113,10 +2106,6 @@ export default function showNewMediaPopup(
     }
   }
 
-  function isSuggestingPost() {
-    return !!chat?.input?.suggestedPost;
-  }
-
   function isEditing() {
     return !!chat?.input?.editMessage;
   }
@@ -2129,7 +2118,6 @@ export default function showNewMediaPopup(
     return !ephemeralComposer &&
       canAddMultipleRichMessageMedia(richMessageInsert?.allowMultiple) &&
       !isEditing() &&
-      !isSuggestingPost() &&
       !gifDocument;
   }
 

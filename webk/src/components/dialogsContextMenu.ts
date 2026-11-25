@@ -20,7 +20,6 @@ import createSubmenuTrigger, {CreateSubmenuArgs} from '@components/createSubmenu
 import type AddToFolderDropdownMenu from '@components/addToFolderDropdownMenu';
 import memoizeAsyncWithTTL from '@helpers/memoizeAsyncWithTTL';
 import {MonoforumDialog} from '@lib/storages/monoforumDialogs';
-import {openRemoveFeePopup} from '@components/chat/removeFee';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
@@ -288,16 +287,6 @@ export default class DialogsContextMenu {
         return this.canManageTopics && !!(this.dialog as ForumTopic.forumTopic).pFlags.closed;
       }
     }, {
-      icon: 'dollar_circle',
-      text: 'PaidMessages.ChargeFee',
-      onClick: () => this.onToggleFeeClick(true),
-      verify: () => this.verifyToggleFee(true)
-    }, {
-      icon: 'dollar_circle_x',
-      text: 'PaidMessages.RemoveFee',
-      onClick: () => this.onToggleFeeClick(false),
-      verify: () => this.verifyToggleFee(false)
-    }, {
       icon: 'lock',
       text: 'BlockUser',
       onClick: () => blockUserWithConfirmation({peerId: this.peerId}),
@@ -455,16 +444,6 @@ export default class DialogsContextMenu {
     }
   };
 
-  private verifyToggleFee = async(requirePayment: boolean) => {
-    if(!this.monoforumParentPeerId || this.dialog._ !== 'monoForumDialog') return false;
-
-    const chat = await this.managers.appChatsManager.getChat(this.monoforumParentPeerId.toChatId());
-    console.log('my-debug', {chat, requirePayment})
-    if(chat?._ !== 'channel' || !chat?.send_paid_messages_stars) return false;
-
-    return requirePayment ? !!this.dialog.pFlags?.nopaid_messages_exception : !this.dialog.pFlags?.nopaid_messages_exception;
-  };
-
   /**
    * tdesktop's chat list blocks someone who is not a contact from their row, and unblocks them there. Whether one
    * is blocked is known from their full profile, a block update or the blocked list: one not known yet reads as not
@@ -490,16 +469,6 @@ export default class DialogsContextMenu {
 
     return await this.managers.appProfileManager.isUserKnownBlocked(peerId.toUserId()) === blocked;
   };
-
-  private onToggleFeeClick = async(requirePayment: boolean) => {
-    const peerId = this.peerId;
-    const parentPeerId = this.monoforumParentPeerId;
-    if(!peerId || !parentPeerId) return;
-
-    try {
-      await openRemoveFeePopup({peerId, parentPeerId, requirePayment, managers: bindManagersToSession(this.managers)})
-    } catch{}
-  }
 
   private onDeleteClick = () => {
     showDeleteDialogPopup(

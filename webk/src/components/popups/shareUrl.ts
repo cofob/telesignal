@@ -3,7 +3,6 @@ import {LangPackKey} from '@lib/langPack';
 import {copyTextToClipboard} from '@helpers/clipboard';
 import {toastNew} from '@components/toast';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
-import PaidMessagesInterceptor, {ConfirmedPaymentResult, PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import {createCopyLinkFooter, PopupPickUserOptions, showSharingPickerPopup} from '@components/popups/pickUser';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
@@ -15,12 +14,6 @@ import type {AppManagers} from '@lib/managers';
 // open the picker, prep stars-payment for the single chosen peer, fire
 // `sendText`, and (sometimes) toast/open-chat. Now one helper does it all
 // and adds multi-select for free.
-//
-// Per-peer steps run sequentially: each `prepareStarsForPayment` may surface
-// its own confirmation flow, and concurrent prompts would stomp on each
-// other. A rejected payment skips that peer instead of aborting the whole
-// batch (matches the legacy single-peer behavior, which threw — effectively
-// the same: no message sent — but cleaner when multiple peers are queued).
 export type ShareUrlOptions = {
   url: string,
   // Allow picking multiple recipients. Defaults to single-select.
@@ -41,8 +34,8 @@ export type ShareUrlOptions = {
 export type ShareTarget = {peerId: PeerId, threadId?: number, monoforumThreadId?: PeerId};
 
 export type ShareToPeersOptions = Omit<ShareUrlOptions, 'url'> & Pick<PopupPickUserOptions, 'footer' | 'onChange'> & {
-  // Sends to one chosen chat, its stars paid for when it asks for them.
-  send: (managers: AppManagers, target: ShareTarget, confirmedPaymentResult: ConfirmedPaymentResult) => void,
+  // Sends to one chosen chat.
+  send: (managers: AppManagers, target: ShareTarget) => void,
   // What the chats must let the user send — plain text when omitted.
   chatRightsActions?: PopupPickUserOptions['chatRightsActions']
 };
@@ -55,19 +48,11 @@ export function shareToPeers(options: ShareToPeersOptions) {
     onChange: options.onChange,
     onSelect: async(chosen) => {
       const managers = bindManagersToSession(rootScope.managers);
-      let sent = 0;
       for(const target of chosen) {
-        const preparedPayment = await PaidMessagesInterceptor.prepareStarsForPayment({
-          messageCount: 1,
-          peerId: target.peerId
-        });
-        if(preparedPayment === PAYMENT_REJECTED) continue;
-
-        options.send(managers, target, preparedPayment);
-
-        ++sent;
+        options.send(managers, target);
       }
 
+      const sent = chosen.length;
       if(!sent) return;
 
       const isMulti = chosen.length > 1;
@@ -112,13 +97,12 @@ export default function shareUrlToPeers(options: ShareUrlOptions): void {
   const popup = shareToPeers({
     ...options,
     ...(copyFooter || {}),
-    send: (managers, {peerId, threadId, monoforumThreadId}, confirmedPaymentResult) => {
+    send: (managers, {peerId, threadId, monoforumThreadId}) => {
       managers.appMessagesManager.sendText({
         peerId,
         threadId,
         text: options.url,
-        replyToMonoforumPeerId: monoforumThreadId,
-        confirmedPaymentResult
+        replyToMonoforumPeerId: monoforumThreadId
       });
     }
   });

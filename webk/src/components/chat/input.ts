@@ -22,7 +22,7 @@ import type {MyDocument} from '@appManagers/appDocsManager';
 import getDocumentInput from '@appManagers/utils/docs/getDocumentInput';
 import sliceMessageEntities from '@helpers/sliceMessageEntities';
 import type {MyDraftMessage} from '@appManagers/appDraftsManager';
-import type {AppMessagesManager, MessageSendingParams, MyMessage, SuggestedPostPayload} from '@appManagers/appMessagesManager';
+import type {AppMessagesManager, MessageSendingParams, MyMessage} from '@appManagers/appMessagesManager';
 import type Chat from '@components/chat/chat';
 import type {AppImManager} from '@lib/appImManager';
 import IS_TOUCH_SUPPORTED from '@environment/touchSupport';
@@ -167,16 +167,12 @@ import {Accessor, createComponent, createEffect, createRoot, createSignal, on, S
 import {unwrapSolidElement, wrapSolidComponent} from '@helpers/solid/wrapSolidComponent';
 import SelectedEffect from '@components/chat/selectedEffect';
 import windowSize from '@helpers/windowSize';
-import {numberThousandSplitterForStars} from '@helpers/number/numberThousandSplitter';
 import accumulate from '@helpers/array/accumulate';
 import splitStringByLength from '@helpers/string/splitStringByLength';
-import PaidMessagesInterceptor, {PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import asyncThrottle from '@helpers/schedulers/asyncThrottle';
 import focusInput from '@helpers/dom/focusInput';
 import assumeType from '@helpers/assumeType';
-import {formatFullSentTime} from '@helpers/date';
 import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
-import {makeMessageMediaInputForSuggestedPost} from '@appManagers/utils/messages/makeMessageMediaInput';
 import showFrozenPopup from '@components/popups/frozen';
 import {wrapAsyncClickHandler} from '@helpers/wrapAsyncClickHandler';
 import {setPeerColorToElement} from '@components/peerColors';
@@ -261,7 +257,7 @@ const REPLY_IN_TOPIC = false;
 // * the composer's height with one line in it, beyond which the chat makes room
 export const CHAT_INPUT_BASE_HEIGHT = 48;
 
-type ChatInputHelperType = 'edit' | 'webpage' | 'forward' | 'reply' | 'suggested';
+type ChatInputHelperType = 'edit' | 'webpage' | 'forward' | 'reply';
 
 type ChatSendBtnIcon = 'send' | 'record' | 'record-video' | 'edit' | 'schedule' | 'forward' | 'stop';
 /** what one send goes with, besides the field: Send Without Sound, Schedule Message */
@@ -419,7 +415,6 @@ export default class ChatInput {
   public attachMenu: InstanceType<typeof AttachMenuButton>;
   private attachMenuButtons: ChatInputAttachMenuButton[];
 
-  public btnSuggestPost: HTMLElement;
 
   private btnAutoDeletePeriod: HTMLElement;
 
@@ -630,11 +625,9 @@ export default class ChatInput {
   private richMediaInsertSelection: ReturnType<ChatInputEditor['captureSelection']>;
   private richMediaItemAction: RichMediaItemInsertAction;
 
-  public paidMessageInterceptor: PaidMessagesInterceptor;
 
   public inputState: ChatInputState;
 
-  public suggestedPost: SuggestedPostPayload;
   private inputHelperNavigationItem: NavigationItem;
   private placeholderParamsMiddlewareHelper: MiddlewareHelper;
   // * what the field says while empty (`getPlaceholderParams`)
@@ -789,11 +782,6 @@ export default class ChatInput {
     const c = this.controlContainer = document.createElement('div');
     c.classList.add('chat-input-control', 'chat-input-wrapper');
     this.inputContainer.append(c);
-
-    this.paidMessageInterceptor = new PaidMessagesInterceptor();
-    this.getMiddleware().onDestroy(() => {
-      this.paidMessageInterceptor.dispose();
-    });
 
     this.inputState = runWithHotReloadGuard(() => createChatInputState(this));
 
@@ -1411,11 +1399,6 @@ export default class ChatInput {
     });
     this.attachMenu.classList.add('attach-file');
 
-    this.btnSuggestPost = ButtonIcon('suggested hide', {ariaLabel: 'SuggestedPosts.SuggestAPost'});
-    attachClickEvent(this.btnSuggestPost, wrapAsyncClickHandler(async() => {
-      await this.openSuggestPostPopup();
-    }));
-
     this.btnAutoDeletePeriod = ButtonIcon('auto_delete_circle_clock hide', {ariaLabel: 'AutoDeleteMessages'});
     attachClickEvent(this.btnAutoDeletePeriod, wrapAsyncClickHandler(async() => {
       await this.chat.openAutoDeleteMessagesCustomTimePopup();
@@ -1428,7 +1411,6 @@ export default class ChatInput {
 
     this.richMessageInput.mountAccessories([this.attachMenu].filter(Boolean), [
       this.btnScheduled,
-      this.btnSuggestPost,
       this.btnAutoDeletePeriod,
       this.btnReaction,
       this.btnToggleEmoticons,
@@ -2621,7 +2603,7 @@ export default class ChatInput {
     const applied = this.appliedInputDraft;
     return saveRevision === this.draftSaveRevision &&
       !!applied && draftsAreEqual(currentDraft, applied.value) &&
-      !this.editMsgId && !this.forwarding && !this.suggestedPost;
+      !this.editMsgId && !this.forwarding;
   }
 
   public async setDraft(draft?: MyDraftMessage, fromUpdate = true, force = false) {
@@ -3015,10 +2997,6 @@ export default class ChatInput {
       }
 
       if(this.chat) {
-        this.btnSuggestPost.classList.toggle('hide', !this.canShowSuggestPostButton(!!this.helperType));
-      }
-
-      if(this.chat) {
         callbackify(autoDeletePeriod.result, (period) => {
           if(canManageAutoDelete && period) this.btnAutoDeletePeriod.replaceChildren(createAutoDeleteIcon(period));
           this.btnAutoDeletePeriod.classList.toggle('hide', !(canManageAutoDelete && period));
@@ -3133,11 +3111,9 @@ export default class ChatInput {
     ) {
       key = 'ChannelBroadcast';
     } else if(this.chat.isMonoforum && this.chat.canManageDirectMessages) {
-      key = this.inputState.store.isSuggestingUneditablePostChange ?
-        'ChannelDirectMessages.CantChangeSuggestedPostMessage' :
-        this.chat.monoforumThreadId || this.inputState.store.isReplying ?
-          'Message' :
-          'ChannelDirectMessages.ChooseMessage';
+      key = this.chat.monoforumThreadId || this.inputState.store.isReplying ?
+        'Message' :
+        'ChannelDirectMessages.ChooseMessage';
     } else if(this.chat.isBotforum && !this.chat.canManageBotforumTopics && !this.chat.threadId) {
       key = 'OffThreadMessage'
     } else if(
@@ -3518,11 +3494,6 @@ export default class ChatInput {
         }
 
         const sendingParams = this.chat.getMessageSendingParams();
-
-        const preparedPaymentResult = await this.chat.input.paidMessageInterceptor.prepareStarsForPayment(1);
-        if(preparedPaymentResult === PAYMENT_REJECTED) return;
-
-        sendingParams.confirmedPaymentResult = preparedPaymentResult;
 
         await this.managers.appPollsManager.sendPollMessage(sendingParams, payload);
       }
@@ -4072,7 +4043,7 @@ export default class ChatInput {
     if(this.chat.type === ChatType.Stories && isInputEmpty && !this.freezedFocused && this.canForwardStory) {
       this.forwardStoryCallback?.(e as MouseEvent);
       return;
-    } else if(!hasAnyRecorder || this.recording || !isInputEmpty || this.forwarding || this.editMsgId || this.suggestedPost?.hasMedia) {
+    } else if(!hasAnyRecorder || this.recording || !isInputEmpty || this.forwarding || this.editMsgId) {
       if(this.recording) {
         this.recordingController.handleSendButtonClick();
       } else {
@@ -4222,8 +4193,6 @@ export default class ChatInput {
       possibleBtnMenuContainer = this.replyElements?.menuContainer;
     } else if(this.helperType === 'edit') {
       this.chat.setMessageId({lastMsgId: this.editMsgId});
-    } else if(this.helperType === 'suggested') {
-      this.openSuggestPostPopup(this.suggestedPost);
     } else if(!this.helperType) {
       possibleBtnMenuContainer = this.webPageElements?.container;
     }
@@ -4390,7 +4359,7 @@ export default class ChatInput {
     // Stopping a bot's text stream takes the button over whatever is typed, exactly like in the
     // other clients — saving an edit and finishing a recording still win over it.
     else if(this.streamStoppable && !this.recording) icon = 'stop';
-    else if(!this.recordingController?.hasVoiceRecorder() || this.recording || !isInputEmpty || this.forwarding || this.suggestedPost?.hasMedia || this.isWelcomeComposer) icon = this.chat.type === ChatType.Scheduled ? 'schedule' : 'send';
+    else if(!this.recordingController?.hasVoiceRecorder() || this.recording || !isInputEmpty || this.forwarding || this.isWelcomeComposer) icon = this.chat.type === ChatType.Scheduled ? 'schedule' : 'send';
     else icon = this.recordingController.getActiveRecordingMediaType() === 'video' ? 'record-video' : 'record';
 
     this.sendBtnIcon = icon;
@@ -4555,7 +4524,6 @@ export default class ChatInput {
     sendTextParams = {},
     forwardParams = {},
     slowModeParams,
-    paidMessageInterceptor,
     ephemeral,
     text,
     collapseInputField,
@@ -4574,7 +4542,6 @@ export default class ChatInput {
     sendTextParams?: Parameters<AppMessagesManager['sendText']>[0],
     forwardParams?: Pick<Parameters<AppMessagesManager['forwardMessages']>[0], 'dropAuthor' | 'dropCaptions' | 'videoTimestamp'>,
     slowModeParams: Pick<Parameters<typeof ChatInput['showSlowModeTooltipIfNeeded']>[0], 'peerId' | 'managers' | 'element'>,
-    paidMessageInterceptor?: PaidMessagesInterceptor,
     ephemeral?: boolean,
     text?: LocalTextWithOptionalEntities
   }) {
@@ -4632,11 +4599,6 @@ export default class ChatInput {
       }
     }
     const trimmedValue = value.trim();
-    if(richMessage && sendingParams.suggestedPost?.hasMedia) {
-      toastNew({langPackKey: 'RichMessage.Error.MediaUnsupported'});
-      return false;
-    }
-
     if(richMessage?.input._ === 'inputRichMessage') {
       try {
         const validation = await managers.appMessagesManager.validateRichMessage(richMessage.input);
@@ -4668,17 +4630,6 @@ export default class ChatInput {
       textOverflow
     })) return false;
 
-    let preparedPaymentResult: Awaited<ReturnType<PaidMessagesInterceptor['prepareStarsForPayment']>>;
-    if(messageCount && immediateChecks) {
-      const promise = paidMessageInterceptor ?
-        paidMessageInterceptor.prepareStarsForPayment(messageCount) :
-        PaidMessagesInterceptor.prepareStarsForPayment({peerId: sendingParams.peerId, messageCount});
-      preparedPaymentResult = await promise;
-    }
-
-    if(preparedPaymentResult === PAYMENT_REJECTED) return false;
-    sendingParams.confirmedPaymentResult = preparedPaymentResult;
-
     // looked up before anything goes, so that all of it goes at once, before what is sent next
     const forwardedAlone = new Map<string, Message.message>();
     const lookups: Promise<void>[] = [];
@@ -4693,7 +4644,7 @@ export default class ChatInput {
     }
     await Promise.all(lookups);
 
-    const sendsText = !!(richMessage || trimmedValue || sendingParams.suggestedPost?.hasMedia);
+    const sendsText = !!(richMessage || trimmedValue);
     if(sendsText || messageCount) {
       onSending?.(sendsText ? textMessageCount || 1 : 0);
     }
@@ -5069,7 +5020,6 @@ export default class ChatInput {
         clearDraft
       },
       slowModeParams: this.getDefaultParamsForSlowModeTooltip(),
-      paidMessageInterceptor: this.paidMessageInterceptor,
       ephemeral,
       onSending: (textMessages) => {
         // the field goes whole, with what was typed or chosen while it was checked, as Android has it; one gone with
@@ -5079,7 +5029,7 @@ export default class ChatInput {
         }
 
         // its text flies into its message, when it goes alone as one
-        if(textMessages === 1 && !forwarding && !flags.scheduleDate && !ephemeral && !sendingParams.suggestedPost) {
+        if(textMessages === 1 && !forwarding && !flags.scheduleDate && !ephemeral) {
           chat.bubbles?.sendFlights?.captureText({
             field: this.rowsWrapper,
             input: this.messageInput,
@@ -5097,10 +5047,7 @@ export default class ChatInput {
 
         this.forgetWebPage();
         this.clearInput(false);
-        // a suggested post's helper goes once it is sent, as before
-        if(!this.suggestedPost) {
-          this.clearHelper();
-        }
+        this.clearHelper();
         this.setMessageInputExpanded(false, true);
         this.updateSendBtn();
       }
@@ -5116,10 +5063,6 @@ export default class ChatInput {
 
     this.suppressDraftSyncForUnsupportedRichMessage = false;
     this.pushRecentEmoji(totalEntities);
-    if(sendingParams.suggestedPost && this.suggestedPost === sendingParams.suggestedPost) {
-      this.clearHelper();
-    }
-
     this.updateSendBtn();
     this.onMessageSent2?.();
   }
@@ -5325,13 +5268,6 @@ export default class ChatInput {
       return false;
     }
 
-    if(!isEphemeral) {
-      const preparedPaymentResult = await this.paidMessageInterceptor.prepareStarsForPayment(1);
-      if(preparedPaymentResult === PAYMENT_REJECTED) return;
-
-      sendingParams.confirmedPaymentResult = preparedPaymentResult;
-    }
-
     // the sticker or the GIF flies from where it was chosen into its message
     if(target && !isEphemeral && !sendingParams.scheduleDate) {
       this.chat.bubbles?.sendFlights?.captureDocument({target, document});
@@ -5481,43 +5417,6 @@ export default class ChatInput {
         }
       }
     });
-  }
-
-  public initSuggestPostChange(mid: number) {
-    const message = this.chat.getMessage(mid) as Message.message;
-    if(!message) return;
-
-    const monoforumThreadId = getPeerId(message.saved_peer_id);
-    if(!monoforumThreadId) return;
-
-    const input: LocalTextWithEntities = {text: message.message, entities: message.totalEntities};
-
-    const payload: SuggestedPostPayload = {
-      stars: message.suggested_post?.price?._ === 'starsAmount' ? +message.suggested_post.price.amount : undefined,
-      timestamp: message.suggested_post?.schedule_date && message.suggested_post.schedule_date * 1000 > Date.now() ?
-        message.suggested_post.schedule_date :
-        undefined,
-      changeMid: message.mid,
-      hasMedia: !!makeMessageMediaInputForSuggestedPost(message.media), // accept only supported media
-      monoforumThreadId
-    };
-
-    this.setTopInfo({
-      type: 'suggested',
-      callerFunc: () => {},
-      title: i18n('SuggestedPosts.SuggestChanges'),
-      subtitle: this.createSuggestedPostSubtitle(payload),
-      input,
-      message
-    });
-
-    this.suggestedPost = payload;
-
-    const isSuggestingUneditablePostChange = !!(message.media?._ === 'messageMediaDocument' && message.media.document?._ === 'document' && message.media.document.sticker);
-    this.inputState.set({isSuggestingUneditablePostChange});
-    if(isSuggestingUneditablePostChange) {
-      this.openSuggestPostPopup(payload);
-    }
   }
 
   public initMessagesForward(fromPeerIdsMids: {[fromPeerId: PeerId]: number[]}, videoTimestamp?: number) {
@@ -5861,16 +5760,9 @@ export default class ChatInput {
       this.forwardingKeepsAuthor = false;
     }
 
-    if(type !== 'suggested') {
-      this.suggestedPost = undefined;
-      this.btnSuggestPost.classList.toggle('hide', !this.canShowSuggestPostButton(false))
-      this.inputState.set({isSuggestingUneditablePostChange: false});
-    }
-
     this.inputState.set({
       isEditing: false,
-      isReplacingMedia: false,
-      isSuggesting: false
+      isReplacingMedia: false
     });
 
     this.editMsgId = this.editMessage = undefined;
@@ -5990,11 +5882,8 @@ export default class ChatInput {
     const isEditing = type === 'edit';
     this.inputState.set({
       isEditing,
-      isReplacingMedia: shouldUseReplaceMediaIcon(isEditing, message),
-      isSuggesting: type === 'suggested'
+      isReplacingMedia: shouldUseReplaceMediaIcon(isEditing, message)
     });
-
-    this.btnSuggestPost?.classList.toggle('hide', !this.canShowSuggestPostButton(true));
 
     const replyParent = this.replyElements.content;
     const oldReply = replyParent.lastElementChild.previousElementSibling;
@@ -6052,61 +5941,6 @@ export default class ChatInput {
     this.inputState.set({isReplying: true});
 
     return container;
-  }
-
-  private canShowSuggestPostButton(hasSuggestedHeader?: boolean) {
-    const canSuggest = this.chat.isMonoforum && (!!this.chat.monoforumThreadId || !this.chat.canManageDirectMessages);
-
-    return canSuggest && !hasSuggestedHeader;
-  }
-
-  public async openSuggestPostPopup(initial?: SuggestedPostPayload) {
-    const {default: showSuggestPostPopup} = await import('./suggestPostPopup');
-    showSuggestPostPopup({HotReloadGuard: SolidJSHotReloadGuardProvider, suggestChange: !!initial?.changeMid, initialStars: initial?.stars, initialTimestamp: initial?.timestamp, onFinish: (payload) => {
-      const message = initial?.changeMid ? this.chat.getMessage(initial.changeMid) as Message.message : undefined;
-
-      this.setTopInfo({
-        type: 'suggested',
-        callerFunc: () => { },
-        title: i18n('SuggestedPosts.SuggestAPost'),
-        subtitle: this.createSuggestedPostSubtitle(payload),
-        message
-      });
-
-      this.suggestedPost = {
-        ...initial,
-        ...payload
-      };
-
-      if(this.inputState.store.isSuggestingUneditablePostChange) {
-        this.sendMessage();
-      }
-    }});
-  }
-
-  private createSuggestedPostSubtitle(payload: SuggestedPostPayload) {
-    if(!payload.stars && !payload.timestamp) {
-      return payload.changeMid ?
-        i18n('SuggestedPosts.SuggestedAPostTopInfoSubtitle.NoConditionsChange') :
-        i18n('SuggestedPosts.SuggestedAPostTopInfoSubtitle.NoConditions')
-    }
-
-    const element = document.createElement('div');
-    element.classList.add('suggested-post-subtitle');
-
-    if(payload.stars) {
-      const span = document.createElement('span');
-      span.append(i18n('Stars', [numberThousandSplitterForStars(payload.stars)]));
-      element.append(span);
-    }
-
-    if(payload.timestamp) {
-      const span = document.createElement('span');
-      span.append(wrapEmojiText('📅'), ' ', formatFullSentTime(payload.timestamp));
-      element.append(span);
-    }
-
-    return element;
   }
 
   private async tryGetEditMediaElementFromChat() {

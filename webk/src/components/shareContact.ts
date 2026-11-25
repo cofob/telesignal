@@ -1,4 +1,3 @@
-import PaidMessagesInterceptor, {PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import PeerTitle from '@components/peerTitle';
 import showPeerPopup from '@components/popups/peer';
 import {showSharingPickerPopup} from '@components/popups/pickUser';
@@ -24,15 +23,10 @@ export default function shareContact(contactPeerId: PeerId) {
       const {peerId, threadId, monoforumThreadId} = chosen[0];
       // * the contact goes from the account it was picked on, or not at all once the tab is on another
       const managers = bindManagersToSession(rootScope.managers);
-      const preparedPaymentResult = await PaidMessagesInterceptor.prepareStarsForPayment({messageCount: 1, peerId});
-      if(preparedPaymentResult === PAYMENT_REJECTED) throw new Error();
-
       const send = () => {
-        managers.appMessagesManager.sendContact({peerId, threadId, contactPeerId, confirmedPaymentResult: preparedPaymentResult, monoforumThreadId});
+        managers.appMessagesManager.sendContact({peerId, threadId, contactPeerId, monoforumThreadId});
         hotReloadGuard.appImManager.setInnerPeer({peerId, threadId});
       };
-
-      if(preparedPaymentResult) return void send();
 
       return new Promise((resolve, reject) => {
         showPeerPopup('', {

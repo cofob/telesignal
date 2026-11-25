@@ -1,4 +1,3 @@
-import {ConfirmedPaymentResult} from '@components/chat/paidMessagesInterceptor';
 import assumeType from '@helpers/assumeType';
 import safeAssign from '@helpers/object/safeAssign';
 
@@ -10,6 +9,12 @@ import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
 
 
 const INSUFFICIENT_STARS_FOR_MESSAGE_PREFIX = 'ALLOW_PAYMENT_REQUIRED_';
+
+/** Telegram's paid messages: the stars a send is allowed to spend. Signal sends nothing that sets it */
+export type ConfirmedPaymentResult = {
+  starsAmount: number;
+  canUndo: boolean;
+};
 
 
 type InvokeApiArgs = Parameters<ApiManager['invokeApi']>;

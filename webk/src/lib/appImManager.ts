@@ -135,7 +135,7 @@ import {findUpAvatar} from '@components/avatarNew';
 import safePlay from '@helpers/dom/safePlay';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import {setMyPeerColor, setPeerColors} from '@appManagers/utils/peers/getPeerColorById';
-import {PENDING_PAID_REACTIONS, savedReactionTags} from '@components/chat/reactions';
+import {savedReactionTags} from '@components/chat/reactions';
 import {setAppState} from '@stores/appState';
 import rtmpCallsController, {RtmpCallInstance} from '@lib/calls/rtmpCallsController';
 import openRtmpCallViewer from '@lib/calls/openRtmpCallViewer';
@@ -3227,8 +3227,6 @@ export class AppImManager extends EventListenerBase<{
       chat.destroy();
     });
 
-    // * paid reactions still in their undo delay are dropped, as a reload drops them
-    PENDING_PAID_REACTIONS.forEach((pending) => pending.abortController.abort());
     this.prevTab = undefined;
     this.chatPositions = {};
     this.lastOpenedPeerId = NULL_PEER_ID;

@@ -431,7 +431,7 @@ type UseShareToneArgs = {
 };
 
 const useShareTone = ({tone}: UseShareToneArgs) => {
-  const {rootScope, showSharingPickerPopup, PaidMessagesInterceptor} = useHotReloadGuard();
+  const {rootScope, showSharingPickerPopup} = useHotReloadGuard();
 
   return () => {
     showSharingPickerPopup({
@@ -439,20 +439,12 @@ const useShareTone = ({tone}: UseShareToneArgs) => {
         const managers = bindManagersToSession(rootScope.managers);
         if(!peer) return;
 
-        const preparedPaymentResult = await PaidMessagesInterceptor.prepareStarsForPayment({
-          peerId: peer.peerId,
-          messageCount: 1
-        });
-
-        if(preparedPaymentResult === PaidMessagesInterceptor.PaymentRejectedSymbol) throw new Error();
-
         const link = 'https://t-me.invalid/addstyle/' + tone.slug;
         managers.appMessagesManager.sendText({
           peerId: peer.peerId,
           threadId: peer.threadId,
           replyToMonoforumPeerId: peer.monoforumThreadId,
-          text: link,
-          confirmedPaymentResult: preparedPaymentResult
+          text: link
         });
       }
     });
