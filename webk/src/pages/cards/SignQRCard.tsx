@@ -1,4 +1,4 @@
-import {onCleanup, onMount} from 'solid-js';
+import {createSignal, onCleanup, onMount, Show} from 'solid-js';
 
 import Button from '@components/buttonTsx';
 import LanguageChangeButton from '@components/languageChangeButton';
@@ -11,10 +11,12 @@ import {LangPackKey, i18n} from '@lib/langPack';
 import rootScope from '@lib/rootScope';
 import {getSignalProxySettings} from '@lib/signal/proxySettings';
 import type {SignalLinkCode} from '@appManagers/appSignalManager';
+import type {SignalAuthState, SignalHistorySync} from '@lib/signal/registrationTypes';
 
 import {toastNew} from '@components/toast';
 import {DEAUTHORIZATION_LANG_KEYS, takeDeauthorizationReason} from '@lib/signal/deauthorization';
 import AuthCard from '@/pages/AuthCard';
+import SignalHistorySyncCard from '@/pages/cards/SignalHistorySync';
 import {CardSpec, useAuthFlow} from '@/pages/authFlow';
 import styles from '@/pages/authFlow.module.scss';
 
@@ -130,6 +132,11 @@ export default function SignQRCard(_props: {spec: Spec}) {
 
   rootScope.addEventListener('signal_link_code', onLinkCode);
 
+  // * once the phone scanned the code, its message history comes before the chats open: the transfer replaces the code
+  const [historySync, setHistorySync] = createSignal<SignalHistorySync>();
+  const onAuthState = (state: SignalAuthState) => setHistorySync(state?.historySync);
+  rootScope.addEventListener('signal_auth_state', onAuthState);
+
   // * a device that the server stopped accepting comes back here; the screen says why, as Web A's toast does
   const showDeauthorization = () => {
     const reason = takeDeauthorizationReason();
@@ -142,6 +149,7 @@ export default function SignQRCard(_props: {spec: Spec}) {
   onMount(async() => {
     managers.appStateManager.pushToState('authState', {_: 'authStateSignQr'});
     showDeauthorization();
+    managers.appSignalManager.getAuthState().then(onAuthState);
 
     preloader = putPreloader(stickerHost, true);
 
@@ -159,12 +167,14 @@ export default function SignQRCard(_props: {spec: Spec}) {
     rootScope.removeEventListener('user_auth', onUserAuth);
     rootScope.removeEventListener('theme_changed', onThemeChanged);
     rootScope.removeEventListener('signal_link_code', onLinkCode);
+    rootScope.removeEventListener('signal_auth_state', onAuthState);
     rootScope.removeEventListener('signal_deauthorized', showDeauthorization);
   });
 
   /* ---------- render ---------- */
 
-  return (
+  // * the code stays in the page while the history comes, so that a transfer that asks for a new link shows it again
+  const qrCard = (
     <AuthCard
       class={styles.pageSignQR}
       inputWrapper={false}
@@ -197,5 +207,11 @@ export default function SignQRCard(_props: {spec: Spec}) {
       </Button>
       {accountNumber === 1 && <LanguageChangeButton />}
     </AuthCard>
+  );
+
+  return (
+    <Show when={historySync()} fallback={qrCard}>
+      {(sync) => <SignalHistorySyncCard historySync={sync()} />}
+    </Show>
   );
 }

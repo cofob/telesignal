@@ -695,6 +695,11 @@
 "Signal.Error.GroupDescriptionTooLong" = "Group descriptions can be up to 480 characters long.";
 "Signal.Error.GroupLastAdmin" = "Before you leave, you must choose at least one new admin for this group.";
 "Signal.Error.GroupLabelTooLong" = "Member labels can be up to 24 characters long.";
+"Signal.HistorySync.Title" = "Syncing messages";
+"Signal.HistorySync.Waiting" = "Preparing to download...";
+"Signal.HistorySync.Downloading" = "Downloading %s...";
+"Signal.HistorySync.Importing" = "Finalizing message transfer %s...";
+"Signal.HistorySync.Note" = "This may take a few minutes";
 "Signal.Error.HistorySyncFailed" = "Your messages could not be transferred. New messages will appear as usual.";
 "Signal.Error.KeyTransparencyFailed" = "Signal could not verify that the key log lists your account as you know it. Your connection may be tampered with, or your account may be in use elsewhere. Try again later, and if it keeps failing, check your linked devices.";
 "Signal.Error.PinnedLimit" = "You have reached the limit of pinned chats. Unpin a chat to pin another one.";

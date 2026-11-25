@@ -1048,7 +1048,8 @@ export default class AppSignalManager extends AppManager {
       state: update.authorizationState,
       phoneNumber: update.phoneNumber,
       codeInfo: update.codeInfo,
-      backupRestore: update.backupRestore
+      backupRestore: update.backupRestore,
+      historySync: update.historySync
     };
     this.rootScope.dispatchEvent('signal_auth_state', this.authState);
     // * a slot at a sign-in step holds no account
