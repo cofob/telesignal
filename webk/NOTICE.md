@@ -49,8 +49,11 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
 - Build: `vite.config.ts` serves the app at `/k/` behind the repository's dev server, builds it to `../dist/k`, takes the
   page's policy from `../plugins/csp.ts`, the environment from the repository and the emoji images from `emoji-data-ios`;
   the dev checks of upstream run only with `TWEB_DEV_CHECKS`.
-- Telegram API: `src/lib/appManagers/apiManager.ts` no longer uses MTProto; `appSignalManager.ts` answers the managers
-  from the shared Signal provider (`src/lib/signal/`). The link screen (`src/pages/cards/SignQRCard.tsx`) shows the
+- Telegram API: MTProto is removed (`src/lib/mtproto`, the networker factory, the crypto worker's AES-IGE, RSA and
+  factorization, Telegram push decryption) with the `@cryptography/aes` dependency; `src/lib/appManagers/apiManager.ts`
+  passes the managers' calls to `appSignalManager.ts`, which answers them from the shared Signal provider
+  (`src/lib/signal/`). No push service is subscribed: `gcm_sender_id` is gone from the web manifests, and a subscription
+  of an earlier version is removed. The link screen (`src/pages/cards/SignQRCard.tsx`) shows the
   Signal device link, the account slot needs Web A's `isLinked` marker, peer ids are offset (`builders.ts`).
 - Telegram hosts: links of Telegram-only features point to reserved `.invalid` names (the comments keep the original
   hosts); support and bug report links point to Signal and to this project; the web manifests name TeleSignal.

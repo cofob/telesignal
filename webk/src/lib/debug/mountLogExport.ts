@@ -4,8 +4,8 @@
  *
  * This MUST live outside logsBuffer.ts. logsBuffer is a leaf pulled in by the
  * universal logger() on the hot path, so it ends up in *every* worker bundle
- * (mtproto, crypto, lottie, …). exportLogs.ts statically imports apiManagerProxy
- * (which spawns the mtproto + crypto workers), and Vite's worker bundler walks
+ * (main, crypto, lottie, …). exportLogs.ts statically imports apiManagerProxy
+ * (which spawns the main and crypto workers), and Vite's worker bundler walks
  * the whole module graph of each worker entry — including modules behind a
  * literal `import('./exportLogs')`, which Rollup still discovers statically and
  * keeps in the graph (it only splits the chunk, it doesn't drop it). The result
