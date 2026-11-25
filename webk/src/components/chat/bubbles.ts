@@ -13850,7 +13850,7 @@ export default class ChatBubbles {
 
         attachClickEvent(stickerDiv, (e) => {
           cancelEvent(e);
-          this.chat.input.emoticonsDropdown.onMediaClick({target: e.target}, undefined, undefined, true);
+          this.chat.input.emoticonsDropdown.onMediaClick({target: e.target});
         });
 
         return Promise.all(loadPromises);

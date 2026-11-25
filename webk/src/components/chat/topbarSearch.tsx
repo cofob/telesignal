@@ -401,7 +401,7 @@ export default function TopbarSearch(props: {
   const [filterPeerId, setFilterPeerId] = createSignal<PeerId>();
   const [senderInputEntity, setSenderInputEntity] = createSignal<HTMLElement>();
   const [savedReactionTags, setSavedReactionTags] = createSignal<SavedReactionTag[]>(undefined, {equals: false});
-  const [reactionsElement, setReactionsElement] = createSignal<ReactionsElement>();
+  const [reactionsElement] = createSignal<ReactionsElement>();
   const [reaction, setReaction] = createSignal<Reaction>(undefined, {equals: false});
   const [searchType, setSearchType] = createSignal<SearchType>(DEFAULT_SEARCH_TYPE);
   const [publicStories, setPublicStories] = createSignal<{hashtag: string, count: number, peerIds: PeerId[]}>();
@@ -1067,71 +1067,6 @@ export default function TopbarSearch(props: {
       element.prepend(reaction);
       return reaction;
     }
-  });
-
-  // * load saved reaction tags
-  createEffect(() => {
-    if(props.peerId !== rootScope.myId) {
-      setReactionsElement();
-      setSavedReactionTags();
-      return;
-    }
-
-    const realMiddleware = createMiddleware().get();
-    const middlewareHelper = getMiddleware();
-    onCleanup(() => {
-      setTimeout(() => {
-        middlewareHelper.destroy();
-      }, 400);
-    });
-    const reactionsElement = ReactionsElement.create();
-    reactionsElement.init({
-      context: {peerId: props.peerId, mid: 0, reactions: tagsToMessageReactions([])},
-      type: ReactionLayoutType.Block,
-      middleware: middlewareHelper.get(),
-      forceCounter: true
-    });
-    reactionsElement.classList.remove('has-no-reactions');
-    reactionsElement.classList.add('topbar-search-left-reactions');
-
-    // * reactions listener
-    const detach = attachClickEvent(reactionsElement, (e) => {
-      const reactionElement = findUpClassName(e.target, 'reaction-tag') as ReactionElement;
-      if(!reactionElement) {
-        return;
-      }
-
-      const {reactionCount} = reactionElement;
-      const {reaction} = reactionCount;
-      setReaction((prev) => {
-        if(reactionsEqual(prev, reaction)) {
-          return;
-        }
-
-        return reaction;
-      });
-
-      placeCaretAtEnd(inputSearch.input);
-    }, {cancelMouseDown: true});
-    onCleanup(detach);
-
-    const get = () => {
-      rootScope.managers.appReactionsManager.getSavedReactionTags(props.threadId).then((tags) => {
-        // await pause(1000);
-        if(!realMiddleware()) {
-          return;
-        }
-
-        setReactionsElement(reactionsElement);
-        setSavedReactionTags(tags);
-      });
-    };
-
-    get();
-    rootScope.addEventListener('saved_tags_clear', get);
-    onCleanup(() => {
-      rootScope.removeEventListener('saved_tags_clear', get);
-    });
   });
 
   // * handle reaction changing

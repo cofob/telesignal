@@ -185,17 +185,9 @@ export default class ReactionsElement extends HTMLElement {
     return this.sorted;
   }
 
+  // * TeleSignal: Signal has no saved tags, so Note to Self has plain reactions
   public shouldUseTagsForContext(context: ReactionsElement['context']) {
-    if(context.peerId !== rootScope.myId) {
-      return false;
-    }
-
-    const reactions = context.reactions;
-    if(!reactions || reactions.pFlags.reactions_as_tags) {
-      return true;
-    }
-
-    return !reactions.results.length;
+    return false;
   }
 
   public init({

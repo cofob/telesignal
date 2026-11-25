@@ -1433,8 +1433,6 @@ export default class ChatContextMenu {
       !(this.message as Message.message).pFlags.welcome_template &&
       !this.reactionElement
     ) {
-      const reactions = this.message.reactions;
-      const tags = this.message.peerId === rootScope.myId && (!reactions || reactions.pFlags.reactions_as_tags);
       const reactionsMessage = this.message._ === 'message' ?
         await this.managers.appMessagesManager.getGroupsFirstMessage(this.message) :
         this.message;
@@ -1457,13 +1455,10 @@ export default class ChatContextMenu {
 
           this.chat.sendReaction({message: reactionsMessage, reaction});
         },
-        // what is set, rather than asked to get Premium for, flies to the message
+        // what is set flies to the message
         onPick: (reaction, source) => {
-          if(rootScope.premium || !tags) {
-            holdReactionFlight({reaction, source, message: reactionsMessage, scrollable: this.chat.bubbles.scrollable.container});
-          }
-        },
-        isTags: tags
+          holdReactionFlight({reaction, source, message: reactionsMessage, scrollable: this.chat.bubbles.scrollable.container});
+        }
       });
       await reactionsMenu.init(reactionsMessage);
       // element.prepend(reactionsMenu.widthContainer);

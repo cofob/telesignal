@@ -123,7 +123,6 @@ import {modifyAckedPromise} from '@helpers/modifyAckedResult';
 import ChatSendAs from '@components/chat/sendAs';
 import filterAsync from '@helpers/array/filterAsync';
 import InputFieldAnimated from '@components/inputFieldAnimated';
-import getStickerEffectThumb from '@appManagers/utils/stickers/getStickerEffectThumb';
 import {STICKERS_POPUP_KIND} from '@components/popups/stickers';
 import PopupElementTsx from '@components/popups/indexTsx';
 import overlayCounter from '@helpers/overlayCounter';
@@ -5379,15 +5378,13 @@ export default class ChatInput {
     force = false,
     clearDraft = false,
     silent = false,
-    target,
-    ignoreNoPremium
+    target
   }: {
     document: MyDocument | DocId,
     force?: boolean,
     clearDraft?: boolean,
     silent?: boolean,
-    target?: HTMLElement,
-    ignoreNoPremium?: boolean
+    target?: HTMLElement
   }) {
     if(!this.verifyEphemeralCommand() || !(await this.checkWelcomeMessagesLimit())) {
       return false;
