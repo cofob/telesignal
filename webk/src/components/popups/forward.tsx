@@ -10,8 +10,7 @@ import {copyTextToClipboard} from '@helpers/clipboard';
 import {FormatterArguments, i18n, join, LangPackKey} from '@lib/langPack';
 import {useAppConfig, useIsFrozen} from '@stores/appState';
 import {InputMedia, Message, User} from '@layer';
-import {createMemo, createRoot, Show} from 'solid-js';
-import {createStore} from 'solid-js/store';
+import {createSignal, Show} from 'solid-js';
 import Animated from '@helpers/solid/animations';
 import classNames from '@helpers/string/classNames';
 import InputFieldMessage from '@components/inputFieldMessage';
@@ -149,8 +148,6 @@ export default async function showForwardPopup(
     }
   }
 
-  const {message_length_max: MAX_MESSAGE_LENGTH} = await managers.apiManager.getConfig();
-
   const listenerSetter = new ListenerSetter();
   const sendMenuMiddleware = getMiddleware();
   let sendMenu: SendMenu | undefined;
@@ -158,45 +155,10 @@ export default async function showForwardPopup(
   let scheduleDate: number | undefined;
   let scheduleRepeatPeriod: number | undefined;
 
-  // eslint-disable-next-line prefer-const -- referenced by starsState memo created before the popup handle is assigned
+  // eslint-disable-next-line prefer-const -- read by the send menu, which the footer sets up while the popup is created
   let handle: ReturnType<typeof showPickUserPopup>;
   let finalizingThroughButton = false;
-
-  let starsStateDispose: () => void;
-  const starsState = createRoot((dispose) => {
-    starsStateDispose = dispose;
-
-    const [store, set] = createStore({
-      messageLength: 0,
-      selectedPeers: [] as PeerId[],
-      starsTick: 0
-    });
-
-    const messageMsgCount = createMemo(() => {
-      const len = store.messageLength;
-      if(!len) return 0;
-      return Math.max(1, Math.ceil(len / MAX_MESSAGE_LENGTH));
-    });
-
-    const totalMessages = createMemo(() => messageCount + messageMsgCount());
-
-    const totalStars = createMemo(() => {
-      store.starsTick;
-      const msgs = totalMessages();
-      if(!msgs) return 0;
-      const map = handle?.selector?.starsAmountByPeer;
-      if(!map) return 0;
-      const peers = store.selectedPeers;
-      if(!peers.length) return 0;
-      let sum = 0;
-      for(const peerId of peers) {
-        sum += (map.get(peerId) || 0) * msgs;
-      }
-      return sum;
-    });
-
-    return {store, set, totalStars};
-  });
+  const [messageLength, setMessageLength] = createSignal(0);
 
   const handleCopyLink = async() => {
     if(story) {
@@ -285,9 +247,7 @@ export default async function showForwardPopup(
     const peerId = allSelf ?
       rootScope.myId :
       (peerIds.find((p) => p !== rootScope.myId) ?? rootScope.myId);
-    const map = handle?.selector?.starsAmountByPeer;
-    const isPaid = map ? peerIds.some((p) => (map.get(p) || 0) > 0) : false;
-    sendMenu.setPeerParams({peerId, isPaid});
+    sendMenu.setPeerParams({peerId});
   };
 
   const setupSendMenu = (btn: HTMLElement) => {
@@ -356,7 +316,7 @@ export default async function showForwardPopup(
       const succeeded: Array<typeof chosen[0]> = [];
       const isSavedMessagesNoText = chosen.length === 1 &&
         chosen[0].peerId === rootScope.myId &&
-        !starsState.store.messageLength;
+        !messageLength();
       // * a story has no composer to wait in: it goes at once, as it did from a single pick
       const openChat = !story && chosen.length === 1 && !finalizingThroughButton && !isSavedMessagesNoText;
       for(const item of chosen) {
@@ -406,12 +366,7 @@ export default async function showForwardPopup(
   handle = showPickUserPopup({
     peerType: ['dialogs', 'contacts'],
     onSelect,
-    onChange: () => {
-      const selected = handle.selector.getSelected() ?? [];
-      const peerIds = selected.filter((k): k is PeerId => k.isPeerId());
-      starsState.set('selectedPeers', peerIds);
-      updateSendMenuPeerParams();
-    },
+    onChange: updateSendMenuPeerParams,
     multiSelect: 'hidden',
     placeholder: 'ShareModal.Search.ForwardPlaceholder',
     chatRightsActions,
@@ -438,7 +393,7 @@ export default async function showForwardPopup(
       headerLangPackKey: 'Forward'
     }),
     footer: ({multiSelect}) => {
-      const hasMessage = () => !!starsState.store.messageLength;
+      const hasMessage = () => !!messageLength();
       const showCopyLink = () => canCopyLink && multiSelect() === 'hidden' && !hasMessage();
       const isFooterHidden = () => !canCopyLink && multiSelect() === 'hidden' && !hasMessage();
       return (
@@ -461,8 +416,7 @@ export default async function showForwardPopup(
                   }}
                   ref={(ref) => inputField = ref}
                   listenerSetter={listenerSetter}
-                  onInput={(_hasValue, length) => starsState.set('messageLength', length)}
-                  stars={starsState.totalStars}
+                  onInput={(_hasValue, length) => setMessageLength(length)}
                 />
               }
             >
@@ -477,8 +431,6 @@ export default async function showForwardPopup(
     onClose: () => {
       listenerSetter.removeAll();
       sendMenuMiddleware.destroy();
-      starsStateDispose?.();
-      handle.selector && (handle.selector.onStarsAmountUpdate = undefined);
       onClose?.();
     },
     btnConfirmOnEnter: () => btnRef
@@ -488,8 +440,5 @@ export default async function showForwardPopup(
     handle.selector.setLimit(SIGNAL_FORWARD_CHATS_MAX, () => {
       toastNew({langPackKey: 'ForwardChatsLimit', langPackArguments: [SIGNAL_FORWARD_CHATS_MAX]});
     });
-    handle.selector.onStarsAmountUpdate = () => {
-      starsState.set('starsTick', (t) => t + 1);
-    };
   }
 }

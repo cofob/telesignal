@@ -5,19 +5,15 @@ import createEmojiDropdownButton from '@components/emojiDropdownButton';
 import {EmoticonsDropdown} from '@components/emoticonsDropdown';
 import {IconTsx} from '@components/iconTsx';
 import InputFieldAnimated from '@components/inputFieldAnimated';
-import {getTransition} from '@config/transitions';
 import cloneDOMRect from '@helpers/dom/cloneDOMRect';
 import getRichValueWithCaret from '@helpers/dom/getRichValueWithCaret';
 import ListenerSetter from '@helpers/listenerSetter';
-import liteMode from '@helpers/liteMode';
 import {getOverlayRoot} from '@helpers/appWindow';
-import {numberThousandSplitterForStars} from '@helpers/number/numberThousandSplitter';
 import throttle from '@helpers/schedulers/throttle';
-import Animated from '@helpers/solid/animations';
 import classNames from '@helpers/string/classNames';
 import I18n, {LangPackKey} from '@lib/langPack';
 import SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
-import {Accessor, createEffect, createSignal, onCleanup, Show, untrack} from 'solid-js';
+import {createSignal, onCleanup, untrack} from 'solid-js';
 import {Portal} from 'solid-js/web';
 import type {AiEditorContext} from '@components/richMessageInput/aiContext';
 import {AiEditorButton} from '@components/richMessageInput/aiButton';
@@ -35,7 +31,6 @@ type InputFieldMessageProps = {
   ref?: (inputField: InputFieldAnimated) => void,
   btnConfirm?: HTMLElement,
   btnProps?: Parameters<typeof Button>[0],
-  stars?: Accessor<number>,
   ai?: AiEditorContext,
   /** The popup sends on the send shortcut (`confirmShortcutIsSendShortcut`), so it breaks no line here. */
   sendOnShortcut?: boolean,
@@ -58,24 +53,7 @@ const InputFieldMessage = (props: InputFieldMessageProps) => {
   {
     const _additionalClass = additionalClass + '-confirm';
     const contentClass = _additionalClass + '-content';
-    let contentWrapper: HTMLDivElement;
-    const inner = () => (
-      <Animated
-        type="cross-fade"
-        itemClass={contentClass + '-item'}
-        noItemClass
-      >
-        <Show
-          when={props.stars?.() ?? 0}
-          fallback={<IconTsx icon="logo" class={_additionalClass + '-icon icon-mirror'} />}
-        >
-          <span class={_additionalClass + '-inner'}>
-            <IconTsx icon="star" class={_additionalClass + '-inner-star'} />
-            {numberThousandSplitterForStars(props.stars?.() ?? 0) + ''}
-          </span>
-        </Show>
-      </Animated>
-    );
+    const inner = () => <IconTsx icon="logo" class={_additionalClass + '-icon icon-mirror'} />;
 
     if(btnConfirm) {
       btnConfirm.classList.add(_additionalClass);
@@ -83,10 +61,7 @@ const InputFieldMessage = (props: InputFieldMessageProps) => {
 
       <Portal
         mount={btnConfirm}
-        ref={(el) => {
-          contentWrapper = el;
-          el.classList.add(contentClass);
-        }}
+        ref={(el) => el.classList.add(contentClass)}
       >
         {inner()}
       </Portal>;
@@ -102,34 +77,11 @@ const InputFieldMessage = (props: InputFieldMessageProps) => {
         class={classNames(_additionalClass, props.btnProps.class)}
         noRipple
       >
-        <div ref={contentWrapper} class={contentClass}>
+        <div class={contentClass}>
           {inner()}
         </div>
       </Button>;
     }
-
-    let prevWidth: number;
-    createEffect(() => {
-      props.stars?.();
-      queueMicrotask(() => {
-        const last = contentWrapper?.lastElementChild as HTMLElement | null;
-        if(!last?.offsetWidth) return;
-        const style = getComputedStyle(btnConfirm);
-        const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-        const minWidth = parseFloat(style.minWidth) || 0;
-        const currentWidth = Math.max(last.offsetWidth + padding, minWidth);
-        if(prevWidth !== undefined && prevWidth !== currentWidth && liteMode.isAvailable('animations')) {
-          btnConfirm.animate([
-            {width: prevWidth + 'px'},
-            {width: currentWidth + 'px'}
-          ], {
-            duration: 200,
-            easing: getTransition('standard').easing
-          });
-        }
-        prevWidth = currentWidth;
-      });
-    });
   }
 
   if(props.animationGroup) {

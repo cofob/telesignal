@@ -30,7 +30,6 @@ export function mountSendMenu(element: HTMLElement, trigger: HTMLElement, direct
 
 export default class SendMenu {
   private type: 'schedule' | 'reminder';
-  private isPaid: boolean;
   private middlewareHelper: MiddlewareHelper;
 
   constructor(private options: {
@@ -57,9 +56,8 @@ export default class SendMenu {
     this.createMenu();
   }
 
-  public setPeerParams(params: {peerId: PeerId, isPaid: boolean}) {
+  public setPeerParams(params: {peerId: PeerId}) {
     this.type = params.peerId === rootScope.myId ? 'reminder' : 'schedule';
-    this.isPaid = params.isPaid;
   }
 
   private createButtons(): ButtonMenuItemOptionsVerifiable[] {
@@ -86,7 +84,7 @@ export default class SendMenu {
       icon: 'schedule',
       text: 'Chat.Send.ScheduledMessage',
       onClick: this.options.onScheduleClick,
-      verify: () => this.type === 'schedule' && !this.isPaid
+      verify: () => this.type === 'schedule'
     }, {
       icon: 'schedule',
       text: 'Chat.Send.SetReminder',
@@ -96,7 +94,7 @@ export default class SendMenu {
       icon: 'online',
       text: 'Schedule.SendWhenOnline',
       onClick: this.options.onSendWhenOnlineClick,
-      verify: async() => this.type === 'schedule' && (await this.options.canSendWhenOnline?.()) && !this.isPaid
+      verify: async() => this.type === 'schedule' && (await this.options.canSendWhenOnline?.())
     }, {
       icon: 'send2',
       text: 'AiEditor.ApplyOnSend.SendAsIs',

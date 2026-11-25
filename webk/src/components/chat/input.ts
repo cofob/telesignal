@@ -2900,7 +2900,7 @@ export default class ChatInput {
 
       previousSendAs?.destroy();
       setSendAsCallback?.();
-      sendMenu?.setPeerParams({peerId, isPaid: false});
+      sendMenu?.setPeerParams({peerId});
       this.stopAiSendStyle?.();
       this.aiStyledContent = undefined;
       this.setAiSendStyleKey(this.getChatAiSendStyleKey());
