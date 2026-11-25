@@ -12,6 +12,8 @@ import styles from './keyboardShortcuts.module.scss';
 
 const KEY_LABELS: {[k: string]: {mac: string, pc: string}} = {
   ctrl: {mac: '⌘', pc: 'Ctrl'},
+  // * the Control key itself, which a Mac does not turn into Command
+  control: {mac: '⌃', pc: 'Ctrl'},
   shift: {mac: '⇧', pc: 'Shift'},
   alt: {mac: '⌥', pc: 'Alt'},
   meta: {mac: '⌘', pc: 'Win'},
@@ -218,7 +220,7 @@ const NavigationSection = () => (
     />
     <ShortcutRow
       action="KeyboardShortcuts.Action.FolderByNumber"
-      keys={<KeyCombo keys={['Ctrl', 'shift', '1–9']} />}
+      keys={<KeyCombo keys={['control', 'shift', '1–9']} />}
     />
     <ShortcutRow
       action="KeyboardShortcuts.Action.ClosePopup"

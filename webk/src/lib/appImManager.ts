@@ -1,4 +1,4 @@
-import {keepsKeyFromComposer, shouldPreserveKeyboardFocus} from '@helpers/dom/isKeyboardControl';
+import isKeyboardControl, {keepsKeyFromComposer, shouldPreserveKeyboardFocus} from '@helpers/dom/isKeyboardControl';
 import placeCaretAtEnd from '@helpers/dom/placeCaretAtEnd';
 import isTargetAnInput from '@helpers/dom/isTargetAnInput';
 import {isWebPageUrl} from '@lib/richTextProcessor/matchUrlProtocol';
@@ -1512,7 +1512,7 @@ export class AppImManager extends EventListenerBase<{
 
       const hasModifier = e.altKey || e.ctrlKey || e.metaKey || e.shiftKey;
       // * Web A's Space while a voice message is recorded pauses it or goes on (`pauseVoiceRecording`)
-      if(key === ' ' && !hasModifier && !targetIsInput && chat?.input?.recording) {
+      if(key === ' ' && !hasModifier && !targetIsInput && !isKeyboardControl(target) && chat?.input?.recording) {
         cancelEvent(e);
         chat.input.toggleRecordingPause();
         return;

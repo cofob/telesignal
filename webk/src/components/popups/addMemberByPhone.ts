@@ -36,8 +36,9 @@ export default async function showAddMemberByPhonePopup(chatId: ChatId) {
     {chat: {id: toSignalPeerId(chatId.toPeerId(true))}, phoneNumber}
   ).catch(noop);
   const phone = '+' + phoneNumber;
+  // * no result is a change that failed, which the provider reports itself
   if(!result) {
-    toastNew({langPackKey: 'Error.AnError'});
+    return;
   } else if('error' in result) {
     toastNew(result.error === 'notFound' ?
       {langPackKey: 'SignalPhoneLookupNotFound', langPackArguments: [phone]} :

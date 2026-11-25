@@ -19,7 +19,7 @@ import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
  */
 const PendingInvites = () => {
   const [tab] = useSuperTab<typeof AppPendingInvitesTab>();
-  const {i18n, confirmationPopup, toastNew} = useHotReloadGuard();
+  const {i18n, confirmationPopup} = useHotReloadGuard();
   const {managers} = tab;
   const chatId = tab.payload.chatId;
 
@@ -38,18 +38,20 @@ const PendingInvites = () => {
       descriptionLangKey: 'Signal.RevokeInviteText',
       button: {langKey: 'Signal.RevokeInvite', isDanger: true}
     }).then(async() => {
-      const isRevoked = await managers.appSignalManager.callSignal('revokeChatInvite', {
+      // * a refusal is reported by the provider itself
+      await managers.appSignalManager.callSignal('revokeChatInvite', {
         chat: {id: toSignalPeerId(chatId.toPeerId(true))},
         serviceId: invite.serviceId
       });
-      if(!isRevoked) toastNew({langPackKey: 'Error.AnError'});
       void refetch();
     }, noop);
   };
 
-  const invitedBy = (invite: SignalPendingInvite) => invite.inviterId ?
-    i18n('Signal.InvitedBy', [new PeerTitle({peerId: invite.inviterId}).element]) :
-    i18n('Signal.InvitedByNumber');
+  // * as Web A: who invited, and for a number with no user only, that it was invited by number
+  const invitedBy = (invite: SignalPendingInvite) => {
+    if(invite.inviterId) return i18n('Signal.InvitedBy', [new PeerTitle({peerId: invite.inviterId}).element]);
+    return invite.userId ? undefined : i18n('Signal.InvitedByNumber');
+  };
 
   return (
     <Show when={data()}>

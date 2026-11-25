@@ -16,7 +16,11 @@ export default async function showSafetyNumberBlockPopup(messageId: number, user
   const verifyButtons: PopupPeerButton[] = userIds.map((userId, index) => ({
     langKey: 'Signal.SafetyNumberVerifyUser',
     langArgs: [titles[index]],
-    callback: () => void showSafetyNumberPopup(userId)
+    // * the popup stays, to send anyway once the number is checked, as Web A's
+    callback: () => {
+      void showSafetyNumberPopup(userId);
+      return false;
+    }
   }));
 
   showPeerPopup('popup-safety-number-block', {
