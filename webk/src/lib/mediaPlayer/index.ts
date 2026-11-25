@@ -39,6 +39,8 @@ import {createQualityLevelsSwitchButton} from './qualityLevelsSwitchButton';
 import {createPlaybackRateButton} from './playbackRateButton';
 import {createSpeedDragHandler} from './speedDragHandler';
 import {createPreview} from './preview';
+import {getIsKeyboardShortcut, getIsKeyCombo, WEBK_VIEWER_COMBOS} from '@lib/keyboardShortcuts';
+import isKeyboardControl from '@helpers/dom/isKeyboardControl';
 
 
 export default class VideoPlayer extends ControlsHover {
@@ -398,21 +400,21 @@ export default class VideoPlayer extends ControlsHover {
             return;
           }
 
-          const {key, code} = e;
-
+          const isFaster = getIsKeyCombo(e, WEBK_VIEWER_COMBOS.fasterPlayback);
           let good = true;
-          if(code === 'KeyF') {
+          if(getIsKeyCombo(e, WEBK_VIEWER_COMBOS.toggleFullscreen)) {
             this.toggleFullScreen();
-          // * M alone: held with Cmd it minimizes the window on a Mac, with Option it types a character
-          } else if(code === 'KeyM' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          } else if(getIsKeyCombo(e, WEBK_VIEWER_COMBOS.toggleMute)) {
             appMediaPlaybackController.muted = !appMediaPlaybackController.muted;
-          } else if(code === 'Space' && this.canPause) {
+          // * a focused control keeps its own Enter and Space
+          } else if(getIsKeyboardShortcut(e, 'toggleVideoPlayback') && this.canPause && !isKeyboardControl(e.target as HTMLElement)) {
             this.togglePlay();
-          } else if(e.altKey && (code === 'Equal' || code === 'Minus') && this.canSeek) {
-            const add = code === 'Equal' ? 1 : -1;
-            this.playbackRateButton.controls.changeRateByAmount(add);
-          } else if(wrapper.classList.contains('ckin__fullscreen') && (key === 'ArrowLeft' || key === 'ArrowRight') && this.canSeek) {
-            if(key === 'ArrowLeft') appMediaPlaybackController.seekBackward({action: 'seekbackward'});
+          } else if((isFaster || getIsKeyCombo(e, WEBK_VIEWER_COMBOS.slowerPlayback)) && this.canSeek) {
+            this.playbackRateButton.controls.changeRateByAmount(isFaster ? 1 : -1);
+          } else if(wrapper.classList.contains('ckin__fullscreen') && getIsKeyboardShortcut(e, 'seekVideo') && this.canSeek) {
+            // * `seekVideo` is one shortcut for both directions, which users cannot rebind: its defaults are the arrows,
+            // * ArrowLeft back and ArrowRight forward, as Web A's `VideoPlayer`
+            if(e.key === 'ArrowLeft') appMediaPlaybackController.seekBackward({action: 'seekbackward'});
             else appMediaPlaybackController.seekForward({action: 'seekforward'});
           } else {
             good = false;

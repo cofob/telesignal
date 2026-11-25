@@ -13,13 +13,14 @@ import {
   KEYBOARD_SHORTCUTS,
   type KeyboardShortcutCondition,
   type KeyboardShortcutDefault,
-  type KeyboardShortcutId
+  type KeyboardShortcutId,
+  type KeyboardShortcutSection
 } from '@signal-app/keyboard-shortcuts';
 import {getKeyComboFromEvent, IS_APPLE_KEYBOARD, normalizeKeyCombo, parseKeyCombo} from '@signal-app/key-combos';
 import {IS_WINDOWS} from '@signal-app/platform';
 import {IS_FIREFOX} from '@environment/userAgent';
+import isDocumentRTL from '@helpers/dom/isDocumentRTL';
 import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
-import I18n from '@lib/langPack';
 import {readWebASharedSettings, updateWebASharedSettings} from '@lib/signal/webAState';
 import {useAppSettings} from '@stores/appSettings';
 
@@ -43,7 +44,8 @@ const WEBK_SHORTCUT_IDS = new Set<KeyboardShortcutId>([
   'closeOrGoBack', 'previousChat', 'nextChat', 'openFolderByNumber', 'searchInChat', 'focusMessageInput',
   'editLastMessage', 'replyToPreviousMessage', 'replyToNextMessage', 'copySelectedMessages', 'deleteSelectedMessages',
   'pauseVoiceRecording', 'bold', 'italic', 'underline', 'strikethrough', 'monospace', 'spoiler', 'link',
-  'mediaEditorUndo', 'mediaEditorRedo'
+  'mediaEditorUndo', 'mediaEditorRedo', 'closeMediaViewer', 'previousMedia', 'nextMedia', 'toggleVideoPlayback', 'seekVideo',
+  'closeStoryViewer', 'toggleStoryPlayback', 'previousStory', 'nextStory'
 ]);
 
 // * shortcuts that Web K's own code handles, outside the registry, by sections of the settings screen; a combo is shown
@@ -53,9 +55,6 @@ export type WebKOwnShortcutSection = {
   captionKey?: string,
   shortcuts: {titleKey: string, combo: () => string}[]
 };
-
-const getNextKey = () => I18n.isRTL() ? 'ArrowLeft' : 'ArrowRight';
-const getPreviousKey = () => I18n.isRTL() ? 'ArrowRight' : 'ArrowLeft';
 
 // * with the way of sending that both frontends share (`messageSendKeyCombo` of Web A)
 export const WEBK_MESSAGES_SECTION: WebKOwnShortcutSection = {
@@ -67,24 +66,27 @@ export const WEBK_MESSAGES_SECTION: WebKOwnShortcutSection = {
     {titleKey: 'KeyboardShortcuts.Action.JumpToInputEnd', combo: () => 'Ctrl+PageDown'}
   ]
 };
-// * the viewers keep their own keys, which are not in the shared registry's handling yet
-export const WEBK_VIEWER_SECTIONS: WebKOwnShortcutSection[] = [{
-  titleKey: 'KeyboardShortcuts.Section.MediaViewer',
-  shortcuts: [
-    {titleKey: 'KeyboardShortcuts.Action.NextMedia', combo: getNextKey},
-    {titleKey: 'KeyboardShortcuts.Action.PreviousMedia', combo: getPreviousKey},
-    {titleKey: 'KeyboardShortcuts.Action.ZoomIn', combo: () => 'Mod+='},
-    {titleKey: 'KeyboardShortcuts.Action.ZoomOut', combo: () => 'Mod+-'}
+// * the viewers' keys that the registry has no ids for, which a handler matches with `getIsKeyCombo`; zoom also takes
+// * Ctrl on macOS, as Web K always did
+export const WEBK_VIEWER_COMBOS = {
+  zoomIn: ['Mod+=', 'Ctrl+='],
+  zoomOut: ['Mod+-', 'Ctrl+-'],
+  toggleFullscreen: 'F',
+  toggleMute: 'M',
+  fasterPlayback: 'Alt+=',
+  slowerPlayback: 'Alt+-',
+  closeStories: 'ArrowDown'
+} as const;
+// * the rows of those keys, which the settings screen shows after the registry's of the same section
+export const WEBK_VIEWER_SHORTCUTS: Partial<Record<KeyboardShortcutSection, WebKOwnShortcutSection['shortcuts']>> = {
+  mediaViewer: [
+    {titleKey: 'KeyboardShortcuts.Action.ZoomIn', combo: () => WEBK_VIEWER_COMBOS.zoomIn[0]},
+    {titleKey: 'KeyboardShortcuts.Action.ZoomOut', combo: () => WEBK_VIEWER_COMBOS.zoomOut[0]}
+  ],
+  storyViewer: [
+    {titleKey: 'KeyboardShortcuts.Action.CloseStories', combo: () => WEBK_VIEWER_COMBOS.closeStories}
   ]
-}, {
-  titleKey: 'KeyboardShortcuts.Section.Stories',
-  shortcuts: [
-    {titleKey: 'KeyboardShortcuts.Action.NextStory', combo: getNextKey},
-    {titleKey: 'KeyboardShortcuts.Action.PreviousStory', combo: getPreviousKey},
-    {titleKey: 'KeyboardShortcuts.Action.PlayPauseStory', combo: () => 'Space'},
-    {titleKey: 'KeyboardShortcuts.Action.CloseStories', combo: () => 'ArrowDown'}
-  ]
-}];
+};
 
 const [overrides, setOverrides] = createSignal<KeyboardShortcutOverrides>({});
 const [sendKeyCombo, setSendKeyCombo] = createSignal<SendKeyCombo>('enter');
@@ -114,7 +116,10 @@ export function getDefaultKeyboardShortcutCombos(id: KeyboardShortcutId) {
   return DEFAULT_COMBOS[sendKeyCombo()][id];
 }
 
-/** The sections of the registry that the settings screen shows, each with its shortcuts that Web K handles and has */
+/**
+ * The sections of the registry that the settings screen shows, each with its shortcuts that Web K handles and has, and
+ * Web K's own keys of the section
+ */
 export function getShownKeyboardShortcutSections() {
   return KEYBOARD_SHORTCUT_SECTIONS.map((section) => ({
     ...section,
@@ -122,14 +127,33 @@ export function getShownKeyboardShortcutSections() {
       const shortcut = KEYBOARD_SHORTCUTS[id];
       return shortcut.section === section.section && WEBK_SHORTCUT_IDS.has(id) &&
         (shortcut.isEditable || getDefaultKeyboardShortcutCombos(id).length > 0);
-    })
-  })).filter(({ids}) => ids.length);
+    }),
+    ownShortcuts: WEBK_VIEWER_SHORTCUTS[section.section] ?? []
+  })).filter(({ids, ownShortcuts}) => ids.length || ownShortcuts.length);
 }
 
 /** Whether a key event is one of the shortcut's combos; the condition of a combo is the handler's to check */
 export function getIsKeyboardShortcut(e: KeyboardEvent, id: KeyboardShortcutId) {
   const combo = getKeyComboFromEvent(e);
   return !!combo && getKeyboardShortcutCombos(id).some((resolved) => resolved.combo === combo);
+}
+
+/**
+ * Which of a pair of shortcuts along the line an event is: in a right-to-left document the two swap, so the arrow that
+ * points to the inline end goes forward, as `getInlineArrowKeys`
+ */
+export function getInlineKeyboardShortcut(e: KeyboardEvent, nextId: KeyboardShortcutId, previousId: KeyboardShortcutId) {
+  const isNext = getIsKeyboardShortcut(e, nextId);
+  if(!isNext && !getIsKeyboardShortcut(e, previousId)) return undefined;
+
+  return isNext !== isDocumentRTL() ? 'next' : 'previous';
+}
+
+/** Whether a key event is exactly one of the combos that Web K handles outside the registry (`WEBK_VIEWER_COMBOS`) */
+export function getIsKeyCombo(e: KeyboardEvent, combos: string | readonly string[]) {
+  const eventCombo = getKeyComboFromEvent(e);
+  const list = typeof combos === 'string' ? [combos] : combos;
+  return !!eventCombo && list.some((combo) => normalizeKeyCombo(combo) === eventCombo);
 }
 
 /** Reads the user's changes now, and again whenever the window comes back, where Web A may have changed them */

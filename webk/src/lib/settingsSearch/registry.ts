@@ -2,7 +2,7 @@ import {createRoot, createSignal} from 'solid-js';
 import generated from './generated';
 import {A11Y_ONLY_ENTRIES, DESKTOP_APP_ENTRIES, NON_NAVIGABLE_SECTIONS} from './openers';
 import Modes from '@config/modes';
-import {getShownKeyboardShortcutSections, WEBK_MESSAGES_SECTION, WEBK_VIEWER_SECTIONS} from '@lib/keyboardShortcuts';
+import {getShownKeyboardShortcutSections, WEBK_MESSAGES_SECTION} from '@lib/keyboardShortcuts';
 import {KEYBOARD_SHORTCUTS} from '@signal-app/keyboard-shortcuts';
 import type {LangPackKey} from '@lib/langPack';
 import type {
@@ -65,15 +65,14 @@ function buildKeyboardShortcutEntries() {
     }
   };
 
-  for(const {titleKey, ids} of getShownKeyboardShortcutSections()) {
+  for(const {titleKey, ids, ownShortcuts} of getShownKeyboardShortcutSections()) {
     add('subsection', titleKey);
     for(const id of ids) add('row', KEYBOARD_SHORTCUTS[id].titleKey);
+    for(const shortcut of ownShortcuts) add('row', shortcut.titleKey);
   }
 
-  for(const {titleKey, shortcuts} of [WEBK_MESSAGES_SECTION, ...WEBK_VIEWER_SECTIONS]) {
-    add('subsection', titleKey);
-    for(const shortcut of shortcuts) add('row', shortcut.titleKey);
-  }
+  add('subsection', WEBK_MESSAGES_SECTION.titleKey);
+  for(const shortcut of WEBK_MESSAGES_SECTION.shortcuts) add('row', shortcut.titleKey);
 
   return [...result.values()];
 }
