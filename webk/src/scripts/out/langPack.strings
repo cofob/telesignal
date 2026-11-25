@@ -3914,7 +3914,6 @@
 "PrivacySettingsController.Everbody" = "Everybody";
 "PrivacySettingsController.MyContacts" = "My Contacts";
 "PrivacySettingsController.Nobody" = "Nobody";
-"PrivacySettingsController.Paid" = "Paid";
 "PrivacySettingsController.NeverShare" = "Never Share With";
 "PrivacySettingsController.AlwaysShare" = "Always Share With";
 "PrivacySettingsController.NeverAllow" = "Never Allow";
@@ -4247,7 +4246,6 @@
 "PasscodeLock.TooManyAttempts" = "Too many attempts, try again later";
 "PasscodeLock.LogoutPopup.Description" = "Are you sure you want to log out?";
 "PasscodeLock.TurnOff.Description" = "Are you sure you want to turn passcode off?";
-"PaidMessages.NewChatDescription" = "%s charges %d for each message";
 "PaidMessages.FeeForMessages_one" = "Fee for %d message";
 "PaidMessages.FeeForMessages_other" = "Fee for %d messages";
 "PaidMessages.GroupPriceChangedFree" = "Messages in this group are now free";
@@ -4265,9 +4263,6 @@
 "PaidMessages.StarsRefundedShort_other" = "%d Stars refunded";
 "NoPaidMessagesToken.Used" = "%s used your QR code and can message you for free";
 "NoPaidMessagesToken.UsedOut" = "You used the QR code of %s and can message them for free";
-"NoPaidMessagesToken.Imported" = "You can now message **%s** for free.";
-"NoPaidMessagesToken.Invalid" = "This free messages link is invalid or has expired.";
-"NoPaidMessagesToken.UserInvalid" = "This free messages link can't be used.";
 "UnsavedChanges" = "Unsaved Changes";
 "UnsavedChangesDescription" = "Are you sure you want to discard all changes?";
 "UnsavedChangesDescription.Archive" = "You have changed some archive settings. Save changes?";
@@ -4355,7 +4350,6 @@
 "ChannelDirectMessages.Manage" = "Direct Messages";
 "ChannelDirectMessages.ViewChats" = "View Chats";
 "ChannelDirectMessages.Welcome" = "Send a direct message to the administrator of\n%s";
-"ChannelDirectMessages.WelcomePaid" = "%s\ncharges %s per message to its admin";
 "ChannelDirectMessages.ChooseMessage" = "Choose a message to reply to";
 "ChannelDirectMessages.ThreadsCount_one" = "%d Chat";
 "ChannelDirectMessages.ThreadsCount_other" = "%d Chats";
@@ -4662,17 +4656,6 @@
 "StorageQuota.FailedToCalculate" = "Failed to calculate";
 "StorageQuota.CacheSizeLimitAuto" = "Auto";
 "PostsSearch.TabName" = "Posts";
-"PostsSearch.Title" = "Global Search";
-"PostsSearch.Description" = "Type a keyword to search for posts from public channels.";
-"PostsSearch.TitleLimited" = "Limit Reached";
-"PostsSearch.DescriptionLimited_one" = "You can make up to %d search query per day.";
-"PostsSearch.DescriptionLimited_other" = "You can make up to %d search queries per day.";
-"PostsSearch.FreeSearches_one" = "%d free search remaining today";
-"PostsSearch.FreeSearches_other" = "%d free searches remaining today.";
-"PostsSearch.NeedPremium" = "Global search is a Premium feature.";
-"PostsSearch.SearchFor" = "Search for %s";
-"PostsSearch.FreeUnlocksIn" = "free search unlocks in %s";
-"PostsSearch.StarsSpent" = "**%s** spent on extra search";
 "EditThisPhoto" = "Edit this photo";
 "EditThisVideo" = "Edit this video";
 "ReplacePhoto" = "Replace photo";

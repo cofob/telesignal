@@ -74,9 +74,6 @@ const missUnlessSessionEnded = (err: ApiError): undefined => {
   return undefined;
 };
 
-// what a free-messages link says comes this long after its chat opens (Android's 300 ms)
-const NO_PAID_TOKEN_TOAST_DELAY = 300;
-
 /**
  * A link whose section we know but whose path we do not — the one thing worse
  * than not opening it is doing nothing about it. tdesktop answers the same way
@@ -362,10 +359,10 @@ export class InternalLinkProcessor {
     }
 
     type K1 = {thread?: string, comment?: string, t?: string, option?: string, single?: string};
-    type K2 = {thread?: string, comment?: string, start?: string, startgroup?: string, startchannel?: string, admin?: string, t?: string, text?: string, option?: string, single?: string, game?: string, free?: string};
+    type K2 = {thread?: string, comment?: string, start?: string, startgroup?: string, startchannel?: string, admin?: string, t?: string, text?: string, option?: string, single?: string, game?: string};
     type K5 = {story?: string};
     type K7 = {voicechat?: string, videochat?: string, livestream?: string};
-    type K8 = {text?: string, free?: string};
+    type K8 = {text?: string};
 
     addAnchorListener<{
     //   pathnameParams: ['c', string, string],
@@ -413,8 +410,7 @@ export class InternalLinkProcessor {
           link = {
             _: INTERNAL_LINK_TYPE.USER_PHONE_NUMBER,
             phone: pathnameParams[0],
-            text: (uriParams as K8).text,
-            free: (uriParams as K8).free
+            text: (uriParams as K8).text
           };
         } else if(pathnameParams[0] === 'c') {
           assumeType<K1>(uriParams);
@@ -449,8 +445,7 @@ export class InternalLinkProcessor {
             t: uriParams.t,
             text: uriParams.text,
             single: uriParams.single,
-            game: uriParams.game,
-            free: uriParams.free
+            game: uriParams.game
           };
         }
 
@@ -485,8 +480,7 @@ export class InternalLinkProcessor {
         phone?: string,
         t?: string,
         story?: string,
-        single?: string,
-        free?: string
+        single?: string
       }
     }>({
       name: 'resolve',
@@ -968,29 +962,28 @@ export class InternalLinkProcessor {
       }
     });
 
-    // t.me/contact/<token>?free=<code>
-    addAnchorListener<{pathnameParams: ['contact', string], uriParams: {free?: string}}>({
+    // t.me/contact/<token>
+    addAnchorListener<{pathnameParams: ['contact', string]}>({
       name: 'contact',
-      callback: ({pathnameParams, uriParams}) => {
+      callback: ({pathnameParams}) => {
         // the path keeps the token percent-encoded; a broken escape leaves it as it came, a dead link
         const token = tryDecodeURIComponent(pathnameParams[1] || '');
 
         const link: InternalLink = {
           _: INTERNAL_LINK_TYPE.CONTACT_TOKEN,
-          token,
-          free: uriParams.free
+          token
         };
 
         return this.processInternalLink(link);
       }
     });
 
-    // tg://contact?token=<token>&free=<code>
-    addAnchorListener<{uriParams: {token?: string, free?: string}}>({
+    // tg://contact?token=<token>
+    addAnchorListener<{uriParams: {token?: string}}>({
       name: 'contact',
       protocol: 'tg',
       callback: ({uriParams}) => {
-        const link = this.makeLink(INTERNAL_LINK_TYPE.CONTACT_TOKEN, {token: uriParams.token || '', free: uriParams.free});
+        const link = this.makeLink(INTERNAL_LINK_TYPE.CONTACT_TOKEN, {token: uriParams.token || ''});
         return this.processInternalLink(link);
       }
     });
@@ -1060,69 +1053,8 @@ export class InternalLinkProcessor {
     } as any as InternalLinkTypeMap[T];
   }
 
-  /**
-   * A link's `?free=<code>`, spent on the user it names, as Android does: their chat opens whatever the answer, and a
-   * moment later says whether their message fee is gone for us. A link of one's own only opens the own chat.
-   */
-  private async importNoPaidMessagesToken(managers: AppManagers, user: User.user, token: string) {
-    const peerId = user.id.toPeerId(false);
-    if(user.pFlags.self) {
-      return appImManager.setInnerPeer({peerId});
-    }
-
-    // the account the link was opened in: once the tab has left it, the link goes no further
-    const session = getManagersSession(managers);
-    let error: ApiError;
-    try {
-      await managers.appUsersManager.importNoPaidMessagesToken(user.id, token);
-    } catch(err) {
-      error = err as ApiError;
-    }
-
-    if(isSessionLeaving(session)) return;
-    await appImManager.setInnerPeer({peerId});
-    // the toast speaks of the chat, so it comes once the chat is there
-    await pause(NO_PAID_TOKEN_TOAST_DELAY);
-    if(isSessionLeaving(session)) return;
-    if(error) {
-      toastNew({langPackKey: error.type?.startsWith('USER_') ? 'NoPaidMessagesToken.UserInvalid' : 'NoPaidMessagesToken.Invalid'});
-      return;
-    }
-
-    toastNew({
-      langPackKey: 'NoPaidMessagesToken.Imported',
-      langPackArguments: [await wrapPeerTitle({peerId, onlyFirstName: true})]
-    });
-  }
-
-  /**
-   * `t.me/<username>?free=<code>`: the code removes the message fee of the user it names; the rest of the link is not
-   * looked at. A name that is not a user's is "no account", as on Android.
-   */
-  private async useNoPaidMessagesToken(link: InternalLink.InternalLinkMessage) {
-    const managers = bindManagersToSession(this.managers);
-    let peer;
-    try {
-      peer = await managers.appUsersManager.resolveUsername(link.domain);
-    } catch(err) {
-      this.showUsernameResolveError(err as ApiError);
-      return;
-    }
-
-    if(peer?._ !== 'user') {
-      toastNew({langPackKey: 'NoUsernameFound'});
-      return;
-    }
-
-    await this.importNoPaidMessagesToken(managers, peer, link.free);
-  }
-
   public processMessageLink = async(link: InternalLink.InternalLinkMessage) => {
     const managers = bindManagersToSession(this.managers);
-    if(link.free) {
-      return this.useNoPaidMessagesToken(link);
-    }
-
     if(link.game) {
       return this.shareGame(link);
     }
@@ -1546,8 +1478,7 @@ export class InternalLinkProcessor {
 
   /**
    * Someone's "My QR code" link: the server makes its owner a contact and names them; a token that
-   * has expired, or a user who is gone, is a dead link (tdesktop's `resolveContactToken`). With
-   * `?free=<code>` the code is spent on them before their chat opens, as Android does.
+   * has expired, or a user who is gone, is a dead link (tdesktop's `resolveContactToken`).
    */
   public processContactTokenLink = async(link: InternalLink.InternalLinkContactToken) => {
     const managers = bindManagersToSession(this.managers);
@@ -1557,10 +1488,6 @@ export class InternalLinkProcessor {
     if(!user || user._ !== 'user' || user.pFlags.deleted) {
       toastNew({langPackKey: 'ContactLinkInvalid'});
       return;
-    }
-
-    if(link.free) {
-      return this.importNoPaidMessagesToken(managers, user, link.free);
     }
 
     return appImManager.setInnerPeer({peerId: user.id.toPeerId(false)});

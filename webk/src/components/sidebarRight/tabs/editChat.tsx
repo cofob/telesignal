@@ -118,12 +118,10 @@ function EditChatForm(props: {
   const {
     AvatarNewTsx,
     ChatType,
-    I18n,
     PeerTitleTsx,
     appImManager,
     confirmationPopup,
     i18n,
-    join,
     toastNew,
     wrapEmojiText
   } = useHotReloadGuard();
@@ -223,14 +221,9 @@ function EditChatForm(props: {
     return set ? wrapEmojiText(set.title) : i18n('Checkbox.Disabled');
   };
   const permissionsSubtitle = createMemo(() => {
-    const permissions = PERMISSION_FLAGS.reduce((count, flag) => {
+    return PERMISSION_FLAGS.reduce((count, flag) => {
       return count + +hasRights(chat(), flag, chat().default_banned_rights);
     }, 0) + '/' + PERMISSION_FLAGS.length;
-    const paid = channel()?.send_paid_messages_stars ?
-      I18n.format('PrivacySettingsController.Paid', true) :
-      undefined;
-
-    return join([permissions, paid].filter(Boolean));
   });
   const administratorsCount = createMemo(() => {
     const participants = (chatFull() as ChatFull.chatFull).participants as ChatParticipants.chatParticipants;

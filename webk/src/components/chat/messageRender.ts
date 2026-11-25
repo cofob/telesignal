@@ -27,7 +27,7 @@ import wrapStickerAnimation from '@components/wrappers/stickerAnimation';
 import Scrollable from '@components/scrollable';
 import appDownloadManager from '@lib/appDownloadManager';
 import indexOfAndSplice from '@helpers/array/indexOfAndSplice';
-import numberThousandSplitter, {numberThousandSplitterForStars} from '@helpers/number/numberThousandSplitter';
+import numberThousandSplitter from '@helpers/number/numberThousandSplitter';
 import {makeTime} from '@components/chat/utils';
 import {useAppConfig} from '@stores/appState';
 import {formatNanoton} from '@helpers/paymentsWrapCurrencyAmount';
@@ -281,13 +281,12 @@ export namespace MessageRender {
     chat: Chat,
     chatType: ChatType,
     message: Message.message | Message.messageService,
-    groupedMessagesCount?: number,
     reactionsMessage?: Message.message | Message.messageService,
     isOut: boolean,
     middleware: Middleware,
     loadPromises?: Promise<any>[]
   }) => {
-    const {chatType, message, groupedMessagesCount} = options;
+    const {chatType, message} = options;
     const isMessage = !('action' in message)/*  && !isSponsored */;
     const includeDate = message.peerId === rootScope.myId && (!options.isOut/*  || !!options.chat.threadId */);
     const args: (HTMLElement | string)[] = [];
@@ -390,16 +389,6 @@ export namespace MessageRender {
       if(message.effect) {
         effectSpan = makeEffect({onlyElement: true});
         args.push(effectSpan);
-      }
-
-      if(message.paid_message_stars && options.chat.isAnyGroup) {
-        const inlineStars = document.createElement('span');
-        inlineStars.classList.add('inline-stars', 'bubble-meta-inline-stars');
-        inlineStars.append(
-          numberThousandSplitterForStars(+message.paid_message_stars * Math.max(groupedMessagesCount || 0, 1)),
-          Icon('star', 'inline-stars-icon')
-        );
-        args.push(inlineStars)
       }
 
       // if(USER_REACTIONS_INLINE && message.peer_id._ === 'peerUser'/*  && message.reactions?.results?.length */) {

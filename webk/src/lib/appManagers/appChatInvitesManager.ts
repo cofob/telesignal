@@ -1,15 +1,6 @@
-import Modes from '@config/modes';
-import {ChatInvite, DataJSON, InputUser, StarsSubscriptionPricing, Update, Updates} from '@layer';
+import {ChatInvite, DataJSON, InputUser, Update, Updates} from '@layer';
 import {AppManager} from '@appManagers/manager';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
-
-function starsSubscriptionPricing(amount: number): StarsSubscriptionPricing {
-  return {
-    _: 'starsSubscriptionPricing',
-    amount,
-    period: Modes.test ? 60 : 2592000
-  };
-}
 
 /** as many of the latest requesters as the chat's bar of requests shows */
 const RECENT_REQUESTERS_LIMIT = 3;
@@ -63,23 +54,20 @@ export default class AppChatInvitesManager extends AppManager {
     expireDate,
     usageLimit,
     requestNeeded,
-    title,
-    stars
+    title
   }: {
     chatId: ChatId,
     expireDate?: number,
     usageLimit?: number,
     requestNeeded?: boolean,
-    title?: string,
-    stars?: number
+    title?: string
   }) {
     return this.apiManager.invokeApi('messages.exportChatInvite', {
       peer: this.appChatsManager.getInputPeer(chatId),
       expire_date: expireDate,
       usage_limit: usageLimit,
       request_needed: requestNeeded,
-      title,
-      subscription_pricing: stars ? starsSubscriptionPricing(stars) : undefined
+      title
     });
   }
 

@@ -78,8 +78,6 @@ export class AppChatsManager extends AppManager {
   // private megagroups: {[id: number]: true};
 
   private recommendations: {[chatId: ChatId]: MaybePromise<MessagesChats>};
-  // * the paid messages price the full channel last named for this user (0 — exempt)
-  private fullPaidMessagesStars: Map<ChatId, number> = new Map();
   // * the admin behind a message posted as the channel, by `${chatId}_${mid}`: asked once a session,
   // * an answer that did not come included (desktop's `LookupMessageAuthor`)
   private messageAuthors: Map<string, Promise<PeerId>> = new Map();
@@ -142,7 +140,6 @@ export class AppChatsManager extends AppManager {
     }
 
     this.recommendations = {};
-    this.fullPaidMessagesStars.clear();
   };
 
   public saveApiChats(apiChats: any[], override?: boolean) {
@@ -328,14 +325,6 @@ export class AppChatsManager extends AppManager {
     }).then(this.onChatUpdated.bind(this, id));
   }
 
-  public updateChannelPaidMessagesPrice(id: ChatId, stars: number, directMessagesEnabled?: boolean) {
-    return this.apiManager.invokeApi('channels.updatePaidMessagesPrice', {
-      broadcast_messages_allowed: directMessagesEnabled,
-      channel: this.getChannelInput(id),
-      send_paid_messages_stars: stars
-    }).then(this.onChatUpdated.bind(this, id));
-  }
-
   /* public resolveUsername(username: string) {
     return this.usernames[username] || 0;
   } */
@@ -427,27 +416,6 @@ export class AppChatsManager extends AppManager {
     }
 
     return promise;
-  }
-
-  /**
-   * The amount of stars necessary to be paid for every message if the target chat had enabled it
-   */
-  public getStarsAmount(chatId: ChatId): number | undefined {
-    const chat = this.getChat(chatId);
-    if(chat?._ !== 'channel' || chat.admin_rights) return;
-
-    const stars = +chat.send_paid_messages_stars;
-    if(!stars) return;
-
-    // * the channel carries the public price; the full channel carries the price for this user and has
-    // * none when an admin removed the fee for them — it outranks the channel, like userFull does a user.
-    // * Its last answer is kept, so an exemption does not flicker away while the full channel reloads
-    const chatFull = this.appProfileManager.getCachedFullChat(chatId);
-    if(chatFull?._ === 'channelFull') {
-      this.fullPaidMessagesStars.set(chatId, +chatFull.send_paid_messages_stars || 0);
-    }
-
-    return this.fullPaidMessagesStars.get(chatId) === 0 ? undefined : stars;
   }
 
   public isPublic(id: ChatId) {

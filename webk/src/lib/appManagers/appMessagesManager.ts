@@ -14,7 +14,7 @@ import LazyLoadQueueBase from '@components/lazyLoadQueueBase';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import tsNow from '@helpers/tsNow';
 import {nextRandomUint, randomLong} from '@helpers/random';
-import {BotCommand, Chat, ChatFull, Dialog as MTDialog, DocumentAttribute, EphemeralMessage, EphemeralSendMessage, InputMedia, InputMessage, InputMessageReadMetric, InputSingleMedia, Message, MessageAction, MessageEntity, MessageFwdHeader, MessageMedia, MessageReplies, MessageReplyHeader, MessagesBotCallbackAnswer, MessagesDialogs, MessagesFilter, MessagesMessages, MethodDeclMap, PageBlock, PeerNotifySettings, PhotoSize, SendMessageAction, Update, Photo, Updates, ReplyMarkup, InputPeer, InputPhoto, InputDocument, WebPage, GeoPoint, InputChannel, InputDialogPeer, ReactionCount, MessagePeerReaction, MessagesSearchCounter, Peer, MessageReactions, Document, InputFile, Reaction, ForumTopic as MTForumTopic, MessagesForumTopics, MessagesGetReplies, MessagesGetHistory, MessagesAffectedHistory, MessagesAffectedMessages, MessagesTranscribedAudio, ReadParticipantDate, WebDocument, MessagesSearch, MessagesSearchGlobal, InputReplyTo, MessagesSendMessage, MessagesSendMedia, MessagesGetSavedHistory, MessagesSavedDialogs, SavedDialog as MTSavedDialog, User, MissingInvitee, TextWithEntities, ChannelsSearchPosts, FactCheck, MessageExtendedMedia, SponsoredMessage, MessagesSponsoredMessages, InputGroupCall, TodoItem, TodoCompletion, SearchPostsFlood, MessagesDeleteSavedHistory, ChannelsDeleteParticipantHistory, MessagesDeleteHistory, MessagesDeleteTopicHistory, RichMessage, RichText} from '@layer';
+import {BotCommand, Chat, ChatFull, Dialog as MTDialog, DocumentAttribute, EphemeralMessage, EphemeralSendMessage, InputMedia, InputMessage, InputMessageReadMetric, InputSingleMedia, Message, MessageAction, MessageEntity, MessageFwdHeader, MessageMedia, MessageReplies, MessageReplyHeader, MessagesBotCallbackAnswer, MessagesDialogs, MessagesFilter, MessagesMessages, MethodDeclMap, PageBlock, PeerNotifySettings, PhotoSize, SendMessageAction, Update, Photo, Updates, ReplyMarkup, InputPeer, InputPhoto, InputDocument, WebPage, GeoPoint, InputChannel, InputDialogPeer, ReactionCount, MessagePeerReaction, MessagesSearchCounter, Peer, MessageReactions, Document, InputFile, Reaction, ForumTopic as MTForumTopic, MessagesForumTopics, MessagesGetReplies, MessagesGetHistory, MessagesAffectedHistory, MessagesAffectedMessages, MessagesTranscribedAudio, ReadParticipantDate, WebDocument, MessagesSearch, MessagesSearchGlobal, InputReplyTo, MessagesSendMessage, MessagesSendMedia, MessagesGetSavedHistory, MessagesSavedDialogs, SavedDialog as MTSavedDialog, User, MissingInvitee, TextWithEntities, ChannelsSearchPosts, FactCheck, MessageExtendedMedia, SponsoredMessage, MessagesSponsoredMessages, InputGroupCall, TodoItem, TodoCompletion, MessagesDeleteSavedHistory, ChannelsDeleteParticipantHistory, MessagesDeleteHistory, MessagesDeleteTopicHistory, RichMessage, RichText} from '@layer';
 import type {InputRichMessage} from '@layer';
 import {ArgumentTypes, InvokeApiOptions, Modify} from '@types';
 import {LogTypes} from '@lib/logger';
@@ -246,8 +246,7 @@ export type HistoryResult = {
   isEnd: ReturnType<Slice<number>['getEnds']>,
   offsetIdOffset?: number,
   nextRate?: number,
-  messages?: MyMessage[],
-  flood?: SearchPostsFlood
+  messages?: MyMessage[]
 };
 
 export type Dialog = MTDialog.dialog;
@@ -432,8 +431,6 @@ export type RequestHistoryOptions = {
   needRealOffsetIdOffset?: boolean,
   fromPeerId?: PeerId,
   isPublicHashtag?: boolean,
-  isPublicPosts?: boolean,
-  allowStars?: Long,
   isCacheableSearch?: boolean,
   hashtagType?: 'this' | 'my' | 'public',
   chatType?: 'all' | 'users' | 'groups' | 'channels',
@@ -13531,8 +13528,7 @@ export class AppMessagesManager extends AppManager {
           isEnd: historyStorage.history.slice.getEnds(),
           offsetIdOffset: (historyResult as MessagesMessages.messagesMessagesSlice)?.offset_id_offset || 0,
           nextRate: (historyResult as MessagesMessages.messagesMessagesSlice)?.next_rate,
-          messages: historyResult.messages as MyMessage[],
-          flood: (historyResult as MessagesMessages.messagesMessagesSlice)?.search_flood
+          messages: historyResult.messages as MyMessage[]
         };
       }
 
@@ -14036,11 +14032,6 @@ export class AppMessagesManager extends AppManager {
     return historyResult;
   }
 
-  /** How many free public post searches are left, and whether this query is one of them */
-  public checkSearchPostsFlood(query: string) {
-    return this.apiManager.invokeApi('channels.checkSearchPostsFlood', {query});
-  }
-
   public requestHistory(
     requestOptions: RequestHistoryOptions,
     overwrite = false
@@ -14066,8 +14057,6 @@ export class AppMessagesManager extends AppManager {
       fromPeerId,
       savedReaction,
       isPublicHashtag,
-      isPublicPosts,
-      allowStars,
       previewOnly
     } = requestOptions;
     const fetchTargetedMessage = FETCH_TARGETED_MESSAGE && !addOffset;
@@ -14102,18 +14091,13 @@ export class AppMessagesManager extends AppManager {
       inputFilter ??= {_: 'inputMessagesFilterEmpty'};
     }
 
-    if(isPublicHashtag || isPublicPosts) {
+    if(isPublicHashtag) {
       const searchOptions: ChannelsSearchPosts = {
         ...commonOptions,
         offset_rate: nextRate,
-        offset_peer: this.appPeersManager.getInputPeerById(offsetPeerId)
+        offset_peer: this.appPeersManager.getInputPeerById(offsetPeerId),
+        hashtag: query.slice(1)
       };
-      if(isPublicHashtag) {
-        searchOptions.hashtag = query.slice(1)
-      } else {
-        searchOptions.query = query
-        searchOptions.allow_paid_stars = allowStars
-      }
 
       method = 'channels.searchPosts';
       options = searchOptions;

@@ -4376,19 +4376,6 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
   font-weight: var(--font-weight-bold);
 }
 
-.inline-stars {
-  display: inline-flex;
-  align-items: center;
-
-  &-icon {
-    line-height: unset;
-  }
-}
-
-.bubble-meta-inline-stars {
-  margin-inline-end: 6px;
-}
-
 .unknown-user-bubble {
   display: flex;
   flex-direction: column;
@@ -4582,15 +4569,13 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     }
   }
 
-  &-premiumRequired,
-  &-paidMessages {
+  &-premiumRequired {
     .service-msg {
       max-width: 200px;
     }
   }
 
   &-premiumRequired,
-  &-paidMessages,
   &-directChannelMessages,
   &-logs {
     .empty-bubble-placeholder-sticker {
@@ -4605,18 +4590,6 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
 
     .bubble-service-button {
       margin: 0 auto;
-    }
-
-    .empty-bubble-placeholder-stars {
-      display: inline-flex;
-      align-items: center;
-      vertical-align: -0.2em;
-      font-weight: 600;
-      // line-height: 1em;
-      height: 1em;
-    }
-    .empty-bubble-placeholder-star-icon {
-      font-size: 16px;
     }
   }
 

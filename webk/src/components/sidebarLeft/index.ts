@@ -1248,17 +1248,8 @@ export class AppSidebarLeft extends SidebarSlider {
       recentSearch: list === this.searchGroups.recent.list
     }).attach(list));
 
-    let prevTab: SearchSuperMediaType;
-    searchSuper.onChangeTab = (tab) => {
-      if(prevTab === 'posts') {
-        simulateClickEvent(this.inputSearch.clearBtn);
-      }
-
-      prevTab = tab.type;
+    searchSuper.onChangeTab = () => {
       searchSuper.searchContext.chatType = 'all';
-      if(tab.type === 'posts') {
-        searchSuper.globalPostsSearch?.setQuery(this.inputSearch.value);
-      }
     };
 
     scrollable.append(searchSuper.container);
@@ -1501,8 +1492,7 @@ export class AppSidebarLeft extends SidebarSlider {
 
     const updateSearchQuery = ({search: value, chatType}: UpdateSearchQueryArgs) => {
       const globalOnlyTabs: SearchSuperMediaType[] = [
-        'channels',
-        'posts'
+        'channels'
       ];
       const hideGlobalOnlyTabs = selectedArchive;
       for(const type of globalOnlyTabs) {
@@ -1520,10 +1510,6 @@ export class AppSidebarLeft extends SidebarSlider {
         );
       }
 
-      if(searchSuper.mediaTab.type === 'posts') {
-        searchSuper.globalPostsSearch?.setQuery(value);
-        return
-      }
 
       // spot input
       searchSuper.changeQuery({
