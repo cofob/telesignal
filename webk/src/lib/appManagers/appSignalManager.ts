@@ -893,7 +893,11 @@ export default class AppSignalManager extends AppManager {
   private buildMessage = (message: SignalMessage) => buildMessage(message, (signalUserId) => {
     const user = this.appUsersManager.getUser(toPeerId(signalUserId));
     return user ? [user.first_name, user.last_name].filter(Boolean).join(' ') : '';
-  }, toSignalPeerId(this.appPeersManager.peerId));
+  }, (signalUserId) => {
+    // * our user carries `self` from the provider before the adapter knows our peer id
+    const peerId = toPeerId(signalUserId);
+    return peerId === this.appPeersManager.peerId || !!this.appUsersManager.getUser(peerId)?.pFlags.self;
+  });
 
   private getInputPeerId(inputPeer: InputPeer): PeerId {
     switch(inputPeer?._) {

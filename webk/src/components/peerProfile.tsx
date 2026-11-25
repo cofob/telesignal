@@ -1401,8 +1401,9 @@ PeerProfile.Actions = () => {
     text: () => membership() === 'request' ? 'ForumTopic.Context.ApplyToJoin' : isBroadcast() ? 'Chat.Subscribe' : 'ChannelJoin',
     shown: () => membership() === 'join' || membership() === 'request',
     onClick: () => {
-      joinChat({peerId, managers: bindManagersToSession(rootScope.managers), appImManager}).catch(() => {
-        toastNew({langPackKey: 'Error.AnError'});
+      // * TeleSignal: a refused join that the provider reported (`makeReportedError`) is not shown again
+      joinChat({peerId, managers: bindManagersToSession(rootScope.managers), appImManager}).catch((err: ApiError) => {
+        if(!err?.handled) toastNew({langPackKey: 'Error.AnError'});
       });
     }
   }, {

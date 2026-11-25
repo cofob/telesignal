@@ -220,8 +220,9 @@ change that succeeds on the server has not been seen in the app. The demo seed a
 and no join request, so Web K's group link screen with a link and its join request bar and list were seen only with
 data put in by hand. Nor does it have a group that invited us, a group with removed members, a reply to a story or a
 shared contact with an ACI that has no chat: Web K's Join bar, removed members list, story reply preview and the
-contact's MESSAGE through `getChatByAci` were checked with a temporary edit of `src/lib/signal/dev/seedDemo.ts`. Testing the success path needs a linked account on a reachable server, which a contributor
-cannot use from the demo seed.
+contact's MESSAGE through `getChatByAci` were checked with a temporary edit of `src/lib/signal/dev/seedDemo.ts`.
+Testing the success path needs a linked account on a reachable server, which a contributor cannot use from the demo
+seed.
 
 ## Web K's settings call the provider only through its worker, and a page-side call reads no account
 

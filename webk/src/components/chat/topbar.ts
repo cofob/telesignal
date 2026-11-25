@@ -904,7 +904,8 @@ export default class ChatTopbar {
       }
 
       button.removeAttribute('disabled');
-    });
+    // * TeleSignal: a refused join is reported by the provider, which shows its reason
+    }).catch(noop);
   };
 
   private onMuteClick = () => {
