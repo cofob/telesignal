@@ -4398,49 +4398,6 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
   --border-end-start-radius: 0;
 }
 
-.botforum-new-topic-bubble {
-  --border-start-start-radius: #{$bubble-border-radius-big};
-  --border-start-end-radius: #{$bubble-border-radius-big};
-  --border-end-end-radius: #{$bubble-border-radius-big};
-  --border-end-start-radius: #{$bubble-border-radius-big};
-  order: 1000000;
-  margin-top: 1.5rem;
-  justify-content: center;
-  align-items: center;
-  max-width: 100%;
-
-  pointer-events: none;
-
-  .bubble-content-wrapper {
-    max-width: unset;
-  }
-
-  .bubble-content {
-    background-color: var(--message-highlighting-color);
-    box-shadow: none;
-  }
-
-  .message {
-    color: white;
-  }
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: -0.75rem;
-    width: 100vw;
-    height: 2px;
-
-    opacity: 0.075;
-    background-image: url('/assets/img/chat-thread-separator-dash-black.svg');
-  }
-
-  .night &::before {
-    opacity: 0.15;
-    background-image: url('/assets/img/chat-thread-separator-dash.svg');
-  }
-}
-
 .empty-bubble-placeholder {
   position: absolute;
   top: 50%;
@@ -4454,8 +4411,7 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     }
   }
 
-  .bubbles.has-groups &,
-  .bubbles.is-temporary-thread & {
+  .bubbles.has-groups & {
     pointer-events: none;
 
     .bubble-content-wrapper {
@@ -4533,35 +4489,6 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     }
   }
 
-  &-topic {
-    .empty-bubble-placeholder-sticker {
-      --parent-size: 4rem;
-      width: var(--parent-size) !important;
-      height: var(--parent-size) !important;
-      margin-left: auto;
-      margin-right: auto;
-      font-size: var(--parent-size);
-      border-radius: 50%;
-
-      .topic-icon {
-        --size: var(--parent-size);
-      }
-    }
-
-    &-title {
-      font-weight: var(--font-weight-bold);
-      align-self: center;
-      font-size: var(--messages-text-size);
-      text-align: center;
-    }
-
-    &-subtitle {
-      margin: 0.25rem 1rem;
-      max-width: 160px;
-      text-align: center;
-    }
-  }
-
   &-logs {
     &-subtitle {
       max-width: 240px;
@@ -4576,7 +4503,6 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
   }
 
   &-premiumRequired,
-  &-directChannelMessages,
   &-logs {
     .empty-bubble-placeholder-sticker {
       width: 8rem !important;
@@ -4593,7 +4519,6 @@ $message-out-gradient-phases: 0, 1, 2, 3, 4, 5, 6, 7;
     }
   }
 
-  &-directChannelMessages,
   &-logs {
     .empty-bubble-placeholder-sticker {
       font-size: 80px;

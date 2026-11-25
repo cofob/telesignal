@@ -31,7 +31,7 @@ export type ShareUrlOptions = {
   toastKeyForMany?: LangPackKey
 };
 
-export type ShareTarget = {peerId: PeerId, threadId?: number, monoforumThreadId?: PeerId};
+export type ShareTarget = {peerId: PeerId, threadId?: number};
 
 export type ShareToPeersOptions = Omit<ShareUrlOptions, 'url'> & Pick<PopupPickUserOptions, 'footer' | 'onChange'> & {
   // Sends to one chosen chat.
@@ -97,12 +97,11 @@ export default function shareUrlToPeers(options: ShareUrlOptions): void {
   const popup = shareToPeers({
     ...options,
     ...(copyFooter || {}),
-    send: (managers, {peerId, threadId, monoforumThreadId}) => {
+    send: (managers, {peerId, threadId}) => {
       managers.appMessagesManager.sendText({
         peerId,
         threadId,
-        text: options.url,
-        replyToMonoforumPeerId: monoforumThreadId
+        text: options.url
       });
     }
   });

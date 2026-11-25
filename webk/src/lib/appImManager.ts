@@ -211,7 +211,6 @@ export type ChatSetPeerOptions = {
   wholeAlbum?: boolean,
   lastMsgPeerId?: PeerId,
   threadId?: number,
-  monoforumThreadId?: PeerId,
   startParam?: string,
   stack?: {peerId: PeerId, mid: number, message?: Message.message, isOut?: boolean},
   commentId?: number,
@@ -221,7 +220,6 @@ export type ChatSetPeerOptions = {
   entities?: MessageEntity[],
   call?: string | number,
   isDeleting?: boolean,
-  fromTemporaryThread?: boolean,
   messages?: MyMessage[]
 } & Partial<ChatSearchKeys>;
 
@@ -758,10 +756,7 @@ export class AppImManager extends EventListenerBase<{
 
     apiManagerProxy.addEventListener('notificationBuild', async(options) => {
       if('message' in options) {
-        const {accountNumber} = options;
-        const managers = createProxiedManagersForAccount(accountNumber);
-        const isForum = await managers.appPeersManager.isForum(options.message.peerId);
-        const threadId = getMessageThreadId(options.message, {isForum});
+        const threadId = getMessageThreadId(options.message);
 
         if(
           this.chat.peerId === options.message.peerId &&
@@ -980,8 +975,8 @@ export class AppImManager extends EventListenerBase<{
 
     apiManagerProxy.share = undefined;
     if(share.files?.length) {
-      showForwardPopup(undefined, async(peerId, threadId) => {
-        await this.setPeer({peerId, threadId});
+      showForwardPopup(undefined, async(peerId) => {
+        await this.setPeer({peerId});
         const foundMedia = share.files.some((file) => MEDIA_MIME_TYPES_SUPPORTED.has(getFileMimeType(file)) || isConvertibleMov(file));
         showNewMediaPopup(this.chat, share.files, foundMedia ? 'media' : 'document');
       });
@@ -1751,8 +1746,6 @@ export class AppImManager extends EventListenerBase<{
     ];
 
     const channelId = isChannel ? (options.peer as MTChat.channel).id : undefined;
-    const isForum = !!(options.peer as MTChat.channel).pFlags.forum;
-    const isBotforum = !!(isUser && (options.peer as User.user).pFlags.bot_forum_view);
 
     await Promise.all(keys.map(async(key) => {
       options[key] &&= await managers.appMessagesIdsManager.generateMessageId(options[key], channelId);
@@ -1765,36 +1758,7 @@ export class AppImManager extends EventListenerBase<{
       peerId = channelId.toPeerId(true);
     }
 
-    let {commentId, threadId, lastMsgId} = options;
-
-    // open forum tab
-    if(!commentId && !threadId && !lastMsgId && isForum) {
-      appDialogsManager.toggleForumTabByPeerId(peerId, true, true);
-      return;
-    }
-
-    if(isBotforum && this.chat.peerId !== peerId) {
-      appDialogsManager.toggleForumTabByPeerId(peerId, true);
-    }
-
-    // handle t.me/username/thread or t.me/username/messageId
-    if(lastMsgId && !threadId) {
-      if(isForum) {
-        const message = await managers.appMessagesManager.reloadMessage(peerId, lastMsgId);
-        if(message) {
-          threadId = options.threadId = getMessageThreadId(message, {isForum});
-        } else {
-          threadId = options.threadId = lastMsgId;
-          lastMsgId = options.lastMsgId = undefined;
-        }
-      } else if(isBotforum) {
-        const topic = await managers.dialogsStorage.getForumTopicById(peerId, lastMsgId);
-        if(topic) {
-          threadId = options.threadId = lastMsgId;
-          lastMsgId = options.lastMsgId = undefined;
-        }
-      }
-    }
+    const {commentId, threadId, lastMsgId} = options;
 
     if(options.call) {
       await callsController.ringRequestedCall(options.call);
@@ -1853,11 +1817,6 @@ export class AppImManager extends EventListenerBase<{
     threadId: number
   } & Pick<ChatSetPeerOptions, 'stack' | 'wholeAlbum'>) {
     const managers = bindManagersToSession(this.managers);
-    if(await managers.appChatsManager.isForum(options.peerId.toChatId()) || await managers.appPeersManager.isBotforum(options.peerId)) {
-      await managers.dialogsStorage.getForumTopicOrReload(options.peerId, options.threadId);
-      return this.setInnerPeer(options);
-    }
-
     return managers.appMessagesManager.reloadMessage(options.peerId, options.threadId).then(async(message) => {
       if(!message) {
         options.lastMsgId = undefined;
@@ -2489,7 +2448,7 @@ export class AppImManager extends EventListenerBase<{
       return;
     }
 
-    const threadId = chat.threadId || chat.monoforumThreadId;
+    const threadId = chat.threadId;
     const key = chat.peerId + (threadId ? '_' + threadId : '');
     return this.chatPositions[key];
   }
@@ -3061,10 +3020,6 @@ export class AppImManager extends EventListenerBase<{
       return;
     }
 
-    if(!chatInput.canPaste()) {
-      return;
-    }
-
     if(insertAsRichMedia) {
       // dropped on "Send as a file": file blocks, music an audio
       await chatInput.insertRichMediaFiles(files as File[], richMediaPasteTarget, attachType === 'document');
@@ -3475,7 +3430,7 @@ export class AppImManager extends EventListenerBase<{
       if(options.threadId) {
         if(options.peerId === rootScope.myId) {
           options.type = ChatType.Saved;
-        } else if(!apiManagerProxy.isForum(options.peerId) && !apiManagerProxy.isBotforum(options.peerId)) {
+        } else {
           options.type = ChatType.Discussion;
         }
       }
@@ -3514,15 +3469,11 @@ export class AppImManager extends EventListenerBase<{
     });
   }
 
-  public async toggleViewAsMessages(peerId: PeerId, enabled: boolean) {
-    if(peerId === rootScope.myId) {
-      setAppState('settings', 'savedAsForum', !enabled);
-    } else {
-      await this.managers.appChatsManager.toggleViewForumAsMessages(peerId.toChatId(), enabled);
-    }
-
+  /** Shows Saved Messages as one chat, or as its sublists */
+  public toggleSavedViewAsMessages(enabled: boolean) {
+    setAppState('settings', 'savedAsForum', !enabled);
     this.selectTab(APP_TABS.CHATLIST);
-    appDialogsManager.toggleForumTabByPeerId(peerId, !enabled, false);
+    appDialogsManager.toggleSavedDialogsTab(!enabled);
   }
 
   private getTypingElement(action: SendMessageAction) {
@@ -3911,13 +3862,12 @@ export class AppImManager extends EventListenerBase<{
       return;
     }
 
-    chat.managers.appMessagesManager.setTyping(chat.peerId, {_: cancel ? 'sendMessageCancelAction' : 'sendMessageChooseStickerAction'}, undefined, chat.threadId);
+    chat.managers.appMessagesManager.setTyping(chat.peerId, {_: cancel ? 'sendMessageCancelAction' : 'sendMessageChooseStickerAction'});
   }
 
-  public isSamePeer(options1: {peerId: PeerId, threadId?: number, monoforumThreadId?: PeerId, type?: ChatType}, options2: typeof options1) {
+  public isSamePeer(options1: {peerId: PeerId, threadId?: number, type?: ChatType}, options2: typeof options1) {
     return options1.peerId === options2.peerId &&
       options1.threadId === options2.threadId &&
-      options1.monoforumThreadId === options2.monoforumThreadId &&
       (options1.type !== ChatType.Static && options2.type !== ChatType.Static) &&
       (options1.type !== ChatType.Logs && options2.type !== ChatType.Logs) &&
       (typeof(options1.type) !== typeof(options2.type) || options1.type === options2.type);
@@ -4068,8 +4018,6 @@ export class AppImManager extends EventListenerBase<{
         return;
       }
 
-      const threadId = this.chat?.peerId === peerId ? this.chat.threadId : undefined;
-
       const bubble = findUpClassName(container, 'bubble');
       managers.appMessagesManager.setTyping(peerId, {
         _: 'sendMessageEmojiInteraction',
@@ -4079,7 +4027,7 @@ export class AppImManager extends EventListenerBase<{
           _: 'dataJSON',
           data: JSON.stringify(data)
         }
-      }, true, threadId);
+      }, true);
 
       data.a.length = 0;
     }, 1000, false);

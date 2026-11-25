@@ -8,7 +8,6 @@ import getChatPhotosCount from '@helpers/getChatPhotosCount';
 import ListenerSetter from '@helpers/listenerSetter';
 import ListLoader from '@helpers/listLoader';
 import {getMiddleware, MiddlewareHelper} from '@helpers/middleware';
-import {makeMediaSize} from '@helpers/mediaSize';
 import {fastRaf} from '@helpers/schedulers';
 import {Message, ChatFull, MessageAction, Photo, User, ChatPhoto, UserFull} from '@layer';
 import {ReadingManagers} from '@lib/managers';
@@ -61,7 +60,6 @@ export default class PeerProfileAvatars {
   private tabs: HTMLDivElement;
   private listLoader: ListLoader<Photo.photo['id'] | Message.messageService, Photo.photo['id'] | Message.messageService>;
   private peerId: PeerId;
-  private threadId: number;
   private intersectionObserver: IntersectionObserver;
   private loadCallbacks: Map<Element, () => void>;
   private listenerSetter: ListenerSetter;
@@ -407,15 +405,12 @@ export default class PeerProfileAvatars {
     });
   }
 
-  public async setPeer(peerId: PeerId, threadId?: number) {
+  public async setPeer(peerId: PeerId) {
     const managers = bindManagersToSession(this.managers);
     this.peerId = peerId;
-    this.threadId = threadId;
     this.middlewareHelper.clean();
 
-    // A topic isn't backed by its own photo history — render the topic icon as a
-    // single, collapse-locked avatar, exactly like a chat with no avatar photo.
-    const photo = threadId ? undefined : await managers.appPeersManager.getPeerPhoto(peerId);
+    const photo = await managers.appPeersManager.getPeerPhoto(peerId);
     if(!photo && !SHOW_NO_AVATAR) {
       return;
     }
@@ -423,16 +418,6 @@ export default class PeerProfileAvatars {
     this.hasNoPhoto = !photo;
 
     await this.applyAppearance();
-
-    // Topics have no photo carousel and no stories: render the topic icon as a
-    // single avatar-120 item (exactly like before) and skip the fake avatar +
-    // list loader entirely. hasNoPhoto keeps the header collapsed and locked, so
-    // the swipe/click paths that need listLoader are never reached.
-    if(threadId) {
-      this.container.classList.add('is-topic');
-      await this.processItem(undefined);
-      return;
-    }
 
     if(this.fakeAvatar) {
       this.fakeAvatar.node.remove();
@@ -860,26 +845,17 @@ export default class PeerProfileAvatars {
       this.photosByElement.set(avatar, photo);
     }
 
-    const isTopic = !!this.threadId;
     const loadCallback = async() => {
       const avatarElem = avatarNew({
         middleware,
-        // A topic has no photo to scale up — render its icon at a fixed avatar-120
-        // (centered via the .is-topic styles), exactly like the old simple avatar.
-        size: isTopic ? 120 : 'full',
+        size: 'full',
         isDialog: false,
         isBig: true,
         // Show the cached small thumb first, then the big — but DON'T fade the
         // big in. On first open photo_big isn't cached anywhere, so its fade-in
         // animation makes the avatar's colour gradient show through (the
         // "blink"). No fade => the big just swaps over the small instantly.
-        noFadeIn: true,
-        ...(isTopic && {
-          wrapOptions: {
-            customEmojiSize: makeMediaSize(120, 120),
-            middleware
-          }
-        })
+        noFadeIn: true
         // size: isFirst ? 120 : 'full',
         // withStories: isFirst
       });
@@ -900,8 +876,7 @@ export default class PeerProfileAvatars {
         await wrapPhotoToAvatar(avatarElem, photo, boxSize, photoSize);
       } else {
         avatarElem.render({
-          peerId: this.peerId,
-          threadId: this.threadId
+          peerId: this.peerId
         });
 
         await avatarElem.readyThumbPromise;

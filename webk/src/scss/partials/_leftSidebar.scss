@@ -55,14 +55,6 @@
     }
   }
 
-  // A floating forum remains mounted while its own management tabs
-  // are open. Move it out of the hit-testing layer so the selected slider tab
-  // receives both pointer and keyboard interaction.
-  &.has-real-tabs .topics-container.is-floating {
-    transform: translateX(calc(100% * var(--reflect)));
-    pointer-events: none;
-  }
-
   // * while chats are being selected the sidebar wears a header of its own (DialogsSelection):
   // * a `sidebar-header` like any other, laid over the usual one and faded in, so nothing in that
   // * one has to know about the selection
@@ -209,19 +201,6 @@
       display: none;
     }
 
-    .topics-container.is-floating {
-      .sidebar-content,
-      .sidebar-header {
-        width: calc(var(--default-column-width) - var(--offset) - 1px);
-      }
-    }
-
-    &:not(.has-real-tabs) {
-      .topics-container {
-        transform: translateX(0) !important;
-      }
-    }
-
     &.can-menu-have-z-index:not(.has-open-tabs) {
       body:not(.has-folders-sidebar) & {
         .left-sidebar-burger {
@@ -275,15 +254,6 @@
     &.force-chatlist-thin {
       #chatlist-container .chatlist {
         width: var(--sidebar-collapsed-width);
-      }
-    }
-
-    &.has-forum-open {
-      body.has-folders-sidebar & {
-        .main-search-sidebar-header {
-          pointer-events: none;
-          opacity: 0;
-        }
       }
     }
   }
@@ -1287,68 +1257,6 @@
 
     &.visible {
       opacity: 1;
-    }
-  }
-}
-
-.is-forum-visible {
-  // .item-main,
-  .can-have-forum {
-    .row-row,
-    .input-search,
-    .sidebar-header__title {
-      opacity: 0;
-      pointer-events: none;
-    }
-  }
-
-  .folders-tabs-scrollable {
-    opacity: var(--disabled-opacity);
-    pointer-events: none;
-  }
-
-  &.backwards {
-    // .item-main,
-    .can-have-forum {
-      .row-row,
-      .input-search,
-      .sidebar-header__title {
-        opacity: 1;
-      }
-    }
-
-    .folders-tabs-scrollable {
-      opacity: 1;
-    }
-  }
-
-  &.animating {
-    // .item-main,
-    .can-have-forum {
-      .row-row,
-      .input-search,
-      .sidebar-header__title {
-        transition: opacity var(--transition-standard-in);
-      }
-    }
-
-    .folders-tabs-scrollable {
-      transition: opacity var(--transition-standard-in);
-    }
-
-    &.backwards {
-      // .item-main,
-      .can-have-forum {
-        .row-row,
-        .input-search,
-        .sidebar-header__title {
-          transition: opacity var(--transition-standard-out);
-        }
-      }
-
-      .folders-tabs-scrollable {
-        transition: opacity var(--transition-standard-out);
-      }
     }
   }
 }

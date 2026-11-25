@@ -15,7 +15,6 @@ import type StoriesCacheType from '@appManagers/utils/stories/cacheType';
 import type {StoriesListPosition} from '@appManagers/appStoriesManager';
 import type {ArgumentTypes} from '@types';
 import type {RtmpCallInstance} from '@lib/calls/rtmpCallsController';
-import type {MonoforumDialog} from '@lib/storages/monoforumDialogs';
 import type {MyStarGift} from '@appManagers/appGiftsManager';
 import type {MyPromoData} from '@appManagers/appPromoManager';
 import type {UnconfirmedAuthorization} from '@appManagers/appAccountManager';
@@ -52,7 +51,6 @@ export type BroadcastEvents = {
 
   'chat_full_update': ChatId,
   'chat_update': ChatId,
-  'chat_toggle_forum': {chatId: ChatId, enabled: boolean},
   'chat_participant': Update.updateChannelParticipant,
   'chat_participant_rank': {chatId: ChatId, userId: UserId, rank: string},
   'chat_participation': {chatId: ChatId, left: boolean},
@@ -66,7 +64,7 @@ export type BroadcastEvents = {
 
   'emoji_status_change': void,
 
-  /** `threadId` scopes the change to one forum topic; absent = the whole peer. */
+  /** `threadId` scopes the change to one thread; absent = the whole peer. */
   'peer_pinned_messages': {peerId: PeerId, threadId?: number, mids?: number[], pinned?: boolean, unpinAll?: true},
   'peer_pinned_hidden': {peerId: PeerId, threadId?: number, maxId: number},
   'peer_typings': {peerId: PeerId, threadId?: number, typings: UserTyping[]},
@@ -181,7 +179,7 @@ export type BroadcastEvents = {
 
   'connection_status_change': ConnectionStatusChange,
   'settings_updated': {key: string, value: any, settings: StateSettings},
-  'draft_updated': {peerId: PeerId, threadId?: number, monoforumThreadId?: PeerId, draft: MyDraftMessage | undefined, force?: boolean},
+  'draft_updated': {peerId: PeerId, threadId?: number, draft: MyDraftMessage | undefined, force?: boolean},
 
   'background_change': void,
 
@@ -279,12 +277,7 @@ export type BroadcastEvents = {
   'saved_music_update': {peerId: PeerId},
   'star_gift_upgrade': {gift: MyStarGift, savedId?: Long, fromMsgId?: number},
 
-  'monoforum_dialogs_update': {dialogs: MonoforumDialog[]},
-  'monoforum_dialogs_drop': {parentPeerId: PeerId, ids: PeerId[]},
-  'monoforum_draft_update': {dialog: MonoforumDialog},
 
-  'botforum_pending_topic_created': {peerId: PeerId, tempId: number, newId?: number},
-  'botforum_pending_topic_failed': {peerId: PeerId, tempId: number},
   'promo_data_update': MyPromoData,
   'unconfirmed_authorizations_update': UnconfirmedAuthorization[],
 

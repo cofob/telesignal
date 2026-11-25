@@ -108,8 +108,7 @@ export type ForwardPopupStory = {
 
 export default async function showForwardPopup(
   peerIdMids?: {[fromPeerId: PeerId]: number[]},
-  _onSelect?: (peerId: PeerId, threadId?: number) => Promise<void> | void,
-  noTopics?: boolean,
+  _onSelect?: (peerId: PeerId) => Promise<void> | void,
   onClose?: () => void,
   story?: ForwardPopupStory,
   /** a video's forward starts it at this second for whoever gets it ("Share at 0:42"), as its link does */
@@ -191,12 +190,10 @@ export default async function showForwardPopup(
 
   const processSingle = async({
     peerId,
-    threadId,
-    monoforumThreadId
+    threadId
   }: {
     peerId: number,
-    threadId?: number,
-    monoforumThreadId?: number
+    threadId?: number
   }, openChat: boolean) => {
     if(_onSelect) {
       const res = _onSelect(peerId);
@@ -207,7 +204,7 @@ export default async function showForwardPopup(
 
     let success: boolean;
     if(openChat) {
-      await hotReloadGuard.appImManager.setInnerPeer({peerId, threadId, monoforumThreadId});
+      await hotReloadGuard.appImManager.setInnerPeer({peerId, threadId});
       hotReloadGuard.appImManager.chat.input.initMessagesForward(peerIdMids, videoTimestamp);
     } else {
       const result = await ChatInput.sendMessageWithForward({
@@ -215,9 +212,6 @@ export default async function showForwardPopup(
         sendingParams: {
           peerId,
           threadId,
-          // * the direct messages thread picked: a shared story has always gone there, a forward is
-          // * left as it was
-          replyToMonoforumPeerId: storyMedia ? monoforumThreadId : undefined,
           silent: silent || undefined,
           scheduleDate: scheduleDate || undefined,
           scheduleRepeatPeriod: scheduleRepeatPeriod || undefined
@@ -309,7 +303,7 @@ export default async function showForwardPopup(
 
   let onSelect: Parameters<typeof showPickUserPopup>[0]['onSelect'];
   if(!peerIdMids && _onSelect) {
-    onSelect = (chosen) => _onSelect(chosen[0].peerId, chosen[0].threadId);
+    onSelect = (chosen) => _onSelect(chosen[0].peerId);
   } else {
     onSelect = async(chosen) => {
       const sentToPeerIds: Set<PeerId> = new Set();
@@ -371,7 +365,6 @@ export default async function showForwardPopup(
     placeholder: 'ShareModal.Search.ForwardPlaceholder',
     chatRightsActions,
     selfPresence: 'ChatYourSelf',
-    useTopics: !noTopics,
     ...(videoTimestamp !== undefined ? {
       titleLangKey: 'ShareAtTimeWith',
       titleLangArgs: [toHHMMSS(videoTimestamp)]

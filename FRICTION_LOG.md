@@ -179,11 +179,16 @@ unions need (`communityFull` and `communityForbidden` checks in `hasRights`, `ap
 and call code) and the places that drop a community they are handed (`appChatsManager.saveApiChat`,
 `dialogCommunity` in `dialogsStorage`, `notifyCommunity` updates in `appNotificationsManager`).
 
-Forums: the group forum tab and its topic list are removed, so a forum opens no topic screen. `isForum` checks and
-topic thread ids stay in the shared chat, history and dialog code, as do the bot forum and channel direct message
-tabs (`forumTab/botforumTab.ts`, `forumTab/monoforumTab.ts`) and the topic editor, which the profile's media tabs
-open (`sidebarRight/tabs/sharedMedia.tsx`). About 100 `.invalid` links of these features remain in `src`; the strings
-that Signal chats can show point to Signal on the phone instead.
+Forums are removed from the UI, the chat and the managers, with the channel direct-message threads and their
+storage. What is left is the forum topic cache of `dialogsStorage` (`forumTopics`, `FilterType.Forum`,
+`getForumTopic`, `getForumTopicById`, `processTopics`, the `messages.getForumTopics` branch of `getDialogs` and its
+pagination offsets) with its callers in `appMessagesManager` (channel cutoff tops, topic mentions, `flushHistory`),
+`ForumTopic` in `AnyDialog` and its `isForumTopic` checks, and the topic notification settings (`notifyForumTopic`
+in `appNotificationsManager`, `getInputNotifyPeerById`). The cache shares the virtual filter path with the Saved
+Messages sublists, and the settings are cached under topic keys, so removing them means reworking
+`dialogsStorage`'s virtual filters and a cache migration. Saved Messages "view as chats" still uses the forum
+avatar class (`is-forum`) and the `savedAsForum` setting. About 90 `.invalid` links of the removed Telegram
+features remain in `src`; the strings that Signal chats can show point to Signal on the phone instead.
 
 ## Web A calls Note to Self «Your Cloud Storage»
 

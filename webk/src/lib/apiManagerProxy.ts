@@ -1350,26 +1350,6 @@ class ApiManagerProxy extends MTProtoMessagePort {
     return this.mirrors.peers[chatId.toPeerId(true)] as Exclude<Chat, Chat.chatEmpty>;
   }
 
-  public isForum(peerId: PeerId) {
-    const peer = this.getPeer(peerId);
-    return !!(peer as Chat.channel)?.pFlags?.forum;
-  }
-
-  public isBotforum(peerId: PeerId) {
-    const peer = this.getPeer(peerId);
-    return !!(peer as User.user)?.pFlags?.bot_forum_view;
-  }
-
-  public isMonoforum(peerId: PeerId) {
-    const peer = this.getPeer(peerId);
-    return !!(peer as Chat.channel)?.pFlags?.monoforum;
-  }
-
-  public canManageBotforumTopics(peerId: PeerId) {
-    const peer = this.getPeer(peerId);
-    return !!(peer as User.user)?.pFlags?.bot_forum_can_manage_topics;
-  }
-
   public isAvatarCached(peerId: PeerId, size?: PeerPhotoSize) {
     const saved = this.mirrors.avatars[peerId];
     if(size === undefined) {

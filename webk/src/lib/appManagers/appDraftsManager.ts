@@ -14,7 +14,6 @@ import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId'
 import isEphemeralMessageId from '@appManagers/utils/messageId/isEphemeralMessageId';
 import draftsAreEqual from '@appManagers/utils/drafts/draftsAreEqual';
 import isObject from '@helpers/object/isObject';
-import getPeerId from '@appManagers/utils/peers/getPeerId';
 import createSerializedQueue, {SerializedQueue} from '@helpers/createSerializedQueue';
 import ctx from '@environment/ctx';
 import forgetFailedRequest from '@helpers/forgetFailedRequest';
@@ -25,7 +24,6 @@ export type MyDraftMessage = DraftMessage.draftMessage;
 type SyncDraftArgs = {
   peerId: PeerId;
   threadId?: number;
-  monoforumThreadId?: PeerId;
   localDraft?: DraftMessage;
   inputRichMessage?: InputRichMessage.inputRichMessage;
   saveOnServer?: boolean;
@@ -35,7 +33,6 @@ type SyncDraftArgs = {
 type ClearDraftArgs = {
   peerId: PeerId;
   threadId?: number;
-  monoforumThreadId?: PeerId;
 };
 
 type DraftSyncState = {
@@ -91,30 +88,18 @@ export class AppDraftsManager extends AppManager {
     this.apiUpdatesManager.addMultipleEventsListeners({
       updateDraftMessage: (update) => {
         const {draft} = update;
-        const {peerId, threadId, monoforumThreadId} = this.getUpdateDraftTarget(update);
-        if(monoforumThreadId && draft._ === 'draftMessage') {
-          if(draft.reply_to?._ === 'inputReplyToMessage' || draft.reply_to?._ === 'inputReplyToMonoForum') {
-            draft.reply_to.monoforum_peer_id = monoforumThreadId;
-          } else if(!draft.reply_to) {
-            draft.reply_to = {
-              _: 'inputReplyToMonoForum',
-              monoforum_peer_id: this.appPeersManager.getInputPeerById(monoforumThreadId)
-            };
-          }
-        }
-
-        const key = this.getKey(peerId, monoforumThreadId || threadId);
+        const {peerId, threadId} = this.getUpdateDraftTarget(update);
+        const key = this.getKey(peerId, threadId);
         const askedAt = this.draftReads.get(update);
         if(this.skipCloudDraft(key, draft, askedAt)) {
           // * another session may have written it in the same moment as this one saved, after the save
-          this.scheduleDraftSyncReconcile(key, {peerId, threadId, monoforumThreadId});
+          this.scheduleDraftSyncReconcile(key, {peerId, threadId});
           return;
         }
 
         this.saveDraft({
           peerId,
           threadId,
-          monoforumThreadId,
           draft,
           notify: true,
           askedAt
@@ -152,20 +137,16 @@ export class AppDraftsManager extends AppManager {
     return '' + peerId + (threadId ? '_' + threadId : '');
   }
 
-  /** Whose draft an update carries: a peer's, a topic's or a monoforum thread's */
+  /** Whose draft an update carries: a peer's or a thread's */
   private getUpdateDraftTarget(update: Update.updateDraftMessage) {
     const peerId = this.appPeersManager.getPeerId(update.peer);
-    // * an empty draft is the thread's too: one cleared elsewhere, or by a message sent there from another device
-    const monoforumThreadId = peerId !== this.rootScope.myId && update.saved_peer_id ?
-      this.appPeersManager.getPeerId(update.saved_peer_id) :
-      undefined;
-    // * a channel's topic by its id here, as its saves, its dialog and its field have it
+    // * a channel's thread by its id here, as its saves, its dialog and its field have it
     const {top_msg_id} = update;
     const threadId = update.threadId || (top_msg_id && this.appMessagesIdsManager.generateMessageId(
       top_msg_id,
       this.appPeersManager.isChannel(peerId) ? peerId.toChatId() : undefined
     ));
-    return {peerId, threadId, monoforumThreadId};
+    return {peerId, threadId};
   }
 
   /** Where a draft's media came from, for its file references to be renewed from there */
@@ -266,8 +247,6 @@ export class AppDraftsManager extends AppManager {
       // MTProtoMessagePort.getInstance<false>().invoke('log', {m: '[my-debug] drafts', drafts: this.drafts})
       for(const key in this.drafts) {
         if(key.indexOf('_') !== -1) { // exclude threads
-          const peerId = key.split('_')[0]?.toPeerId() || 0;
-          this.monoforumDialogsStorage.checkPreloadedDraft(peerId, this.drafts[key]);
           continue;
         }
 
@@ -291,8 +270,8 @@ export class AppDraftsManager extends AppManager {
       (updates as Updates.updates).updates?.forEach((update) => {
         if(update._ !== 'updateDraftMessage') return;
         this.draftReads.set(update, askedAt);
-        const {peerId, threadId, monoforumThreadId} = this.getUpdateDraftTarget(update);
-        held.add(this.getKey(peerId, monoforumThreadId || threadId));
+        const {peerId, threadId} = this.getUpdateDraftTarget(update);
+        held.add(this.getKey(peerId, threadId));
       });
       const p = this.apiUpdatesManager.updatesState.syncLoading || Promise.resolve();
       return p.then(() => {
@@ -322,7 +301,6 @@ export class AppDraftsManager extends AppManager {
   public saveDraft({
     peerId,
     threadId,
-    monoforumThreadId,
     draft: apiDraft,
     notify,
     force,
@@ -331,7 +309,6 @@ export class AppDraftsManager extends AppManager {
   }: {
     peerId: PeerId,
     threadId?: number,
-    monoforumThreadId?: PeerId,
     draft: DraftMessage,
     notify?: boolean,
     force?: boolean,
@@ -340,17 +317,17 @@ export class AppDraftsManager extends AppManager {
     /** the drafts clock's tick the read that brought it was asked for at (`getDraftsClock`) */
     askedAt?: number
   }) {
-    const key = this.getKey(peerId, monoforumThreadId || threadId);
+    const key = this.getKey(peerId, threadId);
     if(cloud && this.skipCloudDraft(key, apiDraft, askedAt)) {
       // * one of another session's may have come with it
       if(apiDraft?._ === 'draftMessage' || this.drafts[key]) {
-        this.scheduleDraftSyncReconcile(key, {peerId, threadId, monoforumThreadId});
+        this.scheduleDraftSyncReconcile(key, {peerId, threadId});
       }
 
       return this.drafts[key];
     }
 
-    const draft = this.processApiDraft(apiDraft, peerId, this.getReferenceContext(peerId, monoforumThreadId || threadId));
+    const draft = this.processApiDraft(apiDraft, peerId, this.getReferenceContext(peerId, threadId));
     // * a change here, a draft pushed or this session's own: a read asked for before it predates it (`skipCloudDraft`).
     // * Of two reads, neither is known to be the newer
     if(askedAt === undefined && (draft || this.drafts[key])) this.getDraftSaves(key).changed = ++this.draftsClock;
@@ -369,7 +346,6 @@ export class AppDraftsManager extends AppManager {
       this.rootScope.dispatchEvent('draft_updated', {
         peerId,
         threadId,
-        monoforumThreadId,
         draft,
         force
       });
@@ -411,7 +387,6 @@ export class AppDraftsManager extends AppManager {
       replyTo.reply_to_msg_id = this.appMessagesIdsManager.generateMessageId(replyTo.reply_to_msg_id, channelId);
       replyTo.top_msg_id &&= this.appMessagesIdsManager.generateMessageId(replyTo.top_msg_id, channelId);
       replyTo.reply_to_peer_id &&= this.appPeersManager.getPeerId(replyTo.reply_to_peer_id);
-      replyTo.monoforum_peer_id &&= this.appPeersManager.getPeerId(replyTo.monoforum_peer_id);
     }
 
     return draft;
@@ -441,16 +416,16 @@ export class AppDraftsManager extends AppManager {
         this.appPeersManager.saveApiPeers(updates);
         for(const update of updates.updates) {
           if(update._ !== 'updateDraftMessage') continue;
-          const {peerId, threadId, monoforumThreadId} = this.getUpdateDraftTarget(update);
-          this.saveRichMessageMedia(update.draft, this.getReferenceContext(peerId, monoforumThreadId || threadId));
+          const {peerId, threadId} = this.getUpdateDraftTarget(update);
+          this.saveRichMessageMedia(update.draft, this.getReferenceContext(peerId, threadId));
         }
       }
     });
   }
 
-  public syncDraft({peerId, threadId, monoforumThreadId, localDraft, inputRichMessage, saveOnServer = true, force = false}: SyncDraftArgs) {
+  public syncDraft({peerId, threadId, localDraft, inputRichMessage, saveOnServer = true, force = false}: SyncDraftArgs) {
     // console.warn(dT(), 'sync draft', peerID)
-    const key = this.getKey(peerId, monoforumThreadId || threadId);
+    const key = this.getKey(peerId, threadId);
     const serverDraft = this.drafts[key];
     const syncState = this.draftSyncStates.get(key);
     if(
@@ -471,16 +446,6 @@ export class AppDraftsManager extends AppManager {
     let draftObj: DraftMessage;
     if(this.isEmptyDraft(localDraft)) {
       draftObj = {_: 'draftMessageEmpty'};
-
-      let monoforumPeerId = monoforumThreadId;
-      if(!monoforumPeerId && (this.appPeersManager.isMonoforum(peerId) && (serverDraft?.reply_to?._ === 'inputReplyToMessage' || serverDraft?.reply_to?._ === 'inputReplyToMonoForum')))
-        monoforumPeerId = getPeerId(serverDraft.reply_to.monoforum_peer_id);
-
-      if(monoforumPeerId)
-        params.reply_to = {
-          _: 'inputReplyToMonoForum',
-          monoforum_peer_id: this.appPeersManager.getInputPeerById(monoforumPeerId)
-        };
     } else {
       assumeType<DraftMessage.draftMessage>(localDraft);
       const message = localDraft.message;
@@ -508,15 +473,6 @@ export class AppDraftsManager extends AppManager {
 
         if(replyTo.reply_to_peer_id && !isObject(replyTo.reply_to_peer_id)) {
           params.reply_to.reply_to_peer_id = this.appPeersManager.getInputPeerById(replyTo.reply_to_peer_id);
-        }
-
-        if(replyTo.monoforum_peer_id && !isObject(replyTo.monoforum_peer_id)) {
-          params.reply_to.monoforum_peer_id = this.appPeersManager.getInputPeerById(replyTo.monoforum_peer_id);
-        }
-      } else if(monoforumThreadId) {
-        params.reply_to = {
-          _: 'inputReplyToMonoForum',
-          monoforum_peer_id: this.appPeersManager.getInputPeerById(monoforumThreadId)
         }
       }
 
@@ -559,7 +515,6 @@ export class AppDraftsManager extends AppManager {
     this.saveDraft({
       peerId,
       threadId,
-      monoforumThreadId,
       draft: saveLocalDraft,
       notify: true,
       force
@@ -681,37 +636,33 @@ export class AppDraftsManager extends AppManager {
         if(this.drafts[key] !== cleared[key]) continue;
         const [strPeerId, strThreadId] = key.split('_');
         const peerId = strPeerId.toPeerId();
-        // * a monoforum's draft is kept under the thread's peer, a forum's under the topic
-        const isMonoforum = !!strThreadId && this.appPeersManager.isMonoforum(peerId);
         this.dropDraft({
           peerId,
-          threadId: strThreadId && !isMonoforum ? +strThreadId : undefined,
-          monoforumThreadId: isMonoforum ? strThreadId.toPeerId() : undefined
+          threadId: strThreadId ? +strThreadId : undefined
         });
       }
     });
   }
 
-  public clearDraft({peerId, threadId, monoforumThreadId}: ClearDraftArgs) {
+  public clearDraft({peerId, threadId}: ClearDraftArgs) {
     if(threadId) {
       const emptyDraft: DraftMessage.draftMessageEmpty = {_: 'draftMessageEmpty'};
-      this.syncDraft({peerId, threadId, monoforumThreadId, localDraft: emptyDraft as any, saveOnServer: false, force: true});
+      this.syncDraft({peerId, threadId, localDraft: emptyDraft as any, saveOnServer: false, force: true});
     } else {
-      this.dropDraft({peerId, monoforumThreadId, force: true});
+      this.dropDraft({peerId, force: true});
     }
   }
 
   /** drops a draft kept here, tells whoever shows it, and lets no save still on its way bring it back */
-  private dropDraft({peerId, threadId, monoforumThreadId, force}: ClearDraftArgs & {force?: boolean}) {
+  private dropDraft({peerId, threadId, force}: ClearDraftArgs & {force?: boolean}) {
     this.saveDraft({
       peerId,
       threadId,
-      monoforumThreadId,
       draft: {_: 'draftMessageEmpty'},
       notify: true,
       force
     });
-    this.cancelDraftSync(this.getKey(peerId, monoforumThreadId || threadId));
+    this.cancelDraftSync(this.getKey(peerId, threadId));
   }
 
   public setDraft(peerId: PeerId, threadId: number, message: string, entities?: MessageEntity[]) {

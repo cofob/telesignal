@@ -25,7 +25,6 @@ import {bigIntFromBytes} from '@helpers/bigInt/bigIntConversion';
 import bigInt from 'big-integer';
 import forEachReverse from '@helpers/array/forEachReverse';
 import fixEmoji from '@lib/richTextProcessor/fixEmoji';
-import getMessageThreadId from '@appManagers/utils/messages/getMessageThreadId';
 import removeParticipantReactions from '@appManagers/utils/reactions/removeParticipantReactions';
 import forgetFailedRequest from '@helpers/forgetFailedRequest';
 
@@ -541,8 +540,6 @@ export class AppReactionsManager extends AppManager {
   }): number[] {
     const storage = this.appMessagesManager.getHistoryMessagesStorage(peerId);
     const messages = mid !== undefined ? [storage.get(mid)] : Array.from(storage.values());
-    const isForum = this.appPeersManager.isForum(peerId);
-    const isBotforum = this.appPeersManager.isBotforum(peerId);
     const reactionMids: number[] = [];
 
     for(const message of messages) {
@@ -563,12 +560,10 @@ export class AppReactionsManager extends AppManager {
         continue;
       }
 
-      const threadId = (isForum || isBotforum) ? getMessageThreadId(message as Message.message, {isForum, isBotforum}) : undefined;
       this.apiUpdatesManager.processLocalUpdate({
         _: 'updateMessageReactions',
         peer: this.appPeersManager.getOutputPeer(peerId),
         msg_id: getServerMessageId(message.mid),
-        top_msg_id: threadId ? getServerMessageId(threadId) : undefined,
         saved_peer_id: (message as Message.message).saved_peer_id,
         reactions,
         local: true

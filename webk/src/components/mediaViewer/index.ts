@@ -434,7 +434,7 @@ export default class AppMediaViewer extends AppMediaViewerBase<'caption', 'delet
       [target.peerId]: [target.mid]
     }, () => {
       return this.close();
-    }, undefined, undefined, undefined, this.shareAtTime);
+    }, undefined, undefined, this.shareAtTime);
   };
 
   private getPhotoId({message, index}: AppMediaViewerTargetType) {

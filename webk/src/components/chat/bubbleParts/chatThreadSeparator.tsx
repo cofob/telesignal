@@ -154,7 +154,6 @@ type Props = {
   threadId?: number;
   targetPeerId: PeerId;
   targetThreadId?: number;
-  targetMonoforumThreadId?: PeerId;
   index: number;
 };
 
@@ -177,7 +176,6 @@ const ChatThreadSeparator = defineSolidElement({
     const onClick = () => {
       appImManager.setInnerPeer({
         peerId: props.targetPeerId,
-        monoforumThreadId: props.targetMonoforumThreadId,
         threadId: props.targetThreadId
       });
     };

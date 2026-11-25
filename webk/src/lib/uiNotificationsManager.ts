@@ -14,7 +14,6 @@ import I18n, {FormatterArguments, LangPackKey} from '@lib/langPack';
 import singleInstance from '@lib/singleInstance';
 import fixEmoji from '@lib/richTextProcessor/fixEmoji';
 import wrapPlainText from '@lib/richTextProcessor/wrapPlainText';
-import getMessageThreadId from '@appManagers/utils/messages/getMessageThreadId';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import {logger} from '@lib/logger';
 import LazyLoadQueueBase from '@components/lazyLoadQueueBase';
@@ -440,12 +439,8 @@ export class UiNotificationsManager {
     if(await getIsSilencedByNotificationProfile(account.managers, message)) return;
     const isAnyChat = peerId.isAnyChat();
     const notification: NotifyOptions = {};
-    const [peerString, isForum = false] = await Promise.all([
-      account.managers.appPeersManager.getPeerString(peerId),
-      isAnyChat && account.managers.appPeersManager.isForum(peerId)
-    ]);
+    const peerString = await account.managers.appPeersManager.getPeerString(peerId);
     let notificationMessage: string;
-    let wrappedMessage = false;
 
     if(peerTypeNotifySettings.show_previews) {
       if(message._ === 'message' && message.fwd_from && fwdCount > 1) {
@@ -467,8 +462,6 @@ export class UiNotificationsManager {
           } */
 
           notificationMessage = I18n.format(langPackKey, true, args);
-        } else {
-          wrappedMessage = true;
         }
       }
     } else {
@@ -486,18 +479,9 @@ export class UiNotificationsManager {
       managers: account.managers
     };
 
-    const threadId = isForum ? getMessageThreadId(message, {isForum}) : undefined;
     const notificationFromPeerId = peerReaction ? getPeerId(peerReaction.peer_id) : message.fromId;
-    const peerTitle = notification.title = await getPeerTitle({...peerTitleOptions, peerId, threadId: threadId, managers: account.managers, useManagers: true});
-    if(isForum) {
-      const peerTitle = await getPeerTitle({...peerTitleOptions, peerId});
-      notification.title += ` (${peerTitle})`;
-
-      if(wrappedMessage && notificationFromPeerId !== message.peerId) {
-        notificationMessage = await getPeerTitle({...peerTitleOptions, peerId: notificationFromPeerId, managers: account.managers, useManagers: true}) +
-          ': ' + notificationMessage;
-      }
-    } else if(isAnyChat && notificationFromPeerId !== message.peerId) {
+    const peerTitle = notification.title = await getPeerTitle({...peerTitleOptions, peerId, managers: account.managers, useManagers: true});
+    if(isAnyChat && notificationFromPeerId !== message.peerId) {
       notification.title = await getPeerTitle({...peerTitleOptions, peerId: notificationFromPeerId, managers: account.managers, useManagers: true}) +
         ' @ ' +
         notification.title;
@@ -506,7 +490,7 @@ export class UiNotificationsManager {
     const isDifferentAccount = accountNumber !== getCurrentAccount();
 
     notification.onclick = () => {
-      this.openForAccount(accountNumber, () => hotReloadGuard.appImManager.setInnerPeer({peerId, lastMsgId: message.mid, threadId}));
+      this.openForAccount(accountNumber, () => hotReloadGuard.appImManager.setInnerPeer({peerId, lastMsgId: message.mid}));
     };
 
     notification.message = notificationMessage;

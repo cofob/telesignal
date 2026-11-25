@@ -20,12 +20,12 @@ export async function canShareContact(contactPeerId: PeerId) {
 export default function shareContact(contactPeerId: PeerId) {
   showSharingPickerPopup({
     onSelect: async(chosen) => {
-      const {peerId, threadId, monoforumThreadId} = chosen[0];
+      const {peerId} = chosen[0];
       // * the contact goes from the account it was picked on, or not at all once the tab is on another
       const managers = bindManagersToSession(rootScope.managers);
       const send = () => {
-        managers.appMessagesManager.sendContact({peerId, threadId, contactPeerId, monoforumThreadId});
-        hotReloadGuard.appImManager.setInnerPeer({peerId, threadId});
+        managers.appMessagesManager.sendContact({peerId, contactPeerId});
+        hotReloadGuard.appImManager.setInnerPeer({peerId});
       };
 
       return new Promise((resolve, reject) => {

@@ -42,10 +42,8 @@ const thumbUpdateDebounceTimeout = 100;
 const testEmpty = 0;
 
 const AdminRecentActionsTab = () => {
-  const {rootScope, PeerTitleTsx, apiManagerProxy, appImManager, ChatType, I18n} = useHotReloadGuard();
+  const {rootScope, PeerTitleTsx, appImManager, ChatType, I18n} = useHotReloadGuard();
   const [tab] = useSuperTab<typeof AppAdminRecentActionsTab>();
-
-  const isForum = apiManagerProxy.isForum(tab.payload.channelId.toPeerId(true));
 
   let shouldAnimateIn = true,
     isQueuedUnsettingShouldAnimate = false,
@@ -222,8 +220,7 @@ const AdminRecentActionsTab = () => {
             const entry = createMemo(() => resolveLogEntry({
               channelId: tab.payload.channelId,
               event: log(),
-              isBroadcast: tab.payload.isBroadcast,
-              isForum
+              isBroadcast: tab.payload.isBroadcast
             }));
 
             const areAnimationsAvailable = liteMode.isAvailable('animations');

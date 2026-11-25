@@ -4,19 +4,17 @@ import htmlToSpan from '@helpers/dom/htmlToSpan';
 import setInnerHTML, {setDirection} from '@helpers/dom/setInnerHTML';
 import {wrapCallDuration} from '@components/wrappers/wrapDuration';
 import paymentsWrapCurrencyAmount from '@helpers/paymentsWrapCurrencyAmount';
-import {ForumTopic, Message, MessageAction, MessageEntity, MessageMedia, MessageReplyHeader, StarGift, TextWithEntities} from '@layer';
+import {Message, MessageAction, MessageEntity, MessageMedia, MessageReplyHeader, StarGift, TextWithEntities} from '@layer';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import I18n, {FormatterArgument, FormatterArguments, i18n, join, langPack, LangPackKey, UNSUPPORTED_LANG_PACK_KEY, _i18n} from '@lib/langPack';
 import {decodeSignalNotice} from '@lib/signal/notices';
-import {GENERAL_TOPIC_ID, SERVICE_PEER_ID} from '@appManagers/constants';
+import {SERVICE_PEER_ID} from '@appManagers/constants';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import tsNow from '@helpers/tsNow';
 import wrapPlainText from '@lib/richTextProcessor/wrapPlainText';
 import wrapRichText from '@lib/richTextProcessor/wrapRichText';
 import rootScope from '@lib/rootScope';
 import isOwnMessage from '@appManagers/utils/messages/isOwnMessage';
-import topicAvatar from '@components/topicAvatar';
-import {wrapCustomEmojiAwaited} from '@components/wrappers/customEmoji';
 import getPeerTitle from '@components/wrappers/getPeerTitle';
 import wrapJoinVoiceChatAnchor from '@components/wrappers/joinVoiceChatAnchor';
 import {getConferenceCallLangKey, getConferenceCallState} from '@lib/calls/helpers/conferenceCallAction';
@@ -24,7 +22,6 @@ import {WrapMessageActionTextOptions} from '@components/wrappers/messageActionTe
 import wrapMessageForReply, {WrapMessageForReplyOptions} from '@components/wrappers/messageForReply';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import shouldDisplayGiftCodeAsGift from '@helpers/shouldDisplayGiftCodeAsGift';
-import apiManagerProxy from '@lib/apiManagerProxy';
 import Icon from '@components/icon';
 import {getPriceChangedActionMessageLangParams, getStarGiftActionLangParams} from '@lib/lang';
 import {numberThousandSplitterForStars} from '@helpers/number/numberThousandSplitter';
@@ -94,76 +91,16 @@ const TODO_JOIN_OPTIONS: Parameters<typeof joinTexts>[1] = {
 
 const MAX_ANSWER_TEXT_LENGTH = 20;
 
-type WrapTopicIconOptions = {
-  topic: Pick<ForumTopic.forumTopic, 'icon_color' | 'icon_emoji_id' | 'title' | 'id'>,
-  plain?: boolean
-} & WrapSomethingOptions;
-
-// * TeleSignal: the TON wallet's service actions, which Signal has no counterpart for, show as unsupported
+// * TeleSignal: the TON wallet's and the forum topics' service actions, which Signal has no counterpart for, show as
+// * unsupported
 const UNSUPPORTED_ACTIONS = new Set<string>([
+  'messageActionTopicCreate',
+  'messageActionTopicEdit',
   'messageActionGramTransfer',
   'messageActionWalletTonConnectRequest',
   'messageActionChatJoinedViaCommunity',
   'messageActionChangeCommunity'
 ]);
-
-export async function wrapTopicIcon(options: WrapTopicIconOptions & {plain: true}): Promise<string>;
-export async function wrapTopicIcon(options: WrapTopicIconOptions & {plain?: false}): Promise<HTMLElement | DocumentFragment>;
-export async function wrapTopicIcon(options: WrapTopicIconOptions): Promise<string | HTMLElement | DocumentFragment>;
-
-export async function wrapTopicIcon(options: WrapTopicIconOptions): Promise<string | HTMLElement | DocumentFragment> {
-  const topic = options.topic;
-
-  let iconEmojiId = topic?.icon_emoji_id;
-  if(topic?.id === GENERAL_TOPIC_ID) {
-    iconEmojiId = '5390854796011906616';
-  }
-
-  if(!iconEmojiId) {
-    if(options.plain) return '' as any;
-
-    // if(topic?.id === GENERAL_TOPIC_ID) {
-    //   const span = document.createElement('span');
-    //   span.innerHTML = `
-    //   <svg class="topic-icon-general" width="22" height="22" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
-    //     <path fill-rule="evenodd" clip-rule="evenodd" d="M11.2788 4.3654C11.4806 3.65912 11.0717 2.92299 10.3654 2.72119C9.65911 2.5194 8.92297 2.92836 8.72118 3.63464L7.85393 6.67H6C5.26546 6.67 4.67 7.26546 4.67 8C4.67 8.73454 5.26546 9.33 6 9.33H7.09393L6.13965 12.67H4C3.26546 12.67 2.67 13.2655 2.67 14C2.67 14.7345 3.26546 15.33 4 15.33H5.37965L4.72118 17.6346C4.51938 18.3409 4.92835 19.0771 5.63463 19.2788C6.3409 19.4806 7.07704 19.0717 7.27883 18.3654L8.14609 15.33H11.3796L10.7212 17.6346C10.5194 18.3409 10.9283 19.0771 11.6346 19.2788C12.3409 19.4806 13.077 19.0717 13.2788 18.3654L14.1461 15.33H16C16.7345 15.33 17.33 14.7345 17.33 14C17.33 13.2655 16.7345 12.67 16 12.67H14.9061L15.8604 9.33H18C18.7345 9.33 19.33 8.73454 19.33 8C19.33 7.26546 18.7345 6.67 18 6.67H16.6204L17.2788 4.3654C17.4806 3.65912 17.0717 2.92299 16.3654 2.72119C15.6591 2.5194 14.923 2.92836 14.7212 3.63464L13.8539 6.67H10.6204L11.2788 4.3654ZM9.86037 9.33L8.90609 12.67H12.1396L13.0939 9.33H9.86037Z"/>
-    //   </svg>
-    //   `;
-
-    //   span.classList.add('topic-icon');
-
-    //   return span as any;
-    // }
-
-    return topicAvatar(topic?.icon_color, topic?.title) as any;
-  }
-
-  return options.plain ?
-    rootScope.managers.appEmojiManager.getCustomEmojiDocument(iconEmojiId).then((doc) => doc.stickerEmojiRaw) :
-    wrapCustomEmojiAwaited({
-      ...options,
-      docIds: [iconEmojiId]
-    }).then((fragment) => {
-      fragment.lastElementChild.classList.add('topic-icon');
-      return fragment;
-    });
-}
-
-function wrapMessageActionTopicIcon(options: WrapMessageActionTextOptions) {
-  const action = ((options.message as Message.messageService).action as MessageAction.messageActionTopicCreate);
-  return wrapTopicIcon({
-    ...options,
-    topic: action as any as ForumTopic.forumTopic
-  });
-}
-
-async function wrapMessageActionTopicIconAndName(options: WrapMessageActionTextOptions) {
-  const action = ((options.message as Message.messageService).action as MessageAction.messageActionTopicCreate);
-  const span = document.createElement('span');
-  span.classList.add('topic-name');
-  span.append(await wrapMessageActionTopicIcon(options), wrapSomeText(action.title, options.plain));
-  return span;
-}
 
 export function wrapMessageGiveawayResults(action: MessageAction.messageActionGiveawayResults | MessageMedia.messageMediaGiveawayResults, plain?: boolean) {
   let langPackKey: LangPackKey = 'Giveaway.Results';
@@ -618,63 +555,6 @@ export default async function wrapMessageActionTextNewUnsafe(options: WrapMessag
         break;
       }
 
-      case 'messageActionTopicEdit': {
-        let iconElement: (typeof args)[0];
-        let titleElement: typeof iconElement;
-        let authorElement: ReturnType<typeof getNameDivHTML>;
-        const isMe = !!message.pFlags.out;
-        const isIconChanged = action.icon_emoji_id !== undefined;
-        const isIconRemoved = isIconChanged && !+action.icon_emoji_id;
-        const isTitleChanged = action.title !== undefined;
-        const isHiddenChanged = action.hidden !== undefined;
-
-        if(!isMe) {
-          authorElement = getNameDivHTML(message.fromId, plain);
-        }
-
-        if(isTitleChanged) {
-          titleElement = wrapSomeText(action.title, plain);
-        }
-
-        if(isIconChanged && !isIconRemoved) {
-          iconElement = wrapMessageActionTopicIcon(options);
-        }
-
-        args = authorElement ? [authorElement] : [];
-
-        if(action.closed) {
-          langPackKey = isMe ? 'Chat.Service.Group.TopicEdited.You.Paused' : 'Chat.Service.Group.TopicEdited.Paused';
-        } else if(action.closed === false) {
-          langPackKey = isMe ? 'Chat.Service.Group.TopicEdited.You.Resumed' : 'Chat.Service.Group.TopicEdited.Resumed';
-        } else if(isIconRemoved && isTitleChanged) {
-          langPackKey = isMe ? 'Chat.Service.TopicEdited.You.Mixed.IconRemoved' : 'Chat.Service.TopicEdited.Mixed.IconRemoved';
-          args.push(titleElement);
-        } else if(isIconChanged && isTitleChanged) {
-          langPackKey = isMe ? 'Chat.Service.TopicEdited.You.Mixed' : 'Chat.Service.TopicEdited.Mixed';
-          args.push(wrapMessageActionTopicIconAndName(options));
-        } else if(isIconRemoved) {
-          langPackKey = isMe ? 'Chat.Service.Group.TopicEdited.You.Icon.Removed' : 'Chat.Service.Group.TopicEdited.Icon.Removed';
-        } else if(isTitleChanged) {
-          langPackKey = isMe ? 'Chat.Service.Group.TopicEdited.You.Title' : 'Chat.Service.Group.TopicEdited.Title';
-          args.push(titleElement);
-        } else if(isIconChanged) {
-          langPackKey = isMe ? 'Chat.Service.Group.TopicEdited.You.Icon' : 'Chat.Service.Group.TopicEdited.Icon';
-          args.push(iconElement);
-        } else if(isHiddenChanged) {
-          langPackKey = isMe ?
-            (action.hidden ? 'Chat.Service.Group.TopicEdited.You.Hided' : 'Chat.Service.Group.TopicEdited.You.Unhided') :
-            (action.hidden ? 'Chat.Service.Group.TopicEdited.Hided' : 'Chat.Service.Group.TopicEdited.Unhided');
-        }
-
-        break;
-      }
-
-      case 'messageActionTopicCreate': {
-        args = [wrapMessageActionTopicIconAndName(options)];
-        langPackKey = 'TopicWasCreatedAction';
-        break;
-      }
-
       case 'messageActionSetChatTheme': {
         const isMe = isOwnMessage(message, rootScope.myId);
         let authorElement: ReturnType<typeof getNameDivHTML>;
@@ -900,13 +780,6 @@ export default async function wrapMessageActionTextNewUnsafe(options: WrapMessag
             joinTexts(incompleted.map((it) => wrapSomeText(it.text, plain, it.entities)), TODO_JOIN_OPTIONS)
           ];
         }
-
-        break;
-      }
-      case 'messageActionChannelCreate': {
-        const chat = message?.peerId ? apiManagerProxy.getChat(message.peerId) : undefined;
-
-        if(chat?._ === 'channel' && chat?.pFlags?.monoforum) langPackKey = 'ActionCreateDirectMessages';
 
         break;
       }

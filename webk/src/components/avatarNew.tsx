@@ -26,7 +26,6 @@ import liteMode from '@helpers/liteMode';
 import renderImageFromUrl, {renderImageFromUrlPromise} from '@helpers/dom/renderImageFromUrl';
 import getPreviewURLFromBytes from '@helpers/bytes/getPreviewURLFromBytes';
 import classNames from '@helpers/string/classNames';
-import {wrapTopicIcon} from '@components/wrappers/messageActionTextNewUnsafe';
 import {Modify} from '@types';
 import documentFragmentToNodes from '@helpers/dom/documentFragmentToNodes';
 import DashedCircle, {DashedCircleSection} from '@helpers/canvas/dashedCircle';
@@ -453,8 +452,6 @@ export const AvatarNew = (props: {
   const [abbreviature, setAbbreviature] = createSignal<JSX.Element>();
   const [color, setColor] = createSignal<string>();
   const [isForum, setIsForum] = createSignal(false);
-  const [isTopic, setIsTopic] = createSignal(false);
-  const [isMonoforum, setIsMonoforum] = createSignal(false);
   const [isSubscribed, setIsSubscribed] = createSignal(false);
   const {setStoriesSegments, storyDimensions, storiesCircle} = StoriesSegments({
     size: props.size as number,
@@ -709,18 +706,14 @@ export const AvatarNew = (props: {
     icon,
     color,
     isForum,
-    isTopic,
     isSubscribed,
-    isMonoforum,
     storiesSegments
   }: {
     abbreviature?: JSX.Element,
     icon?: Icon,
     color?: string,
     isForum?: boolean,
-    isTopic?: boolean,
     isSubscribed?: boolean,
-    isMonoforum?: boolean,
     storiesSegments?: StoriesSegmentsType
   }) => {
     setThumb();
@@ -730,9 +723,7 @@ export const AvatarNew = (props: {
     setAbbreviature(abbreviature);
     setColor(color);
     setIsForum(isForum);
-    setIsTopic(isTopic);
     setIsSubscribed(isSubscribed);
-    setIsMonoforum(isMonoforum);
     setStoriesSegments(storiesSegments);
   };
 
@@ -751,9 +742,9 @@ export const AvatarNew = (props: {
 
   const _render = async(onlyThumb?: boolean) => {
     const middleware = middlewareHelper.get();
-    const {isDialog, withStories, storyId, isBig, peerTitle: title, wrapOptions} = props;
+    const {isDialog, withStories, storyId, isBig, peerTitle: title} = props;
 
-    let {peerId, threadId} = props;
+    let {peerId} = props;
     if(title !== undefined) {
       peerId = NULL_PEER_ID;
     }
@@ -785,12 +776,6 @@ export const AvatarNew = (props: {
       return;
     }
 
-    // * fix monoforum
-    if(threadId && apiManagerProxy.isMonoforum(peerId)) {
-      peerId = threadId;
-      threadId = undefined;
-    }
-
     const otherAccountManagers = !props.peer && getOtherAccountManagers(props.accountNumber);
     const peer = props.peer ?? (
       otherAccountManagers ?
@@ -811,31 +796,11 @@ export const AvatarNew = (props: {
       return;
     }
 
-    if(threadId) {
-      const topic = await managers.dialogsStorage.getForumTopic(peerId, threadId);
-      set({isTopic: true});
-
-      return wrapTopicIcon({
-        ...wrapOptions,
-        middleware,
-        topic,
-        lazyLoadQueue: false
-      }).then((icon) => {
-        _setMedia(icon);
-        return undefined as ReturnType<typeof putAvatar>;
-      });
-    }
-
-    if(!middleware()) {
-      return;
-    }
-
     if(peerId !== NULL_PEER_ID && peerId.isUser() && (peer as User.user)?.pFlags?.deleted) {
       set({color: 'archive', icon: 'deletedaccount_filled'});
       return;
     }
 
-    const _isForum = !!(peer as Chat.channel)?.pFlags?.forum;
     const _isSubscribed = props.isSubscribed ?? !!(peer as Chat.channel)?.subscription_until_date;
     // * what a peer the story feed does not follow has in stories is asked again while it is in sight
     if(withStories && !isOtherAccount() && canPollPeerStories(peer)) {
@@ -852,9 +817,7 @@ export const AvatarNew = (props: {
 
     const size: PeerPhotoSize = isBig ? 'photo_big' : 'photo_small';
 
-    const linkedMonoforumPeer = peer?._ === 'channel' && peer.pFlags?.monoforum && peer.linked_monoforum_id ? await managers.appChatsManager.getChat(peer.linked_monoforum_id.toPeerId?.()) : undefined;
-
-    const photo = getPeerPhoto(linkedMonoforumPeer || peer);
+    const photo = getPeerPhoto(peer);
     const avatarAvailable = !!photo;
     const avatarRendered = avatarAvailable && !!media(); // if avatar isn't available, let's reset it
     const sameAccount = props.accountNumber === getCurrentAccount();
@@ -891,9 +854,7 @@ export const AvatarNew = (props: {
       set({
         abbreviature: documentFragmentToNodes(abbr),
         color,
-        isForum: _isForum,
         isSubscribed: _isSubscribed,
-        isMonoforum: !!linkedMonoforumPeer,
         storiesSegments
       });
       isSet = true;
@@ -911,7 +872,6 @@ export const AvatarNew = (props: {
       }
 
       const changeSegments = !!storiesSegments;
-      const changeForum = _isForum !== isForum();
       const changeIsSubcribed = _isSubscribed !== isSubscribed();
       promise.then(({loadThumbPromise}) => loadThumbPromise).then(() => {
         if(!middleware()) {
@@ -920,10 +880,6 @@ export const AvatarNew = (props: {
 
         if(changeSegments) {
           setStoriesSegments(storiesSegments);
-        }
-
-        if(changeForum) {
-          setIsForum(_isForum);
         }
 
         if(changeIsSubcribed) {
@@ -945,7 +901,7 @@ export const AvatarNew = (props: {
   };
 
   const processResult = (result: Awaited<ReturnType<typeof _render>>) => {
-    if(!result && !isTopic()) {
+    if(!result) {
       _setMedia();
     }
 
@@ -1058,8 +1014,6 @@ export const AvatarNew = (props: {
   const innerClassList = (): JSX.CustomAttributes<HTMLDivElement>['classList'] => {
     return {
       'is-forum': isForum(),
-      'is-topic': isTopic(),
-      'is-monoforum': isMonoforum(),
       'is-relative': !!autoDeletePeriod(),
       // The video overlay is absolutely positioned (inset: 0); without a
       // positioning context it would anchor to the wrong ancestor.
@@ -1077,8 +1031,7 @@ export const AvatarNew = (props: {
   const style = (): JSX.HTMLAttributes<HTMLDivElement>['style'] => {
     const dimensions = storyDimensions();
     return {
-      'padding': dimensions ? (dimensions.size - dimensions.willBeSize) / 2 + 'px' : undefined,
-      '--size': isTopic() && props.wrapOptions?.customEmojiSize?.width ? props.wrapOptions.customEmojiSize.width + 'px' : undefined
+      'padding': dimensions ? (dimensions.size - dimensions.willBeSize) / 2 + 'px' : undefined
     };
   };
 

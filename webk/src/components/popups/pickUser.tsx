@@ -3,15 +3,6 @@ import PopupElement, {createPopup, PopupContext, PopupContextValue} from '@compo
 import I18n, {FormatterArguments, LangPackKey, i18n} from '@lib/langPack';
 import {Modify} from '@types';
 import {IsPeerType} from '@appManagers/appPeersManager';
-import TransitionSlider from '@components/transition';
-import appNavigationController, {NavigationItem} from '@components/appNavigationController';
-import {ForumTopic} from '@layer';
-import RowTsx from '@components/rowTsx';
-import {wrapSolidComponent} from '@helpers/solid/wrapSolidComponent';
-import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
-import {avatarNew} from '@components/avatarNew';
-import {makeMediaSize} from '@helpers/mediaSize';
-import getDialogIndex from '@appManagers/utils/dialogs/getDialogIndex';
 import {Middleware} from '@helpers/middleware';
 import deferredPromise from '@helpers/cancellablePromise';
 import {MOUNT_CLASS_TO} from '@config/debug';
@@ -19,7 +10,6 @@ import Modes from '@config/modes';
 import findUpAttribute from '@helpers/dom/findUpAttribute';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import rootScope from '@lib/rootScope';
-import apiManagerProxy from '@lib/apiManagerProxy';
 import createTopPeersList from '@components/topPeersList';
 import findAndSplice from '@helpers/array/findAndSplice';
 import FoldersTabs from '@components/foldersTabs';
@@ -29,9 +19,6 @@ import {selectTarget} from '@components/horizontalMenu';
 import {ScrollableContextValue} from '@components/scrollable2';
 import whichChild from '@helpers/dom/whichChild';
 import showLimitPopup from '@components/popups/limit';
-import type DialogsStorage from '@lib/storages/dialogs';
-import type MonoforumDialogsStorage from '@lib/storages/monoforumDialogs';
-import wrapPeerTitle from '@components/wrappers/peerTitle';
 import {Accessor, createSignal, JSX, Show, untrack, useContext} from 'solid-js';
 import {ButtonIconTsx} from '@components/buttonIconTsx';
 import fastSmoothScroll from '@helpers/fastSmoothScroll';
@@ -40,8 +27,6 @@ import {REAL_FOLDERS} from '@lib/appManagers/constants';
 
 type PopupPickUserSelectedItem = {
   peerId: PeerId,
-  threadId?: number,
-  monoforumThreadId?: PeerId,
   key: string
 };
 
@@ -56,7 +41,6 @@ export type PopupPickUserOptions = Modify<ConstructorParameters<typeof AppSelect
   titleLangArgs?: FormatterArguments,
   initial?: PeerId[],
   prependPeerIds?: PeerId[],
-  useTopics?: boolean,
   footerButtonProps?: Parameters<typeof PopupElement['FooterButton']>[0],
   footer?: (ctx: {multiSelect: Accessor<AppSelectPeers['multiSelect']>}) => JSX.Element,
   autoHeight?: boolean,
@@ -64,50 +48,6 @@ export type PopupPickUserOptions = Modify<ConstructorParameters<typeof AppSelect
   btnConfirmOnEnter?: Parameters<typeof PopupElement>[0]['btnConfirmOnEnter'],
   containerProps?: Parameters<typeof PopupElement>[0]['containerProps']
 }>;
-
-async function wrapTopicRow({
-  peerId,
-  threadId,
-  middleware
-}: {
-  peerId: PeerId,
-  threadId: number,
-  middleware: Middleware
-}) {
-  const size = makeMediaSize(32, 32);
-  const title = threadId ? await wrapPeerTitle({peerId, threadId}) : i18n('AllMessages');
-  let media: JSX.Element;
-  if(threadId) {
-    const avatar = avatarNew({
-      peerId,
-      threadId,
-      middleware,
-      size: size.width,
-      wrapOptions: {
-        middleware,
-        textColor: 'primary-text-color',
-        customEmojiSize: size
-      }
-    });
-    await avatar.readyThumbPromise;
-    media = avatar.node;
-  } else {
-    media = wrapEmojiText('💬');
-  }
-
-  const row = wrapSolidComponent(() => (
-    <RowTsx
-      clickable
-      class="selector-forum-topic"
-      classList={{'selector-forum-topic-all': !threadId}}
-    >
-      <RowTsx.Title>{title}</RowTsx.Title>
-      <RowTsx.Media size="abitbigger">{media}</RowTsx.Media>
-    </RowTsx>
-  ), middleware);
-  row.dataset.peerId = [peerId, threadId].filter(Boolean).join('_');
-  return row;
-}
 
 export default function showPickUserPopup(options: PopupPickUserOptions) {
   let multiSelect: AppSelectPeers['multiSelect'];
@@ -121,15 +61,10 @@ export default function showPickUserPopup(options: PopupPickUserOptions) {
   const _onSelect = options.onSelect;
 
   const [show, setShow] = createSignal(false);
-  const [canGoBack, setCanGoBack] = createSignal(false);
   const [multiSelectMode, setMultiSelectMode] = createSignal<AppSelectPeers['multiSelect']>(multiSelect);
 
   let selector: AppSelectPeers;
-  let forumSelector: AppSelectPeers | undefined;
-  let transition: ReturnType<typeof TransitionSlider> | undefined;
-  let forumNavigationItem: NavigationItem | undefined;
   let btnConfirm: HTMLButtonElement;
-  let isMonoforum = false;
   const selected: Array<PopupPickUserSelectedItem> = [];
 
   let context: PopupContextValue;
@@ -168,13 +103,8 @@ export default function showPickUserPopup(options: PopupPickUserOptions) {
     adding: boolean
   ) => {
     key = '' + key;
-    const [_peerId, _threadId] = key.split('_');
-    const peerId = _peerId.toPeerId();
-    const threadId = _threadId ? +_threadId : undefined;
     const item: PopupPickUserSelectedItem = {
-      peerId,
-      threadId: isMonoforum ? undefined : threadId,
-      monoforumThreadId: isMonoforum ? threadId : undefined,
+      peerId: key.toPeerId(),
       key
     };
 
@@ -188,8 +118,7 @@ export default function showPickUserPopup(options: PopupPickUserOptions) {
     await finalize();
   };
 
-  // The header button both reflects and drives the selector the user is currently looking at, so
-  // every selector reports its mode back here — the peer list and, once opened, the topic list.
+  // The header button both reflects and drives the selector's mode, so the selector reports it back here
   const trackMultiSelectMode = (sel: AppSelectPeers) => {
     const originalSetMultiSelectMode = sel.setMultiSelectMode.bind(sel);
     sel.setMultiSelectMode = (mode) => {
@@ -200,156 +129,7 @@ export default function showPickUserPopup(options: PopupPickUserOptions) {
   };
 
   const enableMultiSelect = () => {
-    (canGoBack() ? forumSelector : selector)?.setMultiSelectMode('enabled');
-  };
-
-  const onBackClick = () => {
-    if(forumSelector) {
-      const selected = forumSelector.getSelected();
-      selector.removeBatch(selector.getSelected(), false);
-      selector.setMultiSelectMode(forumSelector.multiSelect);
-      selector.addInitial(selected);
-    }
-
-    transition?.(selector.container);
-    if(forumNavigationItem) {
-      appNavigationController.removeItem(forumNavigationItem);
-      forumNavigationItem = undefined;
-    }
-    setCanGoBack(false);
-  };
-
-  const createForumSelector = async({
-    peerId,
-    placeholder,
-    isMonoforum: _isMonoforum
-  }: {
-    peerId: PeerId,
-    placeholder: LangPackKey,
-    isMonoforum: boolean
-  }) => {
-    const fsMiddlewareHelper = middleware.create();
-    const fsMiddleware = fsMiddlewareHelper.get();
-    const deferred = deferredPromise<void>();
-    let offsetIndex: number, lastQuery: string, firstRender = true;
-    isMonoforum = _isMonoforum;
-    const selected = selector.getSelected();
-    const fs = forumSelector = new AppSelectPeers({
-      middleware: fsMiddleware,
-      appendTo: tabsContainer,
-      managers,
-      rippleEnabled: false,
-      night,
-      multiSelect,
-      placeholder,
-      peerType: ['custom'],
-      onChange: (length, changes) => {
-        changes.forEach(({key, add}) => onSingleSelect(fs, key, add));
-      },
-      getMoreCustom: async(q, middleware) => {
-        if(lastQuery !== q) {
-          offsetIndex = undefined;
-          lastQuery = q;
-        }
-
-        const limit = 20;
-        let result: Awaited<ReturnType<DialogsStorage['getDialogs']> | ReturnType<MonoforumDialogsStorage['getDialogs']>>;
-        if(_isMonoforum) {
-          result = await managers.monoforumDialogsStorage.getDialogs({
-            parentPeerId: peerId,
-            limit,
-            offsetIndex
-          });
-        } else {
-          result = await managers.dialogsStorage.getDialogs({
-            query: q,
-            filterId: peerId,
-            limit,
-            skipMigrated: true,
-            offsetIndex
-          });
-        }
-
-        if(!middleware()) {
-          return;
-        }
-
-        offsetIndex = getDialogIndex(result.dialogs[result.dialogs.length - 1]);
-
-        return {
-          result: _isMonoforum ?
-            result.dialogs.map((dialog) => dialog.peerId) as any :
-            result.dialogs.map((forumTopic) => (forumTopic as ForumTopic.forumTopic).id),
-          isEnd: result.isEnd
-        };
-      },
-      renderResultsFunc: async(threadIds, append) => {
-        const middleware = fs.middlewareHelperLoader.get();
-        const rowsMiddleware = fs.getRowsMiddleware();
-        if(firstRender) {
-          firstRender = false;
-
-          if(apiManagerProxy.isBotforum(peerId)) {
-            threadIds.unshift(undefined);
-          }
-        }
-
-        const promises = threadIds.map((threadId) => {
-          return wrapTopicRow({peerId, threadId, middleware: rowsMiddleware});
-        });
-        const elements = await Promise.all(promises);
-        if(!middleware()) {
-          return;
-        }
-
-        elements.forEach((element) => {
-          const sel = fs.selected.has(element.dataset.peerId);
-          element.prepend(fs.checkbox(sel, undefined, element.querySelector<HTMLElement>('.peer-title, .row-title')));
-        });
-        fs.list[!append ? 'append' : 'prepend'](...elements);
-      },
-      // placeholderSizes: _isMonoforum ? undefined : {
-      //   avatarSize: 32,
-      //   avatarMarginRight: 72 - 32 - 17,
-      //   marginVertical: 8,
-      //   marginLeft: 17,
-      //   lineMarginVertical: 11,
-      //   gapVertical: 0,
-      //   totalHeight: 48,
-      //   statusWidth: 0,
-      //   noSecondLine: true,
-      //   night
-      // },
-      onFirstRender: () => {
-        deferred.resolve();
-      },
-      noSearch: _isMonoforum && !selected.length
-    });
-
-    fs.setMultiSelectMode(selector.multiSelect);
-    trackMultiSelectMode(fs);
-    fs.addInitial(selected);
-    fs.container.classList.add('tabs-tab');
-    fs.container.middlewareHelper = fsMiddlewareHelper;
-    if(_isMonoforum && fs.selectorSearch) {
-      fs.selectorSearch.inputSearch.container.classList.add('hide');
-    }
-
-    await deferred;
-
-    setCanGoBack(true);
-    transition?.(fs.container);
-    const navigationItem: NavigationItem = forumNavigationItem = {
-      type: 'popup',
-      onPop: () => {
-        onBackClick();
-      }
-    };
-    appNavigationController.pushItem(navigationItem);
-    middleware.onClean(() => {
-      isMonoforum = false;
-      appNavigationController.removeItem(navigationItem);
-    });
+    selector?.setMultiSelectMode('enabled');
   };
 
   const createFolderTabs = (afterElement: HTMLElement) => {
@@ -465,6 +245,8 @@ export default function showPickUserPopup(options: PopupPickUserOptions) {
 
     selector = new AppSelectPeers({
       ...options,
+      // * the picker's own `onSelect` is given the chosen rows, not the selector's single row
+      onSelect: undefined,
       multiSelect,
       middleware,
       appendTo: tabsContainer,
@@ -472,28 +254,6 @@ export default function showPickUserPopup(options: PopupPickUserOptions) {
         btnConfirm?.classList.toggle('is-visible', !!length);
         changes.forEach(({key, add}) => onSingleSelect(selector, key, add));
         options.onChange?.(length, changes);
-      },
-      onSelect: async(peerId, adding, e) => {
-        let _isMonoforum = false;
-        if(
-          options.useTopics &&
-          e.isTrusted &&
-          (
-            apiManagerProxy.isForum(peerId) ||
-            apiManagerProxy.isBotforum(peerId) ||
-            (_isMonoforum = (
-              await managers.appPeersManager.canManageDirectMessages(peerId) &&
-              await managers.appPeersManager.isMonoforum(peerId)
-            ))
-          )
-        ) {
-          createForumSelector({
-            peerId,
-            placeholder: options.placeholder,
-            isMonoforum: _isMonoforum
-          });
-          return false;
-        }
       },
       onFirstRender: () => {
         setShow(true);
@@ -554,29 +314,7 @@ export default function showPickUserPopup(options: PopupPickUserOptions) {
     }
     selector.container.classList.add('active');
 
-    if(options.useTopics) {
-      transition = TransitionSlider({
-        content: tabsContainer,
-        type: 'tabs',
-        transitionTime: 150,
-        animateFirst: false,
-        onTransitionEnd: (id) => {
-          if(!id) {
-            (Array.from(tabsContainer.children) as HTMLElement[]).forEach((el) => {
-              if(el !== selector.container) {
-                (el as any).middlewareHelper?.destroy();
-                el.remove();
-              }
-            });
-          } else {
-            selector.clearInput();
-          }
-        }
-      });
-      transition(selector.container);
-    }
-
-    Promise.all(loadPromises).then(() => {
+        Promise.all(loadPromises).then(() => {
       selector.loadFirst();
     });
 
@@ -620,10 +358,7 @@ export default function showPickUserPopup(options: PopupPickUserOptions) {
         initialFocus={() => selector?.inputSearch?.input}
       >
         <PopupElement.Header>
-          <PopupElement.CloseButton
-            canGoBack={canGoBack()}
-            onBackClick={onBackClick}
-          />
+          <PopupElement.CloseButton />
           <PopupElement.Title title={options.titleLangArgs ? i18n(options.titleLangKey, options.titleLangArgs) : options.titleLangKey} />
           {/* 'hidden' is the only mode where multiselect is available but off — 'disabled' has none
               to offer and 'enabled' is already selecting, so the button belongs to that state alone */}
@@ -784,10 +519,7 @@ export function createCopyLinkFooter(options: {
 export function showSharingPickerPopup(options: {
   onSelect: PopupPickUserOptions['onSelect'],
   chatRightsActions?: PopupPickUserOptions['chatRightsActions'],
-  excludeMonoforums?: PopupPickUserOptions['excludeMonoforums'],
-  excludeBotforums?: PopupPickUserOptions['excludeBotforums'],
   exceptSelf?: PopupPickUserOptions['exceptSelf'],
-  useTopics?: PopupPickUserOptions['useTopics'],
   placeholder?: LangPackKey,
   selfPresence?: LangPackKey,
   // Multi-select toggle for the picker. `true` ⇒ checkboxes, user confirms a
@@ -817,7 +549,7 @@ export function showSharingPickerPopup(options: {
 }
 
 export function showSharingPicker2Popup(options?: Modify<Parameters<typeof showSharingPickerPopup>[0], {onSelect?: never}>) {
-  return new Promise<{peerId: PeerId, threadId?: number, monoforumThreadId?: PeerId}>((resolve, reject) => {
+  return new Promise<{peerId: PeerId}>((resolve, reject) => {
     let resolved = false;
     showSharingPickerPopup({
       ...(options || {}),
@@ -834,11 +566,10 @@ export function showSharingPicker2Popup(options?: Modify<Parameters<typeof showS
   });
 }
 
-export function showReplyPickerPopup(options: Pick<PopupPickUserOptions, 'excludeBotforums' | 'excludeMonoforums'> = {}) {
+export function showReplyPickerPopup() {
   return showSharingPicker2Popup({
     placeholder: 'ReplyToDialog',
-    selfPresence: 'SavedMessagesInfoQuote',
-    ...options
+    selfPresence: 'SavedMessagesInfoQuote'
   });
 }
 

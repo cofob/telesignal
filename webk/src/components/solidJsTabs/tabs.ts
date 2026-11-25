@@ -411,12 +411,6 @@ export const AppEditContactTab =
     getComponentModule: () => import('../sidebarRight/tabs/editContact')
   });
 
-export const AppEditTopicTab =
-  scaffoldSolidJSTab<{peerId: PeerId, threadId?: number}>({
-    title: (p) => p.threadId ? 'ForumTopic.Title.Edit' : 'NewTopic',
-    getComponentModule: () => import('../sidebarRight/tabs/editTopic')
-  });
-
 export const AppStickersTab =
   scaffoldSolidJSTab({
     title: 'StickersName',

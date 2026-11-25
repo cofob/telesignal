@@ -1,7 +1,6 @@
 import {createRoot} from 'solid-js';
 import {createStore, SetStoreFunction} from 'solid-js/store';
 import type ChatInput from '../input';
-import useDirectMessages from './useDirectMessages';
 import useFileInput from './useFileInput';
 
 
@@ -12,11 +11,6 @@ export interface ChatInputStateStore {
   // * file input
   isEditing: boolean;
   isReplacingMedia: boolean;
-
-  // * direct messages
-  isMonoforumAllChats: boolean;
-  isReplying: boolean;
-
 }
 
 export type ChatInputState = ReturnType<typeof createChatInputState>;
@@ -31,10 +25,7 @@ const DEFAULT_STORE: ChatInputStateStore = {
   messageCount: 0,
 
   isEditing: false,
-  isReplacingMedia: false,
-
-  isMonoforumAllChats: false,
-  isReplying: false
+  isReplacingMedia: false
 };
 
 export default function createChatInputState(instance: ChatInput, initial: ChatInputStateStore = DEFAULT_STORE) {
@@ -47,9 +38,6 @@ export default function createChatInputState(instance: ChatInput, initial: ChatI
 
     useFileInput(context);
 
-    const {canPaste} = useDirectMessages(context);
-
-
-    return {store, set, canPaste, dispose};
+    return {store, set, dispose};
   });
 }

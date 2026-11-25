@@ -35,7 +35,7 @@ const MENU_ITEMS: DialogsSelectionMenuItem<DialogsSelectionAction>[] = [
 /**
  * Selecting several chats of the chat list at once (`appMessagesManager.getDialogsSelectionActions`
  * decides what they can be done with). Everything about the bar and the selecting itself is
- * `DialogsSelectionBase`; this is what a chat, as opposed to a forum topic, is and can take.
+ * `DialogsSelectionBase`; this is what a chat is and can take.
  *
  * Only the chats of the list that is on screen take part, so switching folders ends it.
  */
@@ -57,17 +57,14 @@ export default class DialogsSelection extends DialogsSelectionBase<DialogsSelect
 
   /**
    * Whether a row can take part in the selection. It has to be a chat of its own, in the chat list
-   * that is on screen - so a topic, a monoforum thread, the "All chats" row,
-   * a sponsored row, a found message and every row of a picker or a panel are all out. Nor is any
-   * row of a list that is down to its avatars.
+   * that is on screen - so a Saved Messages sublist, a sponsored row, a found message and every row of a
+   * picker or a panel are all out. Nor is any row of a list that is down to its avatars.
    */
   public canSelect(element: HTMLElement) {
     return this.isRowOfList(element) &&
       !this.isListNarrow() &&
       !!element.dataset.peerId &&
       !element.dataset.threadId &&
-      !element.dataset.monoforumParentPeerId &&
-      !element.dataset.isAllChats &&
       !element.dataset.mid &&
       element.dataset.sponsored !== 'true';
   }

@@ -1097,8 +1097,7 @@ export class InternalLinkProcessor {
   };
 
   /**
-   * `t.me/<bot>?game=<short_name>`: the game goes to a chat the user picks - a forum's topic, never
-   * Saved Messages - once they confirm it, and that chat opens (tdesktop's `ShowShareGameBox`). A name
+   * `t.me/<bot>?game=<short_name>`: the game goes to a chat the user picks - never Saved Messages - once they confirm it, and that chat opens (tdesktop's `ShowShareGameBox`). A name
    * that is not a bot's opens as it would without the game.
    */
   private async shareGame(link: InternalLink.InternalLinkMessage): Promise<unknown> {
@@ -1112,14 +1111,12 @@ export class InternalLinkProcessor {
     try {
       chosen = await showSharingPicker2Popup({
         chatRightsActions: ['send_games'],
-        exceptSelf: true,
-        useTopics: true
+        exceptSelf: true
       });
 
       await confirmationPopup({
         descriptionLangKey: 'SendGameToText',
-        // * a channel's direct-message conversation is named by its other side, as the picker's row is
-        descriptionLangArgs: [await wrapPeerTitle({peerId: chosen.peerId, threadId: chosen.threadId ?? chosen.monoforumThreadId})],
+        descriptionLangArgs: [await wrapPeerTitle({peerId: chosen.peerId})],
         button: {langKey: 'OK'}
       });
     } catch{
@@ -1131,11 +1128,9 @@ export class InternalLinkProcessor {
       return;
     }
 
-    const {peerId, threadId, monoforumThreadId} = chosen;
+    const {peerId} = chosen;
     managers.appGamesManager.shareGame({
       peerId,
-      threadId,
-      monoforumThreadId,
       botId: bot.id,
       shortName: link.game
     }).catch((err: ApiError) => {
@@ -1148,21 +1143,15 @@ export class InternalLinkProcessor {
       toastNew({langPackKey: 'Error.AnError'});
     });
 
-    return appImManager.setInnerPeer({peerId, threadId, monoforumThreadId});
+    return appImManager.setInnerPeer({peerId});
   }
 
   public processPrivatePostLink = async(link: InternalLink.InternalLinkPrivatePost) => {
     const managers = bindManagersToSession(this.managers);
     const chatId = link.channel.toChatId();
-    const userId = link.channel.toUserId();
 
-    const {chat, isBotforum, user} = await namedPromises({
-      chat: managers.appChatsManager.getChat(chatId),
-      isBotforum: managers.appUsersManager.isBotforum(userId),
-      user: managers.appUsersManager.getUser(userId)
-    });
-
-    if(!chat && !isBotforum) {
+    const chat = await managers.appChatsManager.getChat(chatId);
+    if(!chat) {
       try {
         await managers.appChatsManager.resolveChannel(chatId);
       } catch(err) {
@@ -1175,7 +1164,7 @@ export class InternalLinkProcessor {
     const threadId = link.thread ? +link.thread : undefined;
 
     return appImManager.op({
-      peer: chat || user,
+      peer: chat,
       lastMsgId: postId,
       threadId,
       pollOption: link.option,
@@ -1193,9 +1182,6 @@ export class InternalLinkProcessor {
     return this.managers.appChatInvitesManager.checkChatInvite(link.invite).then(async(chatInvite) => {
       if(chatInvite._ === 'chatInviteAlready' ||
         chatInvite._ === 'chatInvitePeek'/*  && chatInvite.expires > tsNow(true) */) {
-        // `open` (not `setInnerPeer`) so a forum routes through `op` and opens the topics tab
-        // in the left sidebar instead of just dropping into the chat view (same as bug with
-        // openChatFromInvite).
         appImManager.open({
           peerId: chatInvite.chat.id.toPeerId(true)
         });
@@ -1428,16 +1414,16 @@ export class InternalLinkProcessor {
 
   public processShareLink = async(link: InternalLink.InternalLinkShare) => {
     const managers = bindManagersToSession(rootScope.managers);
-    const {peerId, threadId, monoforumThreadId} = await showSharingPicker2Popup();
+    const {peerId} = await showSharingPicker2Popup();
     // The shared text becomes a draft of the chosen chat — any chat, the way
     // tdesktop's `MainWidget::shareUrl` does it. `setInnerPeer({text})` is the
     // `?text=` deep-link path, which only prefills private chats.
     const text = [link.url, link.text].filter(Boolean).join('\n');
     if(text) {
-      await managers.appDraftsManager.setDraft(peerId, threadId || monoforumThreadId, text);
+      await managers.appDraftsManager.setDraft(peerId, undefined, text);
     }
 
-    appImManager.setInnerPeer({peerId, threadId, monoforumThreadId});
+    appImManager.setInnerPeer({peerId});
   };
 
   public processUniqueStarGiftLink = (link: InternalLink.InternalLinkUniqueStarGift) => {

@@ -442,8 +442,6 @@ const useShareTone = ({tone}: UseShareToneArgs) => {
         const link = 'https://t-me.invalid/addstyle/' + tone.slug;
         managers.appMessagesManager.sendText({
           peerId: peer.peerId,
-          threadId: peer.threadId,
-          replyToMonoforumPeerId: peer.monoforumThreadId,
           text: link
         });
       }

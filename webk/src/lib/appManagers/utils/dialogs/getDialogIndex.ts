@@ -1,10 +1,9 @@
 import type {Dialog, ForumTopic, SavedDialog} from '@layer';
 import type {REAL_FOLDER_ID} from '@appManagers/constants';
-import type {MonoforumDialog} from '@lib/storages/monoforumDialogs';
 import getDialogIndexKey from '@appManagers/utils/dialogs/getDialogIndexKey';
 
 export default function getDialogIndex(
-  dialog: Dialog.dialog | ForumTopic.forumTopic | SavedDialog.savedDialog | MonoforumDialog,
+  dialog: Dialog.dialog | ForumTopic.forumTopic | SavedDialog.savedDialog,
   indexKey = getDialogIndexKey((dialog as Dialog.dialog)?.folder_id as REAL_FOLDER_ID)
 ) {
   return dialog?.[indexKey as 'index_0'];

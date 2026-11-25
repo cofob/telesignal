@@ -131,7 +131,6 @@ function EditChatForm(props: {
   const [about, setAbout] = createSignal(props.data.chatFull.about || '');
   const [saving, setSaving] = createSignal(false);
   const [hasAvatarPreview, setHasAvatarPreview] = createSignal(false);
-  const [topicsBusy, setTopicsBusy] = createSignal(false);
   const [autotranslationBusy, setAutotranslationBusy] = createSignal(false);
   const [signaturesBusy, setSignaturesBusy] = createSignal(false);
   const [historyBusy, setHistoryBusy] = createSignal(false);
@@ -146,11 +145,9 @@ function EditChatForm(props: {
   const channelFull = () => chatFull()._ === 'channelFull' ? chatFull() as ChatFull.channelFull : undefined;
   const isBroadcast = () => !!channel()?.pFlags.broadcast;
   const isBroadcastGroup = () => !!channel()?.pFlags.gigagroup;
-  const isForum = () => !!channel()?.pFlags.forum;
   const isAdmin = () => hasRights(chat(), 'just_admin');
   const canChangeType = () => hasRights(chat(), 'change_type');
   const canChangePermissions = () => hasRights(chat(), 'change_permissions');
-  const canToggleForum = () => hasRights(chat(), 'toggle_forum');
   const canChangeInfo = () => hasRights(chat(), 'change_info');
   const canDeleteChat = () => hasRights(chat(), 'delete_chat');
   // * TeleSignal: the invitations not yet accepted, as Web A's `ManageGroup`
@@ -163,7 +160,7 @@ function EditChatForm(props: {
   const avatarEdit = new AvatarEdit((payload) => {
     uploadAvatar = payload;
     setHasAvatarPreview(true);
-  }, {isForum: isForum()});
+  });
 
   const isDirty = createMemo(() => {
     return title() !== props.data.chat.title ||
@@ -172,11 +169,6 @@ function EditChatForm(props: {
   });
   const canSave = createMemo(() => {
     return isDirty() && !!title().trim() && !saving();
-  });
-  const showTopics = createMemo(() => {
-    return canToggleForum() &&
-      ((channel()?.participants_count || 0) >= props.data.appConfig.forum_upgrade_participants_min || isForum()) &&
-      !isBroadcast();
   });
   const showDiscussion = createMemo(() => {
     return isAdmin() && (isBroadcast() || !!linkedChatId());
@@ -204,14 +196,9 @@ function EditChatForm(props: {
       (canChangeInfo() && isAdmin()) ||
       (canChangePermissions() && !isBroadcast() && !isBroadcastGroup()) ||
       showDiscussion() ||
-      (isAdmin() && isChannel()) ||
-      showTopics();
+      (isAdmin() && isChannel());
   });
   const mainCaption = createMemo<LangPackKey>(() => {
-    if(showTopics()) {
-      return 'ForumToggleDescription';
-    }
-
     if(showDiscussion()) {
       return 'DiscussionInfo';
     }
@@ -244,7 +231,6 @@ function EditChatForm(props: {
     return count ? numberThousandSplitter(count) : i18n('NoBlockedUsers');
   });
 
-  const [topics, setTopics] = createSignal(isForum());
   const [autotranslation, setAutotranslation] = createSignal(!!channel()?.pFlags.autotranslation);
   const [signMessages, setSignMessages] = createSignal(!!channel()?.pFlags.signatures);
   const [showProfiles, setShowProfiles] = createSignal(
@@ -255,10 +241,6 @@ function EditChatForm(props: {
   );
 
   createEffect(() => {
-    avatarEdit.container.classList.toggle('is-forum', isForum());
-  });
-  createEffect(() => {
-    setTopics(isForum());
     setAutotranslation(!!channel()?.pFlags.autotranslation);
     setSignMessages(!!channel()?.pFlags.signatures);
     setShowProfiles(!!channel()?.pFlags.signatures && !!channel()?.pFlags.signature_profiles);
@@ -350,26 +332,6 @@ function EditChatForm(props: {
       if(!(error as ApiError)?.handled) toastNew({langPackKey: 'Error.AnError'});
     } finally {
       setSaving(false);
-    }
-  };
-
-  const toggleTopics = async(value: boolean) => {
-    if(linkedChatId()) {
-      setTopics(!value);
-      toastNew({langPackKey: 'ChannelTopicsDiscussionForbidden'});
-      return;
-    }
-
-    setTopicsBusy(true);
-    try {
-      await handleChannelsTooMuch(() => {
-        return tab.managers.appChatsManager.toggleForum(chatId(), value);
-      });
-    } catch(error) {
-      setTopics(!value);
-      console.error('toggleForum error', error);
-    } finally {
-      setTopicsBusy(false);
     }
   };
 
@@ -504,7 +466,6 @@ function EditChatForm(props: {
         fallback={(
           <div
             class="avatar-edit disable-hover"
-            classList={{'is-forum': isForum()}}
           >
             <AvatarNewTsx
               class="avatar-placeholder"
@@ -649,23 +610,6 @@ function EditChatForm(props: {
             </Row>
           </Show>
 
-          <Show when={showTopics()}>
-            <Row clickable={linkedChatId() ? (event) => {
-              toastNew({langPackKey: 'ChannelTopicsDiscussionForbidden'});
-              cancelEvent(event);
-            } : undefined}>
-              <Row.CheckboxFieldToggle>
-                <CheckboxFieldTsx
-                  toggle
-                  signal={[topics, setTopics]}
-                  disabled={topicsBusy()}
-                  onChange={(value) => void toggleTopics(value)}
-                />
-              </Row.CheckboxFieldToggle>
-              <Row.Icon icon="topics_filled" />
-              <Row.Title>{i18n('Topics')}</Row.Title>
-            </Row>
-          </Show>
         </Section>
       </Show>
 

@@ -29,9 +29,9 @@ export function cleanMemberTag(text: string) {
   .slice(0, MEMBER_TAG_MAX_LENGTH);
 }
 
-// * groups only: neither channels, nor their direct messages, nor communities
+// * groups only: neither channels nor communities
 export function canHaveMemberTags(chat: Chat) {
-  return chat?._ === 'chat' || (chat?._ === 'channel' && !!chat.pFlags.megagroup && !chat.pFlags.monoforum);
+  return chat?._ === 'chat' || (chat?._ === 'channel' && !!chat.pFlags.megagroup);
 }
 
 /**

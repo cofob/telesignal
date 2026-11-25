@@ -6,13 +6,11 @@ import safeAssign from '@helpers/object/safeAssign';
 import {default as appDialogsManager} from '@lib/appDialogsManager';
 import {DialogElement} from '@components/dialogElement';
 import {ReadingManagers} from '@lib/managers';
-import getDialogIndex from '@appManagers/utils/dialogs/getDialogIndex';
 import getDialogIndexKey from '@appManagers/utils/dialogs/getDialogIndexKey';
 import {logger} from '@lib/logger';
 import {createDeferredSortedVirtualList, DeferredSortedVirtualListItem} from '@components/deferredSortedVirtualList';
 import {LoadingDialogSkeletonSize} from '@components/loadingDialogSkeleton';
 import Scrollable from '@components/scrollable';
-import rootScope from '@lib/rootScope';
 import useElementSize from '@hooks/useElementSize';
 import {DIALOG_WITH_FOLDER_TAGS_HEIGHT, DialogFolderTagsContext} from '@components/folderTags/dialogFolderTags';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
@@ -24,17 +22,15 @@ export default class SortedDialogList {
   public list: HTMLElement;
   public indexKey: ReturnType<typeof getDialogIndexKey>;
   public onListLengthChange: () => void;
+  /** The peer whose sublists the list has: Saved Messages */
   public virtualFilterId: PeerId;
-  public monoforumParentPeerId: PeerId;
 
   /**
    * Whether this is the chat list of a folder (any folder - All, a custom one, the archive), as
-   * opposed to the topics of a forum, the threads of a monoforum or the saved dialogs. Not
-   * `indexKey === 'index_0'`: that is All alone, and a row of any other folder never got the
-   * unread badge on its avatar when the list narrowed under a forum
+   * opposed to the saved dialogs. Not `indexKey === 'index_0'`: that is All alone
    */
   public get isMainList() {
-    return !this.virtualFilterId && !this.monoforumParentPeerId;
+    return !this.virtualFilterId;
   }
 
   private virtualList: ReturnType<typeof createDeferredSortedVirtualList<SortedDialogListItem>>;
@@ -57,7 +53,6 @@ export default class SortedDialogList {
     indexKey: SortedDialogList['indexKey'],
     onListLengthChange?: SortedDialogList['onListLengthChange'],
     virtualFilterId?: SortedDialogList['virtualFilterId'],
-    monoforumParentPeerId?: SortedDialogList['monoforumParentPeerId'],
 
     scrollable: Scrollable,
     requestItemForIdx: (idx: number, itemsLength: number) => void,
@@ -74,7 +69,6 @@ export default class SortedDialogList {
       'log',
       'indexKey',
       'virtualFilterId',
-      'monoforumParentPeerId',
       'onListLengthChange'
     ]));
 
@@ -188,14 +182,6 @@ export default class SortedDialogList {
   public async getIndexForKey(key: any) {
     const managers = bindManagersToSession(this.managers);
     if(key instanceof CustomPinnedDialog) return 0;
-    if(key === this.monoforumParentPeerId) return 0;
-    if(key === this.virtualFilterId && key !== rootScope.myId) return 0;
-
-    if(this.monoforumParentPeerId) {
-      const dialog = await managers.monoforumDialogsStorage.getDialogByParent(this.monoforumParentPeerId, key);
-      return getDialogIndex(dialog);
-    }
-
     return managers.dialogsStorage.getDialogIndex(
       this.virtualFilterId ?? key,
       this.indexKey,
@@ -219,23 +205,15 @@ export default class SortedDialogList {
       peerId: this.virtualFilterId ?? key,
       loadPromises,
       isBatch: true,
-      threadId: (this.virtualFilterId && key !== this.virtualFilterId) || rootScope.myId === this.virtualFilterId ? key : undefined,
+      threadId: this.virtualFilterId ? key : undefined,
       isMainList: this.isMainList,
       controlled: true,
-      monoforumParentPeerId: key !== this.monoforumParentPeerId ? this.monoforumParentPeerId : undefined,
-      asAllChats: this.getAsAllChats(key),
-      meAsSaved: !this.monoforumParentPeerId,
+      meAsSaved: true,
       wrapOptions: undefined,
       folderTags: this.folderTags
     };
 
     return {options, loadPromises};
-  }
-
-  private getAsAllChats(key: any) {
-    if(key instanceof CustomPinnedDialog) return;
-    if(this.virtualFilterId === rootScope.myId) return;
-    return key === this.monoforumParentPeerId ? 'monoforum' : key === this.virtualFilterId ? 'topics' : undefined;
   }
 
   public async createElementForKey(key: any): Promise<SortedDialogListItem> {

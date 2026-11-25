@@ -133,7 +133,6 @@ export type SearchSuperContext = {
   maxId?: number,
   folderId?: number,
   threadId?: number,
-  monoforumThreadId?: PeerId,
   date?: number,
   nextRate?: number,
   minDate?: number,
@@ -3051,7 +3050,7 @@ export default class AppSearchSuper {
 
   private async loadFirstTime() {
     const middleware = this.middleware.get();
-    const {peerId, threadId} = this.searchContext;
+    const {peerId} = this.searchContext;
     if(!this.hideEmptyTabs) {
       return;
     }
@@ -3579,10 +3578,9 @@ export default class AppSearchSuper {
     const chatId = peerId.toChatId();
     return Promise.all([
       this.managers.appChatsManager.isBroadcast(chatId),
-      this.managers.appChatsManager.hasRights(chatId, 'view_participants'),
-      this.managers.appChatsManager.isForum(chatId)
-    ]).then(([isBroadcast, hasRights, isForum]) => {
-      return !isBroadcast && hasRights && (!this.searchContext.threadId || !isForum);
+      this.managers.appChatsManager.hasRights(chatId, 'view_participants')
+    ]).then(([isBroadcast, hasRights]) => {
+      return !isBroadcast && hasRights;
     });
   }
 

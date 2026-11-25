@@ -1,7 +1,6 @@
 import {Accessor, createMemo, createRenderEffect, createRoot, createSignal, For, getOwner, runWithOwner, Show, untrack} from 'solid-js';
 import {insert} from 'solid-js/web';
 import type {AnyDialog} from '@lib/storages/dialogs';
-import type {MonoforumDialog} from '@lib/storages/monoforumDialogs';
 import type {Middleware} from '@helpers/middleware';
 import {isDialog} from '@appManagers/utils/dialogs/isDialog';
 import FolderTag, {FOLDER_TAG_MORE_COLOR} from '@components/folderTags/folderTag';
@@ -35,7 +34,7 @@ export type DialogFolderTagsContext = {
 
 export type DialogFolderTags = {
   /** what the row knows of its chat: the folders it is in are read off the dialog's indexes */
-  setDialog: (dialog: AnyDialog | MonoforumDialog) => void,
+  setDialog: (dialog: AnyDialog) => void,
   /** whether the row shows tags, and is a line taller for it */
   hasTags: Accessor<boolean>
 };
@@ -63,7 +62,7 @@ export default function attachDialogFolderTags({
     const shown = useFolderTagsShown();
     const filters = useFolderTagFilters();
     const narrow = useChatListNarrow();
-    const [dialog, setDialog] = createSignal<AnyDialog | MonoforumDialog>(undefined, {equals: false});
+    const [dialog, setDialog] = createSignal<AnyDialog>(undefined, {equals: false});
 
     const tags = createMemo(() => {
       if(!shown() || narrow()) {

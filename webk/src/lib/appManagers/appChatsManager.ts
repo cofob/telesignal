@@ -13,7 +13,6 @@ import {AppManager} from '@appManagers/manager';
 import hasRights from '@appManagers/utils/chats/hasRights';
 import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId';
 import {AppStoragesManager} from '@appManagers/appStoragesManager';
-import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId';
 import {randomLong} from '@helpers/random';
 import tsNow from '@helpers/tsNow';
 import getPeerActiveUsernames from '@appManagers/utils/peers/getPeerActiveUsernames';
@@ -80,7 +79,6 @@ export class AppChatsManager extends AppManager {
   private recommendations: {[chatId: ChatId]: MaybePromise<MessagesChats>};
   // * the admin behind a message posted as the channel, by `${chatId}_${mid}`: asked once a session,
   // * an answer that did not come included (desktop's `LookupMessageAuthor`)
-  private messageAuthors: Map<string, Promise<PeerId>> = new Map();
 
   protected after() {
     this.clear(true);
@@ -208,8 +206,7 @@ export class AppChatsManager extends AppManager {
     } else {
       const oldPhotoId = ((oldChat as Chat.chat).photo as ChatPhoto.chatPhoto)?.photo_id;
       const newPhotoId = ((chat as Chat.chat).photo as ChatPhoto.chatPhoto)?.photo_id;
-      const toggledForum = (oldChat as Chat.channel).pFlags.forum !== (chat as Chat.channel).pFlags.forum;
-      const changedPhoto = oldPhotoId !== newPhotoId || toggledForum;
+      const changedPhoto = oldPhotoId !== newPhotoId;
       const changedEmojiStatus = ((oldChat as Chat.channel).emoji_status as EmojiStatus.emojiStatus)?.document_id !==
         ((chat as Chat.channel).emoji_status as EmojiStatus.emojiStatus)?.document_id;
 
@@ -245,10 +242,6 @@ export class AppChatsManager extends AppManager {
 
       if(changedTitle || changedAnyBadge) {
         this.rootScope.dispatchEvent('peer_title_edit', {peerId});
-      }
-
-      if(toggledForum) {
-        this.rootScope.dispatchEvent('chat_toggle_forum', {chatId: chat.id, enabled: !!(chat as Chat.channel).pFlags.forum});
       }
 
       if(changedProfileSignatures) {
@@ -351,11 +344,6 @@ export class AppChatsManager extends AppManager {
     return !!(chat as Chat.channel)?.pFlags?.megagroup;
   }
 
-  public isForum(id: ChatId) {
-    const chat = this.chats[id];
-    return !!(chat as Chat.channel)?.pFlags?.forum;
-  }
-
   public isBroadcast(id: ChatId) {
     return this.isChannel(id) && !this.isMegagroup(id);
   }
@@ -363,12 +351,6 @@ export class AppChatsManager extends AppManager {
   public isBroadcastGroup(id: ChatId) {
     const chat: Chat = this.chats[id];
     return !!(chat as Chat.channel)?.pFlags?.gigagroup;
-  }
-
-  public isMonoforum(id: ChatId) {
-    const chat: Chat = this.chats[id];
-    // * a channel we lost access to keeps the flag too (`channelForbidden.monoforum`)
-    return !!((chat?._ === 'channel' || chat?._ === 'channelForbidden') && chat.pFlags?.monoforum);
   }
 
   public isInChat(id: ChatId) {
@@ -385,37 +367,6 @@ export class AppChatsManager extends AppManager {
     }
 
     return good;
-  }
-
-  public canManageDirectMessages(chatId: ChatId) {
-    let chat = this.getChat(chatId);
-    if(chat?._ !== 'channel') return false;
-
-    if(chat?.pFlags?.monoforum && chat?.linked_monoforum_id) chat = this.getChat(chat.linked_monoforum_id);
-    if(chat?._ !== 'channel') return false;
-
-    return !!(chat.admin_rights?.pFlags?.manage_direct_messages);
-  }
-
-  /**
-   * Who of the admins wrote a message of the channel's direct messages posted as the channel, for
-   * an admin to see (`channels.getMessageAuthor`); nothing when the server does not say
-   */
-  public getMessageAuthor(chatId: ChatId, mid: number) {
-    const key = `${chatId}_${mid}`;
-    let promise = this.messageAuthors.get(key);
-    if(!promise) {
-      promise = this.apiManager.invokeApi('channels.getMessageAuthor', {
-        channel: this.getChannelInput(chatId),
-        id: getServerMessageId(mid)
-      }).then((user) => {
-        this.appUsersManager.saveApiUser(user);
-        return user._ === 'user' ? user.id.toPeerId(false) : undefined;
-      }, (): PeerId => undefined);
-      this.messageAuthors.set(key, promise);
-    }
-
-    return promise;
   }
 
   public isPublic(id: ChatId) {

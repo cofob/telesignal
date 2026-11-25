@@ -78,9 +78,6 @@ const ArchivedTab: Component = () => {
   tab.container.id = 'chats-archived-container';
   tab.title.replaceChildren(i18n('ArchivedChats'));
 
-  tab.header.classList.add('can-have-forum');
-  tab.content.classList.add('can-have-forum');
-
   appendMenu();
 
   if(!hotReloadGuard.appDialogsManager.xds[filterId]) {

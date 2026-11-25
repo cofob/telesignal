@@ -174,10 +174,7 @@ export class AppPollsManager extends AppManager {
         continue;
       }
 
-      const threadId = getMessageThreadId(message, {
-        isForum: this.appPeersManager.isForum(peerId),
-        isBotforum: this.appPeersManager.isBotforum(peerId)
-      });
+      const threadId = getMessageThreadId(message);
 
       this.appMessagesManager.modifyCachedMentionsAndSave({
         peerId,

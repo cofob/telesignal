@@ -90,12 +90,11 @@ export function createExportActions(options: ExportActionsOptions) {
 
     const popup = shareToPeers({
       chatRightsActions: ['send_photos'],
-      send: (managers, {peerId, threadId, monoforumThreadId}) => {
+      send: (managers, {peerId, threadId}) => {
         if(endsSoon(expires)) return;
         managers.appMessagesManager.sendFile({
           peerId,
           threadId,
-          replyToMonoforumPeerId: monoforumThreadId,
           file,
           // a photo, as the other clients send the code: without it a picture goes as a file
           isMedia: true,

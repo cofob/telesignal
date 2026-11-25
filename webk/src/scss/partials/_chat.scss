@@ -259,20 +259,6 @@
 		opacity: 1;
 	}
 
-  .reply-in-topic-overlay {
-    position: absolute;
-    inset: 0;
-    background-color: inherit;
-    border-radius: inherit;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--secondary-text-color);
-    pointer-events: none;
-    padding: 0 1rem;
-  }
-
   &-frozen-text {
     display: flex;
     flex-direction: column;

@@ -49,7 +49,6 @@ import {AppManager} from '@appManagers/manager';
 import AppGiftsManager from '@appManagers/appGiftsManager';
 import AppSavedMusicManager from '@appManagers/appSavedMusicManager';
 import AppGamesManager from '@appManagers/appGamesManager';
-import MonoforumDialogsStorage from '@lib/storages/monoforumDialogs';
 import AppPromoManager from '@appManagers/appPromoManager';
 import AppAccountManager from '@appManagers/appAccountManager';
 import {AiTonesManager} from '@lib/appManagers/aiTonesManager';
@@ -109,7 +108,6 @@ export default function createManagers(
     appGiftsManager: new AppGiftsManager,
     appSavedMusicManager: new AppSavedMusicManager,
     appGamesManager: new AppGamesManager,
-    monoforumDialogsStorage: new MonoforumDialogsStorage,
     appPromoManager: new AppPromoManager,
     appAccountManager: new AppAccountManager,
     aiTonesManager: new AiTonesManager,

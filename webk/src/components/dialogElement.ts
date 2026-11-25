@@ -21,7 +21,6 @@ import {getMiddleware, MiddlewareHelper} from '@helpers/middleware';
 import {attachRowController, createRowSortableIcon, RowMediaSizeType, type RowTsxController} from '@components/rowTsxController'
 import {avatarNew} from '@components/avatarNew';
 import Icon from '@components/icon';
-import {isForumTopic, isSavedDialog} from '@appManagers/utils/dialogs/isDialog';
 import {ChatType} from '@components/chat/chatType';
 import {BADGE_TRANSITION_TIME} from '@components/autonomousDialogList/constants';
 import {setRollingText} from '@components/animatedCounter';
@@ -161,7 +160,6 @@ export const DIALOG_AVATAR_SIZES: {[k in DialogElementSize]?: number} = {
 };
 
 export type DialogElementSize = RowMediaSizeType;
-export type AsAllChatsType = 'monoforum' | 'topics';
 
 export type DialogElementOptions = {
   peerId: PeerId,
@@ -173,14 +171,13 @@ export type DialogElementOptions = {
   loadPromises?: Promise<any>[],
   fromName?: string,
   noIcons?: boolean,
+  /** The Saved Messages sublist the row is of */
   threadId?: number,
-  monoforumParentPeerId?: PeerId,
   wrapOptions: WrapSomethingOptions,
   isMainList?: boolean,
   withStories?: boolean,
   controlled?: boolean,
   dontSetActive?: boolean,
-  asAllChats?: AsAllChatsType,
   autoDeletePeriod?: number,
   avatarElement?: HTMLElement,
   /** the row is in a folder's chat list, and wears the tags of the other folders its chat is in */
@@ -243,13 +240,11 @@ export class DialogElement {
     fromName,
     noIcons,
     threadId,
-    monoforumParentPeerId,
     wrapOptions = {},
     isMainList,
     withStories,
     controlled,
     dontSetActive,
-    asAllChats,
     autoDeletePeriod,
     avatarElement,
     folderTags,
@@ -261,7 +256,7 @@ export class DialogElement {
     attachRowController(this, {
       clickable: true,
       noRipple: !rippleEnabled,
-      havePadding: !threadId && asAllChats !== 'topics',
+      havePadding: !threadId,
       title: true,
       titleRightSecondary: true,
       subtitle: true,
@@ -283,11 +278,10 @@ export class DialogElement {
     }
 
     const isSavedDialog = !!threadId && peerId === rootScope.myId;
-    const isForumTopic = !!threadId && !isSavedDialog;
 
     const usePeerId = isSavedDialog ? threadId : peerId;
 
-    const avatar = avatarElement || isForumTopic || asAllChats === 'topics' ?
+    const avatar = avatarElement ?
       undefined :
       avatarNew({
         middleware: this.middlewareHelper.get(),
@@ -303,7 +297,6 @@ export class DialogElement {
         withVideoAvatar: withStories,
         wrapOptions: newWrapOptions,
         meAsNotes: isSavedDialog,
-        asAllChats: asAllChats === 'monoforum',
         autoDeletePeriod,
         accountNumber
       });
@@ -324,8 +317,7 @@ export class DialogElement {
     const isActive = !dontSetActive && !autonomous &&
       hotReloadGuard.appImManager.chat &&
       hotReloadGuard.appImManager.isSamePeer(hotReloadGuard.appImManager.chat, {
-        peerId: monoforumParentPeerId || peerId,
-        monoforumThreadId: monoforumParentPeerId ? peerId : undefined,
+        peerId,
         threadId: threadId,
         type: isSavedDialog ? ChatType.Saved : ChatType.Chat
       });
@@ -342,11 +334,9 @@ export class DialogElement {
       dialog: meAsSaved,
       onlyFirstName,
       withIcons: !noIcons,
-      threadId: isSavedDialog ? undefined : threadId,
       wrapOptions: titleWrapOptions,
       iconsColor: hotReloadGuard.appDialogsManager.getPrimaryColor(isActive),
       meAsNotes: isSavedDialog,
-      asAllChats,
       accountNumber
     });
 
@@ -383,8 +373,6 @@ export class DialogElement {
     li.dataset.peerId = '' + peerId;
 
     if(threadId) li.dataset.threadId = '' + threadId;
-    if(monoforumParentPeerId) li.dataset.monoforumParentPeerId = '' + monoforumParentPeerId;
-    if(asAllChats) li.dataset.isAllChats = 'true';
 
     const statusSpan = document.createElement('span');
     statusSpan.classList.add('message-status', 'sending-status'/* , 'transition', 'reveal' */);
@@ -429,10 +417,6 @@ export class DialogElement {
     // this will never happen for migrated legacy chat
     if(!autonomous) {
       (li as any).dialogDom = dom;
-
-      if(isMainList && !asAllChats && hotReloadGuard.appDialogsManager.forumTab?.peerId === peerId && !threadId) {
-        li.classList.add('is-forum-open');
-      }
     }
 
     if(isActive) {
@@ -743,8 +727,8 @@ export class DialogElement {
     batch?: boolean
   ) {
     // * `setBadgeState` skips a badge whose visibility `lastBadgeState` says is unchanged, so
-    // * out-of-band toggles (`toggleAvatarUnreadBadges` on sidebar collapse / forum tab) must
-    // * keep it in sync — otherwise reading the last unread topic can't hide the avatar badge
+    // * out-of-band toggles (`toggleAvatarUnreadBadges` on sidebar collapse) must keep it in
+    // * sync — otherwise reading the last unread message can't hide the avatar badge
     if(this.lastBadgeState) {
       this.lastBadgeState[key] = hasBadge;
     }

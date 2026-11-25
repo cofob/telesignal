@@ -33,7 +33,7 @@ import {
   getMediaTypeForProfileTab,
   getProfileTabForMediaType
 } from '@components/sharedMediaProfileTab';
-import type {AppEditChatTab, AppEditContactTab, AppEditTopicTab} from '@components/solidJsTabs/tabs';
+import type {AppEditChatTab, AppEditContactTab} from '@components/solidJsTabs/tabs';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 type SharedMediaHistoryStorage = Partial<{
@@ -91,9 +91,7 @@ const SharedMedia: Component = () => {
     const {peerId, threadId} = tab;
     const isSavedDialog = !!(peerId === rootScope.myId && threadId);
     const usePeerId = isSavedDialog ? threadId : peerId;
-    const {isForum, isBotforum, isBroadcast, isBot, peerTitle} = await namedPromises({
-      isForum: tab.managers.appPeersManager.isForum(usePeerId),
-      isBotforum: tab.managers.appPeersManager.isBotforum(usePeerId),
+    const {isBroadcast, isBot, peerTitle} = await namedPromises({
       isBroadcast: tab.managers.appPeersManager.isBroadcast(usePeerId),
       isBot: tab.managers.appPeersManager.isBot(usePeerId),
       peerTitle: wrapPeerTitle({
@@ -105,7 +103,6 @@ const SharedMedia: Component = () => {
     });
 
     const titleKey = getPeerProfileTitleKey({
-      isTopic: (isForum || isBotforum) && !!threadId,
       isBot,
       isBroadcast,
       isUser: usePeerId.isUser()
@@ -132,19 +129,14 @@ const SharedMedia: Component = () => {
       show = peerId !== rootScope.myId && await tab.managers.appUsersManager.canEdit(peerId.toUserId());
     } else {
       const chatId = peerId.toChatId();
-      const isTopic = tab.threadId && apiManagerProxy.isForum(peerId);
-      if(isTopic) {
-        show = await tab.managers.dialogsStorage.canManageTopic(await tab.managers.dialogsStorage.getForumTopic(peerId, tab.threadId));
+      const chat = apiManagerProxy.getChat(chatId);
+      // Mirror tdesktop's EditPeerInfoBox::Available — the Edit button is shown to any
+      // admin, not only those holding the change_info right, so an admin who can manage
+      // members/permissions/etc. can still reach the edit screen.
+      if(chat._ === 'channel') {
+        show = hasRights(chat, 'just_admin') || hasRights(chat, 'change_info');
       } else {
-        const chat = apiManagerProxy.getChat(chatId);
-        // Mirror tdesktop's EditPeerInfoBox::Available — the Edit button is shown to any
-        // admin, not only those holding the change_info right, so an admin who can manage
-        // members/permissions/etc. can still reach the edit screen.
-        if(chat._ === 'channel') {
-          show = !chat.pFlags.monoforum && (hasRights(chat, 'just_admin') || hasRights(chat, 'change_info'));
-        } else {
-          show = hasRights(chat, 'change_info') || hasRights(chat, 'change_permissions');
-        }
+        show = hasRights(chat, 'change_info') || hasRights(chat, 'change_permissions');
       }
     }
 
@@ -274,8 +266,7 @@ const SharedMedia: Component = () => {
 
   const renderNewMessage = async(message: Message.message | Message.messageService) => {
     const {peerId} = message;
-    const isForum = await tab.managers.appPeersManager.isForum(peerId);
-    const threadId = getMessageThreadId(message, {isForum});
+    const threadId = getMessageThreadId(message);
 
     if(tab.peerId === peerId && tab.threadId === threadId) {
       tab.searchSuper.updateMediaCountersByMessage(message, 1);
@@ -491,7 +482,7 @@ const SharedMedia: Component = () => {
       icon: 'message',
       text: 'SavedViewAsMessages',
       onClick: () => {
-        appImManager.toggleViewAsMessages(rootScope.myId, true);
+        appImManager.toggleSavedViewAsMessages(true);
       },
       verify: () => tab.peerId === rootScope.myId && tab.isFirst
     },
@@ -659,11 +650,9 @@ const SharedMedia: Component = () => {
   }, {listenerSetter: tab.listenerSetter});
 
   attachClickEvent(editBtn, async() => {
-    let editTab: InstanceType<typeof AppEditChatTab> | InstanceType<typeof AppEditContactTab> | InstanceType<typeof AppEditTopicTab>;
-    const {peerId, threadId} = tab;
-    if(threadId && await tab.managers.appPeersManager.isForum(peerId)) {
-      editTab = tab.slider.createTab(hotReloadGuard.tabs.AppEditTopicTab)
-    } else if(peerId.isAnyChat()) {
+    let editTab: InstanceType<typeof AppEditChatTab> | InstanceType<typeof AppEditContactTab>;
+    const {peerId} = tab;
+    if(peerId.isAnyChat()) {
       editTab = tab.slider.createTab(hotReloadGuard.tabs.AppEditChatTab);
     } else {
       editTab = tab.slider.createTab(hotReloadGuard.tabs.AppEditContactTab);
@@ -673,12 +662,10 @@ const SharedMedia: Component = () => {
       return;
     }
 
-    if(editTab instanceof hotReloadGuard.tabs.AppEditTopicTab) {
-      editTab.open({peerId, threadId: tab.threadId});
-    } else if(editTab instanceof hotReloadGuard.tabs.AppEditContactTab) {
+    if(editTab instanceof hotReloadGuard.tabs.AppEditContactTab) {
       editTab.open(peerId);
     } else {
-      // all three edit tabs are scaffolds now; their structural types don't
+      // both edit tabs are scaffolds now; their structural types don't
       // subtract from the instanceof union, so cast to the editChat one.
       (editTab as InstanceType<typeof AppEditChatTab>).open({chatId: peerId.toChatId()});
     }

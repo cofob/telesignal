@@ -13,8 +13,8 @@ export default function DialogsSelectionHeader(props: {
   countLangKey: LangPackKey,
   onCancel: () => void,
   /**
-   * Whether the count is laid out the way a header with rows lays out its title - smaller, the way
-   * a forum tab titles itself. The bar stands in for a header, so it wears that header's own size.
+   * Whether the count is laid out the way a header with rows lays out its title - smaller. The bar
+   * stands in for a header, so it wears that header's own size.
    */
   compact?: boolean,
   /**

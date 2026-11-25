@@ -16,7 +16,6 @@ import {isForumTopic} from '@appManagers/utils/dialogs/isDialog';
 import {logger} from '@lib/logger';
 import rootScope from '@lib/rootScope';
 import {AnyDialog} from '@lib/storages/dialogs';
-import {MonoforumDialog} from '@lib/storages/monoforumDialogs';
 import Scrollable from '@components/scrollable';
 import SortedDialogList from '@components/sortedDialogList';
 import {AutonomousDialogList} from '@components/autonomousDialogList/dialogs';
@@ -67,7 +66,7 @@ export async function setDialogTyping({dom, peerId, threadId, animate}: {
 }
 
 type DialogKey = any;
-export type PossibleDialog = AnyDialog | MonoforumDialog;
+export type PossibleDialog = AnyDialog;
 
 export type BaseConstructorArgs = {
   appDialogsManager: AppDialogsManager;

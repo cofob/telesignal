@@ -76,7 +76,6 @@ type LoadOptions = {
   rowsMiddleware: Middleware,
   peerId: PeerId,
   threadId: number,
-  monoforumThreadId: PeerId,
   query: string,
   fromPeerId?: PeerId,
   reaction?: Reaction,
@@ -111,12 +110,11 @@ const renderHistoryResult = ({rowsMiddleware, peerId, fromSavedDialog, messages,
 };
 
 export const createSearchLoader = (options: LoadOptions) => {
-  const {middleware, peerId, threadId, query, fromPeerId, reaction, searchType, monoforumThreadId} = options;
+  const {middleware, peerId, threadId, query, fromPeerId, reaction, searchType} = options;
   const fromSavedDialog = !!(peerId === rootScope.myId && threadId);
   const searchOptions: RequestHistoryOptions = {
     peerId: searchType === 'this' || !searchType ? peerId : NULL_PEER_ID,
     threadId: searchType === 'this' || !searchType ? threadId : undefined,
-    monoforumThreadId,
     query,
     inputFilter: {_: 'inputMessagesFilterEmpty'},
     limit: 30,
@@ -837,7 +835,6 @@ export default function TopbarSearch(props: {
       rowsMiddleware: rowsMiddlewareHelper.get(),
       peerId,
       threadId,
-      monoforumThreadId: props.chat.monoforumThreadId,
       query,
       fromPeerId,
       reaction: _reaction,
