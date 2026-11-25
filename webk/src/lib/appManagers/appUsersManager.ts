@@ -815,10 +815,6 @@ export class AppUsersManager extends AppManager {
       return;
     }
 
-    if(user.linked_community_id) {
-      user.linked_community_id = user.linked_community_id.toChatId();
-    }
-
     // * exclude from state
     // defineNotNumerableProperties(user, ['initials', 'num', 'rFirstName', 'rFullName', 'rPhone', 'sortName', 'sortStatus']);
 
