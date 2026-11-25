@@ -44,10 +44,8 @@ import {useFullPeer, type PeerFull} from '@stores/fullPeers';
 import {useAppConfig, useAppState} from '@stores/appState';
 import callbackify from '@helpers/callbackify';
 import useIsNightTheme from '@hooks/useIsNightTheme';
-import useStars from '@stores/stars';
 import namedPromises from '@helpers/namedPromises';
 import {getCurrentNewMediaPopup} from '@components/popups/newMedia';
-import PriceChangedInterceptor from '@components/chat/priceChangedInterceptor';
 import {isVerificationBot} from '@components/chat/utils';
 import {isSensitive} from '@helpers/restrictions';
 import {isTempId} from '@appManagers/utils/messages/isTempId';
@@ -106,7 +104,6 @@ export default class Chat extends EventListenerBase<{
   public contextMenu: ChatContextMenu;
   public search: ChatSearch;
 
-  private priceChangedInterceptor: PriceChangedInterceptor;
 
   public wasAlreadyUsed: boolean;
   // public initPeerId = 0;
@@ -239,7 +236,6 @@ export default class Chat extends EventListenerBase<{
 
   public ignoreSearchCleaning: boolean;
 
-  public stars: Accessor<Long>;
   public appState: ReturnType<typeof useAppState>[0];
   public setAppState: ReturnType<typeof useAppState>[1];
   public appSettings: ReturnType<typeof useAppSettings>[0];
@@ -289,7 +285,6 @@ export default class Chat extends EventListenerBase<{
 
     createRoot((dispose) => {
       this.destroyMiddlewareHelper.onDestroy(dispose);
-      this.stars = useStars();
       [this.appState, this.setAppState] = useAppState();
       [this.appSettings, this.setAppSettings] = useAppSettings();
       this.appConfig = useAppConfig();
@@ -833,12 +828,6 @@ export default class Chat extends EventListenerBase<{
     this.contextMenu = new ChatContextMenu(this, this.managers);
     this.selection = new ChatSelection(this, this.bubbles, this.input, this.managers);
 
-    this.priceChangedInterceptor = new PriceChangedInterceptor({
-      chat: this,
-      listenerSetter: this.bubbles.listenerSetter,
-      managers: this.managers
-    });
-
     this.topbar.constructUtils();
     this.topbar.constructPeerHelpers();
 
@@ -847,8 +836,6 @@ export default class Chat extends EventListenerBase<{
 
     this.bubbles.constructPeerHelpers();
     this.input.constructPeerHelpers();
-
-    this.priceChangedInterceptor.init();
 
     if(!IS_TOUCH_SUPPORTED) {
       this.bubbles.setReactionsHoverListeners();
@@ -1107,7 +1094,6 @@ export default class Chat extends EventListenerBase<{
     this.input?.cleanup(helperToo);
     this.topbar?.cleanup();
     this.selection?.cleanup();
-    this.priceChangedInterceptor?.cleanup();
 
     if(this.ignoreSearchCleaning) this.ignoreSearchCleaning = undefined;
     else this.searchSignal?.(undefined);
@@ -1696,18 +1682,14 @@ export default class Chat extends EventListenerBase<{
       updateStickersetOrder: this.appSettings.stickers.dynamicPackOrder,
       ...(this.input && {
         ...(this.input.getReplyTo() || false),
-        ...(this.input.suggestedPost ? {
-          replyToMsgId: this.input.suggestedPost.changeMid
-        } : {}),
         scheduleDate: this.input.scheduleDate,
         scheduleRepeatPeriod: this.input.scheduleRepeatPeriod,
         silent: this.input.sendSilent,
         sendAsPeerId: this.input.sendAsPeerId,
         effect: this.input.effect(),
-        suggestedPost: this.input.suggestedPost,
         ...this.input.getEphemeralSendingParams()
       }),
-      replyToMonoforumPeerId: this.input?.suggestedPost?.monoforumThreadId || this.input?.getReplyTo()?.replyToMonoforumPeerId || this.monoforumThreadId,
+      replyToMonoforumPeerId: this.input?.getReplyTo()?.replyToMonoforumPeerId || this.monoforumThreadId,
       savedReaction: this.savedReaction,
       // a welcome message is an ephemeral send the server keeps for whoever joins next: no
       // slow mode, no paid messages, no forwarding, as for any ephemeral send

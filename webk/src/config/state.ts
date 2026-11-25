@@ -1,7 +1,7 @@
 import type {LiteModeKey} from '@helpers/liteMode';
 import type {AppMediaPlaybackController} from '@components/appMediaPlaybackController';
 import type {TopPeerType, MyTopPeer} from '@appManagers/appUsersManager';
-import type {AccountContentSettings, AccountThemes, AutoDownloadSettings, BaseTheme, BotCommand, Dialog, NotifyPeer, PeerNotifySettings, Theme, ThemeSettings, WallPaper} from '@layer';
+import type {AccountContentSettings, AccountThemes, AutoDownloadSettings, BaseTheme, BotCommand, NotifyPeer, PeerNotifySettings, Theme, ThemeSettings, WallPaper} from '@layer';
 import type DialogsStorage from '@lib/storages/dialogs';
 import type FiltersStorage from '@lib/storages/filters';
 import type {AuthState, Modify} from '@types';
@@ -212,8 +212,6 @@ export type State = {
   allDialogsLoaded: DialogsStorage['allDialogsLoaded'],
   dialogsPaginationOffsets: DialogsStorage['dialogsPaginationOffsets'],
   pinnedOrders: DialogsStorage['pinnedOrders'],
-  communityDialogs: {[communityId: string]: Dialog.dialogCommunity},
-  joinedCommunityIds: ChatId[] | null,
   botCommands: {[peerId: PeerId]: {[botId: string]: BotCommand[]}},
   // the permanent code that removes the message fee of the own QR code, kept across opens
   noPaidMessagesToken: {token: string, url: string, permanent?: boolean} | null,
@@ -605,8 +603,6 @@ export const STATE_INIT: State = {
   allDialogsLoaded: {},
   dialogsPaginationOffsets: {},
   pinnedOrders: {},
-  communityDialogs: {},
-  joinedCommunityIds: null,
   botCommands: {},
   noPaidMessagesToken: null,
   // contactsList: [],

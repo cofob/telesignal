@@ -19,12 +19,10 @@ export interface ChatInputStateStore {
   // * file input
   isEditing: boolean;
   isReplacingMedia: boolean;
-  isSuggesting: boolean;
 
   // * direct messages
   isMonoforumAllChats: boolean;
   isReplying: boolean;
-  isSuggestingUneditablePostChange: boolean;
 
 }
 
@@ -47,11 +45,9 @@ const DEFAULT_STORE: ChatInputStateStore = {
 
   isEditing: false,
   isReplacingMedia: false,
-  isSuggesting: false,
 
   isMonoforumAllChats: false,
-  isReplying: false,
-  isSuggestingUneditablePostChange: false
+  isReplying: false
 };
 
 export default function createChatInputState(instance: ChatInput, initial: ChatInputStateStore = DEFAULT_STORE) {

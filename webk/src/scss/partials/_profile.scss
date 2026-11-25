@@ -318,10 +318,6 @@
         opacity: var(--secondary-opacity-max);
       }
 
-      .stars-rating-icon:not(.stars-rating-icon-warning) {
-        margin-inline-start: -4px;
-      }
-
       .online {
         color: inherit !important;
       }
@@ -472,27 +468,6 @@
       --profile-actions-room: #{$btn-tile-height + .75rem};
     }
 
-    .stars-rating-icon {
-      display: flex;
-      align-items: center;
-      pointer-events: all;
-      // $thickness: 1.5px;
-      // filter: 
-      //   drop-shadow(#{-$thickness} 0 0 rgba(0, 0, 0, 0.1))
-      //   drop-shadow(#{$thickness} 0 0 rgba(0, 0, 0, 0.1))
-      //   drop-shadow(0 #{-$thickness} 0 rgba(0, 0, 0, 0.1))
-      //   drop-shadow(0 #{$thickness} 0 rgba(0, 0, 0, 0.1))
-      //   drop-shadow(0 0 #{$thickness} rgba(0, 0, 0, 0.1));
-
-      &-warning {
-        margin-inline-end: 0.25rem;
-      }
-
-      @include animation-level(2) {
-        transition: margin-inline-start var(--transition-standard-in);
-      }
-    }
-
     &-delimiter {
       margin-bottom: var(--section-padding-bottom);
     }
@@ -627,10 +602,6 @@
       .emoji-status-text-color {
         opacity: var(--secondary-opacity-max);
       }
-
-      .stars-rating-icon {
-        margin-inline-start: 0;
-      }
     }
 
     &.is-collapsed:not(.need-white) {
@@ -640,10 +611,6 @@
         .profile-subtitle {
           color: var(--secondary-text-color);
           opacity: 1;
-        }
-
-        .stars-rating-icon-warning {
-          color: var(--danger-color);
         }
       }
     }
@@ -881,64 +848,6 @@
   &-subtitle,
   &-avatar {
     flex: 0 0 auto;
-  }
-
-  &-pinned-gifts {
-    position: absolute;
-    width: 120px;
-    height: 120px;
-    top: 4.5rem;
-    left: 50%;
-    transform: translateX(-50%) scale(1);
-    opacity: 1;
-    transition: opacity 100ms ease-in-out, transform 100ms ease-in-out;
-    transform-origin: center;
-
-    @include respond-to(handhelds) {
-      // костыль из-за того что аватар в мобилке имеет странные размеры
-      top: calc(2.5rem + 5vw);
-      width: 28.5%;
-      height: auto;
-      aspect-ratio: 1/1;
-    }
-
-    .profile-container:not(.is-collapsed) & {
-      opacity: 0;
-      transform: translateX(-50%) scale(1.2);
-      // The gifts layer paints on top of the avatar; once the header is
-      // expanded it's invisible but would still swallow clicks meant for the
-      // avatar underneath — make it click-through so the avatar handles them.
-      pointer-events: none;
-    }
-  }
-
-  &-pinned-gift {
-    &::before {
-      content: '';
-      position: absolute;
-      inset: -1px;
-      background: var(--halo-color);
-      border-radius: 50%;
-      filter: blur(15px) saturate(1.5);
-    }
-
-    position: absolute;
-    width: 30px;
-    height: 30px;
-
-    animation: profile-pinned-gift-fade-in 0.5s forwards;
-
-    @keyframes profile-pinned-gift-fade-in {
-      0% {opacity: 0;}
-      100% {opacity: 1;}
-    }
-
-    &[data-idx="0"] { left: -40px; top: -3px; }
-    &[data-idx="1"] { left: -100px; top: 57px; }
-    &[data-idx="2"] { left: -35px; top: 87px; }
-    &[data-idx="3"] { right: -50px; top: 17px; }
-    &[data-idx="4"] { right: -110px; top: 37px; }
-    &[data-idx="5"] { right: -80px; top: 87px; }
   }
 
   &-story-previews-container {

@@ -35,7 +35,6 @@ export const CHATLESS_BUTTON_TYPES = new Set<AnyButtonType['_']>([
 const BUTTON_TYPE_ICONS: {[type in AnyButtonType['_']]?: Icon} = {
   inlineButtonTypeUrl: 'arrow_next',
   inlineButtonTypeSwitchInline: 'forward_filled',
-  inlineButtonTypeBuy: 'card_filled',
   inlineButtonTypeWebView: 'webview',
   buttonTypeSimpleWebView: 'webview',
   inlineButtonTypeGame: 'play_filled',

@@ -21,8 +21,8 @@ Checked against GPL-3.0-only (the build's license):
   MIT; `recorder.min.js` is ISC; the `opus-recorder` workers in `public/` are MIT, with libopus and the Speex
   resampler (BSD-3-Clause) inside; `prism.ts` is Apache-2.0; `rnnoise` is BSD-3-Clause; `libwebp-0.2.0.js` is under
   the WebM BSD-style license. `leemon.ts`, `convertPunycode.js` and `smoothscroll*` name their authors but no license.
-- `src/vendor/telegram-3d-star` (GPL-2.0-only, which GPL-3.0 code cannot include) is removed: the stars of Telegram
-  Premium and Stars keep an empty box (`src/components/star3D`).
+- `src/vendor/telegram-3d-star` (GPL-2.0-only, which GPL-3.0 code cannot include) is removed with the Premium and
+  Stars screens that showed it.
 - npm packages that the bundle includes are MIT, ISC, Apache-2.0, BSD, 0BSD or Unlicense, except `mediabunny`
   (MPL-2.0, compatible through its secondary-license terms) and `@cryptography/*` (GPL-3.0-or-later).
 
@@ -61,7 +61,7 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
   hosts); support and bug report links point to Signal and to this project; the web manifests name TeleSignal.
 - Threaded workers are copied under query strings instead of `blob:` URLs, which the policy does not allow.
 - Frontend switch: the main menu's "Switch to A version" opens `../a/`.
-- `src/vendor/telegram-3d-star` is removed (GPL-2.0-only), and `src/components/star3D` draws nothing.
+- `src/vendor/telegram-3d-star` is removed (GPL-2.0-only) with `src/components/star3D`.
 - Telegram's interactive widgets are removed: `src/vendor/widget-sandbox`, `src/vendor/widget-sandbox-quickjs`, their
   runtime (`src/lib/widgetSandbox`, `src/components/widgetSandbox`, `appWidgetsManager`) and build plugin; a widget
   message shows as unsupported media.

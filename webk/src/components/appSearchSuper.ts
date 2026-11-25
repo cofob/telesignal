@@ -139,7 +139,7 @@ export type SearchSuperContext = {
   nextRate?: number,
   minDate?: number,
   maxDate?: number
-} & Pick<RequestHistoryOptions, 'chatType' | 'communityId'>;
+} & Pick<RequestHistoryOptions, 'chatType'>;
 
 export type SearchSuperMediaType = 'stories' | 'members' | 'media' |
   'files' | 'links' | 'music' | 'chats' | 'voice' | 'gifs' | 'groups' | 'similar' |
@@ -1893,7 +1893,7 @@ export default class AppSearchSuper {
 
     const query = this.searchContext.query;
     const isArchive = this.searchContext.folderId === FOLDER_ID_ARCHIVE;
-    if(query && !this.searchContext.peerId && !this.searchContext.communityId) {
+    if(query && !this.searchContext.peerId) {
       const addDialogSubtitle = async(dom: DialogDom, peerId: PeerId) => {
         const managers = bindManagersToSession(this.managers);
         const peer = await managers.appPeersManager.getPeer(peerId);
@@ -2079,7 +2079,7 @@ export default class AppSearchSuper {
           }
         })
       ]);
-    } else if(!this.searchContext.peerId && !this.searchContext.communityId && !this.searchContext.minDate && !isArchive) {
+    } else if(!this.searchContext.peerId && !this.searchContext.minDate && !isArchive) {
       const [appState] = useAppState();
       const renderRecentSearch = (setActive = true) => {
         if(!middleware()) {
@@ -2895,7 +2895,6 @@ export default class AppSearchSuper {
       if(
         !this.searchContext.query.trim() &&
         !this.searchContext.peerId &&
-        !this.searchContext.communityId &&
         !this.searchContext.minDate &&
         this.searchContext.folderId !== FOLDER_ID_ARCHIVE
       ) {
@@ -3821,7 +3820,7 @@ export default class AppSearchSuper {
     return context;
   }
 
-  public setQuery({peerId, query, threadId, historyStorage, folderId, minDate, maxDate, chatType, communityId}: {
+  public setQuery({peerId, query, threadId, historyStorage, folderId, minDate, maxDate, chatType}: {
     peerId: PeerId,
     query?: string,
     threadId?: number,
@@ -3829,7 +3828,7 @@ export default class AppSearchSuper {
     folderId?: number,
     minDate?: number,
     maxDate?: number
-  } & Pick<RequestHistoryOptions, 'chatType' | 'communityId'>) {
+  } & Pick<RequestHistoryOptions, 'chatType'>) {
     this.searchContext = {
       peerId,
       query: query || '',
@@ -3838,8 +3837,7 @@ export default class AppSearchSuper {
       folderId,
       minDate,
       maxDate,
-      chatType,
-      communityId
+      chatType
     };
 
     this.historyStorage = historyStorage ?? {};

@@ -5,7 +5,6 @@ import {
   createMemo,
   createResource,
   createSignal,
-  on,
   onCleanup,
   Show
 } from 'solid-js';
@@ -70,15 +69,12 @@ async function loadEditChatData(
     tab.managers.appReactionsManager.getAvailableReactions()
   ]);
 
-  // * Signal has no communities, so a group is never linked to one; the editor's community section stays hidden
-  const joinedCommunities: Chat.community[] = [];
   return {
     chatId,
     chatFull: chatFull as EditChatFull,
     chat,
     appConfig,
-    availableReactions,
-    joinedCommunities
+    availableReactions
   };
 }
 
@@ -125,10 +121,8 @@ function EditChatForm(props: {
   const {
     AvatarNewTsx,
     ChatType,
-    CommunityLinkSection,
     I18n,
     PeerTitleTsx,
-    appDialogsManager,
     appImManager,
     confirmationPopup,
     i18n,
@@ -170,7 +164,6 @@ function EditChatForm(props: {
   const canManageInviteLinks = () => hasRights(chat(), 'invite_links');
   const canInviteUsers = () => hasRights(chat(), 'invite_users');
   const linkedChatId = () => channelFull()?.linked_chat_id;
-  const linkedCommunityId = () => channel()?.linked_community_id?.toChatId();
   const activeReactionEmoticons = props.data.availableReactions
     .filter((reaction) => !reaction.pFlags.inactive)
     .map((reaction) => reaction.reaction);
@@ -231,23 +224,6 @@ function EditChatForm(props: {
       return 'DiscussionInfo';
     }
   });
-  const canManageCommunity = createMemo(() => {
-    const value = channel();
-    if(
-      !value ||
-      !value.pFlags.creator ||
-      value.pFlags.monoforum ||
-      (!value.pFlags.broadcast && !value.pFlags.megagroup)
-    ) {
-      return false;
-    }
-
-    const communityId = linkedCommunityId();
-    return !communityId || props.data.joinedCommunities.some((community) => {
-      return community.id.toChatId() === communityId;
-    });
-  });
-
   const reactionsSubtitle = createMemo(() => {
     const summary = getChatReactionsSummary({
       reactions: chatFull().available_reactions,
@@ -318,14 +294,6 @@ function EditChatForm(props: {
   createEffect(() => {
     setShowChatHistory(isChannel() && !channelFull()?.pFlags.hidden_prehistory);
   });
-  createEffect(on(linkedCommunityId, (communityId) => {
-    if(communityId) {
-      void Promise.resolve(tab.managers.appProfileManager
-      .getChatFull(communityId))
-      .catch((): undefined => undefined);
-    }
-  }));
-
   subscribeOn(rootScope)('chat_update', async(updatedChatId) => {
     if(updatedChatId !== chatId()) {
       return;
@@ -494,40 +462,6 @@ function EditChatForm(props: {
       console.error('togglePreHistoryHidden error:', error);
     } finally {
       setHistoryBusy(false);
-    }
-  };
-
-  const removeFromCommunity = async(communityId: ChatId) => {
-    try {
-      await confirmationPopup({
-        titleLangKey: isBroadcast() ?
-          'Community.RemoveChannel' :
-          'Community.RemoveGroup',
-        descriptionLangKey: 'Community.RemoveConfirm',
-        descriptionLangArgs: [chat().title],
-        button: {
-          langKey: 'Remove',
-          isDanger: true
-        }
-      });
-    } catch{
-      return;
-    }
-
-    try {
-      await tab.managers.appCommunitiesManager.togglePeerLink({
-        communityId,
-        peerId: peerId(),
-        action: 'deleted'
-      });
-      toastNew({
-        langPackKey: isBroadcast() ?
-          'Community.ChannelRemoved' :
-          'Community.Removed'
-      });
-    } catch(error) {
-      console.error('remove group from community error', error);
-      toastNew({langPackKey: 'Error.AnError'});
     }
   };
 
@@ -911,33 +845,6 @@ function EditChatForm(props: {
             <Row.Title>{i18n('ChatHistory')}</Row.Title>
           </Row>
         </Section>
-      </Show>
-
-      <Show when={canManageCommunity()}>
-        <CommunityLinkSection
-          linkedCommunityId={linkedCommunityId()}
-          communities={props.data.joinedCommunities}
-          middleware={tab.middlewareHelper.get()}
-          caption="Community.Description"
-          addIcon="newgroup_filled"
-          addText={isBroadcast() ?
-            'Community.AddChannel' :
-            'Community.AddGroup'}
-          removeText={isBroadcast() ?
-            'Community.RemoveChannel' :
-            'Community.RemoveGroup'}
-          onAdd={() => {
-            tab.slider.createTab(hotReloadGuard.tabs.AppAddGroupToCommunityTab).open({peerId: peerId()});
-          }}
-          onOpenCommunity={(communityId) => {
-            void appDialogsManager.toggleForumTabByPeerId(
-              communityId.toPeerId(true),
-              true,
-              false
-            );
-          }}
-          onRemove={removeFromCommunity}
-        />
       </Show>
 
       <Show when={canTerminate()}>

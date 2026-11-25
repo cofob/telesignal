@@ -5,7 +5,7 @@ import {Chat, ChatFull, Message, Reaction} from '@layer';
 import I18n, {FormatterArguments, i18n, LangPackKey} from '@lib/langPack';
 import Section from '@components/section';
 import StackedAvatars from '@components/stackedAvatars';
-import {createEffect, createSignal, JSX, onCleanup, Show} from 'solid-js';
+import {createEffect, createSignal, JSX, onCleanup} from 'solid-js';
 import CheckboxFields, {CheckboxFieldsField} from '@components/checkboxFields';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import getPeerTitle from '@components/wrappers/getPeerTitle';
@@ -28,13 +28,10 @@ import {
   ModerateMessage,
   ModerateOptions,
   ModerateReactionEntry,
-  getCommunityId,
-  getCommunityModerateOptions,
   getNoModerateOptions
 } from '@components/popups/deleteMegagroupMessagesShared';
 import {
   DeleteMegagroupContext,
-  banParticipantFromCommunity,
   confirmDeleteMegagroupMessages,
   getModerateOptionsFor
 } from '@components/popups/deleteMegagroupMessagesActions';
@@ -75,8 +72,7 @@ export default async function showDeleteMegagroupMessagesPopup(options: PopupDel
     messages,
     reaction,
     managers,
-    onConfirm: options.onConfirm,
-    banFromCommunity: (communityId, participantId) => banParticipantFromCommunity(managers, communityId, participantId)
+    onConfirm: options.onConfirm
   };
 
   const [scrollableRef, setScrollableRef] = createSignal<ScrollableContextValue>();
@@ -159,19 +155,6 @@ function updateReactionTitle() {
       peerIds: fromPeerIds,
       langKey: isSinglePeer ? 'DeleteBan' : 'DeleteBanUsers',
       langArgs: isSinglePeer ? [await wrapPeerTitle({peerId: fromPeerIds[0], onlyFirstName: true})] : undefined
-    });
-  }
-
-  if(
-    isSinglePeer &&
-    fromPeerIds[0].isUser() &&
-    fromPeerIds[0] !== rootScope.myId &&
-    moderateOptions.communityId
-  ) {
-    actions.push({
-      action: 'communityBan',
-      peerIds: fromPeerIds,
-      langKey: 'Community.BanFromCommunity'
     });
   }
 
@@ -314,7 +297,6 @@ function updateReactionTitle() {
   let onAnyChange: () => void;
   const Content = () => {
     const [banning, setBanning] = createSignal<PeerId[]>([]);
-    const [communityBanning, setCommunityBanning] = createSignal(false);
     const [collapsed, setCollapsed] = createSignal(true);
     const collapsedName = () => collapsed() ?
       (banning().length === 1 ? 'DeleteToggleRestrictUser' : 'DeleteToggleRestrictUsers') :
@@ -325,10 +307,6 @@ function updateReactionTitle() {
       .filter((field) => field.action === 'ban' && field.checkboxField.checked && field.peerId)
       .map(({peerId}) => peerId);
       setBanning(peerIds);
-      setCommunityBanning(fields.some((field) => {
-        return field.action === 'communityBan' &&
-          field.checkboxField.checked;
-      }));
     };
 
     createEffect(() => {
@@ -376,20 +354,6 @@ function updateReactionTitle() {
             {flatten(createdFields)}
           </Section>
         }
-        <Show when={
-          communityBanning() &&
-          moderateOptions.communityChatsCount
-        }>
-          <Section noShadow noDelimiter>
-            <Row>
-              <Row.Subtitle>
-                {i18n('Community.BanFromCommunityInfo', [
-                  moderateOptions.communityChatsCount
-                ])}
-              </Row.Subtitle>
-            </Row>
-          </Section>
-        </Show>
         {hasBanAction && <>
           <div
             class={`${className}-permissions`}

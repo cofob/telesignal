@@ -29,23 +29,6 @@ export default function useDirectMessages({instance, store}: ChatInputStateConte
     });
   });
 
-  createEffect(() => {
-    instance.getPlaceholderParams().then((params) => instance.updateMessageInputPlaceholder(params));
-
-    if(!store.isSuggestingUneditablePostChange) return;
-
-    instance.messageInputField?.input?.classList.add('hide');
-    instance.messageInputField?.setHidden(true);
-    instance.btnToggleEmoticons?.setAttribute('disabled', '');
-    instance.autocompleteHelperController.hideOtherHelpers();
-
-    onCleanup(() => {
-      instance.messageInputField?.input?.classList.remove('hide');
-      instance.messageInputField?.setHidden(false);
-      instance.btnToggleEmoticons?.removeAttribute('disabled');
-    });
-  });
-
   const canPaste = () => !store.isMonoforumAllChats || store.isReplying;
 
   return {canPaste};

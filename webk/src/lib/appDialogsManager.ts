@@ -111,9 +111,6 @@ import {AutonomousDialogList} from '@components/autonomousDialogList/dialogs';
 import {PossibleDialog, setDialogTyping} from '@components/autonomousDialogList/base';
 import {ForumTab} from '@components/forumTab/forumTab';
 import findForumTabByPeerId from '@components/forumTab/findForumTabByPeerId';
-import shouldOpenForumAsNavigationTab from '@components/forumTab/communityOpenMode';
-import isCommunityChat from '@appManagers/utils/communities/isCommunity';
-import {getCommunityPeerSubtitle} from '@components/communities/communityPeerStatus';
 import {fillForumTabRegister} from '@components/forumTab/fillRegister';
 import LazyLoadQueue from '@components/lazyLoadQueue';
 import {fastSmoothScrollToStart} from '@helpers/fastSmoothScroll';
@@ -497,7 +494,7 @@ export class AppDialogsManager {
   // * the counterpart of closeForAccountSwitch, once the tab is on the new account
   public openAfterAccountSwitch() {
     // * All is made anew rather than refilled: its list keeps more of the account than its rows - the
-    // * archive above them, the communities projected into it - and fetches it as it is made
+    // * archive above them - and fetches it as it is made
     this.destroyFilter(FOLDER_ID_ALL);
     this.addAllChatsFilter();
     this.xd = this.xds[FOLDER_ID_ALL];
@@ -1734,26 +1731,7 @@ export class AppDialogsManager {
       return;
     }
 
-    const chat = !peerId.isUser() ?
-      apiManagerProxy.getChat(peerId.toChatId()) :
-      undefined;
-    const community = isCommunityChat(chat) ? chat : undefined;
-    const isCommunity = !!community;
-    const canOpenCommunity = community?._ === 'communityForbidden' ||
-      (
-        community?._ === 'community' &&
-        !community.pFlags.left
-      );
-    let ForumTabConstructor = ForumTabConstructorOverride;
-    if(!ForumTabConstructor) {
-      if(canOpenCommunity) {
-        ({CommunityForumTab: ForumTabConstructor} = await import(
-          '@components/forumTab/communityForumTab'
-        ));
-      } else {
-        ForumTabConstructor = ForumTab.register.getEntry(peerId);
-      }
-    }
+    const ForumTabConstructor = ForumTabConstructorOverride || ForumTab.register.getEntry(peerId);
     if(!ForumTabConstructor) return;
 
     const dialog = await managers.dialogsStorage.getDialogOnly(peerId);
@@ -1770,12 +1748,7 @@ export class AppDialogsManager {
     const history = appSidebarLeft.getHistory();
     const lastTab = history[history.length - 1];
     let forumTab: ForumTab;
-    const asNavigationTab = shouldOpenForumAsNavigationTab({
-      hasNavigationHistory: !!lastTab,
-      isCommunity,
-      isNarrowScreen: mediaSizes.isLessThanFloatingLeftSidebar
-    });
-    if(asNavigationTab) {
+    if(lastTab) {
       const isSameTab = lastTab instanceof ForumTab &&
         lastTab.peerId === peerId;
       const existingTab = findForumTabByPeerId(history, peerId);
@@ -1805,11 +1778,7 @@ export class AppDialogsManager {
 
       forumTab = appSidebarLeft.createTab(ForumTabConstructor);
       appSidebarLeft.closeSearch();
-      const openPromise = forumTab.open({peerId, managers});
-      if(isCommunity && mediaSizes.isLessThanFloatingLeftSidebar) {
-        appImManager.selectTab(APP_TABS.CHATLIST);
-      }
-      await openPromise;
+      await forumTab.open({peerId, managers});
       return;
     }
 
@@ -1848,10 +1817,6 @@ export class AppDialogsManager {
 
     const params = new URLSearchParams();
     params.set('p', '' + peerId);
-    const communityId = +element.dataset.communityId || undefined;
-    if(communityId && peerId === communityId.toChatId().toPeerId(true)) {
-      params.set('community', '1');
-    }
     if(lastMsgId) params.set('message', '' + lastMsgId);
     if(threadId) params.set('thread', '' + threadId);
     const url = `#/im?${params.toString()}`;
@@ -1972,23 +1937,6 @@ export class AppDialogsManager {
       if(e.ctrlKey || e.metaKey) {
         this.openDialogInNewTab(elem);
         cancelEvent(e);
-        return;
-      }
-
-      const community = !peerId.isUser() ?
-        apiManagerProxy.getChat(peerId.toChatId()) :
-        undefined;
-      if(
-        community?._ === 'community' &&
-        !community.pFlags.left &&
-        !threadId
-      ) {
-        const isFromRightSidebar = appSidebarRight.sidebarEl.contains(elem);
-        this.toggleForumTabByPeerId(
-          peerId,
-          isFromRightSidebar ? true : undefined,
-          false
-        );
         return;
       }
 
@@ -2170,20 +2118,10 @@ export class AppDialogsManager {
   }
 
   // what to show instead of the last message when there is none at all
-  private getEmptySubtitle(peerId: PeerId, listEl: HTMLElement) {
+  private getEmptySubtitle(peerId: PeerId) {
     if(apiManagerProxy.isBotforum(peerId)) {
       return i18n('NoMessagesYet');
     }
-
-    if(!listEl.dataset.communityDialog) {
-      return;
-    }
-
-    // a community bot has no history until its chat is started
-    const peer = apiManagerProxy.getPeer(peerId);
-    return peer?._ === 'user' && peer.pFlags.bot ?
-      getCommunityPeerSubtitle(peer) :
-      undefined;
   }
 
   private getLastMessageForDialog(dialog: PossibleDialog, lastMessage?: Message.message | Message.messageService) {
@@ -2342,8 +2280,8 @@ export class AppDialogsManager {
 
     if(!lastMessage && !draftMessage && !subtitlePeerId/*  || (lastMessage._ === 'messageService' && !lastMessage.rReply) */) {
       // * not guarded by the key: the placeholder also depends on the peer being a
-      // * botforum / community dialog, and rendering it costs a single element
-      const emptySubtitle = this.getEmptySubtitle(peerId, dom.listEl);
+      // * botforum dialog, and rendering it costs a single element
+      const emptySubtitle = this.getEmptySubtitle(peerId);
 
       if(!keepTyping) {
         disposeTextHighlight(dom);

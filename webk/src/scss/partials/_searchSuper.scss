@@ -605,24 +605,4 @@
   &-reorder-title {
     margin-inline-start: .5rem;
   }
-
-  &-pinned-gifts {
-    margin-inline-start: 0.25rem;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    
-    .media-sticker-wrapper {
-      width: 18px;
-      height: 18px;
-      position: relative;
-    }
-
-    &-wrap {
-      display: flex;
-      flex-direction: row;
-      gap: 0.25rem;
-      align-items: center;
-    }
-  }
 }

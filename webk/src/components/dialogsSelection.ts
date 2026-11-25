@@ -57,7 +57,7 @@ export default class DialogsSelection extends DialogsSelectionBase<DialogsSelect
 
   /**
    * Whether a row can take part in the selection. It has to be a chat of its own, in the chat list
-   * that is on screen - so a topic, a monoforum thread, a Community's own row, the "All chats" row,
+   * that is on screen - so a topic, a monoforum thread, the "All chats" row,
    * a sponsored row, a found message and every row of a picker or a panel are all out. Nor is any
    * row of a list that is down to its avatars.
    */
@@ -67,7 +67,6 @@ export default class DialogsSelection extends DialogsSelectionBase<DialogsSelect
       !!element.dataset.peerId &&
       !element.dataset.threadId &&
       !element.dataset.monoforumParentPeerId &&
-      !element.dataset.communityDialog &&
       !element.dataset.isAllChats &&
       !element.dataset.mid &&
       element.dataset.sponsored !== 'true';

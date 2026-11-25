@@ -169,62 +169,8 @@ export class AppChatsManager extends AppManager {
       return;
     }
 
+    // * Signal has no communities
     if(chat._ === 'community' || chat._ === 'communityForbidden') {
-      const id = chat.id = chat.id.toChatId();
-      const oldCommunity = this.chats[id];
-      const oldPhotoId = oldCommunity?._ === 'community' &&
-        oldCommunity.photo?._ === 'chatPhoto' ?
-        oldCommunity.photo.photo_id :
-        undefined;
-      const oldTitle = oldCommunity?.title;
-      let communityToSave = chat;
-
-      if(chat._ === 'community') {
-        chat.pFlags ??= {};
-        if(chat.pFlags.min && oldCommunity?._ === 'community') {
-          communityToSave = {
-            ...oldCommunity,
-            ...chat,
-            access_hash: chat.access_hash ?? oldCommunity.access_hash,
-            admin_rights: chat.admin_rights ?? oldCommunity.admin_rights,
-            default_banned_rights: chat.default_banned_rights ?? oldCommunity.default_banned_rights,
-            pFlags: {
-              ...oldCommunity.pFlags,
-              ...chat.pFlags
-            }
-          };
-        }
-      }
-
-      if(oldCommunity) {
-        safeReplaceObject(oldCommunity, communityToSave);
-        communityToSave = oldCommunity as typeof communityToSave;
-      } else {
-        this.chats[id] = communityToSave;
-      }
-
-      this.mirrorChat(communityToSave);
-      this.appCommunitiesManager.handleCommunityUpdate(id);
-      const newPhotoId = communityToSave._ === 'community' &&
-        communityToSave.photo?._ === 'chatPhoto' ?
-        communityToSave.photo.photo_id :
-        undefined;
-      if(oldCommunity && String(oldPhotoId || '') !== String(newPhotoId || '')) {
-        this.rootScope.dispatchEvent('avatar_update', {
-          peerId: id.toPeerId(true)
-        });
-      }
-      if(oldCommunity && oldTitle !== communityToSave.title) {
-        this.rootScope.dispatchEvent('peer_title_edit', {
-          peerId: id.toPeerId(true)
-        });
-      }
-
-      if(this.peersStorage.isPeerNeeded(id.toPeerId(true))) {
-        this.storage.set({
-          [id]: communityToSave
-        });
-      }
       return;
     }
     /* if(chat._ !== 'chat' && chat._ !== 'channel') {
@@ -235,9 +181,6 @@ export class AppChatsManager extends AppManager {
     // defineNotNumerableProperties(chat, ['rTitle', 'initials']);
 
     const oldChat = this.chats[chat.id];
-    const previousCommunityId = oldChat?._ === 'channel' ?
-      oldChat.linked_community_id?.toChatId() :
-      undefined;
 
     /* if(oldChat && !override) {
       return;
@@ -340,15 +283,6 @@ export class AppChatsManager extends AppManager {
         [chat.id]: chat
       });
     }
-
-    const communityId = chat._ === 'channel' ? chat.linked_community_id?.toChatId() : undefined;
-    if(String(previousCommunityId || '') !== String(communityId || '')) {
-      this.appCommunitiesManager.handlePeerLinkedCommunityUpdate({
-        peerId,
-        previousCommunityId,
-        communityId
-      });
-    }
   }
 
   private mirrorChat(chat: Exclude<Chat, Chat.chatEmpty> | ChatId) {
@@ -368,29 +302,6 @@ export class AppChatsManager extends AppManager {
 
   public getChats() {
     return this.chats;
-  }
-
-  public setLinkedCommunityId(chatId: ChatId, communityId?: ChatId) {
-    const chat = this.chats[chatId];
-    communityId = communityId?.toChatId();
-    if(chat?._ !== 'channel' || String(chat.linked_community_id || '') === String(communityId || '')) {
-      return false;
-    }
-
-    const previousCommunityId = chat.linked_community_id?.toChatId();
-    if(communityId) {
-      chat.linked_community_id = communityId;
-    } else {
-      delete chat.linked_community_id;
-    }
-
-    this.onChatChanged(chat);
-    this.appCommunitiesManager.handlePeerLinkedCommunityUpdate({
-      peerId: chatId.toPeerId(true),
-      previousCommunityId,
-      communityId
-    });
-    return true;
   }
 
   /**
@@ -961,13 +872,6 @@ export class AppChatsManager extends AppManager {
       prevParticipant: participant,
       wasChannel
     });
-    if(this.isCommunity(id)) {
-      this.appCommunitiesManager.handleAdminEdited({
-        communityId: id,
-        previousParticipant: participant,
-        participant: update.new_participant
-      });
-    }
     this.apiUpdatesManager.processLocalUpdate(update);
 
     this.onChatUpdatedForce(id, updates);

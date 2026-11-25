@@ -33,7 +33,6 @@ import contextMenuController from '@helpers/contextMenuController';
 import {ChatRights} from '@appManagers/appChatsManager';
 import type {MessageSendingParams} from '@appManagers/appMessagesManager';
 import createContextMenu from '@helpers/dom/createContextMenu';
-import {PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import {createPosterFromMedia} from '@helpers/createPoster';
 import type {MediaSize} from '@helpers/mediaSize';
 import cancelEvent from '@helpers/dom/cancelEvent';
@@ -241,16 +240,6 @@ export default class ChatRecording {
         return;
       }
 
-      if(!isEphemeral) {
-        const preparedPaymentResult = await this.input.paidMessageInterceptor.prepareStarsForPayment(1);
-        if(preparedPaymentResult === PAYMENT_REJECTED) {
-          opusDecodeController.setKeepAlive(false);
-          return;
-        }
-
-        sendingParams.confirmedPaymentResult = preparedPaymentResult;
-      }
-
       const dataBlob = new Blob([typedArray as BlobPart], {type: 'audio/ogg'});
       opusDecodeController.decode(typedArray, false).then((result) => {
         opusDecodeController.setKeepAlive(false);
@@ -328,12 +317,6 @@ export default class ChatRecording {
         const duration = this.getRecordingElapsedMs() / 1000 | 0;
         if(!(await this.input.isSendingConfirmed())) {
           return;
-        }
-
-        if(!isEphemeral) {
-          const preparedPaymentResult = await this.input.paidMessageInterceptor.prepareStarsForPayment(1);
-          if(preparedPaymentResult === PAYMENT_REJECTED) return;
-          sendingParams.confirmedPaymentResult = preparedPaymentResult;
         }
 
         const thumb = await thumbPromise;
@@ -898,7 +881,6 @@ export default class ChatRecording {
       !this.active &&
       !this.input.forwarding &&
       !this.input.editMsgId &&
-      !this.input.suggestedPost?.hasMedia &&
       !!this.recorder &&
       !!this.videoRecorder;
   }

@@ -14,14 +14,8 @@ import defineSolidElement, {PassedProps} from '@lib/solidjs/defineSolidElement';
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {AckedResult} from '@lib/superMessagePort';
 import {useAppSettings} from '@stores/appSettings';
-import {
-  useCollapsedCommunityDialogsKey
-} from '@stores/communities';
-import {usePeers} from '@stores/peers';
 import {Accessor, createComputed, createEffect, createMemo, createResource, createRoot, createSignal, For, onCleanup, Ref, Setter, Show} from 'solid-js';
 import {createStore, unwrap} from 'solid-js/store';
-import getLinkedCommunityId from '@appManagers/utils/communities/getLinkedCommunityId';
-import isCollapsedCommunity from '@appManagers/utils/communities/isCollapsedCommunity';
 import styles from './archiveDialog.module.scss';
 import Badge from './badge';
 import {IconTsx} from './iconTsx';
@@ -145,7 +139,6 @@ export const createArchiveDialogState = ({onHasArchiveDialogChanged}: CreateArch
 
 function useArchivedDialogsState() {
   const {rootScope} = useHotReloadGuard();
-  const peers = usePeers();
 
   let initialPromise: Promise<AckedResult<unknown>>;
 
@@ -170,11 +163,7 @@ function useArchivedDialogsState() {
   const fetchedDialogsLength = createMemo(() => isReady() ? fetchedDialogs().dialogs.length : 0);
   const isEnd = createMemo(() => isReady() && fetchedDialogs().isEnd);
 
-  const sortedDialogs = createMemo(() => dialogs()
-  .filter((dialog) => {
-    const communityId = getLinkedCommunityId(peers[dialog.peerId]);
-    return !isCollapsedCommunity(peers[communityId?.toPeerId(true)]);
-  })
+  const sortedDialogs = createMemo(() => [...dialogs()]
   .sort((a, b) => getArchivedDialogIndex(b) - getArchivedDialogIndex(a)));
 
   createComputed(() => {
@@ -299,11 +288,9 @@ function useDialogEvents({sortedDialogs, setDialogs, isEnd}: UseDialogEventsArgs
 
 function useTotalUnreadCount() {
   const {rootScope} = useHotReloadGuard();
-  const projectionKey = useCollapsedCommunityDialogsKey();
   const [totalUnreadCount, {refetch}] = createResource(
-    projectionKey,
     () => rootScope.managers.dialogsStorage
-    .getFolderUnreadCount(FOLDER_ID_ARCHIVE, true)
+    .getFolderUnreadCount(FOLDER_ID_ARCHIVE)
     .then((result) => result.unreadCount),
     {initialValue: 0}
   );

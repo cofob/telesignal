@@ -457,31 +457,9 @@ export default class DialogsStorage extends AppManager {
     return orders;
   }
 
-  /**
-   * How many pins the user can actually see in the folder, which is what the pin limit is
-   * about. A member chat of a folded Community is hidden from the real folders (see
-   * AutonomousDialogList.testDialogForFilter), so its pin holds a slot that can neither be
-   * seen nor unpinned there. tdesktop drops such a history from the folder's local pinned
-   * list when the Community folds (Entry::removeFromChatList), so its limit ignores them
-   * too — the server still has the last word on the actual request.
-   */
+  /** How many pins the user can see in the folder, which is what the pin limit is about */
   public getVisiblePinnedCount(folderId: number) {
-    const orders = this.getPinnedOrders(folderId);
-    if(!REAL_FOLDERS.has(folderId)) {
-      return orders.length;
-    }
-
-    const hiddenPeerIds = new Set(
-      this.appCommunitiesManager.getCollapsedCommunityPeerIds(folderId)
-    );
-    let count = 0;
-    for(const peerId of orders) {
-      if(!hiddenPeerIds.has(peerId)) {
-        ++count;
-      }
-    }
-
-    return count;
+    return this.getPinnedOrders(folderId).length;
   }
 
   public isDialogPinned(peerId: PeerId, folderId: number) {
@@ -643,32 +621,8 @@ export default class DialogsStorage extends AppManager {
     });
   }
 
-  public getFolderUnreadCount(
-    filterId: number,
-    excludeCollapsedCommunityPeers = false
-  ) {
+  public getFolderUnreadCount(filterId: number) {
     const folder = this.getFolder(filterId);
-    if(excludeCollapsedCommunityPeers) {
-      const excludedPeerIds = new Set(
-        this.appCommunitiesManager.getCollapsedCommunityPeerIds(filterId)
-      );
-      const getSize = (peerIds: Set<PeerId>) => {
-        let count = 0;
-        for(const peerId of peerIds) {
-          if(!excludedPeerIds.has(peerId)) {
-            ++count;
-          }
-        }
-
-        return count;
-      };
-      return {
-        unreadUnmutedCount: getSize(folder.unreadUnmutedPeerIds),
-        unreadCount: getSize(folder.unreadPeerIds),
-        unreadMentionsCount: getSize(folder.unreadMentionsPeerIds)
-      };
-    }
-
     return {
       unreadUnmutedCount: folder.unreadUnmutedPeerIds.size,
       unreadCount: folder.unreadPeerIds.size,
@@ -1546,19 +1500,15 @@ export default class DialogsStorage extends AppManager {
           return [];
         } else if(dialog._ === 'dialog') {
           return [this.appPeersManager.getPeerId(dialog.peer)];
-        } else if(dialog._ === 'dialogCommunity') {
-          return [(dialog.community_id as ChatId).toPeerId(true)];
         }
 
         return [];
       }));
     }
 
-    // Save pseudo-dialog settings before processing any linked dialog. The server does not
-    // guarantee their relative order, while callers iterate the remaining dialogs in reverse.
     forEachReverse(dialogs, (dialog, idx, arr) => {
+      // * Signal has no communities
       if(dialog._ === 'dialogCommunity') {
-        this.saveDialog({dialog, settingsAskedAt});
         arr.splice(idx, 1);
       } else if(dialog._ === 'dialogFolder') {
         // ! fix 'dialogFolder', maybe there is better way to do it, this only can happen by 'messages.getPinnedDialogs' by folder_id: 0
@@ -1667,8 +1617,6 @@ export default class DialogsStorage extends AppManager {
     draftsAskedAt?: number
   }) {
     if(dialog._ === 'dialogCommunity') {
-      this.saveDialogNotifySettings(dialog, {communityId: dialog.community_id}, settingsAskedAt);
-      this.appCommunitiesManager?.saveCommunityDialog(dialog);
       return false;
     }
 
@@ -2062,8 +2010,7 @@ export default class DialogsStorage extends AppManager {
       // ! only server search pages by the local results' tail — the regular topic list is paged by
       // ! the stored pagination offsets (see `updateForumTopicsPaginationOffsets`), because the
       // ! locally sorted list is poisoned by drafts and by-id-fetched topics
-      offsetTopic: (isForum || isBotforum) && query ? curDialogStorage[curDialogStorage.length - 1] as ForumTopic : undefined,
-      excludeCommunityDialogs: filterType === FilterType.Folder && filterId === FOLDER_ID_ALL
+      offsetTopic: (isForum || isBotforum) && query ? curDialogStorage[curDialogStorage.length - 1] as ForumTopic : undefined
     }).then((result) => {
       if(query) {
         return this.getDialogs({
@@ -2165,17 +2112,8 @@ export default class DialogsStorage extends AppManager {
     };
   }
 
-  public async markFolderAsRead(
-    folderId: number,
-    excludeCollapsedCommunityPeers = false
-  ) {
-    const folder = this.getFolder(folderId);
-    const excludedPeerIds = excludeCollapsedCommunityPeers ?
-      new Set(this.appCommunitiesManager.getCollapsedCommunityPeerIds(folderId)) :
-      undefined;
-    const peerIds = [...folder.unreadPeerIds].filter((peerId) => {
-      return !excludedPeerIds?.has(peerId);
-    });
+  public async markFolderAsRead(folderId: number) {
+    const peerIds = [...this.getFolder(folderId).unreadPeerIds];
     for(const peerId of peerIds) {
       await this.appMessagesManager.markDialogUnread({peerId, read: true});
     }
@@ -2581,9 +2519,7 @@ export default class DialogsStorage extends AppManager {
     const isForum = this.isFilterIdForForum(folderId);
     const isSaved = folderId === this.appPeersManager.peerId;
     const isVirtualFolder = isForum || isSaved;
-    order = folderId === FOLDER_ID_ALL ?
-      this.appCommunitiesManager.sanitizePinnedDialogsOrder(order as PeerId[]) :
-      order.slice();
+    order = order.slice();
     this.resetPinnedOrder(folderId);
     this.getPinnedOrders(folderId).push(...order);
     this.savePinnedOrders();
@@ -2591,10 +2527,6 @@ export default class DialogsStorage extends AppManager {
     const newPinned: {[id: typeof order[0]]: true} = {};
     order.forEach((id) => {
       newPinned[id] = true;
-
-      if(!isVirtualFolder && this.appCommunitiesManager.isCommunity(id as PeerId)) {
-        return;
-      }
 
       const peerId = isVirtualFolder ? folderId : id;
       const topicOrSavedId = isVirtualFolder ? id : undefined;
@@ -2621,9 +2553,6 @@ export default class DialogsStorage extends AppManager {
         this.appMessagesManager.scheduleHandleNewDialogs(dialog.peerId, dialog);
       }
     }
-
-    // the Community rows of the main list take their places from its pins
-    this.appCommunitiesManager.handlePinnedDialogsOrder(folderId as REAL_FOLDER_ID);
   }
 
   // only 0 and 1 folders
@@ -2652,15 +2581,6 @@ export default class DialogsStorage extends AppManager {
   };
 
   private onUpdateDialogPinned = (update: Update.updateDialogPinned | Update.updateSavedDialogPinned) => {
-    if(update._ === 'updateDialogPinned' && update.peer._ === 'dialogPeerCommunity') {
-      this.appCommunitiesManager.handleCommunityDialogPinned(
-        update.peer.community_id as ChatId,
-        !!update.pFlags.pinned,
-        (update.folder_id ?? FOLDER_ID_ALL) as REAL_FOLDER_ID
-      );
-      return;
-    }
-
     if(update.peer._ !== 'dialogPeer') {
       return;
     }
@@ -2763,10 +2683,7 @@ export default class DialogsStorage extends AppManager {
         })();
       }
 
-      const communityPinStateTokens = isSaved ?
-        undefined :
-        this.appCommunitiesManager.captureCommunityPinState();
-      promise.then(({result: _result, cutoffGeneration, settingsAskedAt, draftsAskedAt}) => {
+      promise.then(({result, cutoffGeneration, settingsAskedAt, draftsAskedAt}) => {
         if(
           cutoffGeneration !== undefined &&
           cutoffGeneration !== this.appMessagesManager.getChannelAvailableMinIdGeneration()
@@ -2777,48 +2694,13 @@ export default class DialogsStorage extends AppManager {
         // * for test reordering and rendering
         // dialogsResult.dialogs.reverse();
 
-        let result = _result;
-        // A Community whose local pin state changed while this request was in
-        // flight outranks the server's view of it: drop it from the response,
-        // then put it back into the order at its current local position.
-        const changedCommunityIds = communityPinStateTokens ?
-          this.appCommunitiesManager.getChangedCommunityIds(
-            communityPinStateTokens,
-            folderId as REAL_FOLDER_ID
-          ) :
-          new Set<ChatId>();
-        if(changedCommunityIds.size) {
-          const peerResult = result as MessagesPeerDialogs;
-          result = {
-            ...peerResult,
-            dialogs: peerResult.dialogs.filter((dialog) => {
-              return dialog._ !== 'dialogCommunity' ||
-                !changedCommunityIds.has(dialog.community_id.toChatId());
-            }),
-            chats: peerResult.chats.filter((chat) => {
-              return (
-                chat._ !== 'community' &&
-                chat._ !== 'communityForbidden'
-              ) || !changedCommunityIds.has(chat.id.toChatId());
-            })
-          };
-        }
-
-        let order = result.dialogs.flatMap((dialog) => {
+        const order = result.dialogs.flatMap((dialog) => {
           if(dialog._ === 'dialog') {
             return [this.appPeersManager.getPeerId(dialog.peer)];
-          } else if(dialog._ === 'dialogCommunity') {
-            return [(dialog.community_id as ChatId).toPeerId(true)];
           }
 
           return [];
         });
-        if(changedCommunityIds.size) {
-          order = this.appCommunitiesManager.restoreCommunityPinPositions(
-            order,
-            changedCommunityIds
-          );
-        }
         this.applyDialogs(result, undefined, settingsAskedAt, draftsAskedAt);
 
         this.handleDialogsPinned(folderId, order);

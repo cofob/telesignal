@@ -5,7 +5,6 @@
 
 import {Message, Reaction} from '@layer';
 import {CheckboxFieldsField} from '@components/checkboxFields';
-import type {AppManagers} from '@lib/managers';
 
 export type DeleteCheckboxFieldsField = CheckboxFieldsField & {
   peerId?: PeerId,
@@ -14,8 +13,7 @@ export type DeleteCheckboxFieldsField = CheckboxFieldsField & {
     'delete' |
     'deleteReactions' |
     'deleteOptions' |
-    'ban' |
-    'communityBan',
+    'ban',
   peerRow?: boolean
 };
 
@@ -26,9 +24,7 @@ export type ModerateOptions = {
   reportReaction: boolean,
   deleteAllMessages: boolean,
   deleteAllReactions: boolean,
-  banOrRestrict: boolean,
-  communityId?: ChatId,
-  communityChatsCount?: number
+  banOrRestrict: boolean
 };
 
 export const getNoModerateOptions = (): ModerateOptions => ({
@@ -38,38 +34,6 @@ export const getNoModerateOptions = (): ModerateOptions => ({
   deleteAllReactions: false,
   banOrRestrict: false
 });
-
-export function getCommunityId(managers: AppManagers, peerId: PeerId) {
-  return managers.appCommunitiesManager?.getPeerLinkedCommunityId(peerId);
-}
-
-export async function getCommunityModerateOptions(
-  managers: AppManagers,
-  peerId: PeerId
-): Promise<Partial<ModerateOptions>> {
-  const communitiesManager = managers.appCommunitiesManager;
-  if(!communitiesManager) {
-    return {};
-  }
-
-  const communityId = await getCommunityId(managers, peerId);
-  const canBanFromCommunity = !!communityId &&
-    await communitiesManager.hasRights(communityId, 'ban_users')
-    .catch(() => false);
-  if(!canBanFromCommunity) {
-    return {};
-  }
-
-  const communityFull = await Promise.resolve(managers.appProfileManager
-  .getChatFull(communityId))
-  .catch((): undefined => undefined);
-  return {
-    communityId,
-    communityChatsCount: communityFull?._ === 'communityFull' ?
-      communityFull.linked_peers.length :
-      undefined
-  };
-}
 
 export type ModerateMessage = Message.message | Message.messageService;
 

@@ -3,8 +3,6 @@ import {Portal} from 'solid-js/web';
 import type AppSelectPeers from '@components/appSelectPeers';
 import Button from '@components/buttonTsx';
 import CheckboxFieldTsx from '@components/checkboxFieldTsx';
-import useCommunityTabGuard
-from '@components/communities/useCommunityTabGuard';
 import Row from '@components/rowTsx';
 import Section from '@components/section';
 import createMiddleware from '@helpers/solid/createMiddleware';
@@ -21,19 +19,11 @@ import type {
   AdministratorsSource
 } from './administratorsSource';
 import createChatAdministratorsSource from './chatAdministratorsSource';
-import createCommunityAdministratorsSource
-from './communityAdministratorsSource';
 
 const ChatAdministrators: Component = () => {
   const [tab] = useSuperTab<typeof AppChatAdministratorsTab>();
   const promiseCollector = usePromiseCollector();
-  const communityId = 'communityId' in tab.payload ?
-    tab.payload.communityId :
-    undefined;
-  const chatId = 'chatId' in tab.payload ? tab.payload.chatId : undefined;
-  if(communityId !== undefined) {
-    useCommunityTabGuard(tab, communityId);
-  }
+  const {chatId} = tab.payload;
 
   const middlewareHelper = createMiddleware();
   const middleware = middlewareHelper.get(tab.middlewareHelper.get());
@@ -53,13 +43,11 @@ const ChatAdministrators: Component = () => {
   });
 
   promiseCollector.collect((async() => {
-    const source: AdministratorsSource = communityId === undefined ?
-      await createChatAdministratorsSource({
-        tab,
-        chatId,
-        middleware
-      }) :
-      await createCommunityAdministratorsSource({tab, communityId});
+    const source: AdministratorsSource = await createChatAdministratorsSource({
+      tab,
+      chatId,
+      middleware
+    });
     if(!middleware()) {
       return;
     }

@@ -6,9 +6,6 @@
 import {Chat, ChatFull} from '@layer';
 import {AppManagers} from '@lib/managers';
 import rootScope from '@lib/rootScope';
-import confirmationPopup from '@components/confirmationPopup';
-import {toastNew} from '@components/toast';
-import getPeerTitle from '@components/wrappers/getPeerTitle';
 import canEditAdmin from '@appManagers/utils/chats/canEditAdmin';
 import {ChatPermissions} from '@components/sidebarRight/tabs/groupPermissions/sharedPermissions';
 import {
@@ -17,8 +14,6 @@ import {
   ModerateMessage,
   ModerateOptions,
   ModerateReactionEntry,
-  getCommunityId,
-  getCommunityModerateOptions,
   getNoModerateOptions
 } from '@components/popups/deleteMegagroupMessagesShared';
 
@@ -31,8 +26,7 @@ export type DeleteMegagroupContext = {
   chatPermissions?: ChatPermissions,
   reportReaction?: boolean,
   managers: AppManagers,
-  onConfirm?: () => void,
-  banFromCommunity?: (communityId: ChatId, participantId: PeerId) => Promise<boolean>
+  onConfirm?: () => void
 };
 
 export async function confirmDeleteMegagroupMessages(ctx: DeleteMegagroupContext) {
@@ -58,13 +52,6 @@ export async function confirmDeleteMegagroupMessages(ctx: DeleteMegagroupContext
     byPeers.get(ctx.reaction.participantPeerId)?.has('deleteReactions');
   const {restricting, managers} = ctx;
   for(const [fromId, actions] of byPeers) {
-    if(actions.has('communityBan')) {
-      const communityId = await getCommunityId(managers, peerId);
-      if(!communityId || !await ctx.banFromCommunity(communityId, fromId)) {
-        return false;
-      }
-    }
-
     const promises: Promise<any>[] = [];
     if(actions.has('ban') && restricting) {
       const rights = ctx.chatPermissions.takeOut();
@@ -125,8 +112,7 @@ export async function getModerateOptionsFor(ctx: Pick<DeleteMegagroupContext, 'r
       reportReaction: false,
       deleteAllMessages: true,
       deleteAllReactions: true,
-      banOrRestrict: true,
-      ...await getCommunityModerateOptions(ctx.managers, peerId)
+      banOrRestrict: true
     };
   }
 
@@ -169,62 +155,6 @@ export async function getModerateOptionsFor(ctx: Pick<DeleteMegagroupContext, 'r
     reportReaction: isMegagroup && isPublic,
     deleteAllMessages: isChannel && canDeleteMessages,
     deleteAllReactions: canDeleteMessages,
-    banOrRestrict,
-    ...(isChannel ? await getCommunityModerateOptions(ctx.managers, peerId) : {})
+    banOrRestrict
   };
-}
-
-/** Ban a participant from the community behind a chat, confirming first if they own chats in it. */
-export async function banParticipantFromCommunity(
-  managers: AppManagers,
-  communityId: ChatId,
-  participantId: PeerId
-) {
-  try {
-    const joinedChats = await managers.appCommunitiesManager
-    .getParticipantJoinedChats({communityId, participantId});
-    if(joinedChats.creator_chat_ids.length) {
-      const title = await getPeerTitle({
-        peerId: participantId,
-        plainText: true,
-        onlyFirstName: true
-      });
-      try {
-        await confirmationPopup({
-          titleLangKey: 'Community.BanWarningTitle',
-          descriptionLangKey: 'Community.BanWarning',
-          descriptionLangArgs: [
-            title,
-            joinedChats.creator_chat_ids.length
-          ],
-          button: {
-            langKey: 'Community.Ban',
-            isDanger: true
-          }
-        });
-      } catch{
-        return false;
-      }
-    }
-
-    await managers.appCommunitiesManager.toggleParticipantBanned({
-      communityId,
-      participantId
-    });
-    toastNew({
-      langPackKey: 'Community.Banned',
-      langPackArguments: [
-        await getPeerTitle({
-          peerId: participantId,
-          plainText: true,
-          onlyFirstName: true
-        })
-      ]
-    });
-    return true;
-  } catch(error) {
-    console.error('ban participant from community error', error);
-    toastNew({langPackKey: 'Error.AnError'});
-    return false;
-  }
 }

@@ -103,7 +103,7 @@ import getUnreadReactions from '@appManagers/utils/messages/getUnreadReactions';
 import isMentionUnread from '@appManagers/utils/messages/isMentionUnread';
 import canMessageHaveFactCheck from '@appManagers/utils/messages/canMessageHaveFactCheck';
 import PaidMessagesQueue from '@appManagers/utils/messages/paidMessagesQueue';
-import type {ConfirmedPaymentResult} from '@components/chat/paidMessagesInterceptor';
+import type {ConfirmedPaymentResult} from '@appManagers/utils/repayRequestHandler';
 import RepayRequestHandler, {RepayRequest} from '@appManagers/utils/repayRequestHandler';
 import getPhotoInput from '@appManagers/utils/photos/getPhotoInput';
 import {increment, MonoforumDialog} from '@lib/storages/monoforumDialogs';
@@ -454,7 +454,6 @@ export type RequestHistoryOptions = {
   isCacheableSearch?: boolean,
   hashtagType?: 'this' | 'my' | 'public',
   chatType?: 'all' | 'users' | 'groups' | 'channels',
-  communityId?: ChatId,
   // * a page may leave out an album its edge cuts, which comes whole with the next page, rather than wait for a second
   // * request to fill it: for a reader that tells the end by `isEnd` only, not by a page shorter than asked for
   leaveOutEdgeAlbums?: boolean,
@@ -5871,15 +5870,13 @@ export class AppMessagesManager extends AppManager {
     folderId,
     query,
     offsetTopic,
-    filterType = this.dialogsStorage.getFilterType(folderId),
-    excludeCommunityDialogs = folderId !== FOLDER_ID_ARCHIVE
+    filterType = this.dialogsStorage.getFilterType(folderId)
   }: {
     limit: number,
     folderId: number,
     query?: string,
     offsetTopic?: ForumTopic,
-    filterType?: FilterType,
-    excludeCommunityDialogs?: boolean
+    filterType?: FilterType
   }, overwrite = false, cutoffAttempt = 0): Promise<{
     isEnd: boolean,
     count: number,
@@ -5938,8 +5935,7 @@ export class AppMessagesManager extends AppManager {
           folderId,
           query,
           offsetTopic,
-          filterType,
-          excludeCommunityDialogs
+          filterType
         }, true, cutoffAttempt + 1);
       }
       if(
@@ -6081,15 +6077,7 @@ export class AppMessagesManager extends AppManager {
         // }, 10e3);
       }
 
-      const rawCount = (result as MessagesDialogs.messagesDialogsSlice).count;
-      const count = (
-        excludeCommunityDialogs &&
-        !isSearch &&
-        filterType === FilterType.Folder
-      ) ? Math.max(
-          0,
-          (rawCount || 0) - this.appCommunitiesManager.getCommunityDialogsCount()
-        ) : rawCount;
+      const count = (result as MessagesDialogs.messagesDialogsSlice).count;
 
       // exclude empty draft dialogs
       const folderDialogs = this.dialogsStorage.getFolderDialogs(folderId, false);
@@ -14295,7 +14283,6 @@ export class AppMessagesManager extends AppManager {
       maxDate,
       historyType = this.getHistoryType(peerId, {threadId}),
       chatType,
-      communityId,
       fromPeerId,
       savedReaction,
       isPublicHashtag,
@@ -14355,7 +14342,7 @@ export class AppMessagesManager extends AppManager {
     // history of calls, and `messages.searchGlobal` has no such index. Every
     // client loads the Calls list this way (tdesktop
     // calls_box_controller.cpp:552, Android CallLogActivity.java:1322).
-    } else if(inputFilter && (peerId || inputFilter._ === 'inputMessagesFilterPhoneCalls') && !communityId && !nextRate && folderId === undefined/*  || !query */) {
+    } else if(inputFilter && (peerId || inputFilter._ === 'inputMessagesFilterPhoneCalls') && !nextRate && folderId === undefined/*  || !query */) {
       const savedPeerIdInput = monoforumThreadId ?
         this.appPeersManager.getInputPeerById(monoforumThreadId) :
         historyType === HistoryType.Saved ?
@@ -14385,8 +14372,7 @@ export class AppMessagesManager extends AppManager {
         max_date: maxDate,
         offset_rate: nextRate,
         offset_peer: this.appPeersManager.getInputPeerById(offsetPeerId),
-        folder_id: communityId ? undefined : folderId,
-        community: communityId ? this.appChatsManager.getChannelInput(communityId) : undefined,
+        folder_id: folderId,
         users_only: chatType === 'users' || undefined,
         groups_only: chatType === 'groups' || undefined,
         broadcasts_only: chatType === 'channels' || undefined

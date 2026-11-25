@@ -8,8 +8,6 @@ import {
 import {Portal} from 'solid-js/web';
 import type AppSelectPeers from '@components/appSelectPeers';
 import Button from '@components/buttonTsx';
-import useCommunityTabGuard
-from '@components/communities/useCommunityTabGuard';
 import Section from '@components/section';
 import createMiddleware from '@helpers/solid/createMiddleware';
 import {i18n} from '@lib/langPack';
@@ -18,8 +16,6 @@ import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import type {AppRemovedUsersTab} from '@components/solidJsTabs/tabs';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import createChatRemovedUsersSource from './chatRemovedUsersSource';
-import createCommunityRemovedUsersSource
-from './communityRemovedUsersSource';
 import {
   isRemovedParticipant,
   type RemovedUsersSource
@@ -28,13 +24,7 @@ import {
 const RemovedUsers: Component = () => {
   const [tab] = useSuperTab<typeof AppRemovedUsersTab>();
   const promiseCollector = usePromiseCollector();
-  const communityId = 'communityId' in tab.payload ?
-    tab.payload.communityId :
-    undefined;
-  const chatId = 'chatId' in tab.payload ? tab.payload.chatId : undefined;
-  if(communityId !== undefined) {
-    useCommunityTabGuard(tab, communityId);
-  }
+  const {chatId} = tab.payload;
 
   const middlewareHelper = createMiddleware();
   const middleware = middlewareHelper.get(tab.middlewareHelper.get());
@@ -62,13 +52,7 @@ const RemovedUsers: Component = () => {
   });
 
   promiseCollector.collect((async() => {
-    const removedUsersSource = communityId === undefined ?
-      await createChatRemovedUsersSource({tab, chatId, middleware}) :
-      await createCommunityRemovedUsersSource({
-        tab,
-        communityId,
-        middleware
-      });
+    const removedUsersSource = await createChatRemovedUsersSource({tab, chatId, middleware});
     if(!middleware()) {
       return;
     }

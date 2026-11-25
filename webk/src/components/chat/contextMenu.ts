@@ -63,7 +63,6 @@ import showAboutAdPopup from '@components/popups/aboutAd';
 import getUniqueCustomEmojisFromMessage from '@appManagers/utils/messages/getUniqueCustomEmojisFromMessage';
 import getPeerTitle from '@components/wrappers/getPeerTitle';
 import {getFullDate} from '@helpers/date/getFullDate';
-import {PAYMENT_REJECTED} from '@components/chat/paidMessagesInterceptor';
 import {MySponsoredPeer} from '@appManagers/appChatsManager';
 import showChecklistPopup from '@components/popups/checklist';
 import {isSensitive} from '@helpers/restrictions';
@@ -1100,11 +1099,6 @@ export default class ChatContextMenu {
       onClick: this.onResendClick,
       verify: () => this.message?._ === 'message' && !!this.message.error && !this.message.pending && this.message.mid > 0
     }, {
-      icon: 'rotate_right',
-      text: 'Resend',
-      onClick: () => this.handleRepay(),
-      verify: () => 'repayRequest' in this.message && !!this.message.repayRequest
-    }, {
       icon: 'delete',
       get className() {
         if(self.message?.ttl_period) return 'danger with-subtitle';
@@ -1623,11 +1617,6 @@ export default class ChatContextMenu {
       return;
     }
 
-    if(message?._ === 'message' && message.suggested_post) {
-      this.chat.input.initSuggestPostChange(message.mid);
-      return;
-    }
-
     this.chat.input.initMessageEditing(this.isTargetAGroupedItem ? this.mid : message.mid);
   };
 
@@ -1761,18 +1750,6 @@ export default class ChatContextMenu {
       this.chat.type
     );
   };
-
-  private async handleRepay() {
-    if(!('repayRequest' in this.message) || !this.message.repayRequest) return;
-
-    const preparedPaymentResult = await this.chat.input.paidMessageInterceptor.prepareStarsForPayment(
-      this.message.repayRequest.messageCount
-    );
-
-    if(preparedPaymentResult === PAYMENT_REJECTED) return;
-
-    this.managers.appMessagesManager.confirmRepayRequest(this.message.repayRequest.id, preparedPaymentResult);
-  }
 
   public static onDownloadClick(messages: MyMessage | MyMessage[], noForwards?: boolean, container?: HTMLElement): DownloadBlob | DownloadBlob[] {
     if(Array.isArray(messages)) {

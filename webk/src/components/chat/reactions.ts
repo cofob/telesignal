@@ -5,7 +5,6 @@ import positionElementByIndex from '@helpers/dom/positionElementByIndex';
 import {makeMediaSize} from '@helpers/mediaSize';
 import {Middleware, MiddlewareHelper} from '@helpers/middleware';
 import {ReactionCount, SavedReactionTag} from '@layer';
-import {ReadingManagers} from '@lib/managers';
 import reactionsEqual from '@appManagers/utils/reactions/reactionsEqual';
 import {CustomEmojiRendererElement} from '@lib/customEmoji/renderer';
 import rootScope from '@lib/rootScope';
@@ -14,7 +13,6 @@ import LazyLoadQueue from '@components/lazyLoadQueue';
 import ReactionElement, {ReactionLayoutType, REACTIONS_DISPLAY_COUNTER_AT, REACTIONS_SIZE} from '@components/chat/reaction';
 import {getHeavyAnimationPromise} from '@hooks/useHeavyAnimationCheck';
 import pause from '@helpers/schedulers/pause';
-import {Accessor, Setter} from 'solid-js';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {hotListen} from '@helpers/hotModule';
 import {isReactionFlightHeld, launchReactionFlight} from '@components/chat/reactionFlight';
@@ -25,52 +23,6 @@ const TAG_NAME = CLASS_NAME + '-element';
 
 const REACTIONS_ELEMENTS: Map<string, Set<ReactionsElement>> = new Map();
 export {REACTIONS_ELEMENTS};
-
-export type PendingPaidReaction = {
-  count: Accessor<number>,
-  setCount: Setter<number>,
-  sendTime: Accessor<number>,
-  setSendTime: Setter<number>,
-  sendTimeout: number,
-  abortController: AbortController,
-};
-
-const PENDING_PAID_REACTIONS: Map<string, PendingPaidReaction> = new Map();
-const PENDING_PAID_REACTION_SENT_ABORT_REASON = Symbol('Reaction was sent');
-export {PENDING_PAID_REACTIONS, PENDING_PAID_REACTION_SENT_ABORT_REASON};
-
-export function getPendingPaidReactionKey(message: ReactionsContext) {
-  return message.peerId + '_' + message.mid;
-}
-
-// Cache of "may this peer's posts show a paid (star) reaction" so we don't make a
-// worker round-trip per bubble. Resolves to a boolean once known; cleared when the
-// peer's full info changes (an admin may toggle paid reactions on/off).
-const PAID_REACTION_AVAILABLE: Map<PeerId, MaybePromise<boolean>> = new Map();
-
-function getPaidReactionAvailable(managers: ReadingManagers, peerId: PeerId): MaybePromise<boolean> {
-  let value = PAID_REACTION_AVAILABLE.get(peerId);
-  if(value === undefined) {
-    value = managers.appReactionsManager.isPaidReactionAvailable(peerId);
-    PAID_REACTION_AVAILABLE.set(peerId, value);
-    if(value instanceof Promise) {
-      value.then(
-        (resolved) => PAID_REACTION_AVAILABLE.set(peerId, resolved),
-        () => PAID_REACTION_AVAILABLE.delete(peerId)
-      );
-    }
-  }
-
-  return value;
-}
-
-hotListen(import.meta.hot, rootScope, 'chat_full_update', (chatId) => {
-  PAID_REACTION_AVAILABLE.delete(chatId.toPeerId(true));
-});
-
-hotListen(import.meta.hot, rootScope, 'account_switched', () => {
-  PAID_REACTION_AVAILABLE.clear();
-});
 
 export const savedReactionTags: SavedReactionTag[] = [];
 hotListen(import.meta.hot, rootScope, 'saved_tags', ({savedPeerId, tags}) => {
@@ -102,7 +54,6 @@ export default class ReactionsElement extends HTMLElement {
   private type: ReactionLayoutType;
   private sorted: ReactionElement[];
   private onConnectCallback: () => void;
-  private managers: ReadingManagers;
   private middleware: Middleware;
   private middlewareHelpers: Map<ReactionElement, MiddlewareHelper>;
   public customEmojiRenderer: CustomEmojiRendererElement;
@@ -110,18 +61,12 @@ export default class ReactionsElement extends HTMLElement {
   private animationGroup: AnimationItemGroup;
   private lazyLoadQueue: LazyLoadQueue;
   private forceCounter: boolean;
-  // * the bubble is raised for a paid reaction's effect by a class of its own (a `:has()` of it was
-  // * searched through every bubble restyled): given when the effect starts or the strip is put into
-  // * a bubble, whichever comes last
-  private paidEffect: boolean;
-  private paidEffectBubble: HTMLElement;
 
   constructor() {
     super();
     this.classList.add(CLASS_NAME);
     this.sorted = [];
     this.middlewareHelpers = new Map();
-    this.managers = rootScope.managers;
   }
 
   connectedCallback() {
@@ -142,19 +87,6 @@ export default class ReactionsElement extends HTMLElement {
       this.onConnectCallback();
       this.onConnectCallback = undefined;
     }
-
-    this.syncPaidEffectBubble();
-  }
-
-  private syncPaidEffectBubble() {
-    const bubble = this.paidEffect ? this.closest<HTMLElement>('.bubble') : undefined;
-    if(bubble === this.paidEffectBubble) {
-      return;
-    }
-
-    this.paidEffectBubble?.classList.remove('has-paid-effect');
-    bubble?.classList.add('has-paid-effect');
-    this.paidEffectBubble = bubble;
   }
 
   disconnectedCallback() {
@@ -262,31 +194,6 @@ export default class ReactionsElement extends HTMLElement {
     this.render(changedResults, waitPromise);
   }
 
-  private shouldAddEmptyPaidReaction(counts: ReactionCount[]) {
-    if(
-      this.type !== ReactionLayoutType.Block ||
-      this.context.peerId.isUser() ||
-      !counts.length ||
-      counts.some((reactionCount) => reactionCount.reaction._ === 'reactionPaid')
-    ) {
-      return false;
-    }
-
-    const available = getPaidReactionAvailable(this.managers, this.context.peerId);
-    if(available instanceof Promise) {
-      // Availability isn't known yet — re-render once it resolves (if still mounted).
-      // Swallow rejections (e.g. CHANNEL_PRIVATE): a failed lookup just means no button.
-      available.then((value) => {
-        if(value && this.middleware?.()) {
-          this.render();
-        }
-      }, () => {});
-      return false;
-    }
-
-    return available;
-  }
-
   public render(changedResults?: ReactionCount[], waitPromise?: Promise<any>) {
     const reactions = this.context.reactions;
     const hasReactions = !!(reactions && reactions.results.length);
@@ -295,7 +202,7 @@ export default class ReactionsElement extends HTMLElement {
 
     // const availableReactionsResult = this.managers.appReactionsManager.getAvailableReactions();
     // callbackify(availableReactionsResult, () => {
-    let counts = hasReactions ? (
+    const counts = hasReactions ? (
       reactions.results
         // availableReactionsResult instanceof Promise ?
         //   reactions.results :
@@ -303,13 +210,6 @@ export default class ReactionsElement extends HTMLElement {
         //     return this.managers.appReactionsManager.isReactionActive(reactionCount.reaction);
         //   })
       ) : [];
-
-    // Like the official clients: on channel/group posts that already have reactions
-    // but no paid one, prepend an empty (count 0) paid star reaction button so users
-    // can send stars. A fresh array — never mutate the message's own results.
-    if(this.shouldAddEmptyPaidReaction(counts)) {
-      counts = [{_: 'reactionCount', reaction: {_: 'reactionPaid'}, count: 0}, ...counts];
-    }
 
     // counts = counts.filter((count) => count.reaction._ !== 'reactionPaid');
 
@@ -337,7 +237,6 @@ export default class ReactionsElement extends HTMLElement {
       (!!reactions.pFlags.can_see_list || this.context.peerId.isUser()) &&
       totalReactions < REACTIONS_DISPLAY_COUNTER_AT[this.type];
     const customEmojiElements: ReturnType<ReactionElement['render']>[] = new Array(counts.length);
-    let paidReactionElement: ReactionElement, pendingPaidReaction: PendingPaidReaction;
     // the reactions it did not show before
     const created: Set<ReactionElement> = new Set();
     this.sorted = counts.map((reactionCount, idx, arr) => {
@@ -352,32 +251,18 @@ export default class ReactionsElement extends HTMLElement {
 
       reactionElement.classList.toggle('is-last', idx === (arr.length - 1));
 
-      const isPaidReaction = reactionCount.reaction._ === 'reactionPaid';
-      const pending = isPaidReaction && PENDING_PAID_REACTIONS.get(getPendingPaidReactionKey(this.context));
-      if(pending) {
-        paidReactionElement = reactionElement;
-        pendingPaidReaction = pending;
-      }
-
       const recentReactions = reactions.recent_reactions ?
         reactions.recent_reactions.filter((reaction) => reactionsEqual(reaction.reaction, reactionCount.reaction)) :
         [];
       const wasUnread = reactionElement.isUnread;
       const isUnread = recentReactions.some((reaction) => reaction.pFlags.unread);
-      reactionElement.reactionCount = {
-        ...reactionCount,
-        count: reactionCount.count + (pending?.count?.() ?? 0)
-      };
+      reactionElement.reactionCount = reactionCount;
       reactionElement.setCanRenderAvatars(canRenderAvatars);
       const customEmojiElement = reactionElement.render(this.isPlaceholder);
       reactionElement.renderCounter(this.forceCounter);
       reactionElement.renderAvatars(recentReactions);
       reactionElement.isUnread = isUnread;
-      reactionElement.setIsChosen(
-        isPaidReaction ?
-          !!pending || !!reactions.top_reactors?.some((reactor) => reactor.pFlags.my && reactor.count) :
-          undefined
-      );
+      reactionElement.setIsChosen();
 
       if(wasUnread && !isUnread && !changedResults?.includes(reactionCount)) {
         (changedResults ??= []).push(reactionCount);
@@ -397,24 +282,6 @@ export default class ReactionsElement extends HTMLElement {
     // the list is kept in place around, and before the change is shown
     if(!this.isPlaceholder && isReactionFlightHeld(this.key)) {
       queueMicrotask(() => this.launchFlight(created));
-    }
-
-    if(pendingPaidReaction) {
-      const {width} = paidReactionElement.getBoundingClientRect();
-      paidReactionElement.style.setProperty('--width', width + 'px');
-      paidReactionElement.setPaidReactionCounter(pendingPaidReaction.count());
-      if(!paidReactionElement.classList.contains('effect-active')) {
-        paidReactionElement.classList.add('effect-active');
-        this.paidEffect = true;
-        this.syncPaidEffectBubble();
-        pendingPaidReaction.abortController.signal.addEventListener('abort', () => {
-          this.paidEffect = false;
-          this.syncPaidEffectBubble();
-          paidReactionElement.classList.remove('effect-active');
-          paidReactionElement.querySelectorAll('.reaction-sticker-activate').forEach((it) => it.remove());
-          paidReactionElement.destroyPaidReactionCounter();
-        });
-      }
     }
 
     callbackifyAll(customEmojiElements, (customEmojiElements) => {
