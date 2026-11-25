@@ -162,7 +162,7 @@ import wrapUnsupportedMessagePlate from '@components/chat/bubbleParts/unsupporte
 import {FullMid, makeFullMid, splitFullMid} from '@appManagers/utils/messages/fullMid';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import setBlankToAnchor from '@lib/richTextProcessor/setBlankToAnchor';
-import addAnchorListener, {UNSAFE_ANCHOR_LINK_TYPES} from '@helpers/addAnchorListener';
+import addAnchorListener, {runContentAnchorHandler, UNSAFE_ANCHOR_LINK_TYPES} from '@helpers/addAnchorListener';
 import {formatDaysDuration, formatMonthsDuration} from '@helpers/date';
 import {JSX} from 'solid-js';
 import Giveaway, {getGiftAssetName, onGiveawayClick} from '@components/chat/giveaway';
@@ -5285,7 +5285,11 @@ export default class ChatBubbles {
       return;
     }
 
-    const history = this.getRenderedHistory('asc', true);
+    // * history is paged by id, while the bubbles stand by date within a day (`bubbleTimelineOrder`): the offsets are
+    // * the lowest and the highest id on screen, not the top and the bottom bubble, as Web A pages its sorted ids
+    const history = this.getRenderedHistory('asc', true).sort((fullMid1, fullMid2) => {
+      return splitFullMid(fullMid1).mid - splitFullMid(fullMid2).mid;
+    });
 
     if(!history.length) {
       history.push(EMPTY_FULL_MID);
@@ -8306,7 +8310,8 @@ export default class ChatBubbles {
 
     const callback = webPageContainer.dataset.callback as Parameters<typeof addAnchorListener>[0]['name'];
     if(callback) {
-      (window as any)[callback](targetAnchor, event);
+      // * TeleSignal: a link preview runs only what a link of a message may (`runContentAnchorHandler`)
+      runContentAnchorHandler(callback, targetAnchor, event);
       cancelWebPageLink(event);
     }
 

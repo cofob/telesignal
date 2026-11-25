@@ -3,6 +3,7 @@ import {PHONE_NUMBER_REG_EXP} from '.';
 import {MOUNT_CLASS_TO} from '@config/debug';
 import {normalizeUrlProtocol} from '@lib/richTextProcessor/matchUrlProtocol';
 import matchTelegramUrlHost, {matchUrlHost, TELESCOPE_LINK_HOST} from '@lib/richTextProcessor/matchTelegramUrlHost';
+import {isSignalRoute} from '@signal-app/signal-links';
 
 /** The links that ask to connect through a proxy: a browser cannot, so no handler opens them */
 export const PROXY_LINK_TYPES = ['proxy', 'socks'] as const;
@@ -53,7 +54,10 @@ export default function wrapUrl(url: string, safe?: boolean) {
   let onclick: typeof out['onclick'];
   /* if(unsafe === 2) {
     url = 'tg://unsafe_url?url=' + encodeURIComponent(url);
-  } else  */if(telegramUrlMatch) {
+  } else  */if(isSignalRoute(url)) {
+    // * TeleSignal: a Signal link opens in the app, as in Web A (`lib/signal/signalLinks.ts`)
+    onclick = 'signal_link';
+  } else if(telegramUrlMatch) {
     const {prefix} = telegramUrlMatch;
     if(prefix) {
       parsedUrl.pathname = prefix + (parsedUrl.pathname === '/' ? '' : parsedUrl.pathname);

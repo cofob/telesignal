@@ -9,7 +9,7 @@ import {toastNew, hideToast} from '@components/toast';
 import {MOUNT_CLASS_TO} from '@config/debug';
 import IS_GROUP_CALL_SUPPORTED from '@environment/groupCallSupport';
 import {CONFERENCE_CALL_SLUG_REGEXP} from '@lib/calls/constants';
-import addAnchorListener, {listenForMaskedAnchorAuxClicks} from '@helpers/addAnchorListener';
+import addAnchorListener, {listenForAnchorClicks, listenForMaskedAnchorAuxClicks} from '@helpers/addAnchorListener';
 import {PROXY_LINK_TYPES} from '@lib/richTextProcessor/wrapUrl';
 import assumeType from '@helpers/assumeType';
 import findUpAttribute from '@helpers/dom/findUpAttribute';
@@ -20,6 +20,8 @@ import {PHONE_NUMBER_REG_EXP} from '@lib/richTextProcessor';
 import appImManager, {JoinConferenceOptions} from '@lib/appImManager';
 import {makeFullMid} from '@appManagers/utils/messages/fullMid';
 import {INTERNAL_LINK_TYPE, InternalLinkTypeMap, InternalLink} from '@lib/internalLink';
+import {parseSignalLink} from '@signal-app/signal-links';
+import {lookUpPhoneNumber, openSignalLink} from '@lib/signal/signalLinks';
 import {TabManagers} from '@lib/managers';
 import {createStoriesViewerWithPeer} from '@components/stories/viewer';
 import {simulateClickEvent} from '@helpers/dom/clickEvent';
@@ -112,7 +114,9 @@ export class InternalLinkProcessor {
   private showOpenUrlAlert(element: HTMLAnchorElement) {
     const a = element.cloneNode(true) as HTMLAnchorElement;
     a.removeAttribute('onclick');
-    confirmOpenUrl(a);
+    // * TeleSignal: a masked Signal link opens in the app once the user agrees
+    const signalLink = parseSignalLink(a.href);
+    confirmOpenUrl(a, undefined, signalLink ? () => openSignalLink(signalLink) : undefined);
   }
 
   public construct(managers: TabManagers) {
@@ -121,6 +125,7 @@ export class InternalLinkProcessor {
     // a middle click never reaches an anchor's inline `onclick`, so the alert below is wired to it
     // separately — otherwise the masked link opens in a new tab with nothing asked
     listenForMaskedAnchorAuxClicks();
+    listenForAnchorClicks();
 
     addAnchorListener<{}>({
       name: 'showMaskedAlert',
@@ -226,6 +231,17 @@ export class InternalLinkProcessor {
           const appMediaViewer = (window as any).appMediaViewer as AppMediaViewerBase<any, any, any>;
           return appMediaViewer.setMediaTimestamp(timestamp);
         }
+      }
+    });
+
+    // * TeleSignal: a Signal link in a message opens in the app (`lib/signal/signalLinks.ts`)
+    addAnchorListener({
+      name: 'signal_link',
+      noPathnameParams: true,
+      noUriParams: true,
+      callback: ({element}) => {
+        const link = parseSignalLink(element.href);
+        if(link) return openSignalLink(link);
       }
     });
 
@@ -1425,23 +1441,9 @@ export class InternalLinkProcessor {
     }
   };
 
+  // * TeleSignal: a number goes to Signal's contact discovery service only once the user agrees (`lib/signal/signalLinks`)
   public processUserPhoneNumberLink = (link: InternalLink.InternalLinkUserPhoneNumber) => {
-    const managers = bindManagersToSession(this.managers);
-    return managers.appUsersManager.resolvePhone(link.phone).then((user): Promise<unknown> => {
-      // `t.me/+<phone>?free=<code>`: the code removes the message fee of the user the number names
-      if(link.free) {
-        return this.importNoPaidMessagesToken(managers, user as User.user, link.free);
-      }
-
-      return appImManager.setInnerPeer({
-        peerId: user.id.toPeerId(false),
-        text: link.text
-      });
-    }).catch((err: ApiError) => {
-      if(err.type === 'PHONE_NOT_OCCUPIED') {
-        toastNew({langPackKey: 'Alert.UserDoesntExists'});
-      }
-    });
+    return lookUpPhoneNumber(link.phone, link.text);
   };
 
   public processInvoiceLink = (link: InternalLink.InternalLinkInvoice) => {

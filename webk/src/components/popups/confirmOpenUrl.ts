@@ -5,7 +5,7 @@ import showPeerPopup from '@components/popups/peer';
  * widget's link), with the whole address written into `anchor`. Open follows it as a plain link within that press of
  * the button, while the browser still takes it as the user's doing; `onClose` runs once the popup is gone, either way.
  */
-export default function confirmOpenUrl(anchor: HTMLAnchorElement, onClose?: () => void) {
+export default function confirmOpenUrl(anchor: HTMLAnchorElement, onClose?: () => void, onOpen?: () => void) {
   anchor.className = 'anchor-url';
   anchor.textContent = anchor.href;
   showPeerPopup('popup-masked-url', {
@@ -15,7 +15,8 @@ export default function confirmOpenUrl(anchor: HTMLAnchorElement, onClose?: () =
     buttons: [{
       langKey: 'Open',
       callback: () => {
-        anchor.click();
+        if(onOpen) onOpen();
+        else anchor.click();
       }
     }],
     onCloseAfterTimeout: onClose

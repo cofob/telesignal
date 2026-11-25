@@ -1,12 +1,10 @@
 import {Component, createSignal, For, onMount, Show} from 'solid-js';
-import InputField from '@components/inputField';
+import showLinkDevicePopup from '@components/popups/signalLinkDevice';
 import Section from '@components/section';
 import {formatDateAccordingToTodayNew} from '@helpers/date';
-import {LangPackKey} from '@lib/langPack';
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {
   fetchLinkedDevices,
-  linkDevice,
   SignalDevice,
   SignalDevices,
   unlinkDevice
@@ -14,14 +12,6 @@ import {
 
 // * the primary device is the first one of an account (`SIGNAL_PRIMARY_DEVICE_ID`)
 const PRIMARY_DEVICE_ID = 1;
-
-const LINK_ERROR_KEYS: Record<string, LangPackKey> = {
-  badCode: 'Signal.Devices.LinkBadCode',
-  limit: 'Signal.Devices.LinkLimit',
-  rejected: 'Signal.Devices.LinkRejected',
-  rateLimited: 'Signal.Devices.LinkRateLimited',
-  noKey: 'Signal.Devices.LinkNoKey'
-};
 
 const LinkedDevices: Component = () => {
   const {Row, i18n, confirmationPopup, toastNew} = useHotReloadGuard();
@@ -40,39 +30,7 @@ const LinkedDevices: Component = () => {
 
   const getDeviceName = (device: SignalDevice) => device.name || i18n('Signal.Devices.Unnamed');
 
-  const onLinkClick = () => {
-    const inputField = new InputField({
-      label: 'Signal.Devices.LinkField',
-      plainText: true,
-      required: true,
-      withLinebreaks: false
-    });
-
-    confirmationPopup({
-      titleLangKey: 'Signal.Devices.LinkTitle',
-      descriptionLangKey: 'Signal.Devices.LinkText',
-      inputField,
-      button: {
-        langKey: 'Signal.Devices.LinkConfirm',
-        callback: async() => {
-          // * a failed attempt keeps the popup open with the link in the field, as the field's own check does
-          const result = await linkDevice(inputField.value.trim());
-          if(!result) {
-            toastNew({langPackKey: 'Signal.Devices.LinkNetwork'});
-            return false;
-          }
-
-          if(result.error) {
-            toastNew({langPackKey: LINK_ERROR_KEYS[result.error] || 'Signal.Devices.LinkNetwork'});
-            return false;
-          }
-
-          toastNew({langPackKey: result.isPending ? 'Signal.Devices.LinkPending' : 'Signal.Devices.Linked'});
-          refresh();
-        }
-      }
-    }).catch(() => {});
-  };
+  const onLinkClick = () => showLinkDevicePopup({onLinked: refresh});
 
   const onUnlinkClick = (device: SignalDevice) => {
     confirmationPopup({

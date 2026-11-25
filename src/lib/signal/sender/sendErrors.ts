@@ -16,6 +16,13 @@ export class GroupTerminatedError extends Error {
   }
 }
 
+/** We left the group or were removed from it, so it takes no messages, reactions, votes or edits from us */
+export class SelfNotInGroupError extends Error {
+  constructor(readonly groupId: string) {
+    super('We are not a member of the group');
+  }
+}
+
 /** The recipient left the group, or was removed from it, before the message was encrypted for them */
 export class NotGroupMemberError extends Error {
   constructor(readonly serviceId: string) {

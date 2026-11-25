@@ -71,6 +71,7 @@ import appMediaPlaybackController from '@components/appMediaPlaybackController';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import wrapRichText, {ENTITY_ELEMENT_MAP} from '@lib/richTextProcessor/wrapRichText';
 import wrapUrl from '@lib/richTextProcessor/wrapUrl';
+import {runContentAnchorHandler} from '@helpers/addAnchorListener';
 import getUserStatusString from '@components/wrappers/getUserStatusString';
 import getChatMembersString from '@components/wrappers/getChatMembersString';
 import {SETTINGS_INIT} from '@config/state';
@@ -1535,6 +1536,21 @@ export class AppImManager extends EventListenerBase<{
     return (window as any)[onclick](a);
   }
 
+  /**
+   * TeleSignal: opens a link that came from outside the app's own code (the address of the page, the search field, a
+   * story) as a link of a message: only what such a link may do (`runContentAnchorHandler`)
+   */
+  public openContentUrl(url: string) {
+    const {url: wrappedUrl, onclick} = wrapUrl(url);
+    if(!onclick) {
+      return;
+    }
+
+    const a = document.createElement('a');
+    a.href = wrappedUrl;
+    return runContentAnchorHandler(onclick, a, undefined);
+  }
+
   private onHashChange = (saveState?: boolean) => {
     try {
       this.onHashChangeUnsafe(saveState);
@@ -1560,7 +1576,7 @@ export class AppImManager extends EventListenerBase<{
 
     if(params.tgaddr) {
       appNavigationController.replaceState();
-      this.openUrl(params.tgaddr);
+      this.openContentUrl(params.tgaddr);
       return;
     }
 

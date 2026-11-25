@@ -33,6 +33,7 @@ import type {
   SignalContact,
   SignalInitialArgs,
   SignalMessage,
+  SignalMethodName,
   SignalReactions,
   SignalSticker,
   SignalUser
@@ -202,7 +203,7 @@ export default class AppSignalManager extends AppManager {
   }
 
   /** A provider method that the settings screens call, run by the engine of this worker (`lib/signal/settingsApi`) */
-  public callSignal(name: string, ...args: any[]) {
+  public callSignal(name: SignalMethodName, ...args: any[]) {
     return this.call(name, ...args);
   }
 
@@ -226,7 +227,7 @@ export default class AppSignalManager extends AppManager {
     };
   }
 
-  private async call<T = any>(name: string, ...args: any[]): Promise<T> {
+  private async call<T = any>(name: SignalMethodName, ...args: any[]): Promise<T> {
     const {callApi} = await getProvider();
     return callApi(name, ...args);
   }
@@ -246,7 +247,8 @@ export default class AppSignalManager extends AppManager {
       'help.getPeerProfileColors': () => ({_: 'help.peerColors', hash: 1, colors: []}),
       'help.getTimezonesList': () => ({_: 'help.timezonesList', timezones: [], hash: 0}),
       'help.getPromoData': () => ({_: 'help.promoDataEmpty', expires: now() + 86400}),
-      'help.getCountriesList': () => ({_: 'help.countriesList', countries: [], hash: 0}),
+      // * the phone codes of the app's own list, which the page names in its language (`langPack`)
+      'help.getCountriesList': async() => (await import('@/countries')).default,
       'help.getPremiumPromo': () => Promise.reject(makeError(UNSUPPORTED_ERROR as ErrorType)),
       'updates.getState': () => ({_: 'updates.state', pts: 1, qts: 0, date: now(), seq: 1, unread_count: 0}),
       'updates.getDifference': () => ({_: 'updates.differenceEmpty', date: now(), seq: 1}),
@@ -1026,7 +1028,11 @@ export default class AppSignalManager extends AppManager {
   private onConnectionState(state: string) {
     // * the engine breaks the connection only once the server stopped accepting this device (`handleDeauthorized`)
     if(state === 'connectionStateBroken' && this.isAuthorized) {
-      this.onDeauthorized();
+      // * a log out that failed leaves the chats of a removed account: the page says so
+      this.onDeauthorized().catch((err) => {
+        this.log.error('logging out of the removed device failed', err);
+        this.rootScope.dispatchEvent('signal_error', 'Error.AnError');
+      });
     }
 
     const status = state === 'connectionStateReady' ? ConnectionStatus.Connected : (

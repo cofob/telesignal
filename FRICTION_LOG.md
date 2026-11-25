@@ -115,14 +115,13 @@ without `git`, and fetching them took most of the two minutes that the install n
 tarball would make installs hermetic and let the image build run offline from a registry mirror. The two ESLint and one
 Stylelint plugins are needed by checks only, which the image build does not run, but `npm ci` installs them all.
 
-## Web K describes the Signal provider's API by hand
+## Web K passes the provider's method arguments untyped
 
-Web K (`webk/`) runs Web A's Signal provider (`src/api/signal`) in its worker, but its type check cannot include the
-provider's sources: Web K's `tsconfig.json` has other settings (`strictNullChecks` off, an ES2015 library), and the
-provider's `Methods` type reaches Web A's UI code, which fails there. So `webk/src/lib/signal/signalApi.d.ts` describes
-the provider calls and the `Api*` fields that `appSignalManager` reads, and Vite resolves `@signal-app/provider` to the
-real module. A change of a provider method or of an `Api*` field that Web K reads type-checks in both trees and breaks
-Web K at run time only. The rights of a chat (`SignalRights`) that `builders.ts` maps to Telegram's flags are typed the same way. A types-only package of the provider's API, shared by both trees, would close the gap.
+Web K (`webk/`) types the provider's API by hand in `webk/src/lib/signal/signalApi.d.ts`, since its type check cannot
+include the provider's sources. `src/api/signal/webkContract.ts` checks that description in `npm run check:ts`: the
+method names that Web K calls, the `Api*` objects that Web K reads and the ones it hands over. The arguments of each
+call and its result are still `any` on Web K's side (`appSignalManager.call`, `SignalMethodHost.call`,
+`callSignalApi`), so a changed parameter of a provider method that Web K calls breaks Web K at run time only.
 
 ## Web K's reactions assume catalog stickers that Signal emoji do not have
 
@@ -309,3 +308,14 @@ and the web token import (`AuthCodeCard`, `PasswordCard`, `SignUpCard`, `Email*C
 `index.ts` still maps Telegram's auth states to them. No step of the engine leads there, so they are dead code that
 reads as live; removing them needs the auth states of `AuthState` in `webk/src/types.d.ts` trimmed with them.
 
+
+## Read state and the unread divider assume that ids follow dates
+
+Messages are stored, paged and marked read by id (`MessageDb`, `read_inbox_max_id`), while both clients show a day's
+messages by date (Web A's `compareRenderedMessages`, Web K's `compareBubbleTimelineKeys` in
+`webk/src/components/chat/bubbleTimelineOrder.ts`). A message stored later with an earlier date (a call of the call
+history, a transcript synced late, a sender's skewed clock) therefore stands above messages with lower ids. Web K's read
+cursor takes the highest id seen and the newest rendered bubble (`webk/src/components/chat/bubbles.ts`, `readPromise`), the
+unread divider is the first bubble above the read id (`getFirstUnreadBubble`), and the viewport's bottom is compared by id
+(`isScrolledPast`). With an inversion, a message above the divider can be unread, or one below it read; Web A has the same
+assumption. Observed with the demo's call 66 in Alice's chat, which is read, so it shows no wrong divider there.

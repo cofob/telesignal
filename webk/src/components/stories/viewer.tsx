@@ -767,7 +767,7 @@ const StoryMediaArea = (props: {
       callback: () => {
         if(wrapUrl(url).onclick) {
           props.close(() => {
-            hotReloadGuard.appImManager.openUrl(url);
+            hotReloadGuard.appImManager.openContentUrl(url);
           });
         } else {
           // * a lookalike host is asked about there, before it opens

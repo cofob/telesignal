@@ -4,7 +4,8 @@
  * tree's type check it resolves to this file, which describes the part of the provider's API that Web K uses. The
  * provider's own sources are type-checked by the repository's `npm run check:ts`, with its stricter settings.
  *
- * The shapes follow `src/api/types` of Web A; only the fields that Web K reads are listed.
+ * The shapes follow `src/api/types` of Web A; only the fields that Web K reads are listed. The repository's
+ * `npm run check:ts` checks them, and the method names, against the provider (`src/api/signal/webkContract.ts`).
  */
 
 export type SignalEntity = {
@@ -32,11 +33,41 @@ export type SignalUser = {
   usernames?: {username: string, isActive?: boolean}[],
   avatarPhotoId?: string,
   color?: {color?: number},
-  areStoriesHidden?: true
+  areStoriesHidden?: boolean
 };
 
-/** The rights of `ApiChatAdminRights` and `ApiChatBannedRights`: the provider's flag names set to `true` */
-export type SignalRights = Record<string, true | undefined>;
+/** The rights of `ApiChatAdminRights` that Web K maps to Telegram's flags */
+export type SignalAdminRights = {
+  changeInfo?: true,
+  postMessages?: true,
+  editMessages?: true,
+  deleteMessages?: true,
+  banUsers?: true,
+  inviteUsers?: true,
+  pinMessages?: true,
+  addAdmins?: true,
+  manageRanks?: true
+};
+
+/** The rights of `ApiChatBannedRights` that Web K maps to Telegram's flags */
+export type SignalBannedRights = {
+  viewMessages?: true,
+  sendMessages?: true,
+  sendMedia?: true,
+  sendStickers?: true,
+  sendGifs?: true,
+  sendGames?: true,
+  sendInline?: true,
+  embedLinks?: true,
+  sendPolls?: true,
+  changeInfo?: true,
+  inviteUsers?: true,
+  pinMessages?: true,
+  editRank?: true
+};
+
+/** The chat colour and wallpaper of a chat, as CSS backgrounds (`ApiSignalChatStyle`) */
+export type SignalChatStyle = {bubbleColor?: string, wallpaper?: string};
 
 export type SignalChat = {
   id: string,
@@ -50,13 +81,14 @@ export type SignalChat = {
   isNotJoined?: boolean,
   isForbidden?: boolean,
   isOwner?: boolean,
-  adminRights?: SignalRights,
-  defaultBannedRights?: SignalRights,
+  adminRights?: SignalAdminRights,
+  defaultBannedRights?: SignalBannedRights,
   ttlPeriod?: number,
-  areStoriesHidden?: true,
+  areStoriesHidden?: boolean,
   color?: {color?: number}
 };
 
+/** An action of the provider (`ApiMessageAction`): Web K reads its other fields by its `type` */
 export type SignalMessageAction = {
   mediaType: 'action',
   type: string,
@@ -91,7 +123,7 @@ export type SignalVideo = {
   fileName: string,
   width?: number,
   height?: number,
-  isGif?: true,
+  isGif?: boolean,
   thumbnail?: SignalThumbnail,
   size: number,
   isUnavailable?: true
@@ -214,13 +246,14 @@ export type SignalMessage = {
     webPage?: {id: string},
     pollId?: string
   },
+  // A reply to a story or an ephemeral reply has nothing that Web K shows
   replyInfo?: {
     type: 'message',
     replyToMsgId?: number,
-    replyFrom?: {date: number, fromId: string},
+    replyFrom?: {date: number, fromId?: string},
     quoteText?: SignalFormattedText,
     isQuote?: true
-  },
+  } | {type: 'story' | 'ephemeral'},
   reactions?: SignalReactions,
   sendingState?: 'messageSendingStatePending' | 'messageSendingStateFailed',
   isDelivered?: true,
@@ -272,7 +305,159 @@ export type SignalInitialArgs = {
   storageKey?: ArrayBuffer
 };
 
+/**
+ * The methods of `src/api/signal/methods/index.ts` that Web K calls: `src/api/signal/webkContract.ts` checks that the
+ * provider has each of them
+ */
+export type SignalMethodName =
+  | 'addChatMembers'
+  | 'backUpNow'
+  | 'blockUser'
+  | 'cancelBackup'
+  | 'checkChatInvite'
+  | 'checkKeyTransparencySelf'
+  | 'clearCallLog'
+  | 'clearRecentStickers'
+  | 'closePoll'
+  | 'confirmRecoveryKeySaved'
+  | 'confirmUsername'
+  | 'createGroupChat'
+  | 'deleteChatUser'
+  | 'deleteHistory'
+  | 'deleteMessages'
+  | 'deleteNotificationProfile'
+  | 'deleteStory'
+  | 'deleteStoryDistributionList'
+  | 'deleteUsername'
+  | 'destroy'
+  | 'disableBackups'
+  | 'disableChatInvite'
+  | 'downloadMedia'
+  | 'editChatParticipantRank'
+  | 'editChatPhoto'
+  | 'editExportedChatInvite'
+  | 'editMessage'
+  | 'enableBackups'
+  | 'exportBackupFile'
+  | 'exportChatInvite'
+  | 'fetchAllStories'
+  | 'fetchBackupRemoteStatus'
+  | 'fetchBackupSettings'
+  | 'fetchBlockedUsers'
+  | 'fetchCallLog'
+  | 'fetchChatInviteImporters'
+  | 'fetchChats'
+  | 'fetchCommonChats'
+  | 'fetchContactList'
+  | 'fetchDeauthorizationReason'
+  | 'fetchDefaultHistoryTtl'
+  | 'fetchExportedChatInvites'
+  | 'fetchFeaturedStickers'
+  | 'fetchFullChat'
+  | 'fetchFullUser'
+  | 'fetchIsSignalPrimary'
+  | 'fetchKeyTransparencySelfStatus'
+  | 'fetchMessageReactionsList'
+  | 'fetchMessageSendDetails'
+  | 'fetchMessages'
+  | 'fetchMessagesById'
+  | 'fetchNearestCountry'
+  | 'fetchNotificationProfiles'
+  | 'fetchNotifyDefaultSettings'
+  | 'fetchPeerColors'
+  | 'fetchPeerSettings'
+  | 'fetchPeerStories'
+  | 'fetchPeerStoriesByIds'
+  | 'fetchPhoneNumberPrivacy'
+  | 'fetchPinnedMessages'
+  | 'fetchRecentStickers'
+  | 'fetchRecoveryKey'
+  | 'fetchSafetyNumber'
+  | 'fetchSharedMediaCounts'
+  | 'fetchSignalContactDiscovery'
+  | 'fetchSignalDevices'
+  | 'fetchSignalMessageSettings'
+  | 'fetchSignalPinSettings'
+  | 'fetchStickerSets'
+  | 'fetchStickers'
+  | 'fetchStoriesViews'
+  | 'fetchStoryDistributionLists'
+  | 'fetchStorySettings'
+  | 'fetchStoryViewList'
+  | 'fetchUnreadMentions'
+  | 'fetchUsernameLink'
+  | 'fetchUsers'
+  | 'forwardMessages'
+  | 'getChatByUsername'
+  | 'hideAllChatJoinRequests'
+  | 'hideChatJoinRequest'
+  | 'hidePeerSettingsBar'
+  | 'importBackupFile'
+  | 'importChatInvite'
+  | 'installStickerSet'
+  | 'linkSignalDevice'
+  | 'loadPollOptionResults'
+  | 'lookUpPhoneNumber'
+  | 'markCallLogSeen'
+  | 'markMessageListRead'
+  | 'markMessagesRead'
+  | 'markStoryRead'
+  | 'pinMessage'
+  | 'provideAuthCaptcha'
+  | 'provideAuthCode'
+  | 'provideAuthPassword'
+  | 'provideAuthPhoneNumber'
+  | 'provideAuthRegistration'
+  | 'provideAuthRestore'
+  | 'removeRecentSticker'
+  | 'removeSignalPin'
+  | 'reportSpam'
+  | 'requestAuthCode'
+  | 'reserveUsername'
+  | 'resetUsernameLink'
+  | 'resolveUsernameLink'
+  | 'restartAuth'
+  | 'restartAuthWithQr'
+  | 'saveNotificationProfile'
+  | 'saveStoryDistributionList'
+  | 'searchChats'
+  | 'searchMessagesGlobal'
+  | 'searchMessagesInChat'
+  | 'sendMessage'
+  | 'sendMessageAction'
+  | 'sendPollVote'
+  | 'sendReaction'
+  | 'sendStory'
+  | 'sendStoryReaction'
+  | 'setBackupFrequency'
+  | 'setDefaultHistoryTtl'
+  | 'setHistoryTtl'
+  | 'setNotificationProfileActive'
+  | 'setSignalContactDiscovery'
+  | 'setSignalPin'
+  | 'setSignalRegistrationLock'
+  | 'skipAuthRestore'
+  | 'toggleChatArchived'
+  | 'toggleChatPinned'
+  | 'toggleDialogUnread'
+  | 'toggleStoriesHidden'
+  | 'unblockUser'
+  | 'uninstallStickerSet'
+  | 'unlinkSignalDevice'
+  | 'unpinAllMessages'
+  | 'updateChatAbout'
+  | 'updateChatAdmin'
+  | 'updateChatDefaultBannedRights'
+  | 'updateChatNotifySettings'
+  | 'updateChatTitle'
+  | 'updateNotificationSettings'
+  | 'updateOwnProfile'
+  | 'updatePhoneNumberPrivacy'
+  | 'updateSafetyNumberVerified'
+  | 'updateSignalMessageSettings'
+  | 'updateStorySettings';
+
 export function initApi(onUpdate: (update: SignalApiUpdate) => void, initialArgs: SignalInitialArgs): Promise<void>;
 
 /** A method of `src/api/signal/methods/index.ts`; one the provider lacks returns `undefined` */
-export function callApi(name: string, ...args: any[]): any;
+export function callApi(name: SignalMethodName, ...args: any[]): any;
