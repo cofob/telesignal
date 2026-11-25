@@ -80,14 +80,7 @@ export async function openSignalLink(link: SignalLink) {
 export async function lookUpPhoneNumber(phone: string, text?: string) {
   const managers = bindManagersToSession(rootScope.managers);
   const phoneNumber = phone.replace(/\D/g, '');
-  try {
-    await confirmationPopup({
-      titleLangKey: 'SignalPhoneLookupTitle',
-      descriptionLangKey: 'SignalPhoneLookupText',
-      descriptionLangArgs: ['+' + phoneNumber],
-      button: {langKey: 'SignalPhoneLookupConfirm'}
-    });
-  } catch{
+  if(!await confirmPhoneNumberLookup(phoneNumber)) {
     return;
   }
 
@@ -98,6 +91,24 @@ export async function lookUpPhoneNumber(phone: string, text?: string) {
   }
 
   hotReloadGuard.appImManager.setInnerPeer({peerId: user.id.toPeerId(false), text});
+}
+
+/**
+ * Asks before a number is looked up on Signal, whose contact discovery service gets it: every lookup of a number goes
+ * through here (a link's, or a member added to a group by number)
+ */
+export async function confirmPhoneNumberLookup(phoneNumber: string) {
+  try {
+    await confirmationPopup({
+      titleLangKey: 'SignalPhoneLookupTitle',
+      descriptionLangKey: 'SignalPhoneLookupText',
+      descriptionLangArgs: ['+' + phoneNumber],
+      button: {langKey: 'SignalPhoneLookupConfirm'}
+    });
+    return true;
+  } catch{
+    return false;
+  }
 }
 
 function showUnsupportedLink(type: keyof typeof UNSUPPORTED_LINK_TEXTS) {

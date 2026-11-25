@@ -415,6 +415,13 @@ export const AppChatReactionsTab =
     getComponentModule: () => import('../sidebarRight/tabs/chatReactions')
   });
 
+/** TeleSignal: the invitations of a group not yet accepted, as Web A's `ManageGroupInvitedUsers` */
+export const AppPendingInvitesTab =
+  scaffoldSolidJSTab<{chatId: ChatId}>({
+    title: 'Signal.PendingInvites',
+    getComponentModule: () => import('../sidebarRight/tabs/pendingInvites')
+  });
+
 export const AppChatMembersTab =
   scaffoldSolidJSTabEventable<ChatId>({
     title: 'GroupMembers',

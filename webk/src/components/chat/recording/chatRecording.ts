@@ -387,6 +387,11 @@ export default class ChatRecording {
     }
   }
 
+  /** Pauses or resumes the recording under way, as its pause button does (Web A's Space, `pauseVoiceRecording`) */
+  public togglePause() {
+    this.onPauseToggleClick();
+  }
+
   private onPauseToggleClick = () => {
     if(!this.active) return;
     if(this.recordingType === 'video') {

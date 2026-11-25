@@ -509,11 +509,17 @@ export class AppSidebarLeft extends SidebarSlider {
       this.initSearch().open();
     });
 
-    // * Web A's chat picker (Mod+K) is the search here; in the composer, a selection takes it for a link first
+    // * Web A's quick chat picker (Mod+K, `quickChatPicker`): a chat or contact to open; in the composer, a selection
+    // * takes it for a link first
     addShortcutListener(['ctrl+k', 'meta+k'], (combo, e) => {
       if(e.defaultPrevented || appNavigationController.findItemByType('popup')) return;
       e.preventDefault();
-      this.initSearch().open();
+      void import('@components/popups/pickUser').then(({showPickUser2Popup}) => showPickUser2Popup({
+        peerType: ['dialogs', 'contacts'],
+        filterPeerTypeBy: undefined,
+        titleLangKey: 'SelectChat',
+        placeholder: 'Search'
+      })).then((peerId) => appImManager.setInnerPeer({peerId}), noop);
     }, false);
 
     // * Web A's Note to Self: Mod+0 and Mod+Shift+S

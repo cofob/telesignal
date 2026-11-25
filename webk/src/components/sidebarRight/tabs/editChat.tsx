@@ -165,6 +165,8 @@ function EditChatForm(props: {
   const canToggleForum = () => hasRights(chat(), 'toggle_forum');
   const canChangeInfo = () => hasRights(chat(), 'change_info');
   const canDeleteChat = () => hasRights(chat(), 'delete_chat');
+  // * TeleSignal: the invitations not yet accepted, as Web A's `ManageGroup`
+  const pendingInvitesCount = () => (chatFull() as {signal_pending_invites?: unknown[]}).signal_pending_invites?.length;
   const canPostMessages = () => hasRights(chat(), 'post_messages');
   const canManageInviteLinks = () => hasRights(chat(), 'invite_links');
   const canInviteUsers = () => hasRights(chat(), 'invite_users');
@@ -825,6 +827,23 @@ function EditChatForm(props: {
           <Row.Title>{i18n(isBroadcast() ? 'PeerInfo.Subscribers' : 'GroupMembers')}</Row.Title>
           <Row.Subtitle>{membersCount()}</Row.Subtitle>
         </Row>
+        <Show when={chat()._ === 'chat' && canInviteUsers()}>
+          <Row clickable={() => {
+            void import('@components/popups/addMemberByPhone').then(({default: show}) => show(chatId()));
+          }}>
+            <Row.Icon icon="phone" />
+            <Row.Title>{i18n('Signal.AddByPhone')}</Row.Title>
+          </Row>
+        </Show>
+        <Show when={pendingInvitesCount()}>
+          <Row clickable={() => {
+            tab.slider.createTab(hotReloadGuard.tabs.AppPendingInvitesTab).open({chatId: chatId()});
+          }}>
+            <Row.Icon icon="adduser" />
+            <Row.Title>{i18n('Signal.PendingInvites')}</Row.Title>
+            <Row.Subtitle>{pendingInvitesCount()}</Row.Subtitle>
+          </Row>
+        </Show>
         <Show when={isChannel()}>
           <Row clickable={() => {
             tab.slider.createTab(hotReloadGuard.tabs.AppRemovedUsersTab).open({chatId: chatId()});
