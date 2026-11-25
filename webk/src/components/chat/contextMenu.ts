@@ -1707,6 +1707,12 @@ export default class ChatContextMenu {
     }
   };
 
+  /** The text of the selected messages to the clipboard, for Web A's Mod+C while selecting (`copySelectedMessages`) */
+  public async copySelectedMessages() {
+    const copied = await this.getSelectedMessagesText();
+    if(copied) copyTextToClipboard(copied.text, copied.html);
+  }
+
   private onCopyMediaClick = () => {
     copyMessageMediaWithFeedback({
       message: this.message,

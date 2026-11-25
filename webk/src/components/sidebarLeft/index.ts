@@ -509,7 +509,15 @@ export class AppSidebarLeft extends SidebarSlider {
       this.initSearch().open();
     });
 
-    addShortcutListener(['ctrl+0', 'meta+0'], () => {
+    // * Web A's chat picker (Mod+K) is the search here; in the composer, a selection takes it for a link first
+    addShortcutListener(['ctrl+k', 'meta+k'], (combo, e) => {
+      if(e.defaultPrevented || appNavigationController.findItemByType('popup')) return;
+      e.preventDefault();
+      this.initSearch().open();
+    }, false);
+
+    // * Web A's Note to Self: Mod+0 and Mod+Shift+S
+    addShortcutListener(['ctrl+0', 'meta+0', 'ctrl+shift+keys', 'meta+shift+keys'], () => {
       if(appNavigationController.findItemByType('popup') ||
         appImManager.chat.peerId === appImManager.myId) return;
       appImManager.setPeer({
