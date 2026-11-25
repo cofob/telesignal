@@ -687,6 +687,11 @@ export default class ChatInput {
     this.emoticonsDropdown = emoticonsDropdown;
   }
 
+  /** Web A's Space while recording: the recording pauses or goes on */
+  public toggleRecordingPause() {
+    this.recordingController?.togglePause();
+  }
+
   // Public because selection.ts and appImManager.ts read `chat.input.recording`.
   public get recording() {
     return this.recordingController?.active ?? false;

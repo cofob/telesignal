@@ -1,4 +1,5 @@
 import {keepsKeyFromComposer, shouldPreserveKeyboardFocus} from '@helpers/dom/isKeyboardControl';
+import placeCaretAtEnd from '@helpers/dom/placeCaretAtEnd';
 import isTargetAnInput from '@helpers/dom/isTargetAnInput';
 import {isWebPageUrl} from '@lib/richTextProcessor/matchUrlProtocol';
 import type {GroupCallId, MyGroupCall} from '@appManagers/appGroupCallsManager';
@@ -1506,6 +1507,25 @@ export class AppImManager extends EventListenerBase<{
 
         return;
       } else if(key === 'ArrowDown') {
+        return;
+      }
+
+      const hasModifier = e.altKey || e.ctrlKey || e.metaKey || e.shiftKey;
+      // * Web A's Space while a voice message is recorded pauses it or goes on (`pauseVoiceRecording`)
+      if(key === ' ' && !hasModifier && !targetIsInput && chat?.input?.recording) {
+        cancelEvent(e);
+        chat.input.toggleRecordingPause();
+        return;
+      }
+
+      // * Web A's Tab puts the caret in the composer (`focusMessageInput`), from where no other control has the focus
+      if(
+        key === 'Tab' && !hasModifier && composerTakesKeys && !targetIsInput && this.isChatColumnShown() &&
+        (target === target.ownerDocument.body || target === chat?.bubbles?.scrollable?.container) &&
+        chat?.input?.messageInput?.isContentEditable
+      ) {
+        cancelEvent(e);
+        placeCaretAtEnd(chat.input.messageInput);
         return;
       }
 
