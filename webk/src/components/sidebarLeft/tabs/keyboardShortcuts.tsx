@@ -172,6 +172,26 @@ const ChatSection = () => (
       keys={<KeyCombo keys={['ctrl', 'up']} />}
     />
     <ShortcutRow
+      action="KeyboardShortcuts.Action.ReplyToNext"
+      keys={<KeyCombo keys={['ctrl', 'down']} />}
+    />
+    <ShortcutRow
+      action="KeyboardShortcuts.Action.FocusInput"
+      keys={<KeyCombo keys={['Tab']} />}
+    />
+    <ShortcutRow
+      action="KeyboardShortcuts.Action.PauseRecording"
+      keys={<KeyCombo keys={['space']} />}
+    />
+    <ShortcutRow
+      action="KeyboardShortcuts.Action.CopySelected"
+      keys={<KeyCombo keys={['ctrl', 'C']} />}
+    />
+    <ShortcutRow
+      action="KeyboardShortcuts.Action.DeleteSelected"
+      keys={<KeyCombo keys={['Delete']} />}
+    />
+    <ShortcutRow
       action="KeyboardShortcuts.Action.NextChat"
       keys={<KeyCombo keys={['alt', 'down']} />}
     />
@@ -189,8 +209,16 @@ const NavigationSection = () => (
       keys={<KeyCombo keys={['ctrl', 'F']} />}
     />
     <ShortcutRow
+      action="KeyboardShortcuts.Action.QuickChatPicker"
+      keys={<KeyCombo keys={['ctrl', 'K']} />}
+    />
+    <ShortcutRow
       action="KeyboardShortcuts.Action.SavedMessages"
       keys={<KeyCombo keys={['ctrl', '0']} />}
+    />
+    <ShortcutRow
+      action="KeyboardShortcuts.Action.FolderByNumber"
+      keys={<KeyCombo keys={['Ctrl', 'shift', '1–9']} />}
     />
     <ShortcutRow
       action="KeyboardShortcuts.Action.ClosePopup"

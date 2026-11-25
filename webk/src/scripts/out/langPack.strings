@@ -752,6 +752,13 @@
 "KeyboardShortcuts.Action.NewLine" = "New line";
 "KeyboardShortcuts.Action.EditLast" = "Edit last message";
 "KeyboardShortcuts.Action.ReplyToPrevious" = "Reply to previous message";
+"KeyboardShortcuts.Action.ReplyToNext" = "Reply to next message";
+"KeyboardShortcuts.Action.FocusInput" = "Focus message input";
+"KeyboardShortcuts.Action.PauseRecording" = "Pause voice recording";
+"KeyboardShortcuts.Action.CopySelected" = "Copy selected messages";
+"KeyboardShortcuts.Action.DeleteSelected" = "Delete selected messages";
+"KeyboardShortcuts.Action.QuickChatPicker" = "Open a chat";
+"KeyboardShortcuts.Action.FolderByNumber" = "Open folder by number";
 "KeyboardShortcuts.Action.JumpToInputStart" = "Jump to start of input";
 "KeyboardShortcuts.Action.JumpToInputEnd" = "Jump to end of input";
 "KeyboardShortcuts.Action.NextChat" = "Next chat";
