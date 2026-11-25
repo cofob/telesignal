@@ -510,6 +510,14 @@
 "KeyTransFail" = "Verification failed";
 "KeyTransSelfRetry" = "Checking failed, will retry";
 "KeyTransError" = "Could not check, tap to retry";
+"KeyTransIdle" = "Verify automatically";
+"KeyTransUnavailable" = "Auto-verification unavailable";
+"KeyTransHint" = "Auto-verification is not available for all chats.";
+"KeyTransLearnMore" = "Learn more";
+"KeyTransOkText" = "Encryption was auto-verified for this chat. For people you're connected to by phone number, Signal can automatically confirm whether the connection is secure using a process called key transparency. For added security, verify end-to-end encryption manually by comparing the numbers above or scanning the code on their device.";
+"KeyTransFailText" = "Signal could not verify the encryption for this chat. This could be because %1$@ changed their phone number or their phone number privacy settings. Verify end-to-end encryption manually by comparing the numbers above or scanning the code on their device.";
+"KeyTransErrorText" = "Signal could not reach the key log to verify the encryption for this chat. Check your connection and try again.";
+"KeyTransUnavailableText" = "Signal can only automatically verify the encryption in chats where you're connected to someone via a phone number. If the chat was started with a username or a group in common, verify end-to-end encryption by comparing the numbers above or scanning the code on their device.";
 "StoriesSettingTitle" = "Stories";
 "StoriesSettingEnable" = "Share and view stories";
 "StoriesSettingEnableInfo" = "If you turn stories off, you can no longer share or view stories.";

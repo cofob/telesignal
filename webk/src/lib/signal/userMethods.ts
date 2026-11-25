@@ -11,9 +11,25 @@ import {getInputUserPeerId, getUserRef} from '@lib/signal/methodHost';
 import {SIGNAL_USERNAME_PATTERN} from '@lib/signal/usernames';
 import makeError from '@helpers/makeError';
 
+/** The result of automatic key verification (key transparency) of a contact, as the provider's `checkKeyTransparency` */
+export type SignalKeyTransparencyStatus = 'idle' | 'running' | 'ok' | 'fail' | 'error' | 'unavailable';
+
 /** The safety number with a user and whether it is verified, for the safety number popup of Web K */
 export function fetchSafetyNumber(host: SignalMethodHost, userId: PeerId) {
-  return host.call<{digits: string, qrData?: string, isVerified: boolean} | undefined>('fetchSafetyNumber', {user: getUserRef(userId)});
+  return host.call<{
+    digits: string,
+    qrData?: string,
+    isVerified: boolean,
+    keyTransparencyStatus: 'idle' | 'unavailable'
+  } | undefined>('fetchSafetyNumber', {user: getUserRef(userId)});
+}
+
+export function checkKeyTransparency(host: SignalMethodHost, userId: PeerId) {
+  return host.call<SignalKeyTransparencyStatus | undefined>('checkKeyTransparency', {user: getUserRef(userId)});
+}
+
+export function cancelKeyTransparencyCheck(host: SignalMethodHost, userId: PeerId) {
+  return host.call('cancelKeyTransparencyCheck', {user: getUserRef(userId)});
 }
 
 export function updateSafetyNumberVerified(host: SignalMethodHost, userId: PeerId, isVerified: boolean) {
