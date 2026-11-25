@@ -17,6 +17,7 @@ import {Middleware} from '@helpers/middleware';
 import pause from '@helpers/schedulers/pause';
 import classNames from '@helpers/string/classNames';
 import Row from '@components/rowTsx';
+import CheckboxFieldTsx from '@components/checkboxFieldTsx';
 import formatUserPhone from '@components/wrappers/formatUserPhone';
 import showSafetyNumberPopup from '@components/popups/safetyNumber';
 import {copyTextToClipboard} from '@helpers/clipboard';
@@ -696,6 +697,31 @@ PeerProfile.Phone = () => {
   );
 };
 
+// * TeleSignal: the notifications of the chat, on or off, as Web A's profile has them (`ChatExtra`); the mute button
+// * above keeps the choice of how long
+PeerProfile.Notifications = () => {
+  const context = useContext(PeerProfileContext);
+  const {rootScope, i18n} = useHotReloadGuard();
+  const muted = createPeerMuted();
+  const change = (isOn: boolean) => rootScope.managers.appMessagesManager.togglePeerMute({
+    peerId: context.peerId,
+    threadId: context.threadId,
+    mute: !isOn
+  });
+
+  return (
+    <Show when={!(context.peer as User.user)?.pFlags?.self && muted.latest !== undefined}>
+      <Row>
+        <Row.Icon icon="unmute" />
+        <Row.CheckboxFieldToggle>
+          <CheckboxFieldTsx checked={!muted.latest} onChange={change} toggle />
+        </Row.CheckboxFieldToggle>
+        <Row.Title>{i18n('Notifications')}</Row.Title>
+      </Row>
+    </Show>
+  );
+};
+
 // * TeleSignal: the safety number of a contact, which opens its popup (`components/popups/safetyNumber.ts`)
 PeerProfile.SafetyNumber = () => {
   const context = useContext(PeerProfileContext);
@@ -1332,6 +1358,39 @@ type PeerProfileActionItem = {
   onClick: () => void
 };
 
+/** Whether the peer of the profile is muted, kept up to date */
+function createPeerMuted() {
+  const context = useContext(PeerProfileContext);
+  const {rootScope} = useHotReloadGuard();
+  const {peerId, threadId} = context;
+
+  // * the peer's own settings come with its full peer, and an update changes them whether or not
+  // * there is a dialog with it (`dialog_notify_settings` needs one)
+  const [muted, {refetch}] = createResource(() => ({fullPeer: context.fullPeer}), () => {
+    return rootScope.managers.appNotificationsManager.isPeerLocalMuted({
+      peerId,
+      threadId,
+      respectType: false
+    });
+  });
+
+  subscribeOn(rootScope)('dialog_notify_settings', (dialog) => {
+    if(dialog.peerId === peerId) {
+      refetch();
+    }
+  });
+
+  subscribeOn(rootScope)('notify_settings', ({peer}) => {
+    if((peer._ === 'notifyPeer' || peer._ === 'notifyForumTopic') && getPeerId(peer.peer) !== peerId) {
+      return;
+    }
+
+    refetch();
+  });
+
+  return muted;
+}
+
 // * how many buttons the row holds, "more" included
 const PEER_PROFILE_ACTIONS_MAX = 4;
 
@@ -1358,29 +1417,7 @@ PeerProfile.Actions = () => {
   });
   const linkedChatId = () => isBroadcast() ? (context.fullPeer as ChatFull.channelFull)?.linked_chat_id : undefined;
 
-  // * the peer's own settings come with its full peer, and an update changes them whether or not
-  // * there is a dialog with it (`dialog_notify_settings` needs one)
-  const [muted, {refetch}] = createResource(() => ({fullPeer: context.fullPeer}), () => {
-    return rootScope.managers.appNotificationsManager.isPeerLocalMuted({
-      peerId,
-      threadId,
-      respectType: false
-    });
-  });
-
-  subscribeOn(rootScope)('dialog_notify_settings', (dialog) => {
-    if(dialog.peerId === peerId) {
-      refetch();
-    }
-  });
-
-  subscribeOn(rootScope)('notify_settings', ({peer}) => {
-    if((peer._ === 'notifyPeer' || peer._ === 'notifyForumTopic') && getPeerId(peer.peer) !== peerId) {
-      return;
-    }
-
-    refetch();
-  });
+  const muted = createPeerMuted();
 
   const canCall = (type: CallType) => {
     return IS_CALL_SUPPORTED && !!userFull()?.pFlags[type === 'voice' ? 'phone_calls_available' : 'video_calls_available'];
@@ -1753,6 +1790,7 @@ PeerProfile.MainSection = () => {
       <PeerProfile.Username />
       <PeerProfile.Location />
       <PeerProfile.Bio />
+      <PeerProfile.Notifications />
       <PeerProfile.SafetyNumber />
       <PeerProfile.ChatStyle />
       <PeerProfile.PeerId />

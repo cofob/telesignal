@@ -781,10 +781,7 @@ export class AppSidebarLeft extends SidebarSlider {
       icon: 'plus',
       text: 'MultiAccount.AddAccount',
       onClick: this.addAccount,
-      verify: async() => {
-        const totalAccounts = await AccountController.getTotalAccounts();
-        return totalAccounts < MAX_ACCOUNTS_FREE && !!(await AccountController.getFreeAccountNumber());
-      }
+      verify: canAddAccount
     }, newSubmenu, {
       icon: 'savedmessages',
       text: 'SavedMessages',
@@ -864,20 +861,26 @@ export class AppSidebarLeft extends SidebarSlider {
         const targetIdx = buttons.findIndex((btn) => btn.id === 'settings');
         buttons[targetIdx].separator = true;
 
-        const [accountNumbers, notificationsCount] = await Promise.all([
+        const [accountNumbers, notificationsCount, hasAddAccount] = await Promise.all([
           AccountController.getAccountNumbers(),
-          uiNotificationsManager.getNotificationsCountForAllAccounts()
+          uiNotificationsManager.getNotificationsCountForAllAccounts(),
+          canAddAccount()
         ]);
+        // * TeleSignal: the current account first and a separator under it, then the others by slot and "Add
+        // * Account", as Web A's `AccountMenuItems`
+        const currentAccount = getCurrentAccount();
+        accountNumbers.sort((a, b) => +(b === currentAccount) - +(a === currentAccount) || a - b);
         const accountButtons: typeof buttons = [];
         for(const accountNumber of accountNumbers) {
-          if(accountNumber === getCurrentAccount()) {
+          if(accountNumber === currentAccount) {
             const user = await managers.appUsersManager.getSelf();
             accountButtons.push({
               avatarInfo: {
-                accountNumber: getCurrentAccount(),
+                accountNumber: currentAccount,
                 peerId: rootScope.myId.toPeerId(),
                 active: true
               },
+              separatorDown: accountNumbers.length > 1 || hasAddAccount,
               regularText: wrapUserName(user),
               onClick: () => {
                 closeTabsBefore(() => {
@@ -1879,6 +1882,12 @@ export class AppSidebarLeft extends SidebarSlider {
     await sessionStorage.set({previous_account: getCurrentAccount()});
     changeAccount(accountNumber, isNewTab);
   };
+}
+
+/** Whether the menu offers "Add Account": Signal links up to `MAX_ACCOUNTS_FREE` accounts, as Web A's `moreAccounts` */
+async function canAddAccount() {
+  const totalAccounts = await AccountController.getTotalAccounts();
+  return totalAccounts < MAX_ACCOUNTS_FREE && !!(await AccountController.getFreeAccountNumber());
 }
 
 // made once: a hot update keeps it and moves it onto the edited class (see @helpers/hotRegistry)

@@ -787,6 +787,7 @@ const SharedMedia: Component = () => {
     },
     openSavedDialogsInner: !tab.isFirst,
     useMainProfileTab: true,
+    keepEmptyMediaTabs: true,
     slider: tab.slider,
     scrollOffset: OFFSET
   });

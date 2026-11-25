@@ -265,10 +265,11 @@ Web K (`/k/`) takes the same integration from `webk/src/lib/signal/desktopApp.ts
 `webk/src/lib/signal/desktopIm.ts`: the native transport, notifications, the unread count, links in the system browser,
 downloads, the "Desktop app" settings (General) and "Ask where to save each file" (Data and Storage), Ctrl+Q with Web A's
 combo, Cmd+, opening its settings, the menu labels, the window title of the open chat (unless Web A's
-`canDisplayChatInTitle` is off) and the update check. Web K has no route for `sgnl:` links yet: it takes them and,
-after a confirmation (one at a time, for the newest link), opens the A version of the same account slot with that link
-in its address (`#?tgaddr=`), which Web A opens as a Signal link. The window title follows renames of the open chat. On macOS Web K uses the standard title bar (`mark_title_bar_overlay(false)`); Web A asks for the overlay
-again when it starts.
+`canDisplayChatInTitle` is off) and the update check. Web K opens `sgnl:` links itself, in the order they came
+(`webk/src/lib/signal/signalLinks.ts`, as Web A's `openSignalLink`): a number is looked up after a confirmation, a group
+or a sticker pack opens with its preview, and the next link waits for the answer to the previous one. The window title
+follows renames of the open chat. On macOS Web K uses the standard title bar (`mark_title_bar_overlay(false)`); Web A
+asks for the overlay again when it starts.
 
 ### Connection and theme
 

@@ -114,6 +114,12 @@
     &.is-holding > .search-super-ghost {
       visibility: visible;
     }
+
+    // * TeleSignal: an empty tab, which the profile keeps (`keepEmptyMediaTabs`), shows its empty state alone, without
+    // * the empty island of its rows
+    &:has(> .content-empty) .sidebar-left-section-container {
+      display: none;
+    }
   }
 
   &-ghost {

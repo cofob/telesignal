@@ -10,7 +10,8 @@ import Modes from '@config/modes';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import forgetSettledRequest from '@helpers/forgetSettledRequest';
 import {randomLong} from '@helpers/random';
-import {Document, InputFile, InputFileLocation, InputWebFileLocation, Photo, PhotoSize, UploadFile, UploadWebFile, VideoSize, WebDocument} from '@layer';
+import {Document, InputFile, InputFileLocation, InputWebFileLocation, MethodDeclMap, Photo, PhotoSize, UploadFile, UploadWebFile, VideoSize, WebDocument} from '@layer';
+import type {SignalFileProgress} from '@lib/signal/mediaMethods';
 import {DcId} from '@types';
 import CacheStorageController from '@lib/files/cacheStorage';
 import {LogTypes} from '@lib/logger';
@@ -465,7 +466,8 @@ export class ApiFileManager extends AppManager {
     queueId,
     checkCancel,
     floodMaxTimeout,
-    priority
+    priority,
+    onProgress
   }: {
     dcId: DcId,
     location: InputFileLocation,
@@ -475,7 +477,8 @@ export class ApiFileManager extends AppManager {
     queueId?: number,
     checkCancel?: () => void,
     floodMaxTimeout?: number,
-    priority?: number
+    priority?: number,
+    onProgress?: SignalFileProgress
   }) {
     const cb = () => this.invokeApiWithReference({
       context: location as InputFileLocation.inputDocumentFileLocation,
@@ -483,8 +486,9 @@ export class ApiFileManager extends AppManager {
         return this.apiManager.invokeApi('upload.getFile', {
           location,
           offset,
-          limit
-        }, {
+          limit,
+          onProgress
+        } as MethodDeclMap['upload.getFile']['req'], {
           dcId,
           fileDownload: true,
           floodMaxTimeout
@@ -947,6 +951,21 @@ export class ApiFileManager extends AppManager {
       const throttledDispatchProgress = throttle(dispatchProgress, 50, true);
 
       let done = 0;
+      // * TeleSignal: the first part waits while the provider fetches and decrypts the whole attachment, which it
+      // * reports as a fraction (`upload.getFile` in `lib/signal/mediaMethods.ts`). Every part hands the same callback
+      // * over, so that a canceled download, marked on it, stops the provider's fetch whichever part waits for it
+      const onPartProgress: SignalFileProgress = (fraction) => {
+        try {
+          checkCancel();
+        } catch{
+          onPartProgress.isCanceled = true;
+          return;
+        }
+
+        if(done || !size) return;
+        progress.done = Math.floor(fraction * size);
+        this.rootScope.dispatchEvent('download_progress', progress);
+      };
       let _writePromise: CancellablePromise<void> = Promise.resolve(),
         _offset = 0;
       const superpuper = async() => {
@@ -970,7 +989,8 @@ export class ApiFileManager extends AppManager {
             limit: limitPart,
             id,
             queueId: options.queueId,
-            checkCancel
+            checkCancel,
+            onProgress: isWebFile ? undefined : onPartProgress
           });
           checkCancel();
           const requestTime = performance.now() - requestPerf;

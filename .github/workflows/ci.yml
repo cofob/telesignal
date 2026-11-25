@@ -95,6 +95,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Locate the pnpm store
+        id: pnpm-store
+        shell: bash
+        # The assignment fails the step when `npx` fails, as an `echo` of the substitution would not
+        run: |
+          path=$(npx --yes pnpm@11.16.0 --dir webk store path)
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the pnpm store
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('webk/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install Web K dependencies
         run: npm run install:webk
 
@@ -147,6 +163,22 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Locate the pnpm store
+        id: pnpm-store
+        shell: bash
+        # The assignment fails the step when `npx` fails, as an `echo` of the substitution would not
+        run: |
+          path=$(npx --yes pnpm@11.16.0 --dir webk store path)
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the pnpm store
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('webk/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install Web K dependencies
         run: npm run install:webk
@@ -204,6 +236,22 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Locate the pnpm store
+        id: pnpm-store
+        shell: bash
+        # The assignment fails the step when `npx` fails, as an `echo` of the substitution would not
+        run: |
+          path=$(npx --yes pnpm@11.16.0 --dir webk store path)
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the pnpm store
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('webk/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Install Web K dependencies
         run: npm run install:webk

@@ -144,15 +144,6 @@ and the loaders `loadChannels`, `loadApps` and `loadPosts`, their entries in `no
 set in `webk/src/components/appSearchSuper.ts`. Nothing reaches them, so they are dead code that reads as live. Removing them
 needs a check of every `mediaTab.type` comparison, which this change did not make.
 
-## A forward whose copy was stored but not sent fails the whole request in Web K
-
-Web K sends one `messages.forwardMessages` request for several messages, each with a `random_id` of its pending copy. The
-adapter (`webk/src/lib/appManagers/appSignalManager.ts`, `forwardMessages`) registers each copy's `random_id` under a local id
-before the engine stores it, so the stored copy replaces Web K's pending one; a copy whose send failed shows once, with the
-failed mark (verified in the demo, where the network is absent, with one message forwarded to Linda). The adapter still
-rejects the whole request when any copy was not sent. With several messages and a partial failure, Web K's failure handling
-of the request runs over copies that are already stored; what it shows then was not reproduced.
-
 ## Web K's worker adapter cannot import UI components
 
 The Web K managers, including `webk/src/lib/appManagers/appSignalManager.ts`, run in a SharedWorker, not on the page.
@@ -161,15 +152,6 @@ and no error on the page: Solid reported `Unknown error` and the MTProto worker 
 sends the message as a `signal_error` event from `rootScope`, and `appImManager` shows the toast on the page. The
 likely cause is that the component reads DOM globals when its module loads, which a worker lacks; this is not
 verified. Any new UI call from a manager needs the same event route.
-
-## Web K does not show a chat again that came back while Web K was closed
-
-In Web K, the message request of Dave from the demo was deleted (bar «Delete»), then `signalDev.seedDemo()` on Web A
-wrote it again while Web K was closed. Web A lists Dave again, but Web K, reloaded twice, does not: the dialog stays
-out of its chat list in that browser profile (verified in Chromium with a persistent profile). The suspected cause
-is Web K's own cache of the chat list (the state loader), which keeps the deletion and asks the adapter only for what
-it lacks; this is not verified. A chat that a person deletes in Web K and that gets a new message while Web K is
-closed may stay hidden the same way.
 
 ## Telegram-only features remain in Web K's code behind hidden entry points
 
@@ -204,14 +186,6 @@ that Signal chats can show point to Signal on the phone instead.
 Web A's empty Note to Self (`src/components/middle/NoMessages.tsx`, `ConversationCloudStorageInfoTitle` and the four
 description strings) keeps Telegram's wording: «Your Cloud Storage» and «Access this chat from any device». Signal keeps
 Note to Self on the linked devices, not in a cloud; Web K says «Your notes» and «See them on your linked devices».
-
-## Web K shows no download progress until the whole attachment is decrypted
-
-Web K downloads a file part by part through `upload.getFile` (`webk/src/lib/signal/mediaMethods.ts`), and each part
-calls the provider's `downloadMedia` with a byte range. The first part makes the provider fetch and decrypt the whole
-attachment from the CDN (`fetchAttachmentBlob` in `src/api/signal/media/attachments.ts`) without a progress callback,
-since a callback cannot cross the worker call; the progress bar then jumps from zero to the end, and a cancel stops only
-the remaining parts, not the CDN download. Verified by reading the code; the demo account has every file cached.
 
 ## The demo account shows no avatars and no sticker packs
 
