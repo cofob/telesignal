@@ -1,10 +1,8 @@
 # TeleSignal
 
-Web client for the [Signal](https://signal.org) messenger, built on [Telegram Web A](https://github.com/Ajaxy/telegram-tt). It runs as a Signal linked device; all protocol logic and cryptography run in the browser. Work in progress: see [docs/signal/PLAN.md](docs/signal/PLAN.md).
+Web client for the [Signal](https://signal.org) messenger that reuses [Telegram Web](https://github.com/Ajaxy/telegram-tt) for the user interface. It runs as a Signal linked device; all protocol logic and cryptography run in the browser. Work in progress: see [docs/signal/PLAN.md](docs/signal/PLAN.md).
 
 ## Screenshots
-
-The screenshots show demo data (`signalDev.seedDemo()` in development builds).
 
 ![Group chat with a poll and delivery states, light theme](docs/screenshots/light-group.png)
 
@@ -26,6 +24,8 @@ npm run install:webk  # Web K's own dependencies (pnpm, through npx)
 npm run signal:proxy  # WebSocket-to-TCP tunnel to Signal servers, needs Rust; see proxy/README.md
 npm run dev           # http://localhost:1234
 ```
+
+Telegram UI is available in two variants: "A" and "K".
 
 `npm run dev` serves Web A at `/a/` and Web K at `/k/` on one port; `/` opens Web A. Web K's own server listens on the next
 port (`DEV_PORT`, `WEBK_DEV_PORT` change both). Both frontends use the same account and data; "Switch to K version" and
