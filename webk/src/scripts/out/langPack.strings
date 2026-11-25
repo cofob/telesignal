@@ -385,7 +385,7 @@
 "Signal.MessageInfo.Read" = "Read by";
 "Signal.MessageInfo.Viewed" = "Viewed by";
 "Signal.Lock.Title" = "TeleSignal is locked";
-"Signal.Lock.Subtitle" = "Enter your passcode to unlock it. Passcodes are set in the A version.";
+"Signal.Lock.Subtitle" = "Enter your passcode to unlock it.";
 "Signal.Lock.Unlock" = "Unlock";
 "Signal.Lock.Wrong" = "Wrong passcode";
 "Signal.Lock.Failed" = "Couldn't unlock. Try again.";
@@ -393,6 +393,10 @@
 "Signal.Lock.DataTitle" = "Local data cannot be opened";
 "Signal.Lock.DataText" = "Your local data is encrypted, and this app does not have the key that opens it. If the passcode was just changed in another tab, reload the app. Otherwise the data cannot be recovered, and you can erase it and link this device again.";
 "Signal.Lock.Erase" = "Erase this device's data";
+"Signal.Passcode.PasskeyRemoved" = "Your passkey was removed because the passcode changed. Add it again in the A version to keep using passkey unlock.";
+"Signal.Passcode.CloseOtherAccounts" = "Close the other accounts of this app before turning the passcode off, so that their data can be decrypted.";
+"Signal.Passcode.StorageNotDecrypted" = "Some local data could not be decrypted, so the passcode stays on.";
+"Signal.Passcode.DataCorrupted" = "Your encrypted data could not be restored. To continue using TeleSignal, log out of all accounts and log in again.";
 "Signal.Devices.Title" = "Linked Devices";
 "Signal.Devices.Link" = "Link New Device";
 "Signal.Devices.LinkTitle" = "Link a Device";
@@ -701,6 +705,11 @@
 "Signal.Error.GroupDescriptionTooLong" = "Group descriptions can be up to 480 characters long.";
 "Signal.Error.GroupLastAdmin" = "Before you leave, you must choose at least one new admin for this group.";
 "Signal.Error.GroupLabelTooLong" = "Member labels can be up to 24 characters long.";
+"Signal.HistorySync.Title" = "Syncing messages";
+"Signal.HistorySync.Waiting" = "Preparing to download...";
+"Signal.HistorySync.Downloading" = "Downloading %s...";
+"Signal.HistorySync.Importing" = "Finalizing message transfer %s...";
+"Signal.HistorySync.Note" = "This may take a few minutes";
 "Signal.Error.HistorySyncFailed" = "Your messages could not be transferred. New messages will appear as usual.";
 "Signal.Error.KeyTransparencyFailed" = "Signal could not verify that the key log lists your account as you know it. Your connection may be tampered with, or your account may be in use elsewhere. Try again later, and if it keeps failing, check your linked devices.";
 "Signal.Error.PinnedLimit" = "You have reached the limit of pinned chats. Unpin a chat to pin another one.";
@@ -777,7 +786,7 @@
 "KeyboardShortcuts.Action.Undo" = "Undo";
 "KeyboardShortcuts.Action.Redo" = "Redo";
 "KeyboardShortcuts.Action.LockPasscode" = "Lock by passcode";
-"KeyboardShortcuts.Hint.LockPasscodeNotSet" = "set a passcode in the A version";
+"KeyboardShortcuts.Hint.LockPasscodeNotSet" = "set a passcode in Privacy and Security";
 "KeyboardShortcuts.Hint.SendDepends" = "depends on settings";
 "KeyboardShortcuts.Hint.WhenInputEmpty" = "when input is empty";
 "General.TimeFormat" = "Time Format";

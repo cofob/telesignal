@@ -8,7 +8,7 @@ import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import rootScope from '@lib/rootScope';
 import type {LangPackKey} from '@lib/langPack';
-import {isSignalPasscodeEnabled, switchToWebA} from '@lib/signal/frontend';
+import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
 import {findExistingOrCreateCustomOption} from '@components/sidebarLeft/tabs/autoDeleteMessages/options';
 import showRecoveryKeyPopup from '@components/popups/recoveryKey';
 import {
@@ -55,6 +55,7 @@ const PrivacyAndSecurity: Component = () => {
   const [pinSettings, setPinSettings] = createSignal<SignalPinSettings>();
   const [isDiscoveryEnabled, setIsDiscoveryEnabled] = createSignal<boolean>();
   const [isPasscodeOn, setIsPasscodeOn] = createSignal(isSignalPasscodeEnabled());
+  tab.listenerSetter.add(rootScope)('toggle_using_passcode', setIsPasscodeOn);
   // * the disappearing messages timer of new chats, as Web A's `SettingsAutoDeleteMessages`; 0 is off
   const [autoDeletePeriod, setAutoDeletePeriod] = createSignal<number>();
   // * none where Web A shows none: a check that is not available, and an account without stories settings
@@ -186,9 +187,9 @@ const PrivacyAndSecurity: Component = () => {
     }).catch(() => {});
   };
 
-  // * the passcode is set and changed in the A version, which keeps the vault (`src/util/passcode`)
+  // * asks for the current passcode first while one is set
   const onPasscodeClick = () => {
-    switchToWebA();
+    hotReloadGuard.tabs.AppPasscodeLockTab.openChecked(tab.slider);
   };
 
   const onAutoDeleteClick = () => {

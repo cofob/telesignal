@@ -28,12 +28,21 @@ export type SignalBackupRestore = {
   found?: {size: number, modifiedAt?: number}
 };
 
+/** The transfer of the message history from the primary device after it scanned the link code (`ApiHistorySyncProgress`) */
+export type SignalHistorySync = {
+  step: 'waiting' | 'downloading' | 'importing',
+  // * from 0 to 1, while downloading and importing
+  progress?: number
+};
+
 export type SignalAuthState = {
   state: SignalAuthStateName,
   // * the number being registered, with its `+`
   phoneNumber?: string,
   codeInfo?: SignalAuthCodeInfo,
-  backupRestore?: SignalBackupRestore
+  backupRestore?: SignalBackupRestore,
+  // * set on the link code's step while the history comes, which replaces the code
+  historySync?: SignalHistorySync
 };
 
 /** Web A's lang key of a refused step, with its variables (`RegularLangFnParameters`) */

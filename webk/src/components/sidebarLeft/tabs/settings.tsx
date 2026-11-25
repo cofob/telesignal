@@ -235,15 +235,15 @@ const Settings = () => {
 
   attachClickEvent(searchBtn, openSearch, {listenerSetter: tab.listenerSetter});
 
-  // ── Sub-tab rows (notifications/data/privacy/general/folders/stickers).
+  // ── Sub-tab rows (notifications/data/privacy/general/folders/power saving/stickers).
   const subTabConfigs: SubTabConfig[] = [
     makeSubTabConfig('bell_filled', 'AccountSettings.Notifications', hotReloadGuard.tabs.AppNotificationsTab, tab),
     makeSubTabConfig('data_filled', 'DataSettings', hotReloadGuard.tabs.AppDataAndStorageTab, tab),
     makeSubTabConfig('key_filled', 'AccountSettings.PrivacyAndSecurity', hotReloadGuard.tabs.AppPrivacyAndSecurityTab, tab),
     makeSubTabConfig('general_filled', 'Telegram.GeneralSettingsViewController', hotReloadGuard.tabs.AppGeneralSettingsTab, tab),
     makeSubTabConfig('limit_folders_filled', 'AccountSettings.Filters', hotReloadGuard.tabs.AppChatFoldersTab, tab),
-    makeSubTabConfig('reactions_filled', 'StickersName', hotReloadGuard.tabs.AppStickersAndEmojiTab, tab),
-    makeSubTabConfig('speaker_filled', 'AccountSettings.SpeakersAndCamera', hotReloadGuard.tabs.AppSpeakersAndCameraTab, tab)
+    makeSubTabConfig('animations', 'LiteMode.Title', hotReloadGuard.tabs.AppPowerSavingTab, tab),
+    makeSubTabConfig('reactions_filled', 'StickersName', hotReloadGuard.tabs.AppStickersAndEmojiTab, tab)
   ];
 
   const onSubTabClick = (item: SubTabConfig) => async() => {

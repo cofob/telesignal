@@ -8,9 +8,10 @@ import {
   AppKeyboardShortcutsTab,
   AppLanguageTab,
   AppNotificationsTab,
+  AppPasscodeEnterPasswordTab,
+  AppPasscodeLockTab,
   AppPasskeysTab,
-  AppSettingsTab,
-  AppSpeakersAndCameraTab
+  AppSettingsTab
 } from '@components/solidJsTabs/tabs';
 
 
@@ -27,7 +28,8 @@ export {
   AppKeyboardShortcutsTab,
   AppLanguageTab,
   AppNotificationsTab,
+  AppPasscodeEnterPasswordTab,
+  AppPasscodeLockTab,
   AppPasskeysTab,
-  AppSettingsTab,
-  AppSpeakersAndCameraTab
+  AppSettingsTab
 };

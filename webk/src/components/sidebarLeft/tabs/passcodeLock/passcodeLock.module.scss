@@ -1,0 +1,39 @@
+@use "../../../../scss/mixins" as *;
+
+.padded {
+  padding: 0 1rem;
+}
+
+.description {
+  color: var(--secondary-text-color);
+
+  font-size: .875rem;
+  line-height: 1.25rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.firstSection {
+  padding-bottom: .5rem;
+}
+
+.row {
+  @include respond-to(handhelds) {
+    :global(.row-right) {
+      margin-inline-end: 1rem;
+    }
+  }
+}
+
+.hint {
+  padding: 0 1.5rem;
+
+  &:global(.from-bottom) {
+    bottom: 1.5rem;
+    --push-quiz: 1.75rem;
+  }
+
+  :global(.quiz-hint-container) {
+    flex: 1;
+  }
+}
