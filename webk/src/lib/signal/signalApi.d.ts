@@ -464,6 +464,7 @@ export type SignalMethodName =
   | 'updateChatAbout'
   | 'updateChatAdmin'
   | 'updateChatDefaultBannedRights'
+  | 'updateChatMemberBannedRights'
   | 'updateChatNotifySettings'
   | 'updateChatTitle'
   | 'updateNotificationSettings'

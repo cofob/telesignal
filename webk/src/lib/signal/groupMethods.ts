@@ -109,8 +109,10 @@ async function getFullChat(host: SignalMethodHost, chatId: number) {
       requests_pending: fullInfo?.requestsPending,
       recent_requesters: fullInfo?.recentRequesterIds?.map((id: string) => toPeerId(id)),
       // * not fields of Telegram's: the profile shows the colours (`PeerProfile.ChatStyle`), group management the
-      // * invitations not yet accepted (`sidebarRight/tabs/pendingInvites`)
+      // * invitations not yet accepted (`sidebarRight/tabs/pendingInvites`) and the removed members, which only
+      // * admins get (`appProfileManager.getParticipants`)
       signal_chat_style: fullInfo?.signalChatStyle,
+      signal_banned: (fullInfo?.kickedMembers ?? []).map(({userId}: {userId: string}) => toPeerId(userId)),
       signal_pending_invites: (fullInfo?.pendingInvites ?? []).map((invite: {
         serviceId: string, userId?: string, phoneNumber?: string, inviterId?: string
       }): SignalPendingInvite => ({

@@ -5,6 +5,7 @@ import showPickUserPopup from '@components/popups/pickUser';
 import hasRights from '@appManagers/utils/chats/hasRights';
 import type {Chat} from '@layer';
 import type {Middleware} from '@helpers/middleware';
+import {toSignalPeerId} from '@lib/signal/builders';
 import {createSelectorForParticipants} from './participantsSelector';
 import {
   isRemovedParticipant,
@@ -27,9 +28,13 @@ export default async function createChatRemovedUsersSource(options: {
     tab.managers.appChatsManager.isBroadcast(chatId)
   ]);
   let selector: AppSelectPeers;
+  const canChangePermissions = hasRights(chat, 'change_permissions');
+  // * TeleSignal: a Signal group (a basic group here) unbans through the provider, as Web A's
+  // * `ManageChatRemovedUsers` does, and its list changes with the row taken out
+  const isSignalGroup = chat._ === 'chat';
 
   return {
-    canChangePermissions: hasRights(chat, 'change_permissions'),
+    canChangePermissions,
     caption: isBroadcast ? 'NoBlockedChannel2' : 'NoBlockedGroup2',
     createSelector: (selectorOptions: RemovedUsersSelectorOptions) => {
       const result = createSelectorForParticipants({
@@ -40,7 +45,7 @@ export default async function createChatRemovedUsersSource(options: {
           q
         }),
         channelParticipantsUpdatePeerId: peerId,
-        channelParticipantsUpdateFilter: isRemovedParticipant
+        channelParticipantsUpdateFilter: isSignalGroup ? undefined : isRemovedParticipant
       });
       selector = result.selector;
       return result;
@@ -68,7 +73,21 @@ export default async function createChatRemovedUsersSource(options: {
         listenTo: currentSelector.scrollable.container,
         participants: currentSelector.participants,
         slider: tab.slider,
-        middleware
+        middleware,
+        bannedParticipantAdapter: isSignalGroup ? {
+          hasRights: () => canChangePermissions,
+          unban: async(participantPeerId) => {
+            // * a refusal is reported by the provider itself
+            const result = await tab.managers.appSignalManager.callSignal('updateChatMemberBannedRights', {
+              chat: {id: toSignalPeerId(peerId)},
+              peer: {id: toSignalPeerId(participantPeerId)},
+              bannedRights: {}
+            });
+            if(!result) return;
+            currentSelector.participants.delete(participantPeerId);
+            currentSelector.deletePeerId(participantPeerId);
+          }
+        } : undefined
       });
     }
   };

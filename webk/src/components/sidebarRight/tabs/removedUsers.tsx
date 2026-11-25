@@ -67,7 +67,8 @@ const RemovedUsers: Component = () => {
       middleware,
       getSubtitleForElement: async(participantId: PeerId) => {
         const participant = selector()?.participants.get(participantId);
-        if(!isRemovedParticipant(participant)) {
+        // * a member removed from a Signal group has no one known to have removed them
+        if(!isRemovedParticipant(participant) || !participant.kicked_by) {
           return;
         }
 
