@@ -76,7 +76,6 @@
 @use "partials/animatedSuper";
 @use "partials/sparkles";
 @use "partials/starsBadge";
-@use "partials/starGift";
 @use "partials/simpleMessageInput";
 @use "partials/audio";
 
@@ -95,27 +94,15 @@
 @use "partials/popups/sponsored";
 @use "partials/popups/mute";
 @use "partials/popups/reactedList";
-@use "partials/popups/payment";
-@use "partials/popups/paymentCard";
-@use "partials/popups/paymentShippingMethods";
-@use "partials/popups/paymentVerification";
-@use "partials/popups/paymentCardConfirmation";
-@use "partials/popups/paymentMethods";
 @use "partials/popups/limit";
-@use "partials/popups/giftPremium";
 @use "partials/popups/chatlistInvite";
-@use "partials/popups/premium";
-@use "partials/popups/giftLink";
 @use "partials/popups/toggleReadDate";
 @use "partials/popups/confirmation";
 @use "partials/popups/reportAd";
 @use "partials/popups/deleteMegagroupMessages";
 @use "partials/transactions";
-@use "partials/popups/stars";
 @use "partials/popups/makePaid";
 @use "partials/popups/accountsLimit";
-@use "partials/popups/starGiftInfo";
-@use "partials/popups/starGiftUpgrade";
 @use "partials/popups/chatPreview";
 
 @use "partials/pages/pages";

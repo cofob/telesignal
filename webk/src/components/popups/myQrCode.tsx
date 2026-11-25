@@ -37,14 +37,11 @@ import {BUILT_IN_BACKDROPS, usableBackdrops} from '@components/popups/myQrCode/b
 import {buildPhoneUrl, linkCaption} from '@components/popups/myQrCode/link';
 import {Rect} from '@components/popups/myQrCode/fieldNodes';
 import {openLayout, PILL_GAP, SHEET_BOTTOM, SHEET_INSET, sheetHeightFor, surfaceGeometry} from '@components/popups/myQrCode/layout';
-import {appearanceToShareTheme, Appearance, giftToInput, isDefaultBackdrop, shareThemeToAppearance, ThemeEmoji, themeEmojiKey, withBackdrop, waitsForServedId, withEmojiToggled, withGift} from '@components/popups/myQrCode/theme';
+import {appearanceToShareTheme, Appearance, isDefaultBackdrop, shareThemeToAppearance, ThemeEmoji, themeEmojiKey, withBackdrop, waitsForServedId, withEmojiToggled} from '@components/popups/myQrCode/theme';
 import {createThemeSaver, getHeldTheme} from '@components/popups/myQrCode/themeSaver';
 import {ColorsPanel} from '@components/popups/myQrCode/colorsPanel';
 import {ChosenEmojiStrip, EmojiPanel} from '@components/popups/myQrCode/emojiPanel';
 import {preloadAppliedEmoji} from '@components/popups/myQrCode/emojiPresets';
-import {GiftsLayout, GiftsPanel, giftsSheetHeight, ThemeGift} from '@components/popups/myQrCode/giftsPanel';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
-import {showPremiumGiftsToast} from '@components/popups/myQrCode/premiumToast';
 import {OPEN_MS, revealOpening, sampledKeyframes, SHEET_CLOSE_MS, SHEET_EASING, SHEET_OPEN_MS, sheetEase} from '@components/popups/myQrCode/reveal';
 import styles from '@components/popups/myQrCode.module.scss';
 
@@ -283,28 +280,17 @@ function MyQrCodePopup(props: {
   const pickBackdrop = (option?: ShareThemeBackdropOption) => commit(withBackdrop(appearance(), palette(), option));
   const toggleEmoji = (emoji: ThemeEmoji) => commit(withEmojiToggled(appearance(), emoji, lastColor ?? withBackdrop(appearance(), palette())));
   const pickEmoji = (docId: DocId) => toggleEmoji({documentId: docId});
-  const pickGift = ({gift, input}: ThemeGift) => {
-    // the gift on show tapped again goes, and the last colour comes back, as on Android
-    if(appearance().kind === 'gift' && appearance().gift?.id === gift.id) {
-      commit(lastColor ?? withBackdrop(appearance(), palette()));
-      return;
-    }
-
-    const next = withGift(gift);
-    if(next) commit(next, giftToInput(gift, isSelf, input));
-  };
 
   /* The panels: the island's buttons open one, the card makes room above it */
-  type PanelId = 'colors' | 'emoji' | 'gifts';
+  type PanelId = 'colors' | 'emoji';
   const PANELS: {id: PanelId, icon: Icon, iconClass: string, title: LangPackKey}[] = [
     {id: 'colors', icon: 'colorize', iconClass: styles.iconColors, title: 'QRCode.Colors'},
-    {id: 'emoji', icon: 'smile', iconClass: styles.iconEmoji, title: 'Emoji'},
-    {id: 'gifts', icon: 'gift', iconClass: styles.iconGifts, title: 'StarGiftTitle'}
+    {id: 'emoji', icon: 'smile', iconClass: styles.iconEmoji, title: 'Emoji'}
   ];
   const [panel, setPanel] = createSignal<PanelId>();
   // what the sheet holds: the panel open, and the one it closes with until it has shrunk into the island
   const [shownPanel, setShownPanel] = createSignal<PanelId>();
-  // a panel is built when it is first opened, and kept: the emoji tab and the gifts are costly to build
+  // a panel is built when it is first opened, and kept: the emoji tab is costly to build
   const [visited, setVisited] = createSignal<PanelId[]>([]);
   const buttons: {[id in PanelId]?: HTMLElement} = {};
   let sheetElement: HTMLDivElement;
@@ -317,13 +303,7 @@ function MyQrCodePopup(props: {
 
   const fullSheetHeight = createMemo(() => sheetHeightFor(size().height, size().width));
   const sheetSize = createMemo(() => ({width: size().width - 2 * SHEET_INSET, height: fullSheetHeight()}));
-  // the gifts shrink the sheet to one row for up to three, and to the empty state for none (`QrShareView.updateSheetH`)
-  const [giftsLayout, setGiftsLayout] = createSignal<GiftsLayout>();
-  const sheetHeight = createMemo(() => {
-    const full = fullSheetHeight();
-    const gifts = shownPanel() === 'gifts' && giftsSheetHeight(giftsLayout(), sheetSize().width);
-    return gifts ? Math.min(full, Math.round(gifts)) : full;
-  });
+  const sheetHeight = fullSheetHeight;
   const cardLayout = createMemo(() => panel() ? openLayout({...surface(), pillExtra: 0}, sheetHeight()) : undefined);
 
   const navigationItem: NavigationItem = {
@@ -412,12 +392,6 @@ function MyQrCodePopup(props: {
   const togglePanel = (id: PanelId) => {
     if(panel() === id) {
       closePanel();
-      return;
-    }
-
-    // collectibles as a theme are for Premium; the colours and the preset emoji are for everyone
-    if(id === 'gifts' && !rootScope.premium) {
-      showPremiumGiftsToast();
       return;
     }
 
@@ -644,18 +618,6 @@ function MyQrCodePopup(props: {
                       />
                       <ChosenEmojiStrip managers={managers} emojis={() => appearance().emojis} onRemove={toggleEmoji} />
                     </>
-                  )}
-                  {id === 'gifts' && (
-                    <GiftsPanel
-                      managers={managers}
-                      ownerId={peerId}
-                      isSelf={isSelf}
-                      selected={() => appearance().kind === 'gift' ? appearance().gift : undefined}
-                      width={() => sheetSize().width}
-                      onPick={pickGift}
-                      onBrowse={isSelf ? () => hotReloadGuard.showSendGiftPopup({peerId, category: 'Collectibles'}) : undefined}
-                      onLayout={setGiftsLayout}
-                    />
                   )}
                 </div>
               )}

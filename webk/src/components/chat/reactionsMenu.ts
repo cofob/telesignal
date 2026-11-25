@@ -39,7 +39,7 @@ import partition from '@helpers/array/partition';
 import getReactionDocId from '@appManagers/utils/reactions/getReactionDocId';
 import docIdToReaction from '@appManagers/utils/reactions/docIdToReaction';
 import createEmojiReaction from '@appManagers/utils/reactions/createEmojiReaction';
-import {StarsStar} from '@components/stars/starsAmount';
+import currencyStarIcon from '@components/currencyStarIcon';
 import {cleanEmoji} from '@lib/richTextProcessor/fixEmoji';
 
 const REACTIONS_CLASS_NAME = 'btn-menu-reactions';
@@ -587,7 +587,7 @@ export class ChatReactionsMenu {
 
     this.container.append(reactionDiv);
     if(isPaidReaction && !canUseAnimations) {
-      appearWrapper.append(StarsStar() as HTMLElement);
+      appearWrapper.append(currencyStarIcon() as HTMLElement);
     } else if(isPaidReaction && canUseAnimations) {
       const promise = lottieLoader.loadAnimationAsAsset({
         container: appearWrapper,

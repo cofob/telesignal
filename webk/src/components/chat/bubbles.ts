@@ -24,9 +24,8 @@ import I18n, {FormatterArguments, i18n, langPack, LangPackKey, UNSUPPORTED_LANG_
 import {fireMessageEffectByBubble, MessageRender} from '@components/chat/messageRender';
 import LazyLoadQueue from '@components/lazyLoadQueue';
 import ListenerSetter from '@helpers/listenerSetter';
-import showChatToast from '@components/chat/chatToast';
 import {AudioElement, DeferredMediaElement, isAudioElement} from '@components/audio';
-import {ChannelParticipant, Chat as MTChat, ChatParticipant, Document, Message, MessageEntity, MessageMedia, MessageReplyHeader, Photo, PhotoSize, ReactionCount, SponsoredMessage, User, UserFull, WebPage, WebPageAttribute, Reaction, DocumentAttribute, InputStickerSet, TextWithEntities, FactCheck, WebDocument, MessageExtendedMedia, PeerSettings, LangPackString, ForumTopic, MessageAction, StarGift} from '@layer';
+import {ChannelParticipant, Chat as MTChat, ChatParticipant, Document, Message, MessageEntity, MessageMedia, MessageReplyHeader, Photo, PhotoSize, ReactionCount, SponsoredMessage, User, UserFull, WebPage, WebPageAttribute, Reaction, DocumentAttribute, InputStickerSet, TextWithEntities, FactCheck, WebDocument, MessageExtendedMedia, PeerSettings, LangPackString, ForumTopic, MessageAction} from '@layer';
 import {BOT_START_PARAM, NULL_PEER_ID, REPLIES_PEER_ID, SEND_WHEN_ONLINE_TIMESTAMP, SERVICE_PEER_ID, STARS_CURRENCY} from '@appManagers/constants';
 import {FocusDirection, ScrollStartCallbackDimensions} from '@helpers/fastSmoothScroll';
 import useHeavyAnimationCheck, {getHeavyAnimationPromise, dispatchHeavyAnimationEvent, interruptHeavyAnimation} from '@hooks/useHeavyAnimationCheck';
@@ -68,7 +67,6 @@ import IS_CALL_SUPPORTED from '@environment/callSupport';
 import IS_GROUP_CALL_SUPPORTED from '@environment/groupCallSupport';
 import Button from '@components/button';
 import getVisibleRect from '@helpers/dom/getVisibleRect';
-import {InternalLink, INTERNAL_LINK_TYPE} from '@lib/internalLink';
 import ReactionsElement, {REACTIONS_ELEMENTS} from '@components/chat/reactions';
 import type ReactionElement from '@components/chat/reaction';
 import LottiePlayer from '@lib/lottie/lottiePlayer';
@@ -114,8 +112,7 @@ import middlewarePromise from '@helpers/middlewarePromise';
 import indexOfAndSplice from '@helpers/array/indexOfAndSplice';
 import noop from '@helpers/noop';
 import getGroupedText from '@appManagers/utils/messages/getGroupedText';
-import paymentsWrapCurrencyAmount, {GRAM_CURRENCY_SYMBOL, formatNanoton, nanotonToJsNumber} from '@helpers/paymentsWrapCurrencyAmount';
-import {createPaymentPopup} from '@components/popups/payment';
+import paymentsWrapCurrencyAmount, {formatNanoton} from '@helpers/paymentsWrapCurrencyAmount';
 import isInDOM from '@helpers/dom/isInDOM';
 import getStickerEffectThumb from '@appManagers/utils/stickers/getStickerEffectThumb';
 import attachMediaPeekListeners, {getMediaPeekDocSource, getMessageMediaPeekSource} from '@components/mediaPeek';
@@ -163,10 +160,7 @@ import {FullMid, makeFullMid, splitFullMid} from '@appManagers/utils/messages/fu
 import apiManagerProxy from '@lib/apiManagerProxy';
 import setBlankToAnchor from '@lib/richTextProcessor/setBlankToAnchor';
 import addAnchorListener, {runContentAnchorHandler, UNSAFE_ANCHOR_LINK_TYPES} from '@helpers/addAnchorListener';
-import {formatDaysDuration, formatMonthsDuration} from '@helpers/date';
 import {JSX} from 'solid-js';
-import Giveaway, {getGiftAssetName, onGiveawayClick} from '@components/chat/giveaway';
-import showGiftLinkPopup from '@components/popups/giftLink';
 import getParents from '@helpers/dom/getParents';
 import positionElementByIndex from '@helpers/dom/positionElementByIndex';
 import shouldDisplayGiftCodeAsGift from '@helpers/shouldDisplayGiftCodeAsGift';
@@ -222,10 +216,6 @@ import {Sparkles} from '@components/sparkles';
 import addPaidServiceMessage from '@components/chat/bubbleParts/paidServiceMessage';
 import namedPromises from '@helpers/namedPromises';
 import {getCurrentNewMediaPopup} from '@components/popups/newMedia';
-import showStarGiftInfoPopup from '@components/popups/starGiftInfo';
-import {StarGiftBubble, UniqueStarGiftWebPageBox} from '@components/chat/bubbles/starGift';
-import {ServiceStickerBubble} from '@components/chat/bubbles/serviceStickerBubble';
-import {ChatThemeGiftBubble} from '@components/chat/bubbles/chatThemeGift';
 import {ChatWallPaperBubble} from '@components/chat/bubbles/chatWallPaper';
 import {UnknownUserBubble} from '@components/chat/bubbles/unknownUser';
 import {
@@ -257,7 +247,6 @@ import {NoneToVoidFunction} from '@types';
 import type {CommittedFilters} from '@components/sidebarRight/tabs/adminRecentActions/filters';
 import deepEqual from '@helpers/object/deepEqual';
 import {setPeerColorToElement} from '@components/peerColors';
-import {showStarGiftOfferButtons, StarGiftOfferBubble, StarGiftOfferReplyMarkup} from '@components/chat/bubbles/starGiftOffer';
 import {wrapSolidComponent} from '@helpers/solid/wrapSolidComponent';
 import wrapDice from '@components/chat/bubbleParts/dice';
 import animateSomethingWithScroll from '@helpers/animateSomethingWithScroll';
@@ -4165,51 +4154,6 @@ export default class ChatBubbles {
       return;
     }
 
-    const buyButton: HTMLElement = findUpClassName(target, 'is-buy');
-    if(buyButton) {
-      cancelEvent(e);
-
-      const message = this.chat.getMessage(bubbleFullMid);
-      if(!message) {
-        return;
-      }
-
-      const media = (message as Message.message).media;
-      const paidMedia = media?._ === 'messageMediaPaidMedia' ? media : undefined;
-
-      let popup: Awaited<ReturnType<typeof createPaymentPopup>>;
-      try {
-        const inputInvoice = await this.managers.appPaymentsManager.getInputInvoiceByPeerId(message.peerId, message.mid);
-        popup = await createPaymentPopup({
-          message: message as Message.message,
-          inputInvoice,
-          isReceipt: buyButton.classList.contains('is-receipt'),
-          paidMedia
-        });
-      } catch(err) {
-        // * a payment form or a receipt the server would not give: the press is not lost without a word
-        toastError(err as ApiError, 'payment form error');
-        return;
-      }
-
-      if(paidMedia) {
-        popup.addEventListener('finish', async(result) => {
-          if(result === 'paid') {
-            showChatToast({
-              icon: 'cash_circle',
-              title: i18n('StarsMediaPurchaseCompleted'),
-              textElement: i18n('StarsMediaPurchaseCompletedInfo', [
-                paidMedia.stars_amount,
-                await wrapPeerTitle({peerId: (message as Message.message).fwdFromId || message.peerId})
-              ]),
-              duration: 5000
-            });
-          }
-        });
-      }
-      return;
-    }
-
     const mediaSpoiler: HTMLElement = findUpClassName(target, 'media-spoiler-container');
     if(mediaSpoiler) {
       onMediaSpoilerClick({
@@ -4370,23 +4314,11 @@ export default class ChatBubbles {
         cancelEvent(e);
         if(savedFrom) {
           const {peerId, mid} = splitFullMid(savedFrom);
-          if(target.classList.contains('is-receipt-link')) {
-            const message = await this.managers.appMessagesManager.getMessageByPeer(peerId.toPeerId(), +mid);
-            if(message) {
-              const inputInvoice = await this.managers.appPaymentsManager.getInputInvoiceByPeerId(message.peerId, message.mid);
-              createPaymentPopup({
-                message: message as Message.message,
-                inputInvoice,
-                isReceipt: true
-              });
-            }
-          } else {
-            this.chat.appImManager.setInnerPeer({
-              ...additionalSetPeerProps,
-              peerId: peerId.toPeerId(),
-              lastMsgId: +mid
-            });
-          }
+          this.chat.appImManager.setInnerPeer({
+            ...additionalSetPeerProps,
+            peerId: peerId.toPeerId(),
+            lastMsgId: +mid
+          });
         } else {
           const peerId = peerIdStr.toPeerId();
           const {mid} = splitFullMid(getBubbleFullMid(bubble) || EMPTY_FULL_MID);
@@ -9440,92 +9372,8 @@ export default class ChatBubbles {
       // * set by an action that shows its text inside its own card
       let hideServiceText = false;
       if(action) {
-        const isGiftCode = action._ === 'messageActionGiftCode';
         let promise: Promise<any>;
-        if(action._ === 'messageActionGiftStars' || action._ === 'messageActionPrizeStars') {
-          const content = bubbleContainer.cloneNode(false) as HTMLElement;
-          content.classList.add('has-service-before');
-
-          s.append(await wrapMessageActionTextNew({message, middleware}));
-
-          const isSent = message.fromId === rootScope.myId;
-          const isPrize = action._ === 'messageActionPrizeStars';
-
-          let subtitle: HTMLElement;
-          if(isPrize) {
-            subtitle = i18n(
-              'Action.StarGiveawayPrize',
-              [+action.stars, await wrapPeerTitle({peerId: getPeerId(action.boost_peer)})]
-            );
-          } else {
-            subtitle = i18n(isSent ? 'ActionGiftStarsSubtitle' : 'ActionGiftStarsSubtitleYou', [await wrapPeerTitle({peerId: message.peerId})]);
-          }
-
-          this.wrapSomeSolid(() => ServiceStickerBubble({
-            lottieOptions: {
-              middleware
-            },
-            assetName: 'Gift3',
-            title: i18n(isPrize ? 'BoostingCongratulations' : 'ActionGiftStarsTitle', [action.stars]),
-            subtitle,
-            buttonText: i18n('ActionGiftPremiumView'),
-            buttonCallback: async() => {
-              createPaymentPopup({
-                message: message as Message.message,
-                noPaymentForm: true,
-                transaction: {
-                  _: 'starsTransaction',
-                  date: message.date,
-                  id: action.transaction_id || '',
-                  peer: {
-                    _: 'starsTransactionPeer',
-                    peer: isPrize ? action.boost_peer : {
-                      _: 'peerUser',
-                      user_id: isSent ? message.peerId : message.fromId
-                    }
-                  },
-                  pFlags: {
-                    gift: isPrize ? undefined : true
-                  },
-                  amount: formatStarsAmount(isSent && !isPrize ? '-' + action.stars : action.stars),
-                  giveaway_post_id: isPrize ? action.giveaway_msg_id : undefined
-                }
-              });
-            }
-          }), content, middleware);
-
-          bubbleContainer.after(content);
-        } else if(isGiftCode && !shouldDisplayGiftCodeAsGift(action)) {
-          const isUnclaimed = action.pFlags.unclaimed;
-          const isGiveaway = action.pFlags.via_giveaway;
-          const title = i18n(isUnclaimed ? 'BoostingUnclaimedPrize' : 'BoostingCongratulations');
-          const subtitle = document.createElement('span');
-          subtitle.append(
-            i18n(
-              isUnclaimed ? 'BoostingYouHaveUnclaimedPrize' : (isGiveaway ? 'BoostingReceivedPrizeFrom' : (action.boost_peer ? 'BoostingReceivedGiftFrom' : 'BoostingReceivedGiftNoName')),
-              action.boost_peer ? [await wrapPeerTitle({peerId: getPeerId(action.boost_peer)})] : undefined
-            ),
-            document.createElement('br'),
-            document.createElement('br'),
-            i18n(
-              isUnclaimed ? 'BoostingUnclaimedPrizeDuration' : (isGiveaway ? 'BoostingReceivedPrizeDuration' : 'BoostingReceivedGiftDuration'),
-              [formatDaysDuration(action.days, true)]
-            )
-          );
-
-          const assetName = getGiftAssetName(action.days);
-
-          this.wrapSomeSolid(() => ServiceStickerBubble({
-            lottieOptions: {middleware},
-            assetName,
-            title,
-            subtitle,
-            buttonText: i18n('BoostingReceivedGiftOpenBtn'),
-            buttonCallback: () => {
-              showGiftLinkPopup(action.slug);
-            }
-          }), bubbleContainer, middleware);
-        } else if(action._ === 'messageActionChannelMigrateFrom') {
+        if(action._ === 'messageActionChannelMigrateFrom') {
           const peerTitle = new PeerTitle();
           promise = peerTitle.update({peerId: action.chat_id.toPeerId(true), wrapOptions});
           s.append(i18n('ChatMigration.From', [peerTitle.element]));
@@ -9578,30 +9426,6 @@ export default class ChatBubbles {
             title
           }), middleware);
           s.append(container);
-        } else if(action._ === 'messageActionStarGiftPurchaseOffer') {
-          const [title, gift] = await Promise.all([
-            wrapMessageActionTextNew({message, middleware}),
-            this.managers.appGiftsManager.wrapGift(action.gift)
-          ]);
-
-          const container = wrapSolidComponent(() => StarGiftOfferBubble({
-            gift: gift,
-            title,
-            outgoing: message.pFlags.out,
-            action,
-            modifyBubble: this.modifyBubble
-          }), middleware);
-          s.append(container);
-
-          if(!message.pFlags.out && showStarGiftOfferButtons(action)) {
-            bubble.classList.add('with-reply-markup');
-            const buttons = wrapSolidComponent(() => StarGiftOfferReplyMarkup({
-              gift,
-              message: message as Message.messageService,
-              chat: this.chat
-            }), middleware);
-            contentWrapper.append(buttons);
-          }
         } else if(action._ === 'messageActionNoForwardsRequest' && !action.pFlags.expired) {
           const peerTitle = message.pFlags.out ? undefined : await wrapPeerTitle({peerId: message.fromId});
           this.wrapSomeSolid(() => NoForwardsRequestContent({
@@ -9648,28 +9472,6 @@ export default class ChatBubbles {
             serviceContainer: s,
             wrapOptions
           }), s, middleware);
-        } else if(action._ === 'messageActionSetChatTheme' && action.theme._ === 'chatThemeUniqueGift') {
-          // * the gift stands in for the text, with the text under it, as in tdesktop
-          const slug = (action.theme.gift as StarGift.starGiftUnique).slug;
-          const [gift, text] = await Promise.all([
-            this.managers.appGiftsManager.wrapGift(action.theme.gift),
-            wrapMessageActionTextNew({message, ...wrapOptions})
-          ]);
-          hideServiceText = true;
-          this.wrapSomeSolid(() => ChatThemeGiftBubble({
-            gift,
-            text,
-            stickerOptions: {
-              middleware,
-              play: true,
-              loop: false,
-              group: this.chat.animationGroup,
-              liteModeKey: 'stickers_chat'
-            },
-            onView: () => {
-              hotReloadGuard.internalLinkProcessor.processUniqueStarGiftLink({_: INTERNAL_LINK_TYPE.UNIQUE_STAR_GIFT, slug});
-            }
-          }), bubbleContainer, middleware);
         } else if(action._ === 'messageActionSetChatWallPaper' && !action.pFlags.same) {
           // * the wallpaper stands in for the text, with the text under it, as in tdesktop
           const text = await wrapMessageActionTextNew({message, ...wrapOptions});
@@ -9768,74 +9570,7 @@ export default class ChatBubbles {
           }
         }
 
-        if(action._ === 'messageActionGiftPremium' || (isGiftCode && shouldDisplayGiftCodeAsGift(action))) {
-          const content = bubbleContainer.cloneNode(false) as HTMLElement;
-          content.classList.add('has-service-before');
-
-          const assetName = getGiftAssetName(action.days);
-
-          const title = i18n('ActionGiftPremiumTitle2', [formatDaysDuration(action.days, false)]);
-          const subtitle =
-            action.message ?
-              wrapRichText(action.message.text, {entities: action.message.entities}) :
-              i18n('ActionGiftPremiumSubtitle2');
-
-          this.wrapSomeSolid(() => ServiceStickerBubble({
-            lottieOptions: {middleware},
-            assetName,
-            title,
-            subtitle,
-            buttonText: i18n(isGiftCode && message.fromId === message.peerId ? 'GiftPremiumUseGiftBtn' : 'ActionGiftPremiumView'),
-            buttonCallback: () => {
-              if(isGiftCode) {
-                const link: InternalLink.InternalLinkGiftCode = {
-                  _: INTERNAL_LINK_TYPE.GIFT_CODE,
-                  slug: action.slug,
-                  stack: this.chat.appImManager.getStackFromElement(bubble)
-                };
-
-                hotReloadGuard.internalLinkProcessor.processGiftCodeLink(link);
-              }
-            }
-          }), content, middleware);
-
-          bubbleContainer.after(content);
-        } else if(action._ === 'messageActionGiftTon') {
-          const content = bubbleContainer.cloneNode(false) as HTMLElement;
-          content.classList.add('has-service-before');
-
-          const stickers = await this.managers.appStickersManager.getLocalStickerSet('inputStickerSetTonGifts');
-          let idx: number;
-          const amountNum = nanotonToJsNumber(action.crypto_amount);
-          if(amountNum > 50) idx = 2;
-          else if(amountNum > 10) idx = 1;
-          else idx = 0;
-
-          this.wrapSomeSolid(() => ServiceStickerBubble({
-            lottieOptions: {middleware},
-            sticker: stickers.documents[idx] as MyDocument,
-            title: formatNanoton(action.crypto_amount, 9) + ' ' + GRAM_CURRENCY_SYMBOL,
-            subtitle: i18n('TonGiftSubtitle'),
-            buttonText: i18n('ActionGiftPremiumView'),
-            buttonCallback: () => {
-              const isSent = message.fromId === rootScope.myId;
-              createPaymentPopup({
-                message: message as Message.message,
-                noPaymentForm: true,
-                transaction: {
-                  _: 'starsTransaction',
-                  pFlags: {gift: true},
-                  id: action.transaction_id || '',
-                  date: message.date,
-                  peer: {_: 'starsTransactionPeer', peer: {_: 'peerUser', user_id: isSent ? message.peerId : message.fromId}},
-                  amount: {_: 'starsTonAmount', amount: (isSent ? '-' : '') + action.crypto_amount}
-                }
-              });
-            }
-          }), content, middleware);
-
-          bubbleContainer.after(content);
-        } else if(action._ === 'messageActionChannelJoined') {
+        if(action._ === 'messageActionChannelJoined') {
           bubble.classList.add('is-similar-channels');
 
           const c = document.createElement('div');
@@ -9930,44 +9665,6 @@ export default class ChatBubbles {
           );
 
           loadPromises.push(deferred);
-        } else if(action._ === 'messageActionStarGift' || action._ === 'messageActionStarGiftUnique') {
-          const container = document.createElement('div');
-          container.classList.add('bubble-star-gift-container');
-          bubbleContainer.after(container);
-
-          const gift = await this.managers.appGiftsManager.wrapGiftFromMessage(message as Message.messageService)
-          this.wrapSomeSolid(() => StarGiftBubble({
-            gift,
-            fromId: getPeerId(gift.saved.from_id),
-            asUpgrade: gift.isIncoming &&
-              !(action._ === 'messageActionStarGift' && action.pFlags.upgraded) &&
-              (gift.isUpgradedBySender || action.pFlags.prepaid_upgrade),
-            asPrepaidUpgrade: action._ === 'messageActionStarGift' && action.pFlags.prepaid_upgrade,
-            ownerId: gift.isIncoming ? undefined : message.peerId,
-            wrapStickerOptions: {
-              middleware,
-              lazyLoadQueue: this.lazyLoadQueue,
-              group: this.chat.animationGroup,
-              scrollable: this.scrollable,
-              liteModeKey: 'stickers_chat',
-              play: true,
-              loop: false
-            },
-            onViewClick: async() => {
-              if(action._ === 'messageActionStarGift' && action.upgrade_msg_id) {
-                const upgradeMsg = await this.managers.appMessagesManager.getMessageById(action.upgrade_msg_id);
-                if(!upgradeMsg) {
-                  toastNew({langPackKey: 'MessageNotFound'});
-                  return;
-                }
-
-                const upgradedGift = await this.managers.appGiftsManager.wrapGiftFromMessage(upgradeMsg as Message.messageService);
-                showStarGiftInfoPopup({gift: upgradedGift});
-              } else {
-                showStarGiftInfoPopup({gift})
-              }
-            }
-          }), container, middleware)
         } else if(
           serviceMessageActionsWithReply.includes(action._) ||
           // * the same wallpaper as the other side's: it leads to theirs
@@ -10207,7 +9904,7 @@ export default class ChatBubbles {
       bubble.dataset.textMid = '' + groupedTextMessage.mid;
     }
 
-    let replyTo = message.reply_to;
+    const replyTo = message.reply_to;
     if(replyTo?._ === 'messageReplyHeader') {
       const replyToPeerId = replyTo.reply_to_peer_id ? getPeerId(replyTo.reply_to_peer_id) : this.peerId;
       bubble.dataset.replyToPeerId = '' + replyToPeerId;
@@ -11235,24 +10932,7 @@ export default class ChatBubbles {
             });
           }
 
-          if(starGiftAttribute) {
-            bubble.classList.add('gift');
-            const gift = await this.managers.appGiftsManager.wrapGiftFromWebPage(starGiftAttribute);
-            preview.style.width = '240px';
-            preview.style.height = '240px';
-            this.wrapSomeSolid(() => UniqueStarGiftWebPageBox({
-              gift,
-              wrapStickerOptions: {
-                play: true,
-                loop: false,
-                managers: this.managers,
-                middleware,
-                lazyLoadQueue,
-                group: this.chat.animationGroup
-              }
-            }), preview, middleware)
-            props.text = undefined
-          } else if(starGiftCollectionAttribute) {
+          if(starGiftCollectionAttribute) {
             await wrapSticker({
               doc: starGiftCollectionAttribute.icons[0] as MyDocument,
               div: preview,
@@ -11955,34 +11635,6 @@ export default class ChatBubbles {
             loadPromises
           });
 
-          break;
-        }
-
-        case 'messageMediaGiveawayResults':
-        case 'messageMediaGiveaway': {
-          const giveaway = context.messageMedia;
-
-          if(giveaway._ === 'messageMediaGiveawayResults') {
-            replyTo = undefined;
-          }
-
-          context.mediaRequiresMessageDiv = true;
-          bubble.classList.add('is-giveaway');
-          noAttachmentDivNeeded = true;
-          const button = this.makeViewButton({text: 'BoostingHowItWork'});
-          const container = document.createElement('div');
-          messageDiv.before(container, button);
-          attachClickEvent(button, () => {
-            onGiveawayClick(message as Message.message);
-          });
-          this.wrapSomeSolid(
-            () => Giveaway({
-              giveaway,
-              loadPromises
-            }),
-            container,
-            middleware
-          );
           break;
         }
 
@@ -13893,13 +13545,7 @@ export default class ChatBubbles {
       ]);
       subtitle.classList.add('center', BASE_CLASS + '-subtitle');
 
-      const button = Button('bubble-service-button overflow-hidden', {noRipple: true, text: 'BuyStars'});
-      button.append(Sparkles({isDiv: true, mode: 'button'}));
-      attachClickEvent(button, () => {
-        hotReloadGuard.showStarsPopup({spendPurposePeerId: this.peerId});
-      });
-
-      elements.push(stickerDiv, subtitle, button);
+      elements.push(stickerDiv, subtitle);
     } else if(type === 'directChannelMessages') {
       const stickerDiv = document.createElement('div');
       stickerDiv.classList.add(BASE_CLASS + '-sticker');
@@ -13921,16 +13567,7 @@ export default class ChatBubbles {
       const subtitle = i18n(starsAmount ? 'ChannelDirectMessages.WelcomePaid' : 'ChannelDirectMessages.Welcome', [await wrapPeerTitle({peerId: this.peerId}), starsElement]);
       subtitle.classList.add('center', BASE_CLASS + '-subtitle');
 
-      let button: HTMLElement;
-      if(starsAmount) {
-        button = Button('bubble-service-button overflow-hidden', {noRipple: true, text: 'BuyStars'});
-        button.append(Sparkles({isDiv: true, mode: 'button'}));
-        attachClickEvent(button, () => {
-          hotReloadGuard.showStarsPopup({spendPurposePeerId: this.peerId});
-        });
-      }
-
-      elements.push(...[stickerDiv, subtitle, button].filter(Boolean));
+      elements.push(stickerDiv, subtitle);
     } else if(type === 'topic' && (topic = await this.managers.dialogsStorage.getForumTopic(this.peerId, this.chat.threadId))) {
       const stickerDiv = document.createElement('div');
       stickerDiv.classList.add(BASE_CLASS + '-sticker');
@@ -14197,15 +13834,6 @@ export default class ChatBubbles {
       processResult: p,
       canAnimateLadder: true
     });
-  }
-
-  private makeViewButton<T extends Parameters<typeof Button>[1]>(options: T) {
-    const button = Button('btn-primary btn-primary-transparent bubble-view-button', options);
-    const text = button.querySelector('.i18n');
-    if(text) {
-      text.classList.add('bubble-view-button-text');
-    }
-    return button;
   }
 
   private generateLocalMessageId(addOffset = 0) {

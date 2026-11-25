@@ -9,7 +9,6 @@ import Section from '@components/section';
 import rootScope from '@lib/rootScope';
 import {createSignal} from 'solid-js';
 import createMiddleware from '@helpers/solid/createMiddleware';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 
 export function InputStarsField(options: {
@@ -79,14 +78,7 @@ export default async function showMakePaidPopup(onSave: (value: number) => void,
           <PopupElement.Title title="PaidMedia.Title" />
         </PopupElement.Header>
         <PopupElement.Body>
-          <Section
-            caption="PaidMedia.Caption"
-            captionArgs={[
-              anchorCallback(() => {
-                hotReloadGuard.showStarsPopup();
-              })
-            ]}
-          >
+          <Section caption="PaidMedia.Caption">
             {inputField.container}
           </Section>
         </PopupElement.Body>

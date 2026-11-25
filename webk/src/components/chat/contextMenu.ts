@@ -60,7 +60,6 @@ import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {listenRichMessageCopy} from '@components/chat/richMessageCopy';
 import {showAdReport} from '@components/popups/reportAd';
 import showAboutAdPopup from '@components/popups/aboutAd';
-import showStarReactionPopup from '@components/popups/starReaction';
 import getUniqueCustomEmojisFromMessage from '@appManagers/utils/messages/getUniqueCustomEmojisFromMessage';
 import getPeerTitle from '@components/wrappers/getPeerTitle';
 import {getFullDate} from '@helpers/date/getFullDate';
@@ -372,12 +371,6 @@ export default class ChatContextMenu {
 
     if(avatar && !avatar.dataset.peerId) {
       toastNew({langPackKey: 'HidAccount'});
-      return;
-    }
-
-    const paidReactionElement = (e.target as HTMLElement).closest('.reaction.is-paid');
-    if(paidReactionElement) {
-      showStarReactionPopup(bubble.dataset.peerId.toPeerId(), mid, this.chat);
       return;
     }
 
@@ -1452,11 +1445,6 @@ export default class ChatContextMenu {
           contextMenuController.close();
           reaction = await reaction;
           if(!reaction) {
-            return;
-          }
-
-          if(reaction._ === 'reactionPaid') {
-            showStarReactionPopup(reactionsMessage.peerId, reactionsMessage.mid, this.chat);
             return;
           }
 

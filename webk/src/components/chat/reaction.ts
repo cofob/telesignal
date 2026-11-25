@@ -25,7 +25,7 @@ import Scrollable from '@components/scrollable';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import {savedReactionTags} from '@components/chat/reactions';
 import reactionsEqual from '@appManagers/utils/reactions/reactionsEqual';
-import {StarsStar} from '@components/stars/starsAmount';
+import currencyStarIcon from '@components/currencyStarIcon';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {hotListen} from '@helpers/hotModule';
 import {Sparkles} from '@components/sparkles';
@@ -864,7 +864,7 @@ export default class ReactionElement extends HTMLElement {
     } else if(reaction._ === 'reactionPaid') {
       this.classList.add('is-paid');
       if(!IS_MOBILE) this.append(Sparkles({mode: 'button', isDiv: true}));
-      this.stickerContainer.append(StarsStar() as HTMLElement);
+      this.stickerContainer.append(currencyStarIcon() as HTMLElement);
     }
   }
 
