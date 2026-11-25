@@ -4871,10 +4871,6 @@ const lang = {
   'NoPaidMessagesToken.Imported': 'You can now message **%s** for free.',
   'NoPaidMessagesToken.Invalid': 'This free messages link is invalid or has expired.',
   'NoPaidMessagesToken.UserInvalid': 'This free messages link can\'t be used.',
-  'PaidMessages.FailedToPayForMessage': {
-    'one_value': 'You failed to pay **%2$s** to send a message',
-    'other_value': 'You failed to pay **%2$s** to send %1$d messages.'
-  },
 
   'UnsavedChanges': 'Unsaved Changes',
   'UnsavedChangesDescription': 'Are you sure you want to discard all changes?',

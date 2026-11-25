@@ -1,9 +1,8 @@
 import filterUnique from '@helpers/array/filterUnique';
 import lastItem from '@helpers/array/lastItem';
-import tsNow from '@helpers/tsNow';
 import {DraftMessage, MessagesGetSavedDialogs, MessagesSavedDialogs, SavedDialog, Update} from '@layer';
 import {Pair} from '@types';
-import {MyMessage, SUGGESTED_POST_MIN_THRESHOLD_SECONDS} from '@appManagers/appMessagesManager';
+import {MyMessage} from '@appManagers/appMessagesManager';
 import {CHANNEL_CUTOFF_RETRY_LIMIT} from '@appManagers/constants';
 import {AppManager} from '@appManagers/manager';
 import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId';
@@ -69,14 +68,6 @@ namespace MonoforumDialogsStorage {
     parentPeerId: PeerId;
     peerId: PeerId;
     unread: boolean;
-  };
-
-  export type ToggleSuggestedPostApprovalArgs = {
-    parentPeerId: PeerId;
-    messageId: number;
-    reject?: boolean;
-    rejectComment?: string;
-    scheduleTimestamp?: number;
   };
 }
 
@@ -481,20 +472,6 @@ class MonoforumDialogsStorage extends AppManager {
     }
 
     this.rootScope.dispatchEvent('monoforum_dialogs_update', {dialogs: [dialog]});
-  }
-
-  public async toggleSuggestedPostApproval({parentPeerId, messageId, reject, rejectComment, scheduleTimestamp}: MonoforumDialogsStorage.ToggleSuggestedPostApprovalArgs) {
-    const updates = await this.apiManager.invokeApi('messages.toggleSuggestedPostApproval', {
-      peer: this.appPeersManager.getInputPeerById(parentPeerId),
-      msg_id: getServerMessageId(messageId),
-      reject,
-      reject_comment: rejectComment,
-      schedule_date: scheduleTimestamp && scheduleTimestamp >= tsNow(true) + SUGGESTED_POST_MIN_THRESHOLD_SECONDS ?
-        scheduleTimestamp :
-        undefined
-    });
-
-    this.apiUpdatesManager.processUpdateMessage(updates);
   }
 
   private onUpdateMonoForumNoPaidException = (update: Update.updateMonoForumNoPaidException) => {

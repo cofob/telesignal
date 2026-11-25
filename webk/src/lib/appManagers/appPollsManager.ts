@@ -1152,8 +1152,6 @@ export class AppPollsManager extends AppManager {
       solution_media: await uploadingMedia.explanation?.deferred
     };
 
-    const paidStars = params.confirmedPaymentResult?.starsAmount || undefined;
-
     const updates = await this.apiManager.invokeApi('messages.sendMedia', {
       peer: this.appPeersManager.getInputPeerById(peerId),
       media: inputMediaPoll,
@@ -1167,15 +1165,10 @@ export class AppPollsManager extends AppManager {
       send_as: params.sendAsPeerId ? this.appPeersManager.getInputPeerById(params.sendAsPeerId) : undefined,
       update_stickersets_order: params.updateStickersetOrder,
       invert_media: params.invertMedia,
-      effect: params.effect,
-      allow_paid_stars: paidStars
+      effect: params.effect
     });
 
     this.apiUpdatesManager.processUpdateMessage(updates)
-    this.apiUpdatesManager.processPaidMessageUpdate({
-      paidStars,
-      wereStarsReserved: params.confirmedPaymentResult?.canUndo
-    });
   }
 
   public async sendPollMessage(params: MessageSendingParams, payload: CreatePollPayload) {
@@ -1250,19 +1243,7 @@ export class AppPollsManager extends AppManager {
           uploadingMedia
         });
       } catch(err) {
-        const error = err as ApiError;
-
-        const repayRequest = this.appMessagesManager.repayRequestHandler.tryRegisterRequest({
-          error,
-          messageCount: 1,
-          paidStars: params.confirmedPaymentResult?.starsAmount || undefined,
-          repayCallback: (override) => {
-            this.sendPollMessage({...params, ...override}, payload);
-          },
-          wereStarsReserved: params.confirmedPaymentResult?.canUndo
-        });
-
-        this.appMessagesManager.toggleError(message, error, repayRequest);
+        this.appMessagesManager.toggleError(message, err as ApiError);
       }
     };
 

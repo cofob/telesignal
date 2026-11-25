@@ -4320,8 +4320,6 @@
 "NoPaidMessagesToken.Imported" = "You can now message **%s** for free.";
 "NoPaidMessagesToken.Invalid" = "This free messages link is invalid or has expired.";
 "NoPaidMessagesToken.UserInvalid" = "This free messages link can't be used.";
-"PaidMessages.FailedToPayForMessage_one" = "You failed to pay **%2$s** to send a message";
-"PaidMessages.FailedToPayForMessage_other" = "You failed to pay **%2$s** to send %1$d messages.";
 "UnsavedChanges" = "Unsaved Changes";
 "UnsavedChangesDescription" = "Are you sure you want to discard all changes?";
 "UnsavedChangesDescription.Archive" = "You have changed some archive settings. Save changes?";

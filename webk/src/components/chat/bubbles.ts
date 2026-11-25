@@ -1600,20 +1600,6 @@ export default class ChatBubbles {
 
       bubble.classList.remove('is-outgoing');
       this.setBubbleSendingStatus(bubble, 'error');
-
-      // * read in its chat's storage: a temporary id names no message on its own
-      const message = apiManagerProxy.getMessageFromStorage(storageKey, +bubble.dataset.mid);
-      if(!message || !('repayRequest' in message) || !message.repayRequest) return;
-
-      const serviceMsgText = bubble.querySelector('.service-msg-i18n-element');
-      if(!serviceMsgText) return;
-
-      const i18nElement = I18n.weakMap.get(serviceMsgText as HTMLElement);
-      if(!(i18nElement instanceof I18n.IntlElement)) return;
-
-      i18nElement.update({
-        key: 'PaidMessages.FailedToPayForMessage'
-      });
     });
 
     this.listenerSetter.add(rootScope)('replies_short_update', (message) => {

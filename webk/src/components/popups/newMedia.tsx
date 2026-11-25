@@ -1204,7 +1204,7 @@ export default function showNewMediaPopup(
 
     if(isEphemeral && !isEditing()) {
       input.onMessageSent(true, true, true);
-    } else if(sendingParams.replyToMsgId || sendingParams.suggestedPost) {
+    } else if(sendingParams.replyToMsgId) {
       input.onHelperCancel();
     }
     // input.replyToMsgId = chat.threadId;

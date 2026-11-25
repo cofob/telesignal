@@ -15,7 +15,6 @@ import type StoriesCacheType from '@appManagers/utils/stories/cacheType';
 import type {StoriesListPosition} from '@appManagers/appStoriesManager';
 import type {ArgumentTypes} from '@types';
 import type {RtmpCallInstance} from '@lib/calls/rtmpCallsController';
-import type {ApiManager} from '@appManagers/apiManager';
 import type {MonoforumDialog} from '@lib/storages/monoforumDialogs';
 import type {MyStarGift} from '@appManagers/appGiftsManager';
 import type {MyPromoData} from '@appManagers/appPromoManager';
@@ -279,10 +278,6 @@ export type BroadcastEvents = {
   'star_gift_list_update': {peerId: PeerId},
   'saved_music_update': {peerId: PeerId},
   'star_gift_upgrade': {gift: MyStarGift, savedId?: Long, fromMsgId?: number},
-
-  'insufficent_stars_for_message': {messageCount: number, requestId: number, invokeApiArgs: Parameters<ApiManager['invokeApi']>, reservedStars?: number};
-
-  'fulfill_repaid_message': {requestId: number},
 
   'monoforum_dialogs_update': {dialogs: MonoforumDialog[]},
   'monoforum_dialogs_drop': {parentPeerId: PeerId, ids: PeerId[]},
