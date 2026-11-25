@@ -214,7 +214,6 @@ import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotRel
 import formatStarsAmount from '@appManagers/utils/payments/formatStarsAmount';
 import {Sparkles} from '@components/sparkles';
 import namedPromises from '@helpers/namedPromises';
-import {getCurrentNewMediaPopup} from '@components/popups/newMedia';
 import {ChatWallPaperBubble} from '@components/chat/bubbles/chatWallPaper';
 import {UnknownUserBubble} from '@components/chat/bubbles/unknownUser';
 import {
@@ -2529,19 +2528,16 @@ export default class ChatBubbles {
       const middleware = this.getMiddleware();
       const {
         isUserBlocked,
-        isPremiumRequired,
-        starsAmount
+        isPremiumRequired
       } = await namedPromises({
         isUserBlocked: this.managers.appProfileManager.isCachedUserBlocked(userId),
-        isPremiumRequired: this.chat.isPremiumRequiredToContact(),
-        starsAmount: this.managers.appUsersManager.getStarsAmount(userId)
+        isPremiumRequired: this.chat.isPremiumRequiredToContact()
       });
 
       if(!middleware()) return;
 
       const wasUserBlocked = this.chat.isUserBlocked;
       const wasPremiumRequired = this.chat.isPremiumRequired;
-      const wasStarsAmount = this.chat.starsAmount;
       let refreshing = false;
       // do not refresh if had no status since input is shown by default
       if(wasUserBlocked === undefined ? isUserBlocked : wasUserBlocked !== isUserBlocked) {
@@ -2550,19 +2546,13 @@ export default class ChatBubbles {
       }
 
       const hasPremiumChanged = wasPremiumRequired === undefined ? isPremiumRequired : wasPremiumRequired !== isPremiumRequired;
-      const hasStarsAmountChanged = wasStarsAmount === undefined ? starsAmount : wasStarsAmount !== starsAmount;
 
       this.chat.isPremiumRequired = isPremiumRequired;
-      this.chat.starsAmount = starsAmount;
 
-      if(hasPremiumChanged || hasStarsAmountChanged) {
+      if(hasPremiumChanged) {
         refreshing = true;
         this.cleanupPlaceholders();
         this.checkIfEmptyPlaceholderNeeded();
-      }
-
-      if(hasStarsAmountChanged) {
-        getCurrentNewMediaPopup()?.setStarsAmount(starsAmount);
       }
 
       if(refreshing) {

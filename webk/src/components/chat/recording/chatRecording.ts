@@ -826,7 +826,6 @@ export default class ChatRecording {
     if(value) this.input.setMessageInputExpanded(false);
 
     this.active = value;
-    this.input.inputState.set({isRecording: value});
     this.input.setShrinking(this.active, ['is-recording']);
     this.input.updateSendBtn();
   }

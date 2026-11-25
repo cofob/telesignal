@@ -4838,7 +4838,6 @@ const lang = {
   'PasscodeLock.TurnOff.Description': 'Are you sure you want to turn passcode off?',
 
   'PaidMessages.NewChatDescription': '%s charges %d for each message',
-  'PaidMessages.MessageForStars': 'Message for %d',
   'PaidMessages.FeeForMessages': {
     'one_value': 'Fee for %d message',
     'other_value': 'Fee for %d messages'

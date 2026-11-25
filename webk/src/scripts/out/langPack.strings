@@ -4299,7 +4299,6 @@
 "PasscodeLock.LogoutPopup.Description" = "Are you sure you want to log out?";
 "PasscodeLock.TurnOff.Description" = "Are you sure you want to turn passcode off?";
 "PaidMessages.NewChatDescription" = "%s charges %d for each message";
-"PaidMessages.MessageForStars" = "Message for %d";
 "PaidMessages.FeeForMessages_one" = "Fee for %d message";
 "PaidMessages.FeeForMessages_other" = "Fee for %d messages";
 "PaidMessages.GroupPriceChangedFree" = "Messages in this group are now free";
