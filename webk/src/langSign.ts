@@ -187,6 +187,8 @@ const lang = {
   'Signal.EndGroup': 'End Group',
   'Signal.EndGroupTitle': 'End «%1$@»?',
   'Signal.EndGroupText': 'Members will no longer be able to send messages in the group. They will be notified that you ended the group, and will still have access to message history. This will end the group permanently. Are you sure you want to proceed?',
+  'Signal.Menu.MyProfile': 'My Profile',
+  'Signal.Menu.NightMode': 'Night Mode',
   'SafetyNumber.Title': 'Safety number',
   'SafetyNumber.MarkVerified': 'Mark as verified',
   'SafetyNumber.ClearVerification': 'Clear verification'
