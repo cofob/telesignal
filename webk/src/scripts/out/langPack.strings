@@ -1003,9 +1003,6 @@
 "Story.ToastQualityHD.Text" = "You can lower the quality later for faster downloads.";
 "Story.ToastQualitySD.Title" = "Quality Lowered";
 "Story.ToastQualitySD.Text" = "Stories will now download faster.";
-"Story.UpgradeQuality.Title" = "High-Quality Stories";
-"Story.UpgradeQuality.Text" = "Subscribe to Premium to view stories in higher resolution.";
-"Story.UpgradeQuality.Action" = "Increase Quality";
 "Story.HideTranslation" = "Hide Translation";
 "Story.ToastPremiumSaveToGallery" = "Subscribe to [TeleSignal Premium]() to save other people's unprotected stories.";
 "Story.ToastStealthModeActiveTitle" = "You are in Stealth Mode now";
@@ -1129,8 +1126,6 @@
 "RequestPeer.Title.Users" = "Choose Users";
 "RequestPeer.Title.Groups" = "Choose Groups";
 "RequestPeer.Title.Channels" = "Choose Channels";
-"SimilarChannels.Unlock_one" = "Subscribe to **[TeleSignal Premium]()** to unlock up to **%1$d** similar channel.";
-"SimilarChannels.Unlock_other" = "Subscribe to **[TeleSignal Premium]()** to unlock up to **%1$d** similar channels.";
 "SharedMedia.SavedDialogs" = "Chats";
 "AuthorHidden" = "Author Hidden";
 "AuthorHiddenShort" = "Anonymous";
@@ -1196,7 +1191,6 @@
 "PrivacyUsersAndGroups" = "Users and groups";
 "PrivacySettings.Messages.PremiumError" = "Only subscribers of [TeleSignal Premium]() can restrict receiving messages.";
 "Chat.PremiumRequired" = "Subscribe to **Premium** to message **%s**.";
-"Chat.PremiumRequiredButton" = "Get Premium";
 "Chat.Input.FrozenButton1" = "Your Account is Frozen";
 "Chat.Input.FrozenButton2" = "Click to view details";
 "OnlyPremiumCanMessage" = "**%s** only accepts messages from contacts and **[TeleSignal Premium]()** subscribers.";
@@ -1208,12 +1202,8 @@
 "SimilarBots" = "Similar Bots";
 "SimilarBotsCount_one" = "%d similar bot";
 "SimilarBotsCount_other" = "%d similar bots";
-"SimilarBots.Unlock_one" = "Subscribe to **[TeleSignal Premium]()** to unlock up to **%1$d** similar bot.";
-"SimilarBots.Unlock_other" = "Subscribe to **[TeleSignal Premium]()** to unlock up to **%1$d** similar bots.";
-"MoreSimilarBotsButton" = "Show More Apps";
 "Reactions.Tag.Description" = "Tag the message with an emoji for quick search";
 "Reaction.Tag.From" = "This tag is from **%s pack**.";
-"Reactions.Tag.PremiumHint" = "Organize your Note to Self with tags\nfor quicker access. **[Learn more…]()**";
 "Profile.Info.Bot" = "Bot Info";
 "Profile.Info.User" = "User Info";
 "Profile.Info.Topic" = "Topic Info";
@@ -1266,7 +1256,6 @@
 "Call.Confirm.Discard.Live.ToLive.Text" = "Leave live stream in \"%1$@\" and start a new one in \"%2$@\"?";
 "Call.Confirm.Discard.Voice.ToLive.Text" = "Leave video chat in \"%1$@\" and start a live stream in \"%2$@\"?";
 "Call.Confirm.Discard.Call.ToLive.Text" = "End call with \"%1$@\" and start a live stream in \"%2$@\"?";
-"ChatEmpty.BusinessIntro.Sticker.How" = "**%@** set the sticker above for all empty chats. [How?]()";
 "Language.af" = "Afrikaans";
 "Language.sq" = "Albanian";
 "Language.am" = "Amharic";
@@ -1378,7 +1367,6 @@
 "Language.yi" = "Yiddish";
 "Language.yo" = "Yoruba";
 "Language.zu" = "Zulu";
-"Translation.DoNotShow" = "Do not show 'Translate' buttons for these languages.";
 "ShowMessage" = "Show Message";
 "SearchEmoji" = "Search Emoji";
 "SearchStickers" = "Search Stickers";
@@ -1606,8 +1594,6 @@
 "Summary.Title" = "AI Summary";
 "Summary.Subtitle" = "Tap to see original message";
 "Summary.Subtitle.Click" = "Click to see original message";
-"Summary.Limited" = "Reached summary limits";
-"Summary.Limited.Text" = "Subscribe to [TeleSignal Premium]() to increase summary limits.";
 "Dice.Tooltip" = "Send a %s emoji to try your luck. [Send]()";
 "Dice.Tooltip.CantSend" = "Send a %s emoji to any chat to try your luck.";
 "Dice.Won" = "%s won %s";
@@ -1616,19 +1602,7 @@
 "Dice.LostYou" = "You lost %s";
 "Chat.Service.NewCreatorPending" = "%s will become the new owner in 7 days if %s does not return.";
 "Chat.Service.ChangeCreator" = "%s made %s the new owner of the group.";
-"Stories.StealthMode.Title" = "Stealth Mode";
-"Stories.StealthMode.Subtitle" = "Turn Stealth Mode on to watch without appearing in the list of viewers.";
-"Stories.StealthMode.Row1.Title" = "Hide Recent Views";
-"Stories.StealthMode.Row1.Subtitle" = "Hide my views from the past **%s**.";
-"Stories.StealthMode.Row2.Title" = "Hide Upcoming Views";
-"Stories.StealthMode.Row2.Subtitle" = "Hide my views for the next **%s**.";
-"Stories.StealthMode.Button" = "ENABLE STEALTH MODE";
-"Stories.StealthMode.Unlock" = "UNLOCK STEALTH MODE";
-"Stories.StealthMode.View" = "Hide My View";
 "Stories.StealthMode.Placeholder" = "Stealth Mode active — %s";
-"Stories.StealthMode.Cooldown" = "Available in %s";
-"Stories.StealthMode.Activated.Title" = "Stealth Mode On";
-"Stories.StealthMode.Activated.Subtitle" = "The creators of stories you viewed in the past **%s** or will view in the next **%s** won't see you in the list of viewers.";
 "Stories.Albums.EmptyTitle" = "Organize Your Stories";
 "Stories.Albums.EmptySubtitle" = "Add some of your stories to this album.";
 "Stories.Albums.AddToAlbum" = "Add to Album";
@@ -2408,7 +2382,6 @@
 "RequestToJoinGroupDescription" = "This group accepts new members only after they are approved by its admins.";
 "RequestToJoinChannelDescription" = "This channel accepts new subscribers only after they are approved by its admins.";
 "RequestToJoinSent" = "Join request sent";
-"ReportSpamUserEmojiStatusHint" = "This account uses %1$s as a custom status next to its name. Such emoji statuses are available to all subscribers of %2$s.";
 "ChatWithGroupAdmin" = "**%1$s** is an admin of **%2$s**, a group you requested to join.";
 "ChatWithChannelAdmin" = "**%1$s** is an admin of **%2$s**, a channel you requested to join.";
 "ChatWithAdminGroupTitle" = "Chat with group's admin";
@@ -3023,8 +2996,6 @@
 "ServerErrorViewers" = "Information about the viewers wasn't recorded.";
 "ServerErrorViewersFull" = "Information about the other viewers wasn't recorded.";
 "ExpiredViewsStub" = "List of viewers isn't available after **24 hours** of story expiration.";
-"ExpiredViewsStubPremiumDescription" = "To unlock viewers’ lists for expired and saved stories, subscribe to **TeleSignal Premium.**";
-"StoryViewsPremiumHint" = "To unlock viewers’ lists for expired and saved stories, subscribe to **TeleSignal Premium.**";
 "StoryRepostCommented" = "commented";
 "StoryHideFrom" = "Hide My Stories From %s";
 "StoryShowBackTo" = "Do Not Hide My Stories From %s";
@@ -3144,7 +3115,6 @@
 "BoostingIncompleteGiveaway" = "Incomplete Giveaway";
 "BoostingNoRecipient" = "No recipient";
 "BoostingUseLink" = "Use Link";
-"BoostingPremium" = "TeleSignal Premium";
 "BoostingStarsGiveawayJustStarted_one" = "%2$s just started a giveaway of %1$d Star to its followers.";
 "BoostingStarsGiveawayJustStarted_other" = "%2$s just started a giveaway of %1$d Stars to its followers.";
 "GrowthChartTitle" = "Growth";
@@ -3167,7 +3137,6 @@
 "StatisticViews" = "Views";
 "Recipient_one" = "%1$d recipient";
 "Recipient_other" = "%1$d recipients";
-"HideAd" = "Hide";
 "SponsoredMessageRecommended" = "recommended";
 "ReplyTo" = "Reply to %s";
 "ReplyToQuote" = "Reply to quote by %s";
@@ -3250,7 +3219,6 @@
 "GiftPremiumActivateErrorTitle" = "You already have TeleSignal Premium";
 "GiftPremiumGifting" = "Premium Gifting";
 "ChannelJoined" = "You joined this channel";
-"UnlockSimilar" = "Unlock more channels";
 "MoreSimilar" = "More Channels";
 "MessageNotFound" = "Message doesn't exist";
 "PremiumSubscribers" = "Premium subscribers";
@@ -3575,10 +3543,7 @@
 "TranslateToButton" = "Translate to %s";
 "DoNotTranslateLanguage" = "Don't translate %s";
 "ShowOriginalButton" = "Show Original";
-"TranslateMessages" = "Translate Messages";
-"ShowTranslateButton" = "Show Translate Button";
 "ShowTranslateChatButton" = "Translate Entire Chats";
-"DoNotTranslate" = "Do Not Translate";
 "Languages_one" = "%1$d Language";
 "Languages_other" = "%1$d Languages";
 "TranslateMessage" = "Translate";
@@ -3593,7 +3558,6 @@
 "LimitReachedFavoriteGifsSubtitlePremium" = "An older GIF was replaced with this one.";
 "LimitReachedFavoriteStickersSubtitlePremium" = "An older sticker was replaced with this one.";
 "SaveToGIFs" = "Add to GIFs";
-"RemoveAds" = "Remove Ads";
 "AboutRevenueSharingAds" = "About These Ads";
 "ReportAd" = "Report Ad";
 "ReportAdLearnMore" = "Learn more about our [Ad Policies and Guidelines](https://ads.telegram-org.invalid/guidelines).";
@@ -4064,7 +4028,6 @@
 "QRCode.Saved" = "QR code saved";
 "QRCode.Share" = "Share QR Code";
 "QRCode.PremiumGiftsToast" = "Subscribe to Premium to use\ngifts in your QR code.";
-"QRCode.PremiumSubscribe" = "Subscribe";
 "QRCode.NoPaid.RemoveStarsFee" = "Remove %s fee";
 "QRCode.RemoveEmoji" = "Remove %s";
 "QRCode.NoPaid.Free" = "Free";
@@ -4884,13 +4847,10 @@
 "Premium.Boarding.Subscribe" = "Subscribe for %@ per month";
 "Premium.Boarding.NoForwards.Title" = "Disable Sharing";
 "Premium.Boarding.NoForwards.Info" = "Prevent forwarding, saving and copying content in private chats.";
-"Premium.Offset.AlreadyHave" = "You already have TeleSignal Premium.";
 "GiftLink.UseSuccess" = "You successfully activated gift link.";
 "Giveaway.Type.Specific.Modal.SelectUsers" = "Select Users";
 "Chat.SendJoinRequest.Info" = "You will be able to send messages once the admins approve your request.";
-"ChatEmpty.BusinessIntro.How" = "**%@** added the message above for all empty chats. [How?]()";
 "Chat.Translate.Menu.To" = "Choose Another Language";
-"Language.TranslateMessages.Channel.Premium" = "Subscribe to [TeleSignal Premium](premium) to translate entire chats.";
 "SetEmojiStatusUntil1Hour" = "Set for 1 hour";
 "SetEmojiStatusUntil2Hours" = "Set for 2 hours";
 "SetEmojiStatusUntil8Hours" = "Set for 8 hours";
@@ -4925,7 +4885,6 @@
 "DisableDarkMode" = "Disable Dark Mode";
 "DisableAnimations" = "Disable Animations";
 "ReduceAnimations" = "Reduce Animations";
-"AudioAndVideoTranscription.PremiumAlert" = "Subscribe to TeleSignal Premium to unlock video and audio transcription. [Read More]()";
 "Chat.Search.JoinedChannels" = "Channels you joined";
 "Chat.Search.NothingFound" = "Nothing interesting here yet...";
 "UnknownBotUsers" = "Unknown users";

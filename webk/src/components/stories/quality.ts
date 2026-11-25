@@ -1,11 +1,7 @@
 import {Document, MessageMedia, StoryItem} from '@layer';
 import rootScope from '@lib/rootScope';
-import {i18n} from '@lib/langPack';
 import {useAppSettings} from '@stores/appSettings';
 import usePremium from '@stores/premium';
-import showFeatureDetailsPopup from '@components/popups/featureDetails';
-import createFeatureDetailsIconSticker from '@components/featureDetailsIconSticker';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 export const STORY_QUALITY_ICON: Icon = 'image_original';
 
@@ -29,20 +25,3 @@ export function getStoryVideoDocuments(media: MessageMedia.messageMediaDocument,
   return altDoc && !highQuality ? {doc: altDoc} : {doc, altDoc};
 }
 
-export function showStoryQualityUpgradePopup(onClose?: () => void) {
-  showFeatureDetailsPopup({
-    sticker: {
-      element: createFeatureDetailsIconSticker(STORY_QUALITY_ICON, 'background-gradient-stories')
-    },
-    title: i18n('Story.UpgradeQuality.Title'),
-    subtitle: i18n('Story.UpgradeQuality.Text'),
-    rows: [],
-    buttons: [{
-      text: i18n('Story.UpgradeQuality.Action'),
-      onClick: () => {
-        hotReloadGuard.showPremiumPopup({feature: 'stories'});
-      }
-    }],
-    onClose
-  });
-}

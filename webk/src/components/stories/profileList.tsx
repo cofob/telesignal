@@ -34,7 +34,6 @@ import InputField from '@components/inputField';
 import confirmationPopup from '@components/confirmationPopup';
 import showChooseStoryPopup from '@components/popups/chooseStoryPopup';
 import {createAddToAlbumSubmenuTrigger, openCreateAlbumPopup} from '@components/stories/albums';
-import showStoriesStealthModePopup from '@components/popups/storiesStealthMode';
 import {toastNew} from '@components/toast';
 import {IconTsx} from '@components/iconTsx';
 import LottieAnimation from '@components/lottieAnimation';
@@ -272,19 +271,6 @@ class StoriesContextMenu {
         const story = this.storyItem;
         return !!story.pFlags.public && (!story.pFlags.noforwards || !!username)
       }
-    }, {
-      icon: 'eyecross',
-      text: 'Stories.StealthMode.View',
-      onClick: () => {
-        const {peerId} = this;
-        const id = this.storyItem.id;
-        showStoriesStealthModePopup({
-          onActivate: () => {
-            hotReloadGuard.createStoriesViewerWithPeer({peerId, id});
-          }
-        });
-      },
-      verify: () => this.peerId !== rootScope.myId
     }, {
       icon: 'select',
       text: 'Message.Context.Select',

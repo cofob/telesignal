@@ -20,7 +20,6 @@ import {toastNew} from '@components/toast';
 import {usePeer} from '@stores/peers';
 import {Chat as MTChat} from '@layer';
 import TopbarPlate, {createTopbarPlate, TopbarPlateController} from '@components/chat/topbarPlate';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {addDoNotTranslateLanguage} from '@helpers/getDoNotTranslateLanguages';
 
 export function pickLanguage<T extends boolean>(
@@ -174,7 +173,6 @@ function TranslationPlateBody(props: {
         onClick={() => {
           const translation = peerTranslation();
           if(!translation.canTranslate()) {
-            hotReloadGuard.showPremiumPopup({feature: 'translations'});
             return;
           }
           translation.toggle(!translation.enabled());

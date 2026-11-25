@@ -1101,11 +1101,6 @@ export default function TopbarSearch(props: {
         return;
       }
 
-      if(!isPremium()) {
-        hotReloadGuard.showPremiumPopup({feature: 'saved_tags'});
-        return;
-      }
-
       const {reactionCount} = reactionElement;
       const {reaction} = reactionCount;
       setReaction((prev) => {

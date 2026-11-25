@@ -1048,12 +1048,10 @@ PeerProfile.Location = () => {
 
 PeerProfile.Bio = () => {
   const context = useContext(PeerProfileContext);
-  const {i18n, showPremiumPopup, HotReloadGuard, I18n, wrapRichText, toast} = useHotReloadGuard();
+  const {i18n, I18n, wrapRichText, toast} = useHotReloadGuard();
   const appConfig = useAppConfig();
-  const peerTranslation = usePeerTranslation(context.peerId);
 
   const about = createMemo(() => context.fullPeer?.about);
-  const bioLanguagePromise = createMemo(() => detectLanguageForTranslation(about()));
 
   const aboutWrapped = createMemo(() => {
     if(!about()) {
@@ -1089,26 +1087,6 @@ PeerProfile.Bio = () => {
             text: 'Text.CopyLabel_Bio',
             onClick,
             verify: () => context.peerId.isUser()
-          }, {
-            icon: 'premium_translate',
-            text: 'TranslateMessage',
-            onClick: async() => {
-              if(!peerTranslation.canTranslate(true)) {
-                showPremiumPopup({feature: 'translations'});
-              } else {
-                const {openTranslatePopup} = await import('@components/popups/translate');
-                openTranslatePopup({
-                  peerId: context.peerId,
-                  textWithEntities: {
-                    _: 'textWithEntities',
-                    text: about(),
-                    entities: []
-                  },
-                  detectedLanguage: await bioLanguagePromise()
-                }, HotReloadGuard);
-              }
-            },
-            verify: async() => !!(await bioLanguagePromise())
           }]
         }}
       >

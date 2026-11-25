@@ -20,7 +20,6 @@ import wrapPeerTitle from '@components/wrappers/peerTitle';
 import {ConfettiContainer, ConfettiRef} from '@components/confetti';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
 import buttonKeyDown from '@helpers/solid/buttonKeyDown';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 
 export function ChecklistBubble(props: {
@@ -79,11 +78,6 @@ export function ChecklistBubble(props: {
           await wrapPeerTitle({peerId: props.message.fromId})
         ]
       })
-      return;
-    }
-
-    if(!rootScope.premium) {
-      hotReloadGuard.showPremiumPopup();
       return;
     }
 

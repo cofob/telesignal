@@ -3,7 +3,6 @@ import PopupElement, {createPopup} from '@components/popups/indexTsx';
 import {LangPackKey, i18n} from '@lib/langPack';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import apiManagerProxy from '@lib/apiManagerProxy';
-import {DelimiterWithText} from '@components/delimiterWithText';
 import wrapLocalSticker from '@components/wrappers/localSticker';
 import liteMode from '@helpers/liteMode';
 import {toastNew} from '@components/toast';
@@ -11,7 +10,6 @@ import toggleDisability from '@helpers/dom/toggleDisability';
 import rootScope from '@lib/rootScope';
 import {getMiddleware} from '@helpers/middleware';
 import MediaHeader from '@components/mediaHeader';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 import toastError from '@components/toastError';
 
@@ -143,25 +141,10 @@ export default async function showToggleReadDatePopup(peerId: PeerId, type: 'las
         />
         <Part
           title={i18n(details.title1)}
-          text={i18n(isPremiumPurchaseBlocked ? details.lockedText : details.text1, [titles[0]])}
+          text={i18n(details.lockedText, [titles[0]])}
           buttonText={details.buttonText1}
           onClick={details.onClick}
         />
-        {!isPremiumPurchaseBlocked && (
-          <>
-            <DelimiterWithText langKey="PremiumOr" />
-            <Part
-              title={i18n(details.title2)}
-              text={i18n(details.text2, [titles[1]])}
-              buttonText={details.buttonText2}
-              onClick={() => {
-                setShow(false);
-                hotReloadGuard.showPremiumPopup();
-              }}
-              isPremium
-            />
-          </>
-        )}
       </PopupElement.Body>
     </PopupElement>
   ));

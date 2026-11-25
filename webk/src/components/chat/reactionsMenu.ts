@@ -41,7 +41,6 @@ import docIdToReaction from '@appManagers/utils/reactions/docIdToReaction';
 import createEmojiReaction from '@appManagers/utils/reactions/createEmojiReaction';
 import {StarsStar} from '@components/stars/starsAmount';
 import {cleanEmoji} from '@lib/richTextProcessor/fixEmoji';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 const REACTIONS_CLASS_NAME = 'btn-menu-reactions';
 const REACTION_CLASS_NAME = REACTIONS_CLASS_NAME + '-reaction';
@@ -134,15 +133,7 @@ export class ChatReactionsMenu {
 
     if(this.isTags || this.isEffects || options.description) {
       widthContainer.classList.add(REACTIONS_CLASS_NAME + '-container-' + 'tags');
-      const description = options.description || (this.isEffects ? i18n('AddEffectMessageHint') : i18n(
-        rootScope.premium ? 'Reactions.Tag.Description' : 'Reactions.Tag.PremiumHint',
-        [
-          anchorCallback(() => {
-            contextMenuController.close();
-            hotReloadGuard.showPremiumPopup({feature: 'saved_tags'});
-          })
-        ]
-      ));
+      const description = options.description || i18n(this.isEffects ? 'AddEffectMessageHint' : 'Reactions.Tag.Description');
       description.classList.add(REACTIONS_CLASS_NAME + '-description');
       widthContainer.append(description);
     }

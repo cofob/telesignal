@@ -7,10 +7,8 @@ import ListenerSetter from '@helpers/listenerSetter';
 import findUpClassName from '@helpers/dom/findUpClassName';
 import noop from '@helpers/noop';
 import {IconTsx} from '@components/iconTsx';
-import {hideToast, toastNew} from '@components/toast';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import A11yButton from '@components/a11yButton';
-import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import changeBubble from '@components/chat/changeBubble';
 
 
@@ -189,17 +187,6 @@ export default function createAudioTranscription(options: {
 
     const {message} = options.getRow();
     if(message.pFlags.is_outgoing) {
-      return;
-    }
-
-    if(!rootScope.getPremium()) {
-      toastNew({
-        langPackKey: 'AudioAndVideoTranscription.PremiumAlert',
-        langPackArguments: [anchorCallback(() => {
-          hideToast();
-          hotReloadGuard.showPremiumPopup({feature: 'voice_to_text'});
-        })]
-      });
       return;
     }
 

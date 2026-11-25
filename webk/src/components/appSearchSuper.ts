@@ -80,7 +80,6 @@ import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 import {children, createEffect, createRoot, For, on} from 'solid-js';
 import {StoriesProfileList, isStoryReorderTarget} from '@components/stories/profileList';
 import {StoriesContextActions} from '@components/stories/store';
-import Button from '@components/button';
 import anchorCallback from '@helpers/dom/anchorCallback';
 import {ChatType} from './chat/chatType';
 import getFwdFromName from '@appManagers/utils/messages/getFwdFromName';
@@ -2596,24 +2595,9 @@ export default class AppSearchSuper {
       return chatlist;
     };
 
-    const createPaywall = (limit: number) => {
-      const wall = document.createElement('div');
-      wall.classList.add('similar-channels-paywall');
-      const btn = Button('btn-primary btn-color-primary', {icon: 'premium_unlock_filled', text: isBots ? 'MoreSimilarBotsButton' : 'UnlockSimilar'});
-      btn.classList.add('similar-channels-paywall-button');
-      const onClick = () => hotReloadGuard.showPremiumPopup();
-      const anchor = anchorCallback(onClick);
-      attachClickEvent(btn, onClick);
-      anchor.classList.add('primary');
-      const subtitle = i18n(isBots ? 'SimilarBots.Unlock' : 'SimilarChannels.Unlock', [limit, anchor]);
-      subtitle.classList.add('similar-channels-paywall-subtitle');
-      wall.append(btn, subtitle);
-      return wall;
-    };
-
     // * the rows on screen live until the next list takes their place: a premium toggle leaves them
     // * there while it loads, and rows torn down before that lose their layout in view
-    let paywall: HTMLElement, wasPremium: boolean, shownRowsHelper: MiddlewareHelper;
+    let wasPremium: boolean, shownRowsHelper: MiddlewareHelper;
     const onPremium = async(isPremium: boolean) => {
       if(wasPremium === isPremium) {
         return;
@@ -2624,11 +2608,7 @@ export default class AppSearchSuper {
       const middleware = middlewareHelper.get();
       const rowsHelper = this.middleware.get().create();
 
-      const [{peers, count}, premiumLimit, isPremiumFeaturesHidden] = await Promise.all([
-        this.getSimilarPeers(managers),
-        managers.apiManager.getLimit('recommendedChannels', true),
-        apiManagerProxy.isPremiumFeaturesHidden()
-      ]);
+      const {peers, count} = await this.getSimilarPeers(managers);
 
       const chatlist = await renderPeers(peers, rowsHelper.get());
       if(!middleware()) {
@@ -2642,12 +2622,6 @@ export default class AppSearchSuper {
       this.afterPerforming(1, mediaTab);
       this.loaded[mediaTab.type] = true;
       this.setCounter(mediaTab.type, count);
-
-      // * offered only when there are more of them than came (tdesktop)
-      if(!isPremium && !isPremiumFeaturesHidden && count > peers.length) {
-        paywall ||= createPaywall(premiumLimit);
-        mediaTab.itemsTab.append(paywall);
-      }
     };
 
     rootScope.addEventListener('premium_toggle', onPremium);

@@ -10,8 +10,6 @@ import {DialogElement} from '@components/dialogElement';
 import {processDialogElementForReaction} from '@components/popups/reactedList';
 import {wrapStoryMedia} from '@components/stories/preview';
 import {IconTsx} from '@components/iconTsx';
-import ButtonTsx from '@components/buttonTsx';
-import A11yButton from '@components/a11yButton';
 import {toastNew} from '@components/toast';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import blockUserWithConfirmation, {unblockUser} from '@components/blockUser';
@@ -250,8 +248,6 @@ function StoryViewers(props: StoryViewersPopupOptions & {
     !!viewItems().length &&
     viewItems().length < (list()?.viewsCount ?? views()?.views_count ?? 0);
 
-  const openPremium = () => hotReloadGuard.showPremiumPopup({feature: 'stories'});
-
   // * another story of the strip: the viewer behind goes to it too, and the list follows once it is known
   let selecting = 0, requestedStoryId: number;
   const selectStory = async(id: number) => {
@@ -325,7 +321,7 @@ function StoryViewers(props: StoryViewersPopupOptions & {
     </div>
   );
 
-  const emptyStub = createMemo<{title?: LangPackKey, text: JSX.Element, premium?: boolean}>(() => {
+  const emptyStub = createMemo<{title?: LangPackKey, text: JSX.Element}>(() => {
     if(!isEnd() || items().length) {
       return;
     }
@@ -335,13 +331,7 @@ function StoryViewers(props: StoryViewersPopupOptions & {
     }
 
     if(viewsExpired()) {
-      return {
-        text: [
-          i18n('ExpiredViewsStub'),
-          !premiumFeaturesHidden() && [document.createElement('br'), document.createElement('br'), i18n('ExpiredViewsStubPremiumDescription')]
-        ].flat().filter(Boolean) as JSX.Element,
-        premium: !premiumFeaturesHidden()
-      };
+      return {text: i18n('ExpiredViewsStub')};
     }
 
     if(listMode() === 'contacts') {
@@ -544,13 +534,10 @@ function StoryViewers(props: StoryViewersPopupOptions & {
     return container;
   };
 
-  const Stub = (stubProps: {stub: {title?: LangPackKey, text: JSX.Element, premium?: boolean}}) => (
+  const Stub = (stubProps: {stub: {title?: LangPackKey, text: JSX.Element}}) => (
     <div class={styles.stub}>
       {stubProps.stub.title && <div class={styles.stubTitle}>{i18n(stubProps.stub.title)}</div>}
       <div class={styles.stubText}>{stubProps.stub.text}</div>
-      {stubProps.stub.premium && (
-        <ButtonTsx class={classNames('btn-primary btn-color-primary', styles.stubButton)} text="LearnMore" onClick={openPremium} />
-      )}
     </div>
   );
 
@@ -558,14 +545,6 @@ function StoryViewers(props: StoryViewersPopupOptions & {
   const footer = () => {
     if(emptyStub()) {
       return <Stub stub={emptyStub()} />;
-    }
-
-    if(reactionsOnly() && isEnd() && !premiumFeaturesHidden()) {
-      return (
-        <A11yButton class={classNames(styles.hint, styles.hintClickable)} onClick={openPremium}>
-          {i18n('StoryViewsPremiumHint')}
-        </A11yButton>
-      );
     }
 
     if(notAllRecorded()) {

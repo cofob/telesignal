@@ -4240,11 +4240,6 @@ export default class ChatBubbles {
       const {reaction} = reactionCount;
 
       if(reactionsElement.getType() === ReactionLayoutType.Tag) {
-        if(!rootScope.premium) {
-          hotReloadGuard.showPremiumPopup({feature: 'saved_tags'});
-          return;
-        }
-
         const search = this.chat.searchSignal();
         if(reactionsEqual(search?.reaction, reaction)) {
           this.chat.contextMenu.onContextMenu(e as MouseEvent);
@@ -9795,14 +9790,7 @@ export default class ChatBubbles {
                 };
 
                 hotReloadGuard.internalLinkProcessor.processGiftCodeLink(link);
-                return;
               }
-
-              hotReloadGuard.showPremiumPopup({
-                gift: action,
-                peerId: this.peerId,
-                isOut: !!message.pFlags.out
-              });
             }
           }), content, middleware);
 
@@ -10292,20 +10280,6 @@ export default class ChatBubbles {
     };
     const onTranslationError = (error: ApiError) => {
       if(!ownsCurrentBubble()) return;
-
-      if(error.type === 'SUMMARY_FLOOD_PREMIUM') {
-        const {hide} = showChatToast({
-          icon: 'premium_speed_filled',
-          title: i18n('Summary.Limited'),
-          textElement: i18n('Summary.Limited.Text', [
-            anchorCallback(() => {
-              hide();
-              hotReloadGuard.showPremiumPopup();
-            })
-          ]),
-          duration: 10000
-        });
-      }
 
       setSummarizing(false);
     };
@@ -12142,31 +12116,18 @@ export default class ChatBubbles {
       const canReport = sponsoredMessage.pFlags.can_report;
       const buttons = document.createElement('div');
       buttons.classList.add('bubble-beside-button', 'bubble-beside-button-top');
-      let hideButton: HTMLElement;
       if(canReport) {
         buttons.classList.add('bubble-sponsored-buttons');
-        hideButton = ButtonIcon('close bubble-sponsored-buttons-button', {noRipple: true, ariaLabel: 'HideAd'});
-        const hr = document.createElement('div');
-        hr.classList.add('bubble-sponsored-buttons-delimiter');
         const menu = ButtonIcon('more bubble-sponsored-buttons-button', {noRipple: true, ariaLabel: 'MultiAccount.More'});
-        buttons.append(hideButton, hr, menu);
+        buttons.append(menu);
 
         attachClickEvent(menu, (e) => {
           this.chat.contextMenu.onContextMenu(e as MouseEvent);
         });
-      } else {
-        hideButton = buttons;
-        hideButton.setAttribute('role', 'button');
-        hideButton.setAttribute('aria-label', I18n.format('HideAd', true));
-        if(Modes.a11y) hideButton.tabIndex = 0;
-        hideButton.append(Icon('close'));
-        buttons.classList.add('bubble-sponsored-hide');
+
+        bubbleContainer.prepend(buttons);
+        bubble.classList.add('with-beside-button');
       }
-      bubbleContainer.prepend(buttons);
-      bubble.classList.add('with-beside-button');
-      attachClickEvent(hideButton, () => {
-        hotReloadGuard.showPremiumPopup({feature: 'no_ads'});
-      });
     }
 
     let savedFrom = '';
@@ -13864,25 +13825,6 @@ export default class ChatBubbles {
           if(intro.sticker) {
             doc = intro.sticker as MyDocument;
           }
-
-          const bubbleContainer = bubble.querySelector('.bubble-content');
-          const content = bubbleContainer.cloneNode(false) as HTMLElement;
-          const service = bubbleContainer.querySelector('.service-msg').cloneNode(false) as HTMLElement;
-
-          service.append(i18n(
-            intro.title || intro.description ? 'ChatEmpty.BusinessIntro.How' : 'ChatEmpty.BusinessIntro.Sticker.How',
-            [
-              await wrapPeerTitle({peerId: message.peerId, onlyFirstName: true}),
-              anchorCallback(() => {
-                hotReloadGuard.showPremiumPopup();
-              })
-            ]
-          ));
-
-          content.classList.add('has-service-before');
-          content.append(service);
-          bubbleContainer.after(content);
-          bubble.classList.add('wider');
         }
 
         const loadPromises: Promise<any>[] = [];
@@ -13925,12 +13867,7 @@ export default class ChatBubbles {
       const subtitle = i18n('Chat.PremiumRequired', [await wrapPeerTitle({peerId: this.peerId, onlyFirstName: true})]);
       subtitle.classList.add('center', BASE_CLASS + '-subtitle');
 
-      const button = Button('bubble-service-button', {noRipple: true, text: 'Chat.PremiumRequiredButton'});
-      attachClickEvent(button, () => {
-        hotReloadGuard.showPremiumPopup();
-      });
-
-      elements.push(stickerDiv, subtitle, button);
+      elements.push(stickerDiv, subtitle);
     } else if(type === 'paidMessages') {
       const stickerDiv = document.createElement('div');
       stickerDiv.classList.add(BASE_CLASS + '-sticker');

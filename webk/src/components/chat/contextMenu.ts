@@ -123,24 +123,8 @@ export function getSponsoredMessageButtons(options: {
       isSponsored: true
     }, {
       icon: 'hand',
-      text: 'HideAd',
-      onClick: () => {
-        hotReloadGuard.showPremiumPopup({feature: 'no_ads'});
-      },
-      verify: () => extraVerify() && !canReport,
-      isSponsored: true
-    }, {
-      icon: 'hand',
       text: 'ReportAd',
       onClick: handleReportAd,
-      verify: () => extraVerify() && !!canReport,
-      isSponsored: true
-    }, {
-      icon: 'crossround',
-      text: 'RemoveAds',
-      onClick: () => {
-        hotReloadGuard.showPremiumPopup({feature: 'no_ads'});
-      },
       verify: () => extraVerify() && !!canReport,
       isSponsored: true
     }, {
@@ -440,11 +424,6 @@ export default class ChatContextMenu {
       this.isUsernameTarget = this.target.tagName === 'A' && this.target.classList.contains('mention');
       this.isTag = !!tagReactionElement;
       this.reactionElement = tagReactionElement as ReactionElement;
-
-      if(this.isTag && !rootScope.premium) {
-        hotReloadGuard.showPremiumPopup({feature: 'saved_tags'});
-        return;
-      }
 
       this.sponsoredMessage = isSponsored ? (bubble as any).message.sponsoredMessage : undefined;
 
@@ -1473,11 +1452,6 @@ export default class ChatContextMenu {
 
           if(reaction._ === 'reactionPaid') {
             showStarReactionPopup(reactionsMessage.peerId, reactionsMessage.mid, this.chat);
-            return;
-          }
-
-          if(!rootScope.premium && tags) {
-            hotReloadGuard.showPremiumPopup({feature: 'saved_tags'});
             return;
           }
 
