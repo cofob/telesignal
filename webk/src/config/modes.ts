@@ -100,6 +100,13 @@ export function isFlagOn(flag: KeptFlag) {
   return isFlagInURL(flag) || LOADED_KEPT_FLAGS.has(flag);
 }
 
+// * TeleSignal: the desktop app (`tauri/`) serves its bundle from `tauri://localhost` or, on Windows,
+// * `http://tauri.localhost`, where the system webviews run no service workers; its pages and their workers run without
+// * one. On `tauri:` a shared worker cannot open IndexedDB in WebKitGTK ("invalid security context"), so the engine runs in
+// * a dedicated worker there
+export const IS_DESKTOP_APP_SCHEME = location.protocol === 'tauri:';
+export const IS_DESKTOP_APP_BUNDLE = IS_DESKTOP_APP_SCHEME || location.hostname === 'tauri.localhost';
+
 const Modes = {
   // * or a preview whose account lives on the test DCs (VITE_TEST_DC, from its seed - see
   // * vite.preview.config.ts), so that no link to it needs ?test=1 to work. The URL alone: the test
@@ -112,8 +119,8 @@ const Modes = {
   // the server does not expose report_spam / block_contact for the peer.
   forceHideNonContactLinks: !!import.meta.env.VITE_PREVIEW &&
     isFlagOn('forceHideNonContactLinks'),
-  noSharedWorker: isFlagOn('noSharedWorker'),
-  noServiceWorker: isFlagOn('noServiceWorker'),
+  noSharedWorker: isFlagOn('noSharedWorker') || IS_DESKTOP_APP_SCHEME,
+  noServiceWorker: isFlagOn('noServiceWorker') || IS_DESKTOP_APP_BUNDLE,
   noOffscreenCanvas: isFlagOn('noOffscreenCanvas'),
   // Kill switch for the SHARED object-URL lifecycle: with it on, worker-minted
   // blob URLs are never evicted from the caches, never revoked, and pins are

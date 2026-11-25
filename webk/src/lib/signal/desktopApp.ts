@@ -16,10 +16,6 @@ import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 
 /** Tauri's `isTauri()`: the app's pages get the flag before their scripts run */
 export const IS_DESKTOP_APP = !!(globalThis as {isTauri?: boolean}).isTauri;
-// * the app serves its bundle from `tauri://localhost` or, on Windows, `http://tauri.localhost`, where the system
-// * webviews run no service workers
-export const IS_DESKTOP_APP_BUNDLE = IS_DESKTOP_APP &&
-  (location.protocol === 'tauri:' || location.hostname === 'tauri.localhost');
 
 const NOTIFICATION_CLICKED_EVENT = 'notification-clicked';
 // * Cmd+, in the macOS menu bar (`tauri/src/menu.rs`)
