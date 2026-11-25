@@ -952,12 +952,13 @@ export class ApiFileManager extends AppManager {
 
       let done = 0;
       // * TeleSignal: the first part waits while the provider fetches and decrypts the whole attachment, which it
-      // * reports as a fraction (`upload.getFile` in `lib/signal/mediaMethods.ts`); a canceled download stops it
-      const onFirstPartProgress: SignalFileProgress = (fraction) => {
+      // * reports as a fraction (`upload.getFile` in `lib/signal/mediaMethods.ts`). Every part hands the same callback
+      // * over, so that a canceled download, marked on it, stops the provider's fetch whichever part waits for it
+      const onPartProgress: SignalFileProgress = (fraction) => {
         try {
           checkCancel();
         } catch{
-          onFirstPartProgress.isCanceled = true;
+          onPartProgress.isCanceled = true;
           return;
         }
 
@@ -989,7 +990,7 @@ export class ApiFileManager extends AppManager {
             id,
             queueId: options.queueId,
             checkCancel,
-            onProgress: isWebFile || offset ? undefined : onFirstPartProgress
+            onProgress: isWebFile ? undefined : onPartProgress
           });
           checkCancel();
           const requestTime = performance.now() - requestPerf;

@@ -2,9 +2,9 @@
  * TeleSignal: the chats that came back while Web K was closed. Telegram's Web K keeps its chat list in its own state
  * and catches up through `updates.getDifference`, which Signal has no equivalent of: a chat that Web K deleted, or never
  * had, and that got a message meanwhile (a message request again, a reseeded demo) stays out of the list, as the
- * cached list counts as loaded. Once the engine has started, the provider's first page of chats is compared with Web
- * K's dialogs, and each missing one is loaded as a dialog of its own (`messages.getPeerDialogs`), which puts it in its
- * place in the list.
+ * cached list counts as loaded. Once the engine has started, the provider's first page of chats of each folder that Web
+ * K counts as loaded is compared with Web K's dialogs, and each missing one is loaded as a dialog of its own
+ * (`messages.getPeerDialogs`), which puts it in its place in the list.
  */
 
 import type {AppMessagesManager} from '@appManagers/appMessagesManager';
@@ -12,6 +12,7 @@ import type DialogsStorage from '@lib/storages/dialogs';
 import type {SignalChats} from '@lib/signal/signalApi';
 import type {SignalMethodHost} from '@lib/signal/methodHost';
 import {toPeerId} from '@lib/signal/builders';
+import {FOLDER_ID_ALL, FOLDER_ID_ARCHIVE} from '@appManagers/constants';
 
 // * as many chats as the list shows at first, which is where a chat with a new message stands
 const FIRST_PAGE_LIMIT = 100;
@@ -21,8 +22,14 @@ export async function restoreMissingDialogs(
   dialogsStorage: DialogsStorage,
   appMessagesManager: AppMessagesManager
 ) {
-  const results = await Promise.all([false, true].map((archived) => {
-    return host.call<SignalChats | undefined>('fetchChats', {limit: FIRST_PAGE_LIMIT, archived, withPinned: true});
+  // * a folder that Web K has not loaded in full still pages through the provider's chats when it is scrolled
+  const folderIds = [FOLDER_ID_ALL, FOLDER_ID_ARCHIVE].filter((folderId) => dialogsStorage.isDialogsLoaded(folderId));
+  const results = await Promise.all(folderIds.map((folderId) => {
+    return host.call<SignalChats | undefined>('fetchChats', {
+      limit: FIRST_PAGE_LIMIT,
+      archived: folderId === FOLDER_ID_ARCHIVE,
+      withPinned: true
+    });
   }));
 
   for(const result of results) {

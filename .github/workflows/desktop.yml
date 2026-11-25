@@ -106,7 +106,10 @@ jobs:
       - name: Locate the pnpm store
         id: pnpm-store
         shell: bash
-        run: echo "path=$(npx --yes pnpm@11.16.0 --dir webk store path)" >> "$GITHUB_OUTPUT"
+        # The assignment fails the step when `npx` fails, as an `echo` of the substitution would not
+        run: |
+          path=$(npx --yes pnpm@11.16.0 --dir webk store path)
+          echo "path=$path" >> "$GITHUB_OUTPUT"
 
       - name: Cache the pnpm store
         uses: actions/cache@v6.1.0

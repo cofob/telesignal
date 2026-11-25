@@ -741,8 +741,9 @@ export default class AppSignalManager extends AppManager {
   /**
    * Forwards each message as a new one. Every copy has a local id that is registered with the `random_id` of its
    * pending copy before the engine stores it, so the copy's `updateMessageID` goes out with its message, first: Web K
-   * finalizes a pending copy only when the id comes before the message. A copy that is not sent fails the request,
-   * which marks the pending copies of the request as failed.
+   * finalizes a pending copy only when the id comes before the message. The request fails, marking all its pending
+   * copies as failed, only when no copy was sent; otherwise it succeeds and only the copies that were not sent are
+   * marked as failed.
    */
   private async forwardMessages(params: MethodDeclMap['messages.forwardMessages']['req']): Promise<Updates> {
     const fromChat = {id: toSignalPeerId(this.getInputPeerId(params.from_peer))};
