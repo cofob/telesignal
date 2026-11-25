@@ -196,7 +196,8 @@ export function buildNotifySettings(settings?: SignalNotifySettings): PeerNotify
   };
 }
 
-export function buildMessage(message: SignalMessage, getName: SignalNameResolver = () => ''): Message.message | Message.messageService {
+/** `selfId` is our provider user id, which tells a deletion by us as an admin from one by another admin */
+export function buildMessage(message: SignalMessage, getName: SignalNameResolver = () => '', selfId?: string): Message.message | Message.messageService {
   const peerId = buildPeer(message.chatId);
   const fromId = message.senderId ? buildPeer(message.senderId) : undefined;
   const pFlags: Message.message['pFlags'] = {
@@ -233,7 +234,7 @@ export function buildMessage(message: SignalMessage, getName: SignalNameResolver
       peer_id: peerId,
       from_id: fromId,
       date: message.date,
-      action: buildMessageAction(message, getName),
+      action: buildMessageAction(message, getName, selfId),
       // * a pin notice names the pinned message as Telegram's does
       reply_to: buildReplyHeader(message.replyInfo)
     };
@@ -382,7 +383,7 @@ const GROUP_UPDATE_KEYS: Record<string, string> = {
 };
 const GROUP_UPDATES_WITH_COUNT = new Set(['invited', 'inviteRevoked']);
 
-function buildMessageAction(message: SignalMessage, getName: SignalNameResolver): MessageAction {
+function buildMessageAction(message: SignalMessage, getName: SignalNameResolver, selfId?: string): MessageAction {
   const action = message.content.action;
   switch(action.type) {
     case 'setMessagesTtl':
@@ -403,7 +404,7 @@ function buildMessageAction(message: SignalMessage, getName: SignalNameResolver)
       return {_: 'messageActionPinMessage'};
     default:
       // * the notices Signal has and Telegram has not (safety numbers, group access) show as text
-      return {_: 'messageActionCustomAction', message: getActionText(message, getName)};
+      return {_: 'messageActionCustomAction', message: getActionText(message, getName, selfId)};
   }
 }
 
@@ -445,7 +446,7 @@ function getCallNoticeKey(callType: string, outcome: string, isOut: boolean, dat
 }
 
 /** The text of a notice that Telegram has no action for, as a lang key and its arguments (`@lib/signal/notices`) */
-function getActionText(message: SignalMessage, getName: SignalNameResolver) {
+function getActionText(message: SignalMessage, getName: SignalNameResolver, selfId?: string) {
   const {action} = message.content;
   const from = message.senderId ? getName(message.senderId) : '';
   const isOut = message.isOutgoing;
@@ -481,8 +482,13 @@ function getActionText(message: SignalMessage, getName: SignalNameResolver) {
       if(!isOut) return encodeSignalNotice('Signal.Notice.Payment' + name, [from]);
       return encodeSignalNotice('Signal.Notice.Payment' + name + 'Out', name === 'Activated' ? [] : [getName(message.chatId)]);
     }
-    case 'deleted':
-      return ofSender('Signal.Notice.Deleted');
+    // * Web A's `ActionMessageText` (Signal Desktop `getMessageStatusContents` in
+    // * `ts/components/conversation/Message.dom.tsx`): a message deleted by an admin names the admin
+    case 'deleted': {
+      const adminId = action.adminId as string | undefined;
+      if(!adminId) return ofSender('Signal.Notice.Deleted');
+      return adminId === selfId ? encodeSignalNotice('Signal.Notice.DeletedOut') : encodeSignalNotice('Signal.Notice.DeletedByAdmin', [getName(adminId)]);
+    }
     case 'viewOnce':
       return encodeSignalNotice(action.isViewed ? 'Signal.Notice.ViewOnceViewed' : 'Signal.Notice.ViewOnce');
     default:
