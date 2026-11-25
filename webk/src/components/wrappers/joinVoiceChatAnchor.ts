@@ -36,7 +36,7 @@ export default function wrapJoinVoiceChatAnchor(message: Message.messageService)
 
   const a = document.createElement('a');
   a.href = url;
-  a.setAttribute('onclick', onclick + '(this)');
+  a.dataset.callback = onclick;
   joinVoiceChatAnchors.add(a);
   return a;
 }

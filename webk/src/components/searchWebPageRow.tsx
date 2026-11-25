@@ -25,7 +25,7 @@ function SearchWebPageRow(props: SearchWebPageRowProps) {
     const anchor = element as HTMLAnchorElement;
     anchor.href = props.link.href;
     if(props.link.onClick) {
-      anchor.setAttribute('onclick', props.link.onClick);
+      anchor.dataset.callback = props.link.onClick;
     }
 
     if(props.link.targetBlank) {

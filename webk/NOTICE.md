@@ -60,6 +60,8 @@ The port to Signal changes Web K in place; `git log -- webk` lists the changes a
 - Telegram hosts: links of Telegram-only features point to reserved `.invalid` names (the comments keep the original
   hosts); support and bug report links point to Signal and to this project; the web manifests name TeleSignal.
 - Threaded workers are copied under query strings instead of `blob:` URLs, which the policy does not allow.
+- Links name their handlers in `data-callback` instead of an inline `onclick`, and files are saved as plain downloads
+  instead of through the service worker's iframe: the policy allows neither inline handlers nor frames.
 - Frontend switch: the main menu's "Switch to A version" opens `../a/`.
 - `src/vendor/telegram-3d-star` is removed (GPL-2.0-only) with `src/components/star3D`.
 - Telegram's interactive widgets are removed: `src/vendor/widget-sandbox`, `src/vendor/widget-sandbox-quickjs`, their

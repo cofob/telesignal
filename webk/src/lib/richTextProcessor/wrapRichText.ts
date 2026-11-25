@@ -197,7 +197,7 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
   // * a link that is not to what it reads shows where it goes before it goes there (not in a draft, nor where told not to)
   const askBeforeOpening = (element: HTMLElement, masked: boolean) => {
     if(masked && !options.passMaskedLinks && !options.wrappingDraft) {
-      element.setAttribute('onclick', 'showMaskedAlert(this)');
+      element.dataset.callback = 'showMaskedAlert';
     }
   };
 
@@ -508,7 +508,7 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
           element.dataset.bankCard = fullEntityText;
           element.setAttribute('aria-haspopup', 'menu');
           element.setAttribute('aria-expanded', 'false');
-          element.setAttribute('onclick', 'onBankCardClick(this, event)');
+          element.dataset.callback = 'onBankCardClick';
         }
         break;
       }
@@ -530,7 +530,7 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
           element = document.createElement('a');
           (element as HTMLAnchorElement).href = encodeEntities('tg://bot_command?command=' + encodeURIComponent(command) + (bot ? '&bot=' + encodeURIComponent(bot) : ''));
           if(!contextExternal) {
-            element.setAttribute('onclick', 'execBotCommand(this)');
+            element.dataset.callback = 'execBotCommand';
           }
         }
 
@@ -724,7 +724,7 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
           }
 
           if(onclick) {
-            element.setAttribute('onclick', onclick + '(this)');
+            element.dataset.callback = onclick;
           }
         }
 
@@ -756,7 +756,7 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
           if(contextExternal) {
             setBlankToAnchor(element as HTMLAnchorElement);
           } else {
-            element.setAttribute('onclick', 'searchByHashtag(this)');
+            element.dataset.callback = 'searchByHashtag';
           }
         }
 
@@ -854,7 +854,7 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
         element.classList.add('timestamp');
         element.dataset.timestamp = '' + entity.time;
         (element as HTMLAnchorElement).href = '#';
-        element.setAttribute('onclick', 'setMediaTimestamp(this)');
+        element.dataset.callback = 'setMediaTimestamp';
 
         if(options.maxMediaTimestamp === Infinity) {
           element.classList.add('is-disabled');
@@ -874,7 +874,7 @@ export default function wrapRichText(text: string, options: WrapRichTextOptions 
           element.dataset.date = '' + entity.date;
         } else {
           element.classList.add('formatted-date');
-          element.setAttribute('onclick', 'onFormattedDateClick(this, event)');
+          element.dataset.callback = 'onFormattedDateClick';
           // pressed as a link is, and its menu lights it (helpers/dom/linkPress.ts)
           element.setAttribute(TEXT_LINK_ATTRIBUTE, '');
         }

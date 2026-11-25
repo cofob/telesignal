@@ -512,7 +512,7 @@ namespace I18n {
           a = document.createElement('a');
           const wrappedUrl = wrapUrl(url);
           a.href = wrappedUrl.url;
-          if(wrappedUrl.onclick) a.setAttribute('onclick', wrappedUrl.onclick + '(this)');
+          if(wrappedUrl.onclick) a.dataset.callback = wrappedUrl.onclick;
           setBlankToAnchor(a);
         } else {
           a = args?.[indexHolder.i++] as HTMLAnchorElement;

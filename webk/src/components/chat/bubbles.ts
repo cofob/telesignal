@@ -13244,6 +13244,7 @@ export default class ChatBubbles {
 
       const middleware = this.getMiddleware();
 
+      let hasSticker = false;
       const promises = Promise.all([
         this.managers.appStickersManager.getGreetingSticker(),
         this.managers.appProfileManager.getProfile(message.peerId.toUserId())
@@ -13261,6 +13262,9 @@ export default class ChatBubbles {
             doc = intro.sticker as MyDocument;
           }
         }
+
+        hasSticker = !!doc;
+        if(!hasSticker) return;
 
         const loadPromises: Promise<any>[] = [];
         await wrapSticker({
@@ -13293,7 +13297,8 @@ export default class ChatBubbles {
       //   promises: [loadPromise]
       // });
 
-      elements.push(subtitle, stickerDiv);
+      elements.push(subtitle);
+      if(hasSticker) elements.push(stickerDiv);
     } else if(type === 'premiumRequired') {
       const stickerDiv = document.createElement('div');
       stickerDiv.classList.add(BASE_CLASS + '-sticker');

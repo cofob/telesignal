@@ -1660,7 +1660,7 @@ export default class AppSearchSuper {
       media: previewDiv,
       link: aIsAnchor ? {
         href: a.href,
-        onClick: a.getAttribute('onclick'),
+        onClick: a.dataset.callback,
         targetBlank: a.target === '_blank'
       } : undefined,
       middleware

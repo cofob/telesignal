@@ -66,7 +66,7 @@ export default function addAnchorListener<
 }) {
   const handlerName = getAnchorHandlerName(options.name, options.protocol);
   if(!isAnchorHandlerName(handlerName)) {
-    throw new Error(`a link handler is called by its name from an anchor's onclick, which ${handlerName} cannot be`);
+    throw new Error(`a link handler is called by its name from an anchor's data-callback, which ${handlerName} cannot be`);
   }
 
   (window as any)[handlerName] = (element?: HTMLAnchorElement, e?: Event) => {
@@ -106,20 +106,13 @@ export default function addAnchorListener<
 
 const MIDDLE_BUTTON = 1;
 
-/** The handler's name, spelled by either carrier: an inline `onclick`, or a web-page box's dataset. */
+/** The handler's name, which a link or a web-page box carries in its `data-callback` */
 function getAnchorCallbackName(anchor: HTMLAnchorElement) {
-  const fromDataset = anchor.dataset.callback;
-  if(fromDataset) {
-    return fromDataset;
-  }
-
-  const onclick = anchor.getAttribute('onclick'); // `showMaskedAlert(this)`
-  const index = onclick ? onclick.indexOf('(') : -1;
-  return index > 0 ? onclick.slice(0, index) : undefined;
+  return anchor.dataset.callback;
 }
 
 /**
- * A masked link asks before it opens, and that question hangs off the anchor's `onclick` — which
+ * A masked link asks before it opens, and that question hangs off the anchor's click — which
  * the browser fires for the primary button alone. A middle click went around it and opened the
  * real host in a new tab, i.e. exactly the navigation the alert is there to hold back, so it is
  * answered with the same alert. The remaining ways past it (the native context menu, dragging
@@ -169,16 +162,17 @@ export function runContentAnchorHandler(name: string, anchor: HTMLElement, e: Ev
 }
 
 /**
- * TeleSignal: the app's content security policy (`buildCsp`) allows no inline scripts, so the browser never runs an
- * anchor's inline `onclick`: a click on such a link runs the handler it names from here, if content may run it. An
- * inline handler that a policy did allow cancels the click first, and this one then leaves it alone.
+ * TeleSignal: the app's content security policy (`buildCsp`) allows no inline scripts, so a link names its handler in
+ * `data-callback` rather than an inline `onclick`, which the policy reports even before it is clicked: a click on such
+ * a link runs the handler it names from here, if content may run it. A handler that cancelled the click already, as
+ * a link preview's does, is left alone.
  */
 function onAnchorClick(e: MouseEvent) {
   if(e.defaultPrevented || e.button !== 0) {
     return;
   }
 
-  const anchor = (e.target as Element)?.closest?.('a[onclick]') as HTMLAnchorElement;
+  const anchor = (e.target as Element)?.closest?.('a[data-callback]') as HTMLAnchorElement;
   const name = anchor && getAnchorCallbackName(anchor);
   if(name) {
     runContentAnchorHandler(name, anchor, e);

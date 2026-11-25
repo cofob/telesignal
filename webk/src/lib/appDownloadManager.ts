@@ -17,12 +17,10 @@ import {getFileNameByLocation} from '@helpers/fileName';
 import getDocumentDownloadOptions from '@appManagers/utils/docs/getDocumentDownloadOptions';
 import getPhotoDownloadOptions from '@appManagers/utils/photos/getPhotoDownloadOptions';
 import apiManagerProxy from '@lib/apiManagerProxy';
-import {IS_MOBILE_SAFARI} from '@environment/userAgent';
 import isWebFileLocation from '@appManagers/utils/webFiles/isWebFileLocation';
 import {MIME_TYPE_EXTENSION_MAP} from '@environment/mimeTypeMap';
 import {isObjectURL} from '@helpers/objectUrlUtils';
 import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
-import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 
 export type ResponseMethodBlob = 'blob';
 export type ResponseMethodJson = 'json';
@@ -382,9 +380,10 @@ export class AppDownloadManager {
   // }
 
   // * a save streamed to the disk by the service worker, named '<file>_download' (else a plain download of the file)
+  // * TeleSignal: never. The save starts in an iframe, which the content security policy (`buildCsp`) does not allow
+  // (`frame-src 'none'`), and the desktop app refuses the webview's downloads and saves the files itself
   private canSaveViaServiceWorker() {
-    // * TeleSignal: the desktop app refuses the webview's downloads, also from `tauri dev`, and saves the files itself
-    return !IS_MOBILE_SAFARI && !IS_DESKTOP_APP && !!apiManagerProxy.serviceMessagePort;
+    return false;
   }
 
   /**

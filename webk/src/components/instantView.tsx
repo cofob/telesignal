@@ -1739,7 +1739,7 @@ function Block(props: {
                     !hasDisabledNavigation(context) && 'hover-effect'
                   )}
                   // @ts-ignore
-                  attr:onclick={hasDisabledNavigation(context) ? undefined : wrapped().onclick + '(this)'}
+                  attr:data-callback={hasDisabledNavigation(context) ? undefined : wrapped().onclick}
                 >
                   <div class={classNames(styles.RelatedArticleTitle, 'text-bold')}>
                     <RichTextRenderer text={{_: 'textPlain', text: article.title}} />
@@ -2432,16 +2432,16 @@ function RichTextRenderer(props: {text: RichText, customEmojiRenderer?: () => Cu
     middleware: Middleware,
     typesetMath: boolean
   ) => {
-    fragment.querySelectorAll('[onclick="tg_iv(this)"]').forEach((el) => {
+    fragment.querySelectorAll('[data-callback="tg_iv"]').forEach((el) => {
       el.classList.add(styles.Anchor);
     });
     wireInlinePageButtons(context, fragment);
     // In-page fragment links (`#x`) get wrapped by wrapUrl into `https://#x` and flagged as
-    // masked → wrapRichText attaches `showMaskedAlert` onclick. That alert is meaningless for
+    // masked → wrapRichText attaches the `showMaskedAlert` callback. That alert is meaningless for
     // a same-page scroll, strip it so the IV onClick delegator can run scrollToAnchor.
-    fragment.querySelectorAll<HTMLAnchorElement>('a.anchor-url[onclick="showMaskedAlert(this)"]').forEach((el) => {
+    fragment.querySelectorAll<HTMLAnchorElement>('a.anchor-url[data-callback="showMaskedAlert"]').forEach((el) => {
       if(FRAGMENT_HREF_RE.test(el.getAttribute('href') || '')) {
-        el.removeAttribute('onclick');
+        delete el.dataset.callback;
       }
     });
     // Inline math markers (`$x$`) are carried as plain-text base64 by the parser. Decode them into

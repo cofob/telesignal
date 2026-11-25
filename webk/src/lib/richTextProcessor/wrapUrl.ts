@@ -11,24 +11,22 @@ export const PROXY_LINK_TYPES = ['proxy', 'socks'] as const;
 const ANCHOR_HANDLER_NAME_REG_EXP = /^[A-Za-z_$][\w$]*$/;
 
 /**
- * The window function a link's handler is, as addAnchorListener sets it and an anchor's inline `onclick` calls it:
- * `<protocol>_<name>`, a link's `-` (tg://ton-connect) spelled `_` - in that code the name is an identifier, or the
- * call is not one: `tg_ton-connect(this)` subtracts, and throws a ReferenceError on click.
+ * The window function a link's handler is, as addAnchorListener sets it and an anchor's `data-callback` names it:
+ * `<protocol>_<name>`, a link's `-` (tg://ton-connect) spelled `_`, so that the name is an identifier.
  */
 export function getAnchorHandlerName(name: string, protocol?: string) {
   return (protocol ? protocol + '_' : '') + name.replace(/-/g, '_');
 }
 
-/** Whether a handler of this name can be called by it from an inline `onclick` (see `getAnchorHandlerName`) */
+/** Whether a handler name is an identifier (see `getAnchorHandlerName`) */
 export function isAnchorHandlerName(name: string) {
   return ANCHOR_HANDLER_NAME_REG_EXP.test(name);
 }
 
 /**
  * Whether a link handler of this name is there: a function the app set on the window itself. The window also
- * shows the document's elements by their ids, and a `tg:` link spells the name, which goes into an inline
- * `onclick` as code: `tg_x=alert(1)(this)` - an element with that id, a rich text's anchor say, is no handler, and
- * a name the code cannot call it by (see `getAnchorHandlerName`) is none either
+ * shows the document's elements by their ids, and a `tg:` link spells the name: an element with that id, a rich
+ * text's anchor say, is no handler, and a name that is no identifier (see `getAnchorHandlerName`) is none either
  */
 function hasAnchorHandler(name: string) {
   return isAnchorHandlerName(name) &&

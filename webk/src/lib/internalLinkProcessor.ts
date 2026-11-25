@@ -101,7 +101,7 @@ export class InternalLinkProcessor {
    */
   private showOpenUrlAlert(element: HTMLAnchorElement) {
     const a = element.cloneNode(true) as HTMLAnchorElement;
-    a.removeAttribute('onclick');
+    delete a.dataset.callback;
     // * TeleSignal: a masked Signal link opens in the app once the user agrees
     const signalLink = parseSignalLink(a.href);
     confirmOpenUrl(a, undefined, signalLink ? () => openSignalLink(signalLink) : undefined);
@@ -110,7 +110,7 @@ export class InternalLinkProcessor {
   public construct(managers: TabManagers) {
     this.managers = managers;
 
-    // a middle click never reaches an anchor's inline `onclick`, so the alert below is wired to it
+    // a middle click fires no `click`, so the alert below is wired to it
     // separately — otherwise the masked link opens in a new tab with nothing asked
     listenForMaskedAnchorAuxClicks();
     listenForAnchorClicks();
