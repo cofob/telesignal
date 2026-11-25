@@ -409,6 +409,7 @@ export type SignalMethodName =
   | 'provideAuthPhoneNumber'
   | 'provideAuthRegistration'
   | 'provideAuthRestore'
+  | 'reconnectNow'
   | 'removeRecentSticker'
   | 'removeSignalPin'
   | 'reportSpam'

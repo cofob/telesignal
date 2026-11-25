@@ -34,6 +34,7 @@ import clearSignalLocalData from '@signal-app/clear-local-data';
  * To not be used in an ApiManager instance as there is no account number attached to it
  */
 import globalRootScope from '@lib/rootScope';
+import App from '@config/app';
 
 // * the data center Web K's code expects every account to have; nothing connects to it
 const SIGNAL_DC_ID = 2 as TrueDcId;
@@ -43,6 +44,8 @@ const ENGINE_LOG_OUT_TIMEOUT_MS = 3000;
 export class ApiManager extends ApiManagerMethods {
   private loggingOut: Promise<void>;
   private updatesProcessor: (obj: any) => void;
+  // * the interface's language, which the emoji keywords and the sticker search are read in
+  public language = navigator.language || App.langPackCode;
 
   constructor() {
     super();
@@ -150,6 +153,10 @@ export class ApiManager extends ApiManagerMethods {
 
   public getNetworkerVoid(_dcId: DcId) {
     return Promise.resolve();
+  }
+
+  public setLanguage(langCode: string) {
+    this.language = langCode;
   }
 
   public setUpdatesProcessor(callback: (obj: any) => void) {

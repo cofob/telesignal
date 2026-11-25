@@ -169,8 +169,8 @@ export class AppEmojiManager extends AppManager {
       this.getEmojiKeywords()
     ];
 
-    if(this.networkerFactory.language !== App.langPackCode) {
-      promises.push(this.getEmojiKeywords(this.networkerFactory.language));
+    if(this.apiManager.language !== App.langPackCode) {
+      promises.push(this.getEmojiKeywords(this.apiManager.language));
     }
 
     if(!this.recent.native) {

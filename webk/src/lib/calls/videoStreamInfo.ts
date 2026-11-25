@@ -1,5 +1,3 @@
-import {TLDeserialization} from '@lib/mtproto/tl_utils';
-
 export interface VideoStreamEvent {
   offsetValue: number;
   endpointId: string;
@@ -20,7 +18,7 @@ export function parseVideoStreamInfo(buf: Uint8Array) {
   if(buf.length % 4 !== 0) {
     buf = buf.subarray(0, buf.length - buf.length % 4);
   }
-  const r = new TLDeserialization(buf);
+  const r = createReader(buf);
 
   if(r.fetchInt() !== -1590787827) { // 0xa12e810d
     throw new Error('Invalid video stream info');
@@ -45,5 +43,33 @@ export function parseVideoStreamInfo(buf: Uint8Array) {
     activeMask,
     events,
     bytes: originalBuf
+  };
+}
+
+// * the TL values the stream info has: 32-bit integers and strings, a string padded to four bytes
+function createReader(buf: Uint8Array) {
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let offset = 0;
+  return {
+    fetchInt() {
+      const value = view.getInt32(offset, true);
+      offset += 4;
+      return value;
+    },
+    fetchString() {
+      let length = buf[offset++];
+      if(length === 254) {
+        length = buf[offset] | (buf[offset + 1] << 8) | (buf[offset + 2] << 16);
+        offset += 3;
+      }
+
+      const value = new TextDecoder().decode(buf.subarray(offset, offset + length));
+      offset += length;
+      offset += (4 - offset % 4) % 4;
+      return value;
+    },
+    getOffset() {
+      return offset;
+    }
   };
 }

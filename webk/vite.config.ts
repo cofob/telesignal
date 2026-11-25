@@ -443,7 +443,7 @@ export default defineConfig({
   optimizeDeps: {
     // Worker entry points are scanned too. A dep reached ONLY through a worker
     // (aes-js + libsodium-wrappers behind the conference's encrypt.worker, and
-    // the mtproto worker's own set) is otherwise first seen when the worker is
+    // the main worker's own set) is otherwise first seen when the worker is
     // constructed: vite re-optimizes right then, the browser hash changes, and
     // the worker's in-flight import of the previous `?v=` hash gets a 504. A
     // page survives that with a full reload — a worker just fails to load with

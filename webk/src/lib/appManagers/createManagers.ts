@@ -30,11 +30,8 @@ import {ApiManager} from '@appManagers/apiManager';
 import ctx from '@environment/ctx';
 import PeersStorage from '@lib/storages/peers';
 import ThumbsStorage from '@lib/storages/thumbs';
-import {NetworkerFactory} from '@appManagers/networkerFactory';
 import rootScope, {RootScope} from '@lib/rootScope';
-import {Authorizer} from '@lib/mtproto/authorizer';
-import {DcConfigurator} from '@lib/mtproto/dcConfigurator';
-import {TimeManager} from '@lib/mtproto/timeManager';
+import {TimeManager} from '@appManagers/timeManager';
 import {AppStoragesManager} from '@appManagers/appStoragesManager';
 import cryptoMessagePort from '@lib/crypto/cryptoMessagePort';
 import AppStateManager from '@appManagers/appStateManager';
@@ -98,10 +95,7 @@ export default function createManagers(
     apiFileManager: new ApiFileManager,
     peersStorage: new PeersStorage,
     thumbsStorage: new ThumbsStorage,
-    networkerFactory: new NetworkerFactory,
     rootScope: new RootScope,
-    authorizer: undefined as Authorizer,
-    dcConfigurator: new DcConfigurator,
     timeManager: new TimeManager,
     appStoragesManager: appStoragesManager,
     appStateManager: stateManager,
@@ -123,11 +117,6 @@ export default function createManagers(
     aiTonesManager: new AiTonesManager,
     appSignalManager: new AppSignalManager
   };
-
-  managers.authorizer = new Authorizer({
-    timeManager: managers.timeManager,
-    dcConfigurator: managers.dcConfigurator
-  });
 
   type T = typeof managers;
 

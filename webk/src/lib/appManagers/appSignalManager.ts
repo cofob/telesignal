@@ -64,7 +64,7 @@ import {storeSignalWebPages} from '@lib/signal/media';
 import {buildOutgoingMedia} from '@lib/signal/outgoingMedia';
 import noop from '@helpers/noop';
 import {ColorRgb, hexToRgb, mixColors, rgbaToHexa} from '@helpers/color';
-import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
+import {ConnectionStatus} from '@lib/connectionStatus';
 import tsNow from '@helpers/tsNow';
 import deferredPromise, {CancellablePromise} from '@helpers/cancellablePromise';
 
@@ -200,6 +200,12 @@ export default class AppSignalManager extends AppManager {
   /** Sends a story from Web K's story composer (`lib/signal/storySettingsApi`) */
   public sendSignalStory(story: SignalNewStory, listIds: string[], groupIds: string[]) {
     return sendStory(this.createMethodHost(), story, listIds, groupIds);
+  }
+
+  /** Connects the engine again at once, when the device is back online or the user asks */
+  public reconnect() {
+    if(!this.isStarted) return;
+    return this.call('reconnectNow').catch(noop);
   }
 
   /** A provider method that the settings screens call, run by the engine of this worker (`lib/signal/settingsApi`) */

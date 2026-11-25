@@ -4,7 +4,6 @@ import '@helpers/peerIdPolyfill';
 
 import cryptoWorker from '@lib/crypto/cryptoMessagePort';
 import {setEnvironment} from '@environment/utils';
-import transportController from '@lib/mtproto/transports/controller';
 import MTProtoMessagePort from '@lib/mainWorker/mainMessagePort';
 import appManagersManager from '@appManagers/appManagersManager';
 import listenMessagePort from '@helpers/listenMessagePort';
@@ -15,7 +14,6 @@ import {getMemoryWriterStats} from '@lib/files/memoryWriter';
 import toggleStorages from '@helpers/toggleStorages';
 import appTabsManager from '@appManagers/appTabsManager';
 import callbackify from '@helpers/callbackify';
-import Modes from '@config/modes';
 import {IS_WORKER} from '@helpers/context';
 import {ActiveAccountNumber} from '@lib/accounts/types';
 import commonStateStorage from '@lib/commonStateStorage';
@@ -65,11 +63,6 @@ const singleManagers = {
 port.addMultipleEventsListeners({
   environment: (environment) => {
     setEnvironment(environment);
-
-    // Probes the base DC every 10 s until a WebSocket opens
-    if(import.meta.env.VITE_MTPROTO_AUTO && Modes.multipleTransports) {
-      transportController.waitForWebSocket();
-    }
   },
 
   crypto: ({method, args}) => {

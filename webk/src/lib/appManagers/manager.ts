@@ -1,12 +1,9 @@
 import type {CryptoMessagePort} from '@lib/crypto/cryptoMessagePort';
 import type {ApiFileManager} from '@appManagers/apiFileManager';
 import type {ApiManager} from '@appManagers/apiManager';
-import type {Authorizer} from '@lib/mtproto/authorizer';
-import type {DcConfigurator} from '@lib/mtproto/dcConfigurator';
-import type {NetworkerFactory} from '@appManagers/networkerFactory';
 import type {PasswordManager} from '@appManagers/passwordManager';
 import type {ReferencesStorage} from '@lib/storages/references';
-import type {TimeManager} from '@lib/mtproto/timeManager';
+import type {TimeManager} from '@appManagers/timeManager';
 import type {RootScope} from '@lib/rootScope';
 import type DialogsStorage from '@lib/storages/dialogs';
 import type FiltersStorage from '@lib/storages/filters';
@@ -94,10 +91,7 @@ export class AppManager {
   protected apiFileManager: ApiFileManager;
   protected peersStorage: PeersStorage;
   protected thumbsStorage: ThumbsStorage;
-  protected networkerFactory: NetworkerFactory;
   protected rootScope: RootScope;
-  protected authorizer: Authorizer;
-  protected dcConfigurator: DcConfigurator;
   protected timeManager: TimeManager;
   protected appStoragesManager: AppStoragesManager;
   protected appStateManager: AppStateManager;

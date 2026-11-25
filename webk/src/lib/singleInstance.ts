@@ -15,7 +15,6 @@ import idleController from '@helpers/idleController';
 import {getCurrentAccount} from '@lib/accounts/getCurrentAccount';
 import type {ActiveAccountNumber} from '@lib/accounts/types';
 import {logger} from '@lib/logger';
-import rootScope from '@lib/rootScope';
 import sessionStorage from '@lib/sessionStorage';
 import apiManagerProxy from '@lib/apiManagerProxy';
 
@@ -100,13 +99,11 @@ export class SingleInstance extends EventListenerBase<{
 
   public onMyClient = () => {
     this.activateInstance();
-    rootScope.managers.all.networkerFactory.startAll();
     this.log.warn('activated our client');
   };
 
   private onOtherClient = () => {
     this.deactivateInstance('otherClient');
-    rootScope.managers.all.networkerFactory.stopAll();
     this.log.warn('deactivated our client');
   };
 
@@ -199,7 +196,6 @@ export class SingleInstance extends EventListenerBase<{
 
     if(build > App.build) {
       this.masterInstance = false;
-      rootScope.managers.all.networkerFactory.stopAll();
       this.deactivateInstance('version');
       apiManagerProxy.toggleStorages(false, false);
       return;
@@ -244,14 +240,12 @@ export class SingleInstance extends EventListenerBase<{
 
       if(!this.masterInstance) {
         this.masterInstance = true;
-        rootScope.managers.all.networkerFactory.startAll();
         this.log.warn('now master instance', newInstance);
       }
 
       this.clearDeactivateTimeout();
     } else if(this.masterInstance) {
       this.masterInstance = false;
-      rootScope.managers.all.networkerFactory.stopAll();
       this.log.warn('now idle instance', newInstance);
       this.deactivateTimeout ||= window.setTimeout(() => this.deactivateInstance('tabs'), DEACTIVATE_TIMEOUT);
     }

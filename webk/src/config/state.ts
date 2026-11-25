@@ -272,7 +272,8 @@ export type State = {
   dontShowPaidMessageWarningFor: PeerId[],
   ageVerification?: {
     date: string,
-    layer: number,
+    // * the MTProto layer of the client that verified, which Telegram's clients of earlier versions wrote
+    layer?: number,
     clientVersion: string,
   },
   accountContentSettings: CacheSomething<AccountContentSettings>,

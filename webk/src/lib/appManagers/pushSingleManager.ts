@@ -1,17 +1,11 @@
 import {MOUNT_CLASS_TO} from '@config/debug';
 import deepEqual from '@helpers/object/deepEqual';
-import base64ToBytes from '@helpers/string/base64ToBytes';
 import {AccountRegisterDevice, AccountUnregisterDevice} from '@layer';
 import appManagersManager from '@appManagers/appManagersManager';
 import {logger} from '@lib/logger';
 import DeferredIsUsingPasscode from '@lib/passcode/deferredIsUsingPasscode';
 import CryptoWorker from '@lib/crypto/cryptoMessagePort';
 import type {PushSubscriptionNotify} from '@lib/webPushApiManager';
-import bytesCmp from '@helpers/bytes/bytesCmp';
-import bytesCmpConstTime from '@helpers/bytes/bytesCmpConstTime';
-import {MessageKeyUtils} from '@lib/mtproto/messageKeyUtils';
-import {TLDeserialization} from '@lib/mtproto/tl_utils';
-import type {PushNotificationObject} from '@lib/serviceWorker/push';
 import {ActiveAccountNumber} from '@lib/accounts/types';
 import bytesToBase64 from '@helpers/bytes/bytesToBase64';
 import AccountController from '@lib/accounts/accountController';
@@ -172,44 +166,6 @@ export class PushSingleManager {
     }
 
     this.log('unregistered device');
-  }
-
-  // * https://github.com/DrKLO/Telegram/blob/3708e9847a96ed681ff811d391749cc4535b03f2/TMessagesProj/src/main/java/org/telegram/messenger/GcmPushListenerService.java#L56
-  public async decryptPush(pString: string, idBase64: string): Promise<PushNotificationObject> {
-    const pushKey = await this.getKeys().then((keys) => keys.find((key) => key.idBase64 === idBase64));
-    if(!pushKey) {
-      throw new Error('no push key found');
-    }
-
-    const {key: authKey, id: authKeyId} = pushKey;
-    const bytes = base64ToBytes(pString);
-    let deserializer = new TLDeserialization(bytes);
-
-    const inAuthKeyId = deserializer.fetchIntBytes(64, true, 'auth_key_id');
-    if(!bytesCmp(inAuthKeyId, authKeyId)) {
-      throw new Error('invalid auth key id');
-    }
-
-    const messageKey = deserializer.fetchIntBytes(128, true, 'msg_key');
-    const messageKeyData = await MessageKeyUtils.getAesKeyIv(authKey, messageKey, true);
-
-    const decrypted = await CryptoWorker.invokeCrypto(
-      'aes-decrypt',
-      bytes.slice(deserializer.getOffset()),
-      messageKeyData.aesKey,
-      messageKeyData.aesIv
-    );
-
-    const calcMessageKey = await MessageKeyUtils.getMsgKey(authKey, decrypted, true);
-    if(!bytesCmpConstTime(messageKey, calcMessageKey)) {
-      throw new Error('server messageKey mismatch');
-    }
-
-    deserializer = new TLDeserialization(decrypted);
-    const length = deserializer.fetchInt('length');
-    const data = deserializer.fetchStringWithLength(length, 'data');
-
-    return JSON.parse(data);
   }
 }
 

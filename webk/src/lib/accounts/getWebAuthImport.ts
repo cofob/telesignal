@@ -1,5 +1,8 @@
 import type {AuthState} from '@types';
-import isValidDcId from '@lib/mtproto/isValidDcId';
+
+// * Telegram has five DCs, its test servers three
+const DC_COUNT = 5;
+const TEST_DC_COUNT = 3;
 
 export type WebAuthImport = Omit<AuthState.signImport['data'], 'tgAddr'>;
 
@@ -28,4 +31,9 @@ export default function getWebAuthImport(params: Record<string, string>): WebAut
     dcId: +dcId,
     isTest
   };
+}
+
+/** a DC of Telegram's, or of the test servers' when `test` */
+function isValidDcId(dcId: number, test?: boolean) {
+  return Number.isInteger(dcId) && dcId >= 1 && dcId <= (test ? TEST_DC_COUNT : DC_COUNT);
 }

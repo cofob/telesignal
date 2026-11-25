@@ -193,7 +193,7 @@ Signal's limits too; its locked variant needs no Premium. A removal would first 
 helpers out, make paid sending inert with the send path's price at zero, and replace each upsell call. Communities are
 60 files that 21 files outside them import, among them the chat list's `dialogs.ts`, `sortedDialogList.ts`,
 `archiveDialog.tsx`, `appDialogsManager.ts` and `dialogsContextMenu.ts`. Forums stay: `isForum` is false for Signal
-chats, and topic thread ids run through the same chat, history and dialog code, so they go with MTProto. About 140
+chats, and topic thread ids run through the same chat, history and dialog code, so they go with the Telegram shapes of the managers. About 140
 `.invalid` links of these features remain in `src`; the strings that Signal chats can show point to Signal on the
 phone instead.
 

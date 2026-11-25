@@ -16,11 +16,8 @@ type CryptoEvent = {
 } & ThreadedWorkerEvents;
 
 export class CryptoMessagePort<Master extends boolean = false> extends SuperMessagePort<CryptoEvent, CryptoEvent, Master> {
-  private lastIndex: number;
-
   constructor() {
     super('CRYPTO');
-    this.lastIndex = -1;
   }
 
   // TODO: Transfer transferables on result tasks?
@@ -44,10 +41,7 @@ export class CryptoMessagePort<Master extends boolean = false> extends SuperMess
       // }
     }
 
-    const sendPortIndex = method === 'aes-encrypt' || method === 'aes-decrypt' ?
-      this.lastIndex = (this.lastIndex + 1) % this.sendPorts.length :
-      0;
-    const port = this.sendPorts[sendPortIndex];
+    const port = this.sendPorts[0];
 
     // * the local data key goes over as its bytes: see `LocalDataKey`
     const keyArgs = (method === 'aes-local-encrypt' || method === 'aes-local-decrypt') && args[0] as EncryptLocalDataArgs;

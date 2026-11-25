@@ -1,5 +1,4 @@
 import {DcAuthKey, DcServerSalt, TrueDcId} from '@types';
-import type {StoredTempAuthKey} from '@lib/mtproto/tempAuthKeys';
 
 export type ActiveAccountNumber = 1 | 2 | 3 | 4;
 
@@ -34,8 +33,6 @@ type A = Record<DcAuthKey, string> &
     // * the DC a sign-in not finished yet goes to: `dcId` would make the slot a stored session to Web A
     sign_in_dc_id?: TrueDcId,
     date: number,
-    // * by `${dcId}` or `${dcId}-media` (PFS, see @lib/mtproto/tempAuthKeys)
-    temp_auth_keys?: Record<string, StoredTempAuthKey>,
     // * Web A's account of the test servers: they share the slots with the production ones there
     isTest?: true,
     // * TeleSignal: Web A's marker of a linked Signal account in the slot (`ApiSessionData` of `src/api/types`)

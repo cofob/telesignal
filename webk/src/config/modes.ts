@@ -5,7 +5,6 @@
  * https://github.com/zhukov/webogram/blob/master/LICENSE
  */
 
-import type {TransportType} from '@lib/mtproto/dcConfigurator';
 
 /*
  * The flags Settings → Experimental keeps on for this site, beside the ones a URL carries (`?debug=1`): every
@@ -26,9 +25,6 @@ export const KEPT_FLAGS = [
   'noWorker',
   'noOffscreenCanvas',
   'noObjectUrlRevoke',
-  'noPfs',
-  'http',
-  'noMultipleTransports',
   'forceHideNonContactLinks'
 ] as const;
 
@@ -116,10 +112,6 @@ const Modes = {
   // the server does not expose report_spam / block_contact for the peer.
   forceHideNonContactLinks: !!import.meta.env.VITE_PREVIEW &&
     isFlagOn('forceHideNonContactLinks'),
-  http: false,
-  ssl: true, // location.search.indexOf('ssl=1') > 0 || location.protocol === 'https:' && location.search.indexOf('ssl=0') === -1,
-  asServiceWorker: !!import.meta.env.VITE_MTPROTO_SW,
-  transport: 'websocket' as TransportType,
   noSharedWorker: isFlagOn('noSharedWorker'),
   noServiceWorker: isFlagOn('noServiceWorker'),
   noOffscreenCanvas: isFlagOn('noOffscreenCanvas'),
@@ -141,12 +133,6 @@ const Modes = {
   // Triggers: ?noWorker=1 in the URL, or VITE_NO_WORKER injected at build time
   // by `bash scripts/start-preview.sh --no-worker`.
   noWorker: isFlagOn('noWorker') || !!import.meta.env.VITE_NO_WORKER,
-  multipleTransports: !!(import.meta.env.VITE_MTPROTO_AUTO && import.meta.env.VITE_MTPROTO_HAS_HTTP && import.meta.env.VITE_MTPROTO_HAS_WS) && !isFlagOn('noMultipleTransports'),
-  // Perfect Forward Secrecy: every networker talks over a temporary auth key
-  // bound to the stored permanent one (auth.bindTempAuthKey), replaced once it
-  // expires or the server forgets it. On by default; ?noPfs=1 turns it off (the
-  // worker sees it too — makeWorkerURL forwards query params).
-  pfs: !isFlagOn('noPfs'),
   // The keyboard and screen-reader layer: focus traps, roving tab stops, focus
   // rings, key routing, inert off-screen columns, pinch zoom. Off by default
   // until it settles; ?a11y=1 turns it on. ARIA names and roles stay either way,
@@ -159,21 +145,5 @@ const Modes = {
   // a developer's own long-lived tab, never anyone else's.
   memoryWatch: isFlagInURL('memoryWatch')
 };
-
-if(import.meta.env.VITE_MTPROTO_HAS_HTTP) {
-  const httpOnly = Modes.http = isFlagOn('http');
-  if(httpOnly) {
-    Modes.multipleTransports = false;
-  }
-}
-
-// * start with HTTP first
-if(Modes.multipleTransports) {
-  Modes.http = true;
-}
-
-if(Modes.http) {
-  Modes.transport = 'https';
-}
 
 export default Modes;

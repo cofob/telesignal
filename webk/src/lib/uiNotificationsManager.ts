@@ -336,11 +336,6 @@ export class UiNotificationsManager {
     }, {once: true});
 
     webPushApiManager.addEventListener('push_notification_click', async(notificationData) => {
-      if(notificationData.p) { // * decrypt push notification
-        notificationData = await apiManagerProxy.pushSingleManager.decryptPush(notificationData.p, notificationData.keyIdBase64);
-        notificationData = await apiManagerProxy.serviceMessagePort.invoke('fillPushObject', notificationData);
-      }
-
       if(notificationData.action === 'push_settings') {
         /* this.topMessagesDeferred.then(() => {
           $modal.open({

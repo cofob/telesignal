@@ -5844,13 +5844,6 @@
 "Experimental.A11y" = "Keyboard and Screen Readers";
 "Experimental.A11y.Subtitle" = "Keyboard navigation, focus rings and screen reader support";
 "Experimental.Connection" = "Connection";
-"Experimental.Transport" = "Transport";
-"Experimental.Transport.Auto" = "Automatic";
-"Experimental.Transport.Auto.Subtitle" = "Switches between WebSocket and HTTP, whichever works";
-"Experimental.Transport.WebSocket" = "WebSocket Only";
-"Experimental.Transport.HTTP" = "HTTP Only";
-"Experimental.Pfs" = "Perfect Forward Secrecy";
-"Experimental.Pfs.Subtitle" = "Temporary encryption keys, replaced every 24 hours";
 "Experimental.TestServer" = "Test Server";
 "Experimental.TestServer.Subtitle" = "TeleSignal's test servers, with accounts of their own. In this tab only";
 "Experimental.Engine" = "Engine";
