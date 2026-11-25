@@ -110,7 +110,6 @@ export default class Chat extends EventListenerBase<{
   // * will be also used for RequestHistoryOptions
   public peerId: PeerId;
   public threadId: number;
-  public monoforumThreadId: number;
   public savedReaction: (Reaction.reactionCustomEmoji | Reaction.reactionEmoji)[];
   public isPublicHashtag: boolean;
   public isCacheableSearch: boolean;
@@ -860,12 +859,6 @@ export default class Chat extends EventListenerBase<{
           this.appImManager.setPeer({isDeleting: true});
         }
       });
-
-      this.bubbles.listenerSetter.add(rootScope)('monoforum_dialogs_drop', ({ids, parentPeerId}) => {
-        if(parentPeerId === this.peerId && ids.includes(this.monoforumThreadId)) {
-          this.appImManager.setPeer({isDeleting: true});
-        }
-      });
     }
 
     const onChatOrFullUpdate = async(chatId: ChatId) => {
@@ -957,7 +950,6 @@ export default class Chat extends EventListenerBase<{
           chat: this,
           chatType: this.type,
           peerId: this.peerId,
-          // TODO: Check here for monoforumThreadId
           threadId: this.threadId,
           canFilterSender: this.type !== ChatType.Logs && this.isAnyGroup,
           query,
@@ -1142,7 +1134,7 @@ export default class Chat extends EventListenerBase<{
     if(!this.excludeParts.sharedMedia) {
       this.sharedMediaTab = hotReloadGuard.appSidebarRight.createSharedMediaTab();
       this.sharedMediaTabs.push(this.sharedMediaTab);
-      this.sharedMediaTab.setPeer(this.monoforumThreadId || peerId, threadId);
+      this.sharedMediaTab.setPeer(peerId, threadId);
     }
 
     this.input?.clearHelper(); // костыль
@@ -1152,8 +1144,7 @@ export default class Chat extends EventListenerBase<{
   public get requestHistoryOptionsPart(): RequestHistoryOptions {
     const options: RequestHistoryOptions = {
       peerId: this.peerId,
-      threadId: this.threadId,
-      monoforumThreadId: this.monoforumThreadId
+      threadId: this.threadId
     };
 
     CHAT_SEARCH_KEYS.forEach((key) => {
@@ -1164,14 +1155,13 @@ export default class Chat extends EventListenerBase<{
     if(this.hashtagType && this.hashtagType !== 'this') {
       options.peerId = NULL_PEER_ID;
       options.threadId = undefined;
-      options.monoforumThreadId = undefined;
     }
 
     return options;
   }
 
   public setPeer(options: ChatSetPeerOptions) {
-    const {peerId, threadId, monoforumThreadId, messages, type} = options;
+    const {peerId, threadId, messages, type} = options;
     if(!peerId) {
       this.inited = undefined;
     } else if(!this.inited) {
@@ -1189,7 +1179,6 @@ export default class Chat extends EventListenerBase<{
       this.appImManager.dispatchEvent('peer_changing', this);
       this.peerIdSignal[1](this.peerId = peerId || NULL_PEER_ID);
       this.threadId = threadId;
-      this.monoforumThreadId = monoforumThreadId;
       this.isTemporaryThread = isTempId(threadId);
       this.noInput = [ChatType.Static, ChatType.Logs].includes(type);
       this.middlewareHelper.clean();
@@ -1365,7 +1354,6 @@ export default class Chat extends EventListenerBase<{
     return this.setPeer({
       peerId: this.peerId,
       threadId: this.threadId,
-      monoforumThreadId: this.monoforumThreadId,
       ...options
     });
   }
@@ -1598,7 +1586,6 @@ export default class Chat extends EventListenerBase<{
         effect: this.input.effect(),
         ...this.input.getEphemeralSendingParams()
       }),
-      replyToMonoforumPeerId: this.input?.getReplyTo()?.replyToMonoforumPeerId || this.monoforumThreadId,
       savedReaction: this.savedReaction,
       // a welcome message is an ephemeral send the server keeps for whoever joins next: no
       // slow mode, no paid messages, no forwarding, as for any ephemeral send

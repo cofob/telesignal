@@ -25,7 +25,6 @@ export type ChatPreviewAnchor = HTMLElement | {x: number, y: number} | {
 export type ChatPreviewOptions = {
   peerId: PeerId,
   threadId?: number,
-  monoforumThreadId?: number,
   lastMsgId?: number,
   anchor?: ChatPreviewAnchor
 };
@@ -129,7 +128,6 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
       chat.setPeer({
         peerId: options.peerId,
         threadId: options.threadId,
-        monoforumThreadId: options.monoforumThreadId,
         lastMsgId: options.lastMsgId
       });
 
@@ -275,15 +273,9 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
         const dialog = await getDialog();
         if(!dialog) return;
         const isUnread = await managers.appMessagesManager.isDialogUnread(dialog);
-        // Same branching as `DialogsContextMenu.onUnreadClick` — keeps mono-forum, thread and
-        // regular dialogs behaving consistently with the rest of the app.
-        if(options.monoforumThreadId) {
-          managers.appMessagesManager.markDialogUnread({
-            peerId: options.peerId,
-            monoforumThreadId: options.monoforumThreadId,
-            read: isUnread
-          });
-        } else if(isUnread) {
+        // Same branching as `DialogsContextMenu.onUnreadClick` — keeps thread and regular dialogs
+        // behaving consistently with the rest of the app.
+        if(isUnread) {
           if(!options.threadId) {
             managers.appMessagesManager.markDialogUnread({peerId: options.peerId, read: true});
           } else {
@@ -301,7 +293,7 @@ export default function showChatPreviewPopup(options: ChatPreviewOptions): void 
     function getDialog() {
       return managers.dialogsStorage.getAnyDialog(
         options.peerId,
-        (options.threadId || options.monoforumThreadId) ?? undefined
+        options.threadId ?? undefined
       );
     }
 

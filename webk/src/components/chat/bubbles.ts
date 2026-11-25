@@ -904,7 +904,7 @@ export default class ChatBubbles {
   // later, so anything deferred (focus promise, late IntersectionObserver entries) must compare
   // against this snapshot instead of trusting `this.chat` — otherwise mids collected in the old
   // chat get read against the new peer, poisoning its historyStorage with foreign-namespace mids.
-  private unreadedChat: {peerId: PeerId, threadId: number, monoforumThreadId: PeerId};
+  private unreadedChat: {peerId: PeerId, threadId: number};
   private readPromise: Promise<void>;
   private readContentPromise: Promise<void>;
 
@@ -2470,16 +2470,9 @@ export default class ChatBubbles {
     });
 
     this.listenerSetter.add(rootScope)('dialogs_multiupdate', (dialogs) => {
-      if(!dialogs.has(this.peerId) || this.chat.monoforumThreadId || this.chat.type === ChatType.Scheduled || this.chat.type === ChatType.Welcome || this.chat.type === ChatType.Saved) {
+      if(!dialogs.has(this.peerId) || this.chat.type === ChatType.Scheduled || this.chat.type === ChatType.Welcome || this.chat.type === ChatType.Saved) {
         return;
       }
-
-      this.chat.input.setUnreadCount();
-    });
-
-    this.listenerSetter.add(rootScope)('monoforum_dialogs_update', ({dialogs}) => {
-      if(this.chat.type === ChatType.Scheduled || this.chat.type === ChatType.Saved) return;
-      if(!dialogs.find(dialog => dialog.parentPeerId === this.peerId && dialog.peerId === this.chat.monoforumThreadId)) return;
 
       this.chat.input.setUnreadCount();
     });
@@ -3849,8 +3842,7 @@ export default class ChatBubbles {
     const {unreadedChat, chat} = this;
     return unreadedChat && (
       unreadedChat.peerId !== chat.peerId ||
-      unreadedChat.threadId !== chat.threadId ||
-      unreadedChat.monoforumThreadId !== chat.monoforumThreadId
+      unreadedChat.threadId !== chat.threadId
     );
   }
 
@@ -3866,7 +3858,7 @@ export default class ChatBubbles {
       // like a failed middleware, a stale unreadedChat leaves `this[readPromiseKey]` latched —
       // `cleanup()` is what resets both the promise and the sets
       if(!middleware() || this.isUnreadedChatChanged()) return;
-      const {peerId, threadId, monoforumThreadId} = this.chat;
+      const {peerId, threadId} = this.chat;
 
       let callback: () => Promise<any>;
       if(type === 'history') {
@@ -3893,7 +3885,7 @@ export default class ChatBubbles {
           this.log('will readHistory by maxId:', maxId);
         }
 
-        callback = () => this.managers.appMessagesManager.readHistory({peerId, maxId, threadId, monoforumThreadId});
+        callback = () => this.managers.appMessagesManager.readHistory({peerId, maxId, threadId});
       } else {
         const readContents: number[] = [];
         for(const mid of this.unreadedContentSeen) {
@@ -4461,8 +4453,7 @@ export default class ChatBubbles {
             offset: replyQuote.offset
           } : undefined,
           type: this.chat.type === ChatType.Logs ? undefined : this.chat.type,
-          threadId: this.chat.threadId,
-          monoforumThreadId: this.chat.monoforumThreadId
+          threadId: this.chat.threadId
         });
 
         return;
@@ -4714,7 +4705,6 @@ export default class ChatBubbles {
       .setSearchContext({
         threadId: this.chat.threadId,
         peerId: this.peerId,
-        monoforumThreadId: this.chat.monoforumThreadId,
         inputFilter: {_: documentDiv ? 'inputMessagesFilterDocument' : 'inputMessagesFilterPhotoVideo'},
         useSearch: this.chat.type !== ChatType.Scheduled && !isSingleMedia,
         skipSensitive,
@@ -4944,8 +4934,7 @@ export default class ChatBubbles {
       return false;
     }
 
-    return !this.chat.monoforumThreadId ||
-      getMessageThreadId(message) === this.chat.monoforumThreadId;
+    return true;
   }
 
   private isTransientMessageInCurrentChat(message: MyMessage) {
@@ -5754,8 +5743,6 @@ export default class ChatBubbles {
       return;
     }
 
-    if(this.chat.monoforumThreadId && getMessageThreadId(message) !== this.chat.monoforumThreadId) return;
-
     const {savedReaction} = this.chat;
     if(savedReaction?.length) {
       const {reactions} = message as Message.message;
@@ -6544,7 +6531,7 @@ export default class ChatBubbles {
   }
 
   public async setPeer(options: ChatSetPeerOptions & {samePeer: boolean, sameSearch: boolean, forceIsFirstLoad?: boolean}): Promise<{cached?: boolean, promise: Chat['setPeerPromise']}> {
-    const {samePeer, sameSearch, peerId, stack, monoforumThreadId, forceIsFirstLoad, pollOption, highlight, wholeAlbum} = options;
+    const {samePeer, sameSearch, peerId, stack, forceIsFirstLoad, pollOption, highlight, wholeAlbum} = options;
     let {lastMsgId, lastMsgPeerId, startParam} = options;
     const tempId = ++this.setPeerTempId;
 
@@ -6574,8 +6561,8 @@ export default class ChatBubbles {
     if(!samePeer) {
       // await pause(2000); // * test some bugs
       const changePeerPromise = this.chat.onChangePeer(options, m);
-      // * `onChangePeer` has set the chat type by now; a topic may have to be loaded first, so a thread asks later
-      if(!lastMsgId && !options.savedReaction && !this.chat.threadId && !monoforumThreadId) {
+      // * `onChangePeer` has set the chat type by now; a thread asks later
+      if(!lastMsgId && !options.savedReaction && !this.chat.threadId) {
         readMaxIdAndDialogPromise = this.getReadMaxIdAndDialog(peerId);
         readMaxIdAndDialogPromise.catch(noop);
       }
@@ -7227,14 +7214,10 @@ export default class ChatBubbles {
       });
 
       if(chatType === ChatType.Chat) {
-        const dialog = await m(
-          monoforumThreadId ?
-            this.managers.monoforumDialogsStorage.getDialogByParent(peerId, monoforumThreadId) :
-            this.managers.appMessagesManager.getDialogOnly(peerId)
-        );
+        const dialog = await m(this.managers.appMessagesManager.getDialogOnly(peerId));
 
         if(dialog?.pFlags.unread_mark) {
-          this.managers.appMessagesManager.markDialogUnread({peerId, monoforumThreadId: this.chat.monoforumThreadId, read: true});
+          this.managers.appMessagesManager.markDialogUnread({peerId, read: true});
         }
       }
 
@@ -7439,14 +7422,13 @@ export default class ChatBubbles {
 
   public onScrolledAllDown() {
     if(this.isHistoryRead()) {
-      const {peerId, threadId, monoforumThreadId} = this.chat;
+      const {peerId, threadId} = this.chat;
       const historyMaxId = this.chat.getHistoryMaxId();
 
       this.managers.appMessagesManager.readHistory({
         peerId,
         maxId: historyMaxId,
         threadId,
-        monoforumThreadId,
         force: true
       });
     }
@@ -8536,8 +8518,8 @@ export default class ChatBubbles {
     mid ??= (bubble as any).maxBubbleMid;
     // registration always happens while rendering the current chat, so this snapshot is the
     // authoritative owner of every mid in the unreaded maps/sets
-    const {peerId, threadId, monoforumThreadId} = this.chat;
-    this.unreadedChat = {peerId, threadId, monoforumThreadId};
+    const {peerId, threadId} = this.chat;
+    this.unreadedChat = {peerId, threadId};
     // this.log('not our message', message, message.pFlags.unread);
     this.observer.observe(element, type === 'history' ? this.unreadedObserverCallback : this.unreadedContentObserverCallback);
     (type === 'history' ? this.unreaded : this.unreadedContent).set(element, mid);
@@ -14389,7 +14371,7 @@ export default class ChatBubbles {
 
     const middleware = this.getMiddleware();
 
-    const {peerId, threadId, monoforumThreadId} = this.chat;
+    const {peerId, threadId} = this.chat;
 
     const historyMaxId = this.chat.getHistoryMaxId();
     // * a plain chat's history is mirrored here: the same decision against the mirror, not another round trip to
@@ -14397,14 +14379,14 @@ export default class ChatBubbles {
     const historyStorage = this.chat.historyStorage;
     const mirroredReadMaxId = historyStorage?.readMaxId;
     const mirroredMaxId = historyStorage?.maxId;
-    const useMirror = this.chat.type === ChatType.Chat && !threadId && !monoforumThreadId &&
+    const useMirror = this.chat.type === ChatType.Chat && !threadId &&
       historyStorage?.type === 'history' && !historyStorage.searchHistory &&
       Number.isFinite(mirroredReadMaxId) && Number.isFinite(mirroredMaxId);
     const readMaxId = useMirror ? getReadMaxIdIfUnread({
       readMaxId: mirroredReadMaxId,
       maxId: mirroredMaxId,
       topMessageOut: this.chat.getMessageByPeer(peerId, mirroredMaxId)?.pFlags?.out
-    }) : await this.managers.appMessagesManager.getReadMaxIdIfUnread(peerId, threadId || monoforumThreadId);
+    }) : await this.managers.appMessagesManager.getReadMaxIdIfUnread(peerId, threadId);
     if(!readMaxId || !middleware()) return;
 
     const firstUnreadFullMid = this.findFirstUnreadFullMid(readMaxId);

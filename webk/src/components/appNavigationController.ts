@@ -15,7 +15,7 @@ export type NavigationItem = {
     'esg' | 'multiselect' | 'input-helper' | 'autocomplete-helper' | 'markup' |
     'global-search' | 'voice' | 'mobile-search' | 'filters' | 'global-search-focus' |
     'toast' | 'dropdown' | 'forum' | 'stories' | 'stories-focus' | 'topbar-search' |
-    'settings-popup' | 'profile-popup' | 'settings-search' | 'monoforum' | 'inline-message-input' | 'browser' |
+    'settings-popup' | 'profile-popup' | 'settings-search' | 'inline-message-input' | 'browser' |
     'ai-send-style' | 'theme-chooser',
   onPop: (canAnimate: boolean) => boolean | void,
   /**

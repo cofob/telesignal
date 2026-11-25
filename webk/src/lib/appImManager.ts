@@ -211,7 +211,6 @@ export type ChatSetPeerOptions = {
   wholeAlbum?: boolean,
   lastMsgPeerId?: PeerId,
   threadId?: number,
-  monoforumThreadId?: PeerId,
   startParam?: string,
   stack?: {peerId: PeerId, mid: number, message?: Message.message, isOut?: boolean},
   commentId?: number,
@@ -2450,7 +2449,7 @@ export class AppImManager extends EventListenerBase<{
       return;
     }
 
-    const threadId = chat.threadId || chat.monoforumThreadId;
+    const threadId = chat.threadId;
     const key = chat.peerId + (threadId ? '_' + threadId : '');
     return this.chatPositions[key];
   }
@@ -3867,10 +3866,9 @@ export class AppImManager extends EventListenerBase<{
     chat.managers.appMessagesManager.setTyping(chat.peerId, {_: cancel ? 'sendMessageCancelAction' : 'sendMessageChooseStickerAction'});
   }
 
-  public isSamePeer(options1: {peerId: PeerId, threadId?: number, monoforumThreadId?: PeerId, type?: ChatType}, options2: typeof options1) {
+  public isSamePeer(options1: {peerId: PeerId, threadId?: number, type?: ChatType}, options2: typeof options1) {
     return options1.peerId === options2.peerId &&
       options1.threadId === options2.threadId &&
-      options1.monoforumThreadId === options2.monoforumThreadId &&
       (options1.type !== ChatType.Static && options2.type !== ChatType.Static) &&
       (options1.type !== ChatType.Logs && options2.type !== ChatType.Logs) &&
       (typeof(options1.type) !== typeof(options2.type) || options1.type === options2.type);

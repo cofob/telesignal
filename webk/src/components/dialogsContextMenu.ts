@@ -49,10 +49,6 @@ export default class DialogsContextMenu {
         this.peerId = li.dataset.peerId.toPeerId();
         this.threadId = +li.dataset.threadId || undefined;
 
-        if(li.dataset.isAllChats) {
-          throw 'All chats dialog';
-        }
-
         // * Android shows no context menu while rows are being selected: the press belongs to the
         // * selection, and on touch it is also what starts a reorder of the pinned block
         const selection = hotReloadGuard.appDialogsManager.getSelectionForRow(li);

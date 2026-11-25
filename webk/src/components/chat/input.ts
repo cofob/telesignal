@@ -268,7 +268,7 @@ type ChatInputAttachMenuButton = ButtonMenuItemOptionsVerifiable & {
   richMessageAction?: RichMessageAttachMenuAction
 };
 
-export type ChatInputReplyTo = Pick<MessageSendingParams, 'replyToMsgId' | 'replyToQuote' | 'replyToPollOption' | 'replyToStoryId' | 'replyToPeerId' | 'replyToMonoforumPeerId'>;
+export type ChatInputReplyTo = Pick<MessageSendingParams, 'replyToMsgId' | 'replyToQuote' | 'replyToPollOption' | 'replyToStoryId' | 'replyToPeerId'>;
 
 const CLASS_NAME = 'chat-input';
 const PEER_EXCEPTIONS = new Set<ChatType>([ChatType.Scheduled, ChatType.Stories, ChatType.Saved, ChatType.Welcome]);
@@ -463,7 +463,6 @@ export default class ChatInput {
   public replyToQuote: MessageSendingParams['replyToQuote'];
   public replyToPollOption: MessageSendingParams['replyToPollOption'];
   public replyToPeerId: MessageSendingParams['replyToPeerId'];
-  public replyToMonoforumPeerId: MessageSendingParams['replyToMonoforumPeerId'];
   public editMsgId: number;
   public editMessage: Message.message;
   private messageEditingGeneration = 0;
@@ -565,8 +564,6 @@ export default class ChatInput {
   private welcomeLimitReached: number;
   private joinBtn: HTMLButtonElement;
   private channelMuteBtn: HTMLButtonElement;
-  private directControlBtn: HTMLButtonElement;
-  private controlPlate: HTMLElement;
   private rowsWrapperWrapper: HTMLDivElement;
   private controlContainer: HTMLElement;
   private fakeSelectionWrapper: HTMLDivElement;
@@ -1665,24 +1662,12 @@ export default class ChatInput {
       });
     }, {listenerSetter: this.listenerSetter});
 
-    // Channel "can't write" plate side buttons: write-in-direct (shown only
-    // when the channel has a linked direct-messages chat) and gift.
-    this.directControlBtn = this.createButtonIcon('comments hide', {ariaLabel: 'OpenChat'});
-    attachClickEvent(this.directControlBtn, () => {
-      const channel = this.chat.peer as MTChat.channel;
-      const monoforumId = channel?.linked_monoforum_id;
-      if(monoforumId) {
-        this.chat.appImManager.setInnerPeer({peerId: monoforumId.toPeerId(true)});
-      }
-    }, {listenerSetter: this.listenerSetter});
-
     // The control container is now a single uniform-width plate:
     // Button.Icon + Button + Button.Icon (see controlPlate.tsx). All the
     // single-button states share the centre slot — only one is ever visible.
     // Both side buttons start hidden, so the centre one spans the plate.
-    const controlPlate = this.controlPlate = ChatInputPlate({
+    const controlPlate = ChatInputPlate({
       class: CHAT_INPUT_PLATE_SINGLE_CLASS,
-      left: this.directControlBtn,
       center: [
         this.botStartBtn,
         this.unblockBtn,
@@ -1720,10 +1705,10 @@ export default class ChatInput {
       }
     });
 
-    this.listenerSetter.add(rootScope)('draft_updated', ({peerId, threadId, monoforumThreadId, draft, force}) => {
+    this.listenerSetter.add(rootScope)('draft_updated', ({peerId, threadId, draft, force}) => {
       // a message that left the field is on its way: what is there now is the next message's, for neither its
       // draft clear nor a draft saved before it went to touch
-      if(this.takeOwnDraftUpdate(peerId, threadId, monoforumThreadId, !!draft, force)) {
+      if(this.takeOwnDraftUpdate(peerId, threadId, !!draft, force)) {
         return;
       }
 
@@ -1735,7 +1720,7 @@ export default class ChatInput {
         this.messageInputEditor?.hasPendingRichMediaUploads()
       ) return;
 
-      if(this.chat.threadId !== threadId || this.chat.monoforumThreadId !== monoforumThreadId || this.chat.peerId !== peerId || PEER_EXCEPTIONS.has(this.chat.type)) return;
+      if(this.chat.threadId !== threadId || this.chat.peerId !== peerId || PEER_EXCEPTIONS.has(this.chat.type)) return;
       // a forced clear is our OWN send completing (clearDraft: true): what was still to be saved went with it, and
       // it clears the field whatever it holds - otherwise the input never clears after sending while typing. Any
       // other draft takes the field only while it holds what the server has (`canTakeDraftFromElsewhere`)
@@ -2320,14 +2305,12 @@ export default class ChatInput {
 
     // * the counts of another chat put in are not a change of these, and do not roll - whichever
     // * call puts them in first, the peer's first update or the end of the peer change
-    const chatKey = [this.chat.peerId, this.chat.threadId, this.chat.monoforumThreadId].join();
+    const chatKey = [this.chat.peerId, this.chat.threadId].join();
 
-    const dialog = this.chat.monoforumThreadId ?
-      await this.managers.monoforumDialogsStorage.getDialogByParent(this.chat.peerId, this.chat.monoforumThreadId) :
-      await this.managers.dialogsStorage.getAnyDialog(
-        this.chat.peerId,
-        this.chat.type === ChatType.Discussion ? undefined : this.chat.threadId
-      );
+    const dialog = await this.managers.dialogsStorage.getAnyDialog(
+      this.chat.peerId,
+      this.chat.type === ChatType.Discussion ? undefined : this.chat.threadId
+    );
 
     if(isSavedDialog(dialog)) {
       return;
@@ -2402,7 +2385,6 @@ export default class ChatInput {
           reply_to_msg_id: replyTo.replyToMsgId,
           top_msg_id: this.chat.threadId,
           reply_to_peer_id: replyTo.replyToPeerId,
-          monoforum_peer_id: replyTo.replyToMonoforumPeerId,
           poll_option: replyTo.replyToPollOption,
           ...(replyTo.replyToQuote && getInputReplyQuote(replyTo.replyToQuote))
         } : undefined,
@@ -2458,7 +2440,6 @@ export default class ChatInput {
     Promise.resolve(this.managers.appDraftsManager.syncDraft({
       peerId: this.chat.peerId,
       threadId: this.chat.threadId,
-      monoforumThreadId: this.chat.monoforumThreadId,
       localDraft: draft,
       inputRichMessage: richMessage?.input
     })).then((saved) => {
@@ -2586,7 +2567,7 @@ export default class ChatInput {
     const isCurrent = () => middleware() && generation === this.inputValueGeneration && contentIsCurrent(this.messageInputEditor);
 
     if(!draft) {
-      draft = await this.managers.appDraftsManager.getDraft(this.chat.peerId, this.chat.threadId || this.chat.monoforumThreadId);
+      draft = await this.managers.appDraftsManager.getDraft(this.chat.peerId, this.chat.threadId);
 
       if(!isCurrent()) return false;
 
@@ -2677,8 +2658,7 @@ export default class ChatInput {
       replyToMsgId: draftReplyToMsgId,
       replyToPeerId: replyTo.reply_to_peer_id && getPeerId(replyTo.reply_to_peer_id),
       replyToQuote: getReplyQuote(replyTo),
-      replyToPollOption: replyTo.poll_option,
-      replyToMonoforumPeerId: replyTo.monoforum_peer_id && getPeerId(replyTo.monoforum_peer_id)
+      replyToPollOption: replyTo.poll_option
     }, true);
 
     const inputSet = this.setInputValue(
@@ -2906,12 +2886,6 @@ export default class ChatInput {
           // the dialog_notify_settings listener -> updateChannelMuteButton().
           this.channelMuteBtn.replaceChildren(i18n(peerMuted ? 'ChatList.Context.Unmute' : 'ChatList.Context.Mute'));
         }
-
-        // Channel "can't write" plate: write-in-direct on the left, only when the channel has a linked
-        // direct-messages chat - a gigagroup or megagroup join just shows the centre button
-        const hasDirect = !!(good && channel?.linked_monoforum_id);
-        this.directControlBtn.classList.toggle('hide', !hasDirect);
-        this.controlPlate.classList.toggle(CHAT_INPUT_PLATE_SINGLE_CLASS, !hasDirect);
       }
 
       if(this.chat && this.welcomeLimitPlate) {
@@ -3440,8 +3414,7 @@ export default class ChatInput {
       threadId: sendingParams.threadId,
       replyToMsgId: sendingParams.replyToMsgId,
       replyTo: sendingParams.replyTo,
-      replyToPeerId: sendingParams.replyToPeerId,
-      replyToMonoforumPeerId: sendingParams.replyToMonoforumPeerId
+      replyToPeerId: sendingParams.replyToPeerId
     };
   }
 
@@ -3795,7 +3768,7 @@ export default class ChatInput {
       } else if(!foundHelpers.size && firstChar === '@') { // mentions
         const topMsgId = this.chat.threadId ? getServerMessageId(this.chat.threadId) : undefined;
         // * only offer guest bots (bot_guestchat) when @ is at the very start of the message, like
-        // * inline bots, and not in channels/monoforums where guest-chat sending isn't available
+        // * inline bots, and not in channels where guest-chat sending isn't available
         const fromStart = !matches[1];
         const includeGuestBots = fromStart && this.canSendGuestChat();
         const result = this.mentionsHelper.checkQuery(
@@ -4174,8 +4147,8 @@ export default class ChatInput {
       return;
     }
 
-    const {replyToMsgId, replyToStoryId, replyToQuote, replyToPollOption, replyToPeerId, replyToMonoforumPeerId} = this;
-    return {replyToMsgId, replyToStoryId, replyToQuote, replyToPollOption, replyToPeerId, replyToMonoforumPeerId};
+    const {replyToMsgId, replyToStoryId, replyToQuote, replyToPollOption, replyToPeerId} = this;
+    return {replyToMsgId, replyToStoryId, replyToQuote, replyToPollOption, replyToPeerId};
   }
 
   public async clearInput(
@@ -4632,8 +4605,8 @@ export default class ChatInput {
    * messages, as its draft is kept
    */
   private getChatAiSendStyleKey() {
-    const {peerId, threadId, monoforumThreadId} = this.chat;
-    return getAiSendStyleKey(rootScope.myId, peerId, threadId || monoforumThreadId);
+    const {peerId, threadId} = this.chat;
+    return getAiSendStyleKey(rootScope.myId, peerId, threadId);
   }
 
   /** the AI editor's request saved to be made on every message the field sends in this chat, its topic or conversation */
@@ -4948,14 +4921,12 @@ export default class ChatInput {
   }
 
   /**
-   * A draft update of this chat while messages that left the field are on their way (a global monoforum chat
-   * sends into its threads): the clear one of their sends asks for, or a draft that would fill the field —
+   * A draft update of this chat while messages that left the field are on their way: the clear one of their sends asks for, or a draft that would fill the field —
    * saved before it went, or from another device meanwhile. Both are what was there before it went.
    */
   private takeOwnDraftUpdate(
     peerId: PeerId,
     threadId: number,
-    monoforumThreadId: PeerId,
     hasDraft: boolean,
     force: boolean
   ) {
@@ -4965,8 +4936,7 @@ export default class ChatInput {
     if(
       !this.ownSends.length ||
       chat.peerId !== peerId ||
-      chat.threadId !== threadId ||
-      chat.monoforumThreadId !== monoforumThreadId
+      chat.threadId !== threadId
     ) {
       return false;
     }
@@ -5591,13 +5561,12 @@ export default class ChatInput {
   }
 
   public setReplyTo(replyTo: ChatInputReplyTo) {
-    const {replyToMsgId, replyToQuote, replyToPollOption, replyToPeerId, replyToStoryId, replyToMonoforumPeerId} = replyTo || {};
+    const {replyToMsgId, replyToQuote, replyToPollOption, replyToPeerId, replyToStoryId} = replyTo || {};
     this.replyToMsgId = replyToMsgId;
     this.replyToStoryId = replyToStoryId;
     this.replyToQuote = replyToQuote;
     this.replyToPollOption = replyToPollOption;
     this.replyToPeerId = replyToPeerId;
-    this.replyToMonoforumPeerId = replyToMonoforumPeerId;
     if(!replyToMsgId) {
       this.replyIsEphemeral = false;
     }

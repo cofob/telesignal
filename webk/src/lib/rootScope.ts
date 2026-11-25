@@ -15,7 +15,6 @@ import type StoriesCacheType from '@appManagers/utils/stories/cacheType';
 import type {StoriesListPosition} from '@appManagers/appStoriesManager';
 import type {ArgumentTypes} from '@types';
 import type {RtmpCallInstance} from '@lib/calls/rtmpCallsController';
-import type {MonoforumDialog} from '@lib/storages/monoforumDialogs';
 import type {MyStarGift} from '@appManagers/appGiftsManager';
 import type {MyPromoData} from '@appManagers/appPromoManager';
 import type {UnconfirmedAuthorization} from '@appManagers/appAccountManager';
@@ -180,7 +179,7 @@ export type BroadcastEvents = {
 
   'connection_status_change': ConnectionStatusChange,
   'settings_updated': {key: string, value: any, settings: StateSettings},
-  'draft_updated': {peerId: PeerId, threadId?: number, monoforumThreadId?: PeerId, draft: MyDraftMessage | undefined, force?: boolean},
+  'draft_updated': {peerId: PeerId, threadId?: number, draft: MyDraftMessage | undefined, force?: boolean},
 
   'background_change': void,
 
@@ -278,9 +277,6 @@ export type BroadcastEvents = {
   'saved_music_update': {peerId: PeerId},
   'star_gift_upgrade': {gift: MyStarGift, savedId?: Long, fromMsgId?: number},
 
-  'monoforum_dialogs_update': {dialogs: MonoforumDialog[]},
-  'monoforum_dialogs_drop': {parentPeerId: PeerId, ids: PeerId[]},
-  'monoforum_draft_update': {dialog: MonoforumDialog},
 
   'botforum_pending_topic_created': {peerId: PeerId, tempId: number, newId?: number},
   'botforum_pending_topic_failed': {peerId: PeerId, tempId: number},

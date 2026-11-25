@@ -157,7 +157,7 @@ export namespace ReferenceContext {
     docId: DocId
   };
 
-  /** The media of a rich draft: a topic's, or a monoforum thread's, under `threadId` */
+  /** The media of a rich draft: a thread's under `threadId` */
   export type referenceContextDraft = {
     type: 'draft',
     peerId: PeerId,

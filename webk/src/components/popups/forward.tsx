@@ -190,12 +190,10 @@ export default async function showForwardPopup(
 
   const processSingle = async({
     peerId,
-    threadId,
-    monoforumThreadId
+    threadId
   }: {
     peerId: number,
-    threadId?: number,
-    monoforumThreadId?: number
+    threadId?: number
   }, openChat: boolean) => {
     if(_onSelect) {
       const res = _onSelect(peerId);
@@ -206,7 +204,7 @@ export default async function showForwardPopup(
 
     let success: boolean;
     if(openChat) {
-      await hotReloadGuard.appImManager.setInnerPeer({peerId, threadId, monoforumThreadId});
+      await hotReloadGuard.appImManager.setInnerPeer({peerId, threadId});
       hotReloadGuard.appImManager.chat.input.initMessagesForward(peerIdMids, videoTimestamp);
     } else {
       const result = await ChatInput.sendMessageWithForward({
@@ -214,9 +212,6 @@ export default async function showForwardPopup(
         sendingParams: {
           peerId,
           threadId,
-          // * the direct messages thread picked: a shared story has always gone there, a forward is
-          // * left as it was
-          replyToMonoforumPeerId: storyMedia ? monoforumThreadId : undefined,
           silent: silent || undefined,
           scheduleDate: scheduleDate || undefined,
           scheduleRepeatPeriod: scheduleRepeatPeriod || undefined

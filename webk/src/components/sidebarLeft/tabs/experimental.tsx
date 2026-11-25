@@ -198,11 +198,10 @@ const ExperimentalTab = () => {
       chatRightsActions: ['send_docs'],
       toastKey: 'Experimental.Logs.SentTo',
       toastKeyForSelf: 'Experimental.Logs.SentToSavedMessages',
-      send: (managers, {peerId, threadId, monoforumThreadId}) => {
+      send: (managers, {peerId, threadId}) => {
         managers.appMessagesManager.sendFile({
           peerId,
           threadId,
-          replyToMonoforumPeerId: monoforumThreadId,
           file
         });
       }

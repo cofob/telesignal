@@ -3,9 +3,9 @@ import type {HistoryStorage, RequestHistoryOptions, SearchStorageFilterKey} from
 import getSearchType from '@appManagers/utils/messages/getSearchType';
 
 export default function getHistoryStorageKey(options: RequestHistoryOptions & {type: HistoryStorage['type']}) {
-  const {type, peerId, threadId, monoforumThreadId} = options;
+  const {type, peerId, threadId} = options;
   const filter = getSearchStorageFilterKey(options);
-  return [type, peerId, filter, threadId, monoforumThreadId].filter(Boolean).join('_') as HistoryStorage['key'];
+  return [type, peerId, filter, threadId].filter(Boolean).join('_') as HistoryStorage['key'];
 }
 
 export function getSearchStorageFilterKey({

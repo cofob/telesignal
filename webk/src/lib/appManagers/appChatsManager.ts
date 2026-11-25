@@ -13,7 +13,6 @@ import {AppManager} from '@appManagers/manager';
 import hasRights from '@appManagers/utils/chats/hasRights';
 import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId';
 import {AppStoragesManager} from '@appManagers/appStoragesManager';
-import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId';
 import {randomLong} from '@helpers/random';
 import tsNow from '@helpers/tsNow';
 import getPeerActiveUsernames from '@appManagers/utils/peers/getPeerActiveUsernames';
@@ -80,7 +79,6 @@ export class AppChatsManager extends AppManager {
   private recommendations: {[chatId: ChatId]: MaybePromise<MessagesChats>};
   // * the admin behind a message posted as the channel, by `${chatId}_${mid}`: asked once a session,
   // * an answer that did not come included (desktop's `LookupMessageAuthor`)
-  private messageAuthors: Map<string, Promise<PeerId>> = new Map();
 
   protected after() {
     this.clear(true);
@@ -369,27 +367,6 @@ export class AppChatsManager extends AppManager {
     }
 
     return good;
-  }
-
-  /**
-   * Who of the admins wrote a message of the channel's direct messages posted as the channel, for
-   * an admin to see (`channels.getMessageAuthor`); nothing when the server does not say
-   */
-  public getMessageAuthor(chatId: ChatId, mid: number) {
-    const key = `${chatId}_${mid}`;
-    let promise = this.messageAuthors.get(key);
-    if(!promise) {
-      promise = this.apiManager.invokeApi('channels.getMessageAuthor', {
-        channel: this.getChannelInput(chatId),
-        id: getServerMessageId(mid)
-      }).then((user) => {
-        this.appUsersManager.saveApiUser(user);
-        return user._ === 'user' ? user.id.toPeerId(false) : undefined;
-      }, (): PeerId => undefined);
-      this.messageAuthors.set(key, promise);
-    }
-
-    return promise;
   }
 
   public isPublic(id: ChatId) {

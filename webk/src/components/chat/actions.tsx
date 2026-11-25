@@ -1,6 +1,5 @@
 import type ChatTopbar from '@components/chat/topbar';
 import Chat from '@components/chat/chat';
-import {ChatType} from '@components/chat/chatType';
 import {LangPackKey, i18n} from '@lib/langPack';
 import {PeerSettings} from '@layer';
 import {AppManagers} from '@lib/managers';
@@ -28,11 +27,7 @@ import noop from '@helpers/noop';
 
 type PeerSettingsKey = keyof PeerSettings['pFlags'];
 
-/**
- * `reopen_topic` is not a peer setting — it mirrors the sibling bar tdesktop stacks next to the contact status
- * one (`TopicReopenBar`, `history_view_contact_status.cpp`).
- */
-type ActionKey = PeerSettingsKey | 'reopen_topic' | MessageRequestActionKey;
+type ActionKey = PeerSettingsKey | MessageRequestActionKey;
 
 /**
  * TeleSignal: the answers to a Signal message request, as Web A's `ChatReportPane` offers them. Signal's peer
@@ -69,7 +64,6 @@ const LANG_KEY_MAP: {[key in ActionKey]?: LangPackKey} = {
   autoarchived: 'Unarchive',
   block_contact: 'BlockUser',
   share_contact: 'ShareMyPhoneNoCaps',
-  reopen_topic: 'RestartTopic',
   request_accept: 'Signal.MessageRequest.Accept',
   request_delete: 'Signal.MessageRequest.Delete',
   request_block: 'Signal.MessageRequest.Block',
@@ -127,8 +121,6 @@ function ActionsPlateBody(props: {
                 </For>
               )}
             </Show>
-            {/* Nothing to dismiss when the plate only carries the topic-reopen action —
-                tdesktop's reopen bar has no close button either. */}
             <Show when={props.canClose()}>
               <TopbarPlate.CloseButton onClick={props.onClose} />
             </Show>
@@ -173,12 +165,10 @@ export default function createChatActionsPlate(
   const [disabled, setDisabled] = createSignal(false);
 
   let currentPeerId: PeerId | undefined;
-  let currentThreadId: number | undefined;
   let currentSettings: PeerSettings | undefined;
   let peerSettingsActions: ActionDef[] = [];
   let isMessageRequest = false;
   let requestChatInfo: RequestChatInfo | undefined;
-  let canReopenTopic = false;
 
   const freeze = async(promise: Promise<any>) => {
     setDisabled(true);
@@ -287,17 +277,6 @@ export default function createChatActionsPlate(
     danger: true
   }];
 
-  const reopenTopicAction: ActionDef = {
-    key: 'reopen_topic',
-    onClick: () => {
-      freeze(managers.appMessagesManager.editForumTopic({
-        peerId: currentPeerId,
-        topicId: currentThreadId,
-        closed: false
-      }));
-    }
-  };
-
   const showRequestChatInfoPopup = (info: RequestChatInfo) => {
     showPeerPopup('popup-confirmation', {
       titleLangKey: info.isBroadcast ? 'ChatWithAdminChannelTitle' : 'ChatWithAdminGroupTitle',
@@ -322,8 +301,6 @@ export default function createChatActionsPlate(
       managers.appProfileManager.hidePeerSettingsBar(currentPeerId);
     }
 
-    // Only the peer-settings half is dismissable — a still-closed topic keeps
-    // offering the reopen button.
     peerSettingsActions = [];
     applyState();
   };
@@ -357,10 +334,8 @@ export default function createChatActionsPlate(
       setCanClose(false);
       plate.setHidden(false);
     } else {
-      const list = canReopenTopic ? [reopenTopicAction, ...peerSettingsActions] : peerSettingsActions;
-
       // * a message request has its four answers, as Web A shows them
-      const visible = isMessageRequest ? list : list.slice(0, 2);
+      const visible = isMessageRequest ? peerSettingsActions : peerSettingsActions.slice(0, 2);
       setButtons(visible.length ? visible : undefined);
       setCanClose(!!peerSettingsActions.length);
       plate.setHidden(!visible.length);
@@ -368,34 +343,6 @@ export default function createChatActionsPlate(
 
     // The plate measures itself ('auto'), and its content height changes with the mode.
     topbar.setFloating();
-  };
-
-  /** A forum topic is the only thread kind that can be closed and reopened. */
-  const supportsTopicReopen = (peerId: PeerId, threadId: number) => {
-    return !!threadId && !!peerId?.isAnyChat() && chat.type === ChatType.Chat;
-  };
-
-  const ackedCanReopenTopic = (peerId: PeerId, threadId: number): Promise<AckedResult<boolean>> => {
-    if(!supportsTopicReopen(peerId, threadId)) {
-      return Promise.resolve({cached: true, result: Promise.resolve(false)});
-    }
-
-    return managers.acknowledged.dialogsStorage.canReopenTopic(peerId, threadId);
-  };
-
-  const refreshCanReopenTopic = async() => {
-    const peerId = currentPeerId, threadId = currentThreadId;
-    if(!supportsTopicReopen(peerId, threadId)) {
-      return;
-    }
-
-    const value = await managers.dialogsStorage.canReopenTopic(peerId, threadId);
-    if(currentPeerId !== peerId || currentThreadId !== threadId || canReopenTopic === value) {
-      return;
-    }
-
-    canReopenTopic = value;
-    applyState();
   };
 
   /**
@@ -450,25 +397,6 @@ export default function createChatActionsPlate(
 
   const listenerSetter = new ListenerSetter();
 
-  // The topic's `closed` flag arrives as a `messageActionTopicEdit` service message.
-  listenerSetter.add(rootScope)('dialogs_multiupdate', (dialogs) => {
-    if(!currentThreadId || !dialogs.get(currentPeerId)?.topics?.has(currentThreadId)) {
-      return;
-    }
-
-    refreshCanReopenTopic();
-  });
-
-  // ...and the rights that let us reopen it can change under us (tdesktop watches
-  // `adminRightsValue` for the same reason).
-  listenerSetter.add(rootScope)('chat_update', (chatId) => {
-    if(!currentThreadId || currentPeerId !== chatId.toPeerId(true)) {
-      return;
-    }
-
-    refreshCanReopenTopic();
-  });
-
   // Becoming a contact swaps the whole branch of the chain (tdesktop watches the
   // `Contact` user flag).
   listenerSetter.add(rootScope)('contacts_update', (userId) => {
@@ -482,11 +410,9 @@ export default function createChatActionsPlate(
 
   const unsetOwn = (peerId: PeerId) => {
     currentPeerId = peerId;
-    currentThreadId = undefined;
     currentSettings = undefined;
     peerSettingsActions = [];
     requestChatInfo = undefined;
-    canReopenTopic = false;
     applyState();
   };
 
@@ -510,24 +436,10 @@ export default function createChatActionsPlate(
   };
 
   const setPeerId = (peerId: PeerId) => {
-    const threadId = chat.threadId;
-    return Promise.all([
-      managers.acknowledged.appProfileManager.getPeerSettings(peerId),
-      ackedCanReopenTopic(peerId, threadId)
-    ]).then(([peerSettingsAcked, canReopenAcked]) => {
+    return managers.acknowledged.appProfileManager.getPeerSettings(peerId).then((peerSettingsAcked) => {
       return {
-        cached: peerSettingsAcked.cached && canReopenAcked.cached,
-        result: callbackify(
-          Promise.all([peerSettingsAcked.result, canReopenAcked.result]),
-          ([peerSettings, canReopen]) => {
-            const setPeerSettings = set(peerId, peerSettings);
-            return () => {
-              currentThreadId = threadId;
-              canReopenTopic = canReopen;
-              setPeerSettings();
-            };
-          }
-        )
+        cached: peerSettingsAcked.cached,
+        result: callbackify(peerSettingsAcked.result, (peerSettings) => set(peerId, peerSettings))
       };
     });
   };

@@ -190,7 +190,7 @@ export default class ChatTopbar {
         onOpen: async(e, element) => {
           const deleteButton = this.deleteChatBtnMenuOptions;
           if(deleteButton?.element) {
-            const deleteButtonText = await this.managers.appPeersManager.getDeleteButtonText(this.chat.monoforumThreadId || this.peerId);
+            const deleteButtonText = await this.managers.appPeersManager.getDeleteButtonText(this.peerId);
             deleteButton.element.lastChild.replaceWith(i18n(deleteButtonText));
           }
 
@@ -468,12 +468,12 @@ export default class ChatTopbar {
       icon: 'mute',
       text: 'ChatList.Context.Mute',
       onClick: this.onMuteClick,
-      verify: async() => this.chat.type === ChatType.Chat && !this.chat.monoforumThreadId && rootScope.myId !== this.peerId && !(await this.managers.appNotificationsManager.isPeerLocalMuted({peerId: this.peerId, respectType: false, threadId: this.chat.threadId}))
+      verify: async() => this.chat.type === ChatType.Chat && rootScope.myId !== this.peerId && !(await this.managers.appNotificationsManager.isPeerLocalMuted({peerId: this.peerId, respectType: false, threadId: this.chat.threadId}))
     }, {
       icon: 'unmute',
       text: 'ChatList.Context.Unmute',
       onClick: this.onUnmuteClick,
-      verify: () => this.chat.type === ChatType.Chat && !this.chat.monoforumThreadId && rootScope.myId !== this.peerId && this.managers.appNotificationsManager.isPeerLocalMuted({peerId: this.peerId, respectType: false, threadId: this.chat.threadId})
+      verify: () => this.chat.type === ChatType.Chat && rootScope.myId !== this.peerId && this.managers.appNotificationsManager.isPeerLocalMuted({peerId: this.peerId, respectType: false, threadId: this.chat.threadId})
     }, {
       icon: 'comments',
       text: 'ViewDiscussion',
@@ -1072,14 +1072,14 @@ export default class ChatTopbar {
   }
 
   public async finishPeerChange(options: Parameters<Chat['finishPeerChange']>[0]) {
-    const {peerId, threadId, monoforumThreadId} = this.chat;
+    const {peerId, threadId} = this.chat;
     const {middleware} = options;
 
     let newAvatar: ChatTopbar['avatar'], newAvatarMiddlewareHelper: ChatTopbar['avatarMiddlewareHelper'];
     const isSaved = this.chat.type === ChatType.Saved;
     const needArrowBack = this.chat.type === ChatType.Search;
     if([ChatType.Chat, ChatType.Static, ChatType.Logs].includes(this.chat.type) || isSaved) {
-      const usePeerId = monoforumThreadId ||(isSaved ? threadId : peerId);
+      const usePeerId = isSaved ? threadId : peerId;
       const useThreadId = isSaved ? undefined : threadId;
       const avatar = this.avatar;
 
@@ -1220,7 +1220,7 @@ export default class ChatTopbar {
   }
 
   public async setTitleManual(count?: number) {
-    const {peerId, threadId, monoforumThreadId} = this.chat;
+    const {peerId, threadId} = this.chat;
     let titleEl: HTMLElement, icons: Element[];
     const oldMiddlewareHelper = this.titleMiddlewareHelper;
     oldMiddlewareHelper?.destroy();
@@ -1274,7 +1274,7 @@ export default class ChatTopbar {
 
       titleEl = el.element;
     } else if(this.chat.type === ChatType.Chat || this.chat.type === ChatType.Saved || this.chat.type === ChatType.Static || this.chat.type === ChatType.Logs) {
-      const usePeerId = monoforumThreadId || (this.chat.type === ChatType.Saved ? threadId : peerId);
+      const usePeerId = this.chat.type === ChatType.Saved ? threadId : peerId;
 
       [titleEl/* , icons */] = await Promise.all([
         wrapPeerTitle({
