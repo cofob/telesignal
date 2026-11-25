@@ -6,6 +6,7 @@
 
 import type {Chat, ChatBannedRights, InputFile, MissingInvitee, Update, Updates, User} from '@layer';
 import type {SignalMethodHandlers, SignalMethodHost} from '@lib/signal/methodHost';
+import type {SignalPendingInvite} from '@lib/signal/signalApi';
 import {getInputUserPeerId, getUserRef} from '@lib/signal/methodHost';
 import {buildChat, toPeerId, toSignalPeerId} from '@lib/signal/builders';
 import {getSignalChatOf} from '@lib/signal/chatMethods';
@@ -107,8 +108,17 @@ async function getFullChat(host: SignalMethodHost, chatId: number) {
       // * the join requests of the group link, which only admins get
       requests_pending: fullInfo?.requestsPending,
       recent_requesters: fullInfo?.recentRequesterIds?.map((id: string) => toPeerId(id)),
-      // * not a field of Telegram's: the profile shows it (`PeerProfile.ChatStyle`)
-      signal_chat_style: fullInfo?.signalChatStyle
+      // * not fields of Telegram's: the profile shows the colours (`PeerProfile.ChatStyle`), group management the
+      // * invitations not yet accepted (`sidebarRight/tabs/pendingInvites`)
+      signal_chat_style: fullInfo?.signalChatStyle,
+      signal_pending_invites: (fullInfo?.pendingInvites ?? []).map((invite: {
+        serviceId: string, userId?: string, phoneNumber?: string, inviterId?: string
+      }): SignalPendingInvite => ({
+        serviceId: invite.serviceId,
+        userId: invite.userId ? toPeerId(invite.userId) : undefined,
+        phoneNumber: invite.phoneNumber,
+        inviterId: invite.inviterId ? toPeerId(invite.inviterId) : undefined
+      }))
     },
     chats: [] as Chat[],
     users: result?.users ?? []

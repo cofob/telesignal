@@ -69,6 +69,9 @@ export type SignalBannedRights = {
 /** The chat colour and wallpaper of a chat, as CSS backgrounds (`ApiSignalChatStyle`) */
 export type SignalChatStyle = {bubbleColor?: string, wallpaper?: string};
 
+/** Someone invited to a group who has not accepted yet (`ApiChatPendingInvite`), with Web K's peer ids */
+export type SignalPendingInvite = {serviceId: string, userId?: PeerId, phoneNumber?: string, inviterId?: PeerId};
+
 export type SignalChat = {
   id: string,
   folderId?: number,
@@ -438,6 +441,7 @@ export type SignalMethodName =
   | 'setSignalPin'
   | 'setSignalRegistrationLock'
   | 'resendMessage'
+  | 'revokeChatInvite'
   | 'sendMessageAnyway'
   | 'skipAuthRestore'
   | 'terminateChat'
