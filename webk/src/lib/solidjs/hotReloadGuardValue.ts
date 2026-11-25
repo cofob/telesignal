@@ -30,11 +30,6 @@ import showForwardPopup from '@components/popups/forward';
 import showMyQrCodePopup from '@components/popups/myQrCode';
 import showPeerProfilePopup from '@components/popups/peerProfile';
 import {showSharingPickerPopup} from '@components/popups/pickUser';
-import showPremiumPopup, {showBusinessPopup} from '@components/popups/premium';
-import showSendGiftPopup from '@components/popups/sendGift';
-import showStarGiftInfoPopup from '@components/popups/starGiftInfo';
-import showStarsRatingPopup from '@components/popups/starsRating';
-import showStarsPopup from '@components/popups/stars';
 import showToggleReadDatePopup from '@components/popups/toggleReadDate';
 import {setQuizHint} from '@components/quizHint';
 import Row from '@components/rowTsx';
@@ -100,8 +95,6 @@ registerHotReloadGuard({
   InputFieldTsx,
   PasswordInputField,
   PasswordMonkey,
-  showPremiumPopup,
-  showBusinessPopup,
   EmoticonsDropdown,
   EmojiTab,
   appDialogsManager,
@@ -123,15 +116,11 @@ registerHotReloadGuard({
   confirmationPopup,
   confirmOpenGoogleMaps,
   PeerProfileAvatars,
-  showStarsRatingPopup,
-  showStarsPopup,
   toast,
   toastNew,
   BusinessHours,
   avatarNew,
   PeerTitleTsx,
-  showSendGiftPopup,
-  showStarGiftInfoPopup,
   openEmojiStatusPicker,
   showBirthdayPopup,
   saveMyBirthday,

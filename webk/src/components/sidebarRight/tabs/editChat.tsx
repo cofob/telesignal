@@ -24,7 +24,6 @@ import {IconTsx} from '@components/iconTsx';
 import {handleChannelsTooMuch} from '@components/popups/channelsTooMuch';
 import Row from '@components/rowTsx';
 import Section from '@components/section';
-import TransactionHistorySection from '@components/stars/transactionHistory';
 import {usePromiseCollector} from '@components/solidJsTabs/promiseCollector';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import cancelEvent from '@helpers/dom/cancelEvent';
@@ -774,12 +773,6 @@ function EditChatForm(props: {
           </Show>
         </Section>
       </Show>
-
-      <TransactionHistorySection
-        peerId={peerId()}
-        stars={channelFull()?.pFlags.can_view_stars_revenue}
-        ton={channelFull()?.pFlags.can_view_revenue}
-      />
 
       <Show when={hasGroupStickersSection()}>
         <Section name="GroupStickers" caption="GroupStickers.SectionInfo">

@@ -36,11 +36,8 @@ import {subscribeOn} from '@helpers/solid/subscribeOn';
 import {StoriesProvider, useStories} from '@components/stories/store';
 import type SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
 import type Scrollable from '@components/scrollable';
-import {wrapStarsRatingLevel} from '@components/wrappers/starsRating';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import {HIDDEN_PEER_ID} from '@appManagers/constants';
-import {rgbIntToHex} from '@helpers/color';
-import type {MyStarGift} from '@appManagers/appGiftsManager';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import attachClickEventRef from '@helpers/solid/attachClickEventRef';
 import ListenerSetter from '@helpers/listenerSetter';
@@ -53,7 +50,6 @@ import {StoriesSegments} from '@components/avatarNew';
 import {MyDocument} from '../lib/appManagers/appDocsManager';
 import wrapEmojiText, {EmojiTextTsx} from '@lib/richTextProcessor/wrapEmojiText';
 import {wrapSolidComponent} from '../helpers/solid/wrapSolidComponent';
-import showStarGiftInfoPopup from './popups/starGiftInfo';
 import showCollectibleInfoPopup from '@components/popups/collectibleInfo';
 import {openSavedMusicTab} from '@components/savedMusicActions';
 import ripple from '@components/ripple';
@@ -122,7 +118,6 @@ type PeerProfileContextValue = {
   scrollable: Scrollable,
   setCollapsedOn: HTMLElement,
   isDialog: boolean,
-  onPinnedGiftsChange: (gifts: MyStarGift[]) => void,
   onAvatarReady: (promise: Promise<void>) => void,
   slider: SidebarSlider,
   openChatStack: ChatSetPeerOptions['stack'],
@@ -190,7 +185,6 @@ const PeerProfile = (props: {
   scrollable: Scrollable,
   setCollapsedOn: HTMLElement,
   searchSuperContainer?: HTMLElement,
-  onPinnedGiftsChange?: (gifts: MyStarGift[]) => void,
   onAvatarReady?: (promise: Promise<void>) => void,
   /** Where the profile opens its tabs: the one it stands in; the right sidebar without it */
   slider?: SidebarSlider,
@@ -206,7 +200,6 @@ const PeerProfile = (props: {
     scrollable: props.scrollable,
     setCollapsedOn: props.setCollapsedOn,
     isDialog: props.isDialog,
-    onPinnedGiftsChange: props.onPinnedGiftsChange,
     onAvatarReady: props.onAvatarReady,
     get slider() {
       return props.slider ?? appSidebarRight;
@@ -322,7 +315,6 @@ PeerProfile.Avatar = () => {
   context.onAvatarReady?.(setPeerPromise);
   avatars.info.append(name, subtitle);
   avatars.container.append(
-    wrapSolidComponent(PeerProfile.PinnedGifts, middleware.get()),
     wrapSolidComponent(PeerProfile.PinnedMusic, middleware.get()),
     wrapSolidComponent(() => PeerProfile.StoryPreviews({
       info: avatars.info
@@ -382,31 +374,8 @@ PeerProfile.Name = () => {
 PeerProfile.Subtitle = () => {
   return (
     <div class="profile-subtitle">
-      <PeerProfile.SubtitleRating />
       <PeerProfile.SubtitleStatus />
     </div>
-  );
-};
-
-PeerProfile.SubtitleRating = () => {
-  const context = useContext(PeerProfileContext);
-  const {showStarsRatingPopup} = useHotReloadGuard();
-  const starsRating = createMemo(() => (context.fullPeer as UserFull.userFull)?.stars_rating);
-  return (
-    <Show when={starsRating()}>
-      <div
-        class="profile-subtitle-rating"
-        ref={attachClickEventRef((e) => {
-          cancelEvent(e);
-          showStarsRatingPopup({
-            user: context.peer as User.user,
-            userFull: context.fullPeer as UserFull
-          });
-        })}
-      >
-        {wrapStarsRatingLevel(starsRating().level)}
-      </div>
-    </Show>
   );
 };
 
@@ -505,60 +474,6 @@ PeerProfile.SubtitleStatus = () => {
       <Show when={needWhen()}>
         {getStatusHiddenShow(context.peerId)}
       </Show>
-    </div>
-  );
-};
-
-PeerProfile.PinnedGifts = () => {
-  const context = useContext(PeerProfileContext);
-  const {rootScope, wrapSticker} = useHotReloadGuard();
-  const {peerId} = context.getDetailsForUse();
-  const giftsCount = createMemo(() => (context.fullPeer as UserFull.userFull)?.stargifts_count);
-  const [pinnedGifts] = createResource(giftsCount, (count) => {
-    if(!peerId.isUser() || !count) {
-      return;
-    }
-
-    return rootScope.managers.appGiftsManager.getPinnedGifts(peerId);
-  });
-  const [elements] = createResource(pinnedGifts, async(gifts) => {
-    context.onPinnedGiftsChange?.(gifts);
-    if(!gifts) {
-      return;
-    }
-
-    const middleware = createMiddleware().get();
-    const promises = gifts
-    .filter((it) => it.saved.pFlags.pinned_to_top)
-    .map(async(gift, idx) => {
-      const div = document.createElement('div');
-      div.className = 'profile-pinned-gift';
-      div.setAttribute('data-idx', idx.toString());
-      div.style.setProperty(
-        '--halo-color',
-        rgbIntToHex(gift.collectibleAttributes.backdrop.center_color)
-      );
-      await wrapSticker({
-        doc: gift.sticker,
-        static: true,
-        middleware,
-        width: 30,
-        height: 30,
-        div
-      }).then((r) => r.render);
-      attachClickEvent(div, (e) => {
-        cancelEvent(e)
-        showStarGiftInfoPopup({gift})
-      })
-      return div;
-    });
-
-    return Promise.all(promises);
-  });
-
-  return (
-    <div class="profile-pinned-gifts">
-      {elements()}
     </div>
   );
 };
@@ -889,7 +804,7 @@ PeerProfile.QrButton = () => {
 
 PeerProfile.Birthday = () => {
   const context = useContext(PeerProfileContext);
-  const {I18n, i18n, wrapEmojiText, rootScope, showSendGiftPopup, showBirthdayPopup, saveMyBirthday, toastNew} = useHotReloadGuard();
+  const {I18n, i18n, wrapEmojiText, rootScope, showBirthdayPopup, saveMyBirthday, toastNew} = useHotReloadGuard();
   const birthday = createMemo(() => (context.fullPeer as UserFull.userFull)?.birthday);
   const isToday = createMemo(() => {
     const birthday$ = birthday();
@@ -935,13 +850,6 @@ PeerProfile.Birthday = () => {
         initialDate: birthday(),
         fromProfile: true,
         onSave: saveMyBirthday
-      });
-    }
-
-    if(isToday()) {
-      return () => showSendGiftPopup({
-        peerId: context.peerId,
-        birthday: true
       });
     }
 
@@ -1440,7 +1348,7 @@ const PEER_PROFILE_ACTIONS_MAX = 4;
  */
 PeerProfile.Actions = () => {
   const context = useContext(PeerProfileContext);
-  const {rootScope, appImManager, showSendGiftPopup, toastNew} = useHotReloadGuard();
+  const {rootScope, appImManager, toastNew} = useHotReloadGuard();
   const {peerId, threadId} = context;
   const isUser = peerId.isUser();
   const userFull = () => isUser ? context.fullPeer as UserFull.userFull : undefined;

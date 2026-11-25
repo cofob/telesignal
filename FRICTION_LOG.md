@@ -179,14 +179,10 @@ and boosts and statistics are removed. What remains of bots are inline buttons i
 `replyMarkupLayout`, URL authorization) and the bot command cache that ephemeral messages read (`appProfileManager`,
 `appMessagesManager`).
 
-Stars, gifts, Premium and payments are partly removed: paid sending is inert (`PaidMessagesInterceptor` never asks
-for a payment), no screen offers Premium any more, and the limit popup only states Signal's limit. Their popups
-(`popups/premium.tsx`, `stars*.tsx`, `payment*.tsx`, `*gift*.tsx`, `starReaction.tsx`), the `stars`, `stargifts` and
-`premium` directories and the gift bubbles remain, still reached from `hotReloadGuard`, the composer and topbar gift
-buttons (`input.ts` `btnSendGift` and `giftControlBtn`, `topbar.ts`), the profile's gifts tab and birthday gift
-(`peerProfile.tsx`, `appSearchSuper.ts`, `sharedMedia.tsx`, `birthdaySuggestions.tsx`), the QR code's gift panel,
-paid reactions (`contextMenu.ts`, `reaction.ts`, `reactionsMenu.ts`), the gift, giveaway and invoice service messages
-in `bubbles.ts`, and the Stars and gift links in `internalLinkProcessor.ts`. Communities are
+Stars, gifts, Premium and payments are removed from the UI; `appPaymentsManager`, `appGiftsManager` and
+`appManagers/utils/gifts` stay in the worker, and inert paths still read Stars data that Signal never sends (the paid
+message interceptor, suggested posts and group message charges, paid reaction rendering, the stars balance store,
+collectible QR code and chat themes). Communities are
 60 files that 21 files outside them import, among them the chat list's `dialogs.ts`, `sortedDialogList.ts`,
 `archiveDialog.tsx`, `appDialogsManager.ts` and `dialogsContextMenu.ts`. Forums stay: `isForum` is false for Signal
 chats, and topic thread ids run through the same chat, history and dialog code, so they go with the Telegram shapes of the managers. About 140
