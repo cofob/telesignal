@@ -1,7 +1,7 @@
 import type {Chat} from '@layer';
 import type {Dialog} from '@appManagers/appMessagesManager';
 import type {User} from '@appManagers/appUsersManager';
-import {AccountDatabase, getDatabaseState, getOldDatabaseState} from '@config/databases/state';
+import {AccountDatabase, getDatabaseState} from '@config/databases/state';
 import AppStorage from '@lib/storage';
 import {ActiveAccountNumber} from '@lib/accounts/types';
 
@@ -16,7 +16,7 @@ export default function createStorages(accountNumber: ActiveAccountNumber) {
   const storages: StoragesStorages = {} as any;
   for(const name of names) {
     // @ts-ignore
-    storages[name] = new AppStorage(accountNumber === undefined ? getOldDatabaseState() : getDatabaseState(accountNumber), name);
+    storages[name] = new AppStorage(getDatabaseState(accountNumber), name);
   }
 
   return storages;

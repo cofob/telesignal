@@ -328,6 +328,21 @@ function compileHintsPlugin(): Plugin {
   };
 }
 
+// TeleSignal: in a test run `vite-plugin-solid` adds `@testing-library/jest-dom` to the setup files whenever it can
+// resolve it, and from its own location it finds Web A's copy in the repository root, which vitest here cannot load.
+// No test of Web K uses it
+function noRootJestDomPlugin(): Plugin {
+  return {
+    name: 'no-root-jest-dom',
+    config(config) {
+      const test = (config as {test?: {setupFiles?: string[]}}).test;
+      if(test?.setupFiles) {
+        test.setupFiles = test.setupFiles.filter((file) => !file.includes('jest-dom'));
+      }
+    }
+  };
+}
+
 // Vite's preload helper waits for a lazy chunk's CSS with listeners it leaves on the <link> for good,
 // and makes them inside `__vitePreload`, so their closures hold its scope: the `() => import(...)`
 // it was called with, and through that whatever the caller's scope held — the first popup, tab or
@@ -371,6 +386,7 @@ export default defineConfig({
     signalAppVersionPlugin(),
     signalStaticAssetsPlugin(),
     solidPlugin(),
+    noRootJestDomPlugin(),
     handlebarsPlugin as any,
     compileHintsPlugin(),
     preloadHelperCssWaitPlugin(),
@@ -430,8 +446,7 @@ export default defineConfig({
     pool: 'forks',
     // a full run waits for its turn in the machine-wide queue of heavy test runs (scripts/test-queue.sh)
     maxWorkers: vitestWorkers(),
-    globals: true,
-    setupFiles: ['./src/tests/setup.ts']
+    globals: true
   },
   server: serverOptions,
   base: process.env.NODE_ENV === 'development' ? '/k/' : '',

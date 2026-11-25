@@ -13,7 +13,7 @@ import {SliderSuperTabEventableConstructable} from '@components/sliderTab';
 import {useAppSettings} from '@stores/appSettings';
 import {StorageQuota, StorageQuotaControls} from './storageQuota';
 import {SignalProxySection} from './signalProxy';
-import {DesktopDownloadsSection} from '../desktopAppSettings';
+import {DesktopDownloadsSection} from './desktopDownloadsSection';
 import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 import {useSuperTab} from '@components/solidJsTabs/superTabProvider';
 import {type AppDataAndStorageTab} from '@components/solidJsTabs/tabs';

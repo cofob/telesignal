@@ -34,6 +34,48 @@ const PUNCTUATION_KEYS = new Set(Object.values(KEY_BY_CODE));
 const RE_LATIN_LETTER = /^[a-z]$/i;
 const RE_FUNCTION_KEY = /^F([1-9]|1[0-2])$/;
 
+const KEY_QUERY_ALIASES: Record<string, string> = {
+  cmd: 'Meta',
+  command: 'Meta',
+  meta: 'Meta',
+  win: 'Meta',
+  '⌘': 'Meta',
+  ctrl: 'Ctrl',
+  control: 'Ctrl',
+  '⌃': 'Ctrl',
+  alt: 'Alt',
+  option: 'Alt',
+  opt: 'Alt',
+  '⌥': 'Alt',
+  shift: 'Shift',
+  '⇧': 'Shift',
+  mod: MOD_MODIFIER,
+  enter: 'Enter',
+  return: 'Enter',
+  '↵': 'Enter',
+  esc: 'Escape',
+  escape: 'Escape',
+  tab: 'Tab',
+  space: 'Space',
+  backspace: 'Backspace',
+  delete: 'Delete',
+  del: 'Delete',
+  up: 'ArrowUp',
+  '↑': 'ArrowUp',
+  down: 'ArrowDown',
+  '↓': 'ArrowDown',
+  left: 'ArrowLeft',
+  '←': 'ArrowLeft',
+  right: 'ArrowRight',
+  '→': 'ArrowRight',
+  pageup: 'PageUp',
+  pagedown: 'PageDown',
+  home: 'Home',
+  end: 'End',
+};
+const RE_KEY_SYMBOL = /([⌘⌃⌥⇧↵↑↓←→])/g;
+const RE_KEY_SEPARATOR = /[\s+]+/;
+const RE_WORD_DASH = /(\w)-(?=\w)/g;
 const MAC_MODIFIER_LABELS: Record<KeyComboModifier, string> = {
   Ctrl: '⌃',
   Alt: '⌥',
@@ -133,6 +175,29 @@ export function getKeyLabel(key: string, lang: LangFn) {
 
 export function getIsFunctionKey(key: string) {
   return RE_FUNCTION_KEY.test(key);
+}
+
+// The keys a search query names (`ctrl k`, `⌘⇧F`), or `undefined` when a word of it is no key
+export function parseKeyQuery(query: string) {
+  const tokens = query.toLowerCase()
+    .replace(RE_KEY_SYMBOL, ' $1 ')
+    .replace(RE_WORD_DASH, '$1 ')
+    .split(RE_KEY_SEPARATOR)
+    .filter(Boolean);
+  if (!tokens.length) return undefined;
+
+  const keys = tokens.map((token) => (
+    KEY_QUERY_ALIASES[token] || (token.length === 1 || getIsFunctionKey(token.toUpperCase()) ? token : undefined)
+  ));
+
+  return keys.every(Boolean) ? keys as string[] : undefined;
+}
+
+export function getIsComboWithKeys(combo: string, keys: string[]) {
+  const { modifiers, key } = parseKeyCombo(combo);
+  const parts = [...modifiers, key].map((part) => part.toLowerCase());
+
+  return keys.every((queryKey) => parts.includes(queryKey.toLowerCase()));
 }
 
 function buildKeyCombo(modifiers: KeyComboModifier[], key: string) {

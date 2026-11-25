@@ -1,7 +1,10 @@
 import {createRoot, createSignal} from 'solid-js';
 import generated from './generated';
-import {A11Y_ONLY_ENTRIES, NON_NAVIGABLE_SECTIONS} from './openers';
+import {A11Y_ONLY_ENTRIES, DESKTOP_APP_ENTRIES, NON_NAVIGABLE_SECTIONS} from './openers';
 import Modes from '@config/modes';
+import {getShownKeyboardShortcutSections, WEBK_MESSAGES_SECTION, WEBK_VIEWER_SECTIONS} from '@lib/keyboardShortcuts';
+import {KEYBOARD_SHORTCUTS} from '@signal-app/keyboard-shortcuts';
+import type {LangPackKey} from '@lib/langPack';
 import type {
   GeneratedSettingsEntry,
   GeneratedSettingsLink,
@@ -10,6 +13,7 @@ import type {
 } from './types';
 
 export const ROOT_SECTION_ID = 'AppSettingsTab';
+const KEYBOARD_SHORTCUTS_SECTION_ID = 'AppKeyboardShortcutsTab';
 
 /**
  * Bumped whenever what is searchable changes — a hot-reloaded index during
@@ -43,10 +47,36 @@ const load = (data: GeneratedSettingsSearchData) => {
     data.sections.filter((section) => isReachable(section.id)).map((section) => [section.id, section])
   );
   // the flags are fixed for the page's life (the URL, the build), so they can be read here
-  entries = data.entries.filter((entry) => sections.has(entry.sectionId) &&
-    (Modes.a11y || !A11Y_ONLY_ENTRIES.has(entry.id)));
+  entries = [...data.entries, ...buildKeyboardShortcutEntries()].filter((entry) => sections.has(entry.sectionId) &&
+    (Modes.a11y || !A11Y_ONLY_ENTRIES.has(entry.id)) && DESKTOP_APP_ENTRIES[entry.id] !== false);
   links = data.links.filter((link) => sections.has(link.sectionId));
 };
+
+/**
+ * The sections and shortcuts of the keyboard shortcuts screen, which it builds from Web A's registry, so the extractor
+ * cannot read them from the tab
+ */
+function buildKeyboardShortcutEntries() {
+  const result = new Map<string, GeneratedSettingsEntry>();
+  const add = (kind: GeneratedSettingsEntry['kind'], titleLangKey: string) => {
+    const id = `${KEYBOARD_SHORTCUTS_SECTION_ID}:${titleLangKey}`;
+    if(!result.has(id)) {
+      result.set(id, {id, sectionId: KEYBOARD_SHORTCUTS_SECTION_ID, kind, titleLangKey: titleLangKey as LangPackKey});
+    }
+  };
+
+  for(const {titleKey, ids} of getShownKeyboardShortcutSections()) {
+    add('subsection', titleKey);
+    for(const id of ids) add('row', KEYBOARD_SHORTCUTS[id].titleKey);
+  }
+
+  for(const {titleKey, shortcuts} of [WEBK_MESSAGES_SECTION, ...WEBK_VIEWER_SECTIONS]) {
+    add('subsection', titleKey);
+    for(const shortcut of shortcuts) add('row', shortcut.titleKey);
+  }
+
+  return [...result.values()];
+}
 
 load(generated);
 

@@ -28,6 +28,8 @@ type A = SessionUserInfo &
     // * (`loadSlotSession`), so it is only read, and cleared from a slot without an account (`loadState`)
     dcId: TrueDcId,
     date: number,
+    // * kept from Web A's sessions of earlier versions, as Web A keeps it
+    pushKey?: string,
     // * Web A's account of the test servers: they share the slots with the production ones there
     isTest?: true,
     // * TeleSignal: Web A's marker of a linked Signal account in the slot (`ApiSessionData` of `src/api/types`)

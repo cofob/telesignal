@@ -19,7 +19,7 @@ import setWorkerProxy from '@helpers/setWorkerProxy';
 import toggleAttributePolyfill from '@helpers/dom/toggleAttributePolyfill';
 import rootScope from '@lib/rootScope';
 import IS_TOUCH_SUPPORTED from '@environment/touchSupport';
-import I18n, {checkLangPackForUpdates} from '@lib/langPack';
+import I18n from '@lib/langPack';
 import '@helpers/peerIdPolyfill';
 import '@lib/polyfill';
 import '@lib/debug/mountLogExport'; // main-thread-only: wires window.downloadLogs / collectLogs
@@ -35,7 +35,7 @@ import {parseUriParamsLine} from '@helpers/string/parseUriParams';
 import getWebAuthImport from '@lib/accounts/getWebAuthImport';
 import Modes from '@config/modes';
 import {AuthState} from '@types';
-import DEBUG, {IS_BETA} from '@config/debug';
+import DEBUG from '@config/debug';
 import IS_INSTALL_PROMPT_SUPPORTED from '@environment/installPrompt';
 import cacheInstallPrompt from '@helpers/dom/installPrompt';
 import {fillLocalizedDates} from '@helpers/date';
@@ -513,12 +513,7 @@ if(import.meta.env.DEV || import.meta.env.VITE_PREVIEW) {
 
   themeController.setThemeListener();
 
-  // * fetch lang pack updates
-  if((langPack.localVersion !== I18n.getLocalVersion() || true) && IS_BETA) {
-    I18n.getLangPackAndApply(langPack.lang_code);
-  } else {
-    checkLangPackForUpdates();
-  }
+  // * TeleSignal: the strings are the bundled ones, as Web A's built-in English; no server has a pack to update them from
 
   // * handle multi-tab language change (will occur extra time in the original tab though)
   rootScope.addEventListener('language_change', (langCode) => {

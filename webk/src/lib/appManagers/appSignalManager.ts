@@ -301,6 +301,8 @@ export default class AppSignalManager extends AppManager {
       'messages.getAvailableReactions': () => ({_: 'messages.availableReactions', hash: 0, reactions: []}),
       'messages.getTopReactions': () => ({_: 'messages.reactions', hash: 0, reactions: DEFAULT_REACTION_EMOJIS.map((emoticon) => buildReaction({type: 'emoji', emoticon}))}),
       'messages.getRecentReactions': () => ({_: 'messages.reactions', hash: 0, reactions: []}),
+      // * Signal has no tags of Note to Self
+      'messages.getSavedReactionTags': () => ({_: 'messages.savedReactionTags', tags: [], hash: 0}),
       'contacts.getBirthdays': () => ({_: 'contacts.contactBirthdays', contacts: [], users: []}),
       'account.getAuthorizations': () => ({_: 'account.authorizations', authorization_ttl_days: 0, authorizations: []}),
       'photos.getUserPhotos': () => ({_: 'photos.photos', photos: [], users: []}),
