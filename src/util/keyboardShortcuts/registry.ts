@@ -1,7 +1,7 @@
 import type { SharedSettings } from '../../global/types';
 import type { RegularLangKey } from '../../types/language';
 
-import { IS_MAC_OS } from '../browser/windowEnvironment';
+import { IS_MAC_OS } from '../browser/platform';
 
 export type KeyboardShortcutId =
   'globalSearch' | 'quickChatPicker' | 'savedMessages' | 'archivedChats' | 'openSettings' | 'lockScreen' | 'quitApp'

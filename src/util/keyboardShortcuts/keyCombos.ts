@@ -1,6 +1,6 @@
 import type { LangFn } from '../localization';
 
-import { IS_IOS, IS_MAC_OS } from '../browser/windowEnvironment';
+import { IS_IOS, IS_MAC_OS } from '../browser/platform';
 
 export type KeyComboModifier = 'Ctrl' | 'Alt' | 'Shift' | 'Meta';
 
