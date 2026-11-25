@@ -11,25 +11,12 @@ import type {NotificationSettings} from '@lib/uiNotificationsManager';
 import type ServiceMessagePort from '@lib/serviceWorker/serviceMessagePort';
 import {MOUNT_CLASS_TO} from '@config/debug';
 import {logger} from '@lib/logger';
-import I18n, {LangPackKey} from '@lib/langPack';
-import {IS_MOBILE} from '@environment/userAgent';
 import copy from '@helpers/object/copy';
 import singleInstance from '@lib/singleInstance';
 import EventListenerBase from '@helpers/eventListenerBase';
-import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId';
 import AccountController from '@lib/accounts/accountController';
-import App from '@config/app';
-import apiManagerProxy from '@lib/apiManagerProxy';
 import appNavigationController from '@components/appNavigationController';
 import Modes from '@config/modes';
-
-export type PushSubscriptionNotifyType = 'init' | 'subscribe' | 'unsubscribe';
-export type PushSubscriptionNotifyEvent = `push_${PushSubscriptionNotifyType}`;
-
-export type PushSubscriptionNotify = {
-  tokenType: number,
-  tokenValue: string
-};
 
 const PING_PUSH_INTERVAL = 10000;
 
@@ -40,8 +27,6 @@ export class WebPushApiManager extends EventListenerBase<{
   private localNotificationsAvailable = true;
   private settings: NotificationSettings & {baseUrl?: string} = {} as any;
   private isAliveTO: any;
-  private isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
-  private userVisibleOnly = this.isFirefox ? false : true;
   private log = logger('PUSH-API');
 
   public serviceMessagePort: ServiceMessagePort<true>;
@@ -73,57 +58,19 @@ export class WebPushApiManager extends EventListenerBase<{
     this.localNotificationsAvailable = false;
   }
 
-  public getSubscription() {
-    if(!this.isAvailable) {
-      return;
-    }
-
-    return navigator.serviceWorker.ready.then((reg) => {
-      return reg.pushManager.getSubscription().then((subscription) => {
-        return this.makeTokenData(subscription);
-      }).catch((err) => {
-        this.log.error('error during getSubscription()', err);
-      });
-    });
-  }
-
-  public subscribe = (): Promise<PushSubscriptionNotify | void> => {
-    if(!this.isAvailable) {
-      return;
-    }
-
-    this.log('subscribing');
-    return navigator.serviceWorker.ready.then((reg) => {
-      return reg.pushManager.subscribe({
-        userVisibleOnly: this.userVisibleOnly,
-        applicationServerKey: App.pushServerKey
-      }).then((subscription) => {
-        this.log('subscribed');
-        return this.makeTokenData(subscription);
-      }).catch((e) => {
-        if(Notification.permission === 'denied') {
-          this.log('permission for Notifications was denied');
-        } else {
-          this.log('unable to subscribe to push.', e);
-          if(!this.userVisibleOnly) {
-            this.userVisibleOnly = true;
-            return new Promise((resolve) => setTimeout(resolve, 0)).then(this.subscribe);
-          }
-        }
-      });
-    });
-  }
-
+  /**
+   * TeleSignal: removes the push subscription that an earlier version made, which gave Telegram's push service (or the
+   * browser's) a way to reach this browser. Nothing subscribes again: as in Web A, no push service is used, and the
+   * notifications come from the open tabs
+   */
   public unsubscribe() {
     if(!this.isAvailable) {
       return;
     }
 
-    this.log('unsubscribing');
     return navigator.serviceWorker.ready.then((reg) => {
       return reg.pushManager.getSubscription().then((subscription) => {
         if(!subscription) {
-          this.log('no subscription to unsubscribe from');
           return;
         }
 
@@ -146,36 +93,16 @@ export class WebPushApiManager extends EventListenerBase<{
 
     this.settings.baseUrl = (location.href || '').replace(/#.*$/, '');
 
-    const lang: ServicePushPingTaskPayload['lang'] = {} as any;
-    const ACTIONS_LANG_MAP: Record<keyof ServicePushPingTaskPayload['lang'], LangPackKey> = {
-      push_action_mute1d: IS_MOBILE ? 'PushNotification.Action.Mute1d.Mobile' : 'PushNotification.Action.Mute1d',
-      push_action_settings: IS_MOBILE ? 'PushNotification.Action.Settings.Mobile' : 'PushNotification.Action.Settings',
-      push_message_nopreview: 'PushNotification.Message.NoPreview',
-      push_message_error: 'PushNotification.Message.Refreshing'
-    };
-
-    for(const action in ACTIONS_LANG_MAP) {
-      lang[action as keyof typeof ACTIONS_LANG_MAP] = I18n.format(
-        ACTIONS_LANG_MAP[action as keyof typeof ACTIONS_LANG_MAP],
-        true
-      );
-    }
-
     const accounts: ServicePushPingTaskPayload['accounts'] = {};
-    const [signedInAccounts, keysIdsBase64] = await Promise.all([
-      AccountController.getAccounts(),
-      apiManagerProxy.pushSingleManager.getKeysIdsBase64()
-    ]);
+    const signedInAccounts = await AccountController.getAccounts();
     signedInAccounts.forEach(([accountNumber, accountData]) => {
       accounts[accountNumber] = accountData.userId;
     });
 
     const payload: ServicePushPingTaskPayload = {
       localNotifications: this.localNotificationsAvailable,
-      lang: lang,
       settings: this.settings,
-      accounts,
-      keysIdsBase64
+      accounts
     };
 
     this.serviceMessagePort.invokeVoid('pushPing', payload);
@@ -212,37 +139,6 @@ export class WebPushApiManager extends EventListenerBase<{
     });
 
     navigator.serviceWorker.ready.then(this.isAliveNotify);
-  }
-
-  private makeTokenData(subscription: PushSubscription): PushSubscriptionNotify {
-    if(!subscription) {
-      return;
-    }
-
-    const subscriptionObj: PushSubscriptionJSON & {vapid?: boolean} = subscription.toJSON();
-    if(!subscriptionObj ||
-      !subscriptionObj.endpoint ||
-      !subscriptionObj.keys ||
-      !subscriptionObj.keys.p256dh ||
-      !subscriptionObj.keys.auth) {
-      this.log.warn('invalid push subscription', subscriptionObj);
-      this.isAvailable = false;
-      throw new Error('invalid push subscription');
-    }
-
-    subscriptionObj.vapid = true;
-    return {
-      tokenType: 10,
-      tokenValue: JSON.stringify(subscriptionObj)
-    };
-  }
-
-  public ignorePushByMid(peerId: PeerId, mid: number) {
-    if(!this.isAvailable) {
-      return;
-    }
-
-    this.serviceMessagePort.invokeVoid('shownNotification', peerId + '_' + getServerMessageId(mid));
   }
 }
 

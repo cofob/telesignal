@@ -8,8 +8,6 @@
 import type {ActiveAccountNumber} from '@lib/accounts/types';
 import {Database} from '@config/databases';
 import {CommonDatabase, getCommonDatabaseState} from '@config/databases/state';
-import {NOTIFICATION_BADGE_PATH, NOTIFICATION_ICON_PATH} from '@config/notifications';
-import {IS_FIREFOX} from '@environment/userAgent';
 import deepEqual from '@helpers/object/deepEqual';
 import IDBStorage from '@lib/files/idb';
 import {log, serviceMessagePort} from '@lib/serviceWorker/index.service';
@@ -19,17 +17,9 @@ import getClientAccount from '@lib/serviceWorker/clientAccounts';
 import DeferredIsUsingPasscode from '@lib/passcode/deferredIsUsingPasscode';
 import EncryptionKeyStore from '@lib/passcode/keyStore';
 import pause from '@helpers/schedulers/pause';
-import {getWindowClients} from '@helpers/context';
-import getLoginCodeEntity from '@appManagers/utils/messages/getLoginCodeEntity';
-import encodeSpoiler from '@lib/richTextProcessor/encodeSpoiler';
 
 const ctx = self as any as ServiceWorkerGlobalScope;
 const defaultBaseUrl = location.protocol + '//' + location.hostname + location.pathname.split('/').slice(0, -1).join('/') + '/';
-let localNotificationsAvailable = true;
-
-export type EncryptedPushNotificationObject = {
-  p: string | false
-};
 
 export type PushNotificationObject = {
   loc_key: string,
@@ -53,10 +43,8 @@ export type PushNotificationObject = {
   message?: string,
   user_id?: number // receiver user id
 } & { // will be set before postMessage to main thread
-  action?: 'mute1d' | 'push_settings',
-  accountNumber: ActiveAccountNumber,
-  p?: string,
-  keyIdBase64?: string
+  action?: 'push_settings',
+  accountNumber: ActiveAccountNumber
 };
 
 class SomethingGetter<T extends Database<any>, Storage extends Record<string, any>> {
@@ -121,24 +109,13 @@ class SomethingGetter<T extends Database<any>, Storage extends Record<string, an
 }
 
 type PushStorage = {
-  push_mute_until: number,
-  push_lang: Partial<ServicePushPingTaskPayload['lang']>
   push_settings: Partial<ServicePushPingTaskPayload['settings']>
-  push_accounts: ServicePushPingTaskPayload['accounts'],
-  push_keys_ids_base64: string[]
+  push_accounts: ServicePushPingTaskPayload['accounts']
 };
 
 const defaults: PushStorage = {
-  push_mute_until: 0,
-  push_lang: {
-    push_message_nopreview: 'You have a new message',
-    push_message_error: 'Telegram is syncing in the background...',
-    push_action_mute1d: 'Mute for 24H',
-    push_action_settings: 'Settings'
-  },
   push_settings: {},
-  push_accounts: {},
-  push_keys_ids_base64: []
+  push_accounts: {}
 };
 
 const getter = new SomethingGetter<CommonDatabase, PushStorage>(getCommonDatabaseState(), 'session', defaults);
@@ -146,122 +123,6 @@ const getter = new SomethingGetter<CommonDatabase, PushStorage>(getCommonDatabas
 // fill cache
 for(const i in defaults) {
   getter.get(i as keyof PushStorage);
-}
-
-async function handlePushNotificationObject(obj: PushNotificationObject) {
-  const copy = JSON.parse(JSON.stringify(obj));
-  log('push', copy);
-
-  let fix = false,
-    _lang: PushStorage['push_lang'];
-  try {
-    // * this should never happen, but just in case
-    if(obj.mute === '1') {
-      throw `supress push notification because obj.mute is 1`;
-    }
-
-    const [muteUntil, settings, lang, windowClients] = await Promise.all([
-      getter.get('push_mute_until'),
-      getter.get('push_settings'),
-      getter.get('push_lang'),
-      getWindowClients()
-    ]);
-    _lang = lang;
-
-    const nowTime = Date.now();
-    if(
-      userInvisibleIsSupported() &&
-      muteUntil &&
-      nowTime < muteUntil
-    ) {
-      throw `supress push notification because mute for ${Math.ceil((muteUntil - nowTime) / 60000)} min`;
-    }
-
-    const hasActiveWindow = windowClients.length && localNotificationsAvailable;
-    if(hasActiveWindow) {
-      // fix = !windowClients.some((windowClient) => windowClient.focused);
-      fix = false;
-      throw 'supress push notification because some instance is alive';
-    }
-
-    const notificationPromise = fireNotification(obj, settings, lang);
-    await notificationPromise.catch((err) => {
-      log.error('push notification error', err, copy);
-      throw err;
-    });
-  } catch(err) {
-    log(err);
-
-    if(!fix) {
-      return;
-    }
-
-    const tag = 'fix';
-    const notificationPromise = ctx.registration.showNotification('Telegram Web', {
-      body: _lang.push_message_error,
-      icon: NOTIFICATION_ICON_PATH,
-      tag,
-      badge: NOTIFICATION_BADGE_PATH,
-      silent: true
-    });
-
-    notificationPromise.then(() => {
-      setTimeout(() => {
-        closeAllNotifications(tag);
-      }, 2000);
-    });
-
-    return notificationPromise;
-  }
-}
-
-(ctx as any).handlePushNotificationObject = handlePushNotificationObject;
-
-function onPushEvent(event: PushEvent) {
-  const obj: EncryptedPushNotificationObject | PushNotificationObject = event.data.json();
-  if(!('p' in obj)) {
-    event.waitUntil(handlePushNotificationObject(obj));
-    return;
-  }
-
-  const emptyNotification: PushNotificationObject = {
-    loc_key: '',
-    loc_args: [],
-    custom: {
-      msg_id: ''
-    },
-    random_id: 0,
-    description: '',
-    title: '',
-    mute: '0',
-    user_id: 0,
-    accountNumber: 1
-  };
-
-  log('encrypted push', obj);
-
-  const {p} = obj;
-  if(!p) {
-    log('no p');
-    event.waitUntil(handlePushNotificationObject(emptyNotification));
-    return;
-  }
-
-  const keysIdsBase64 = getter.getCached('push_keys_ids_base64');
-  const keyIndex = keysIdsBase64?.findIndex((key) => p.startsWith(key)) ?? -1;
-  if(keyIndex === -1) {
-    log('no key');
-    event.waitUntil(handlePushNotificationObject(emptyNotification));
-    return;
-  }
-
-  const keyIdBase64 = keysIdsBase64[keyIndex];
-  emptyNotification.accountNumber = keyIndex + 1 as ActiveAccountNumber;
-  emptyNotification.p = p;
-  emptyNotification.keyIdBase64 = keyIdBase64;
-  // * TeleSignal: a push that Telegram's servers encrypted with the account's MTProto key is no longer read: no such key
-  // * is left, so it shows as an empty notification
-  event.waitUntil(handlePushNotificationObject(emptyNotification));
 }
 
 async function isPasscodeLocked() {
@@ -282,12 +143,6 @@ function onNotificationClick(event: NotificationEvent) {
   notification.close();
 
   const action = event.action as PushNotificationObject['action'];
-  if(action === 'mute1d' && userInvisibleIsSupported()) {
-    log('[SW] mute for 1d');
-    getter.set('push_mute_until', Date.now() + 86400e3);
-    return;
-  }
-
   const data: PushNotificationObject = notification.data;
   if(!data) {
     return;
@@ -413,85 +268,6 @@ export function closeAllNotifications(tag?: string) {
   return promise;
 }
 
-function userInvisibleIsSupported() {
-  return IS_FIREFOX;
-}
-
-export function fillPushObject(obj: PushNotificationObject) {
-  let peerId: string;
-
-  if(obj.custom) {
-    if(obj.custom.channel_id) {
-      peerId = '' + -obj.custom.channel_id;
-    } else if(obj.custom.chat_id) {
-      peerId = '' + -obj.custom.chat_id;
-    } else {
-      peerId = obj.custom.from_id || '';
-    }
-  }
-
-  obj.custom.peerId = '' + peerId;
-  return obj;
-}
-
-function fireNotification(
-  obj: PushNotificationObject,
-  settings: PushStorage['push_settings'],
-  lang: PushStorage['push_lang']
-) {
-  obj = fillPushObject(obj);
-  const peerId = obj.custom.peerId;
-  let title = obj.title || 'Telegram';
-  let body = obj.description || '';
-  let tag = 'peer' + peerId;
-
-  const loginCodeEntity = getLoginCodeEntity(+peerId, body);
-  if(loginCodeEntity) {
-    body = encodeSpoiler(body, loginCodeEntity).text;
-  }
-
-  const messageKey = peerId + '_' + obj.custom.msg_id;
-  if(ignoreMessages.has(messageKey)) {
-    const error = 'ignoring push';
-    log.warn(error, obj);
-    ignoreMessages.delete(messageKey);
-    throw error;
-  }
-
-  if(settings?.nopreview || !obj.loc_key) {
-    title = 'Telegram';
-    body = lang.push_message_nopreview;
-    tag = 'unknown_peer';
-  }
-
-  const actions: (Omit<NotificationAction, 'action'> & {action: PushNotificationObject['action']})[] = [
-    userInvisibleIsSupported() && {
-      action: 'mute1d',
-      title: lang.push_action_mute1d
-    }/* , {
-    action: 'push_settings',
-    title: lang.push_action_settings || 'Settings'
-  } */];
-
-  const notificationOptions: NotificationOptions = {
-    body,
-    icon: NOTIFICATION_ICON_PATH,
-    tag,
-    data: obj,
-    actions: actions.filter(Boolean),
-    badge: NOTIFICATION_BADGE_PATH,
-    silent: obj.custom.silent === '1'
-  };
-
-  log('show notify', title, body, obj, notificationOptions);
-
-  const notificationPromise = ctx.registration.showNotification(title, notificationOptions);
-  return notificationPromise.catch((error) => {
-    log.error('show notification promise error', error);
-    throw error;
-  });
-}
-
 export async function canSaveAccounts() {
   const [isUsingPasscode/* , encryptionKey */] = await Promise.all([
     DeferredIsUsingPasscode.isUsingPasscode()/* ,
@@ -502,15 +278,9 @@ export async function canSaveAccounts() {
 }
 
 export async function onPing(payload: ServicePushPingTaskPayload, source?: MessageEventSource) {
-  localNotificationsAvailable = payload.localNotifications;
-
   if(pendingNotification && source) {
     serviceMessagePort.invokeVoid('pushClick', pendingNotification, source);
     pendingNotification = undefined;
-  }
-
-  if(payload.lang) {
-    getter.set('push_lang', payload.lang);
   }
 
   if(payload.settings) {
@@ -519,27 +289,11 @@ export async function onPing(payload: ServicePushPingTaskPayload, source?: Messa
 
   const canSave = await canSaveAccounts();
   getter.set('push_accounts', (canSave && payload.accounts) || defaults.push_accounts);
-  getter.set('push_keys_ids_base64', payload.keysIdsBase64 || defaults.push_keys_ids_base64);
 }
 
 export function resetPushAccounts() {
   getter.set('push_accounts', defaults.push_accounts);
 }
 
-const ignoreMessages: Map<string, number> = new Map();
-export function onShownNotification(payload: string) {
-  ignoreMessages.set(payload, Date.now());
-}
-
-setInterval(() => {
-  const time = Date.now();
-  ignoreMessages.forEach((_time, key) => {
-    if((time - _time) > 30e3) {
-      ignoreMessages.delete(key);
-    }
-  });
-}, 30 * 60e3);
-
 ctx.addEventListener('notificationclick', onNotificationClick);
 ctx.addEventListener('notificationclose', onCloseNotification);
-ctx.addEventListener('push', onPushEvent);

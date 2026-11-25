@@ -13,15 +13,8 @@ import {CacheStorageDbName} from '@lib/files/cacheStorage';
 
 export type ServicePushPingTaskPayload = {
   localNotifications: boolean,
-  lang: {
-    push_action_mute1d: string
-    push_action_settings: string
-    push_message_nopreview: string,
-    push_message_error: string
-  },
   settings: WebPushApiManager['settings'],
-  accounts: {[key in ActiveAccountNumber]?: UserId},
-  keysIdsBase64: string[]
+  accounts: {[key in ActiveAccountNumber]?: UserId}
 };
 
 export type ServiceRequestFilePartTaskPayload = {
@@ -63,7 +56,6 @@ export default class ServiceMessagePort<Master extends boolean = false> extends 
   toggleStorages: (payload: {enabled: boolean, clearWrite: boolean}) => void,
   pushPing: (payload: ServicePushPingTaskPayload, source: MessageEventSource, event: MessageEvent) => void,
   hello: (payload: void, source: MessageEventSource, event: MessageEvent) => void,
-  shownNotification: (payload: string) => void,
   leaveRtmpCall: (payload: [Long, boolean]) => void,
   toggleStreamInUse: (payload: {url: string, inUse: boolean, accountNumber: ActiveAccountNumber}) => void,
   // * the account the tab shows - on every hello, and whenever it switches in place
@@ -72,7 +64,6 @@ export default class ServiceMessagePort<Master extends boolean = false> extends 
   resetEncryptableCacheStorages: () => void,
   toggleUsingPasscode: (payload: SWToggleUsingPasscodePayload, source: MessageEventSource) => void,
   saveEncryptionKey: (payload: CryptoKey) => void,
-  fillPushObject: (payload: PushNotificationObject) => PushNotificationObject,
   disableCacheStoragesByNames: (names: CacheStorageDbName[]) => void,
   enableCacheStoragesByNames: (names: CacheStorageDbName[]) => void,
   resetOpenCacheStoragesByNames: (names: CacheStorageDbName[]) => void,

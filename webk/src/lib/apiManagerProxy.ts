@@ -1,4 +1,3 @@
-import type {ModifyFunctionsToAsync} from '@types';
 import {type State} from '@config/state';
 import type {Chat, ChatFull, ChatPhoto, Message, MessagePeerReaction, PeerNotifySettings, Reaction, User, UserProfilePhoto} from '@layer';
 import type {CryptoMethods} from '@lib/crypto/crypto_methods';
@@ -66,7 +65,6 @@ import createNotificationImage from '@helpers/createNotificationImage';
 import EncryptionKeyStore, {importEncryptionKey} from '@lib/passcode/keyStore';
 import DeferredIsUsingPasscode from '@lib/passcode/deferredIsUsingPasscode';
 import CacheStorageController, {CacheStorageDbName} from '@lib/files/cacheStorage';
-import type {PushSingleManager} from '@appManagers/pushSingleManager';
 import getDeepProperty from '@helpers/object/getDeepProperty';
 import isObject from '@helpers/object/isObject';
 import {_changeHistoryStorageKey, _deleteHistoryStorage, _iterateHistoryStorages, _useHistoryStorage} from '@stores/historyStorages';
@@ -217,7 +215,6 @@ class ApiManagerProxy extends MTProtoMessagePort {
 
   private serviceWorkerRegistration: ServiceWorkerRegistration;
 
-  public pushSingleManager: ModifyFunctionsToAsync<PushSingleManager>;
 
   private mainBroadcastChannel: BroadcastChannelWrapper<MainBroadcastChannelEvents>;
 
@@ -242,7 +239,6 @@ class ApiManagerProxy extends MTProtoMessagePort {
       historyStorage: undefined
     };
 
-    this.pushSingleManager = this.createSingleManagerProxy('pushSingleManager');
 
     const reconcileObjectURLMirror = (payload: MirrorTaskPayload) => {
       if(!payload.key) {
@@ -1559,24 +1555,6 @@ class ApiManagerProxy extends MTProtoMessagePort {
   public async clearInterval(intervalId: number) {
     this.intervals.delete(intervalId);
     await this.invoke('clearInterval', intervalId);
-  }
-
-  private createSingleManagerProxy<T>(name: string): ModifyFunctionsToAsync<T> {
-    const proxy = new Proxy({}, {
-      get: (target, p, receiver) => {
-        return (...args: any[]) => {
-          const promise = apiManagerProxy.invoke('singleManager', {
-            name,
-            method: p as string,
-            args
-          });
-
-          return promise;
-        };
-      }
-    });
-
-    return proxy as any;
   }
 
   public lock() {
