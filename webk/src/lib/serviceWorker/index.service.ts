@@ -1,7 +1,7 @@
 import {logger, LogTypes} from '@lib/logger';
 import {CACHE_ASSETS_NAME, requestCache} from '@lib/serviceWorker/cache';
 import onStreamFetch, {toggleStreamInUse} from '@lib/serviceWorker/stream';
-import {closeAllNotifications, fillPushObject, onPing, onShownNotification, resetPushAccounts} from '@lib/serviceWorker/push';
+import {closeAllNotifications, onPing, resetPushAccounts} from '@lib/serviceWorker/push';
 import CacheStorageController from '@lib/files/cacheStorage';
 import {IS_SAFARI} from '@environment/userAgent';
 import ServiceMessagePort from '@lib/serviceWorker/serviceMessagePort';
@@ -138,7 +138,6 @@ serviceMessagePort.addMultipleEventsListeners({
     onWindowConnected(source as any as WindowClient, 'hello');
   },
 
-  shownNotification: onShownNotification,
   leaveRtmpCall: onRtmpLeftCall,
 
   toggleStreamInUse,
@@ -167,8 +166,6 @@ serviceMessagePort.addMultipleEventsListeners({
   saveEncryptionKey: (payload) => {
     EncryptionKeyStore.save(payload);
   },
-
-  fillPushObject,
 
   disableCacheStoragesByNames: (names) => {
     CacheStorageController.temporarilyToggleByNames(names, false);

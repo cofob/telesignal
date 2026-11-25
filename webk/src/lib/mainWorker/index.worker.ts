@@ -24,7 +24,6 @@ import sessionStorage from '@lib/sessionStorage';
 import CacheStorageController from '@lib/files/cacheStorage';
 import {ApiManager} from '@appManagers/apiManager';
 import {useAutoLock} from '@lib/mainWorker/useAutoLock';
-import pushSingleManager from '@appManagers/pushSingleManager';
 import {createBroadcastChannelWrapper} from '@lib/broadcastChannelWrapper';
 import {MainBroadcastChannelEvents, unversionedMainBroadcastChannelName} from '@config/broadcastChannel';
 import objectUrlRegistry from '@lib/mainWorker/objectUrlRegistry';
@@ -55,10 +54,6 @@ const tabIntervals = new TabIntervals((intervalId, source) => {
 });
 
 let isLocked = true;
-
-const singleManagers = {
-  [pushSingleManager.name]: pushSingleManager
-};
 
 port.addMultipleEventsListeners({
   environment: (environment) => {
@@ -283,8 +278,6 @@ port.addMultipleEventsListeners({
       EncryptionKeyStore.save(null);
     }
 
-    pushSingleManager.registerAgain();
-
     await port.invokeExceptSourceAsync('toggleUsingPasscode', payload, source);
 
     isLocked = false;
@@ -352,12 +345,6 @@ port.addMultipleEventsListeners({
 
   toggleUninteruptableActivity: ({activity, active}, source) => {
     autoLockControls.toggleUninteruptableActivity(source, activity, active);
-  },
-
-  singleManager: (payload) => {
-    const manager = singleManagers[payload.name];
-    // @ts-ignore
-    return manager[payload.method](...payload.args);
   },
 
   disableCacheStoragesByNames: (names) => {

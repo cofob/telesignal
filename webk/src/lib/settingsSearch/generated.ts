@@ -193,7 +193,6 @@ const generated: GeneratedSettingsSearchData = {
     {id: 'AppNotificationsTab:MultiAccount.AllAccounts', sectionId: 'AppNotificationsTab', kind: 'row', titleLangKey: 'MultiAccount.AllAccounts'},
     {id: 'AppNotificationsTab:NotificationProfiles', sectionId: 'AppNotificationsTab', kind: 'row', titleLangKey: 'NotificationProfiles'},
     {id: 'AppNotificationsTab:Notifications.Enable', sectionId: 'AppNotificationsTab', kind: 'row', titleLangKey: 'Notifications.Enable'},
-    {id: 'AppNotificationsTab:Notifications.Offline', sectionId: 'AppNotificationsTab', kind: 'row', titleLangKey: 'Notifications.Offline'},
     {id: 'AppNotificationsTab:Notifications.Show', sectionId: 'AppNotificationsTab', kind: 'row', titleLangKey: 'Notifications.Show'},
     {id: 'AppNotificationsTab:Notifications.Sound', sectionId: 'AppNotificationsTab', kind: 'toggle', titleLangKey: 'Notifications.Sound'},
     {id: 'AppNotificationsTab:Notifications.Sound.Effects', sectionId: 'AppNotificationsTab', kind: 'subsection', titleLangKey: 'Notifications.Sound.Effects'},

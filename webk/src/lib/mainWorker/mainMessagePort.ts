@@ -15,8 +15,6 @@ import SuperMessagePort from '@lib/superMessagePort';
 import {CacheStorageDbName} from '@lib/files/cacheStorage';
 
 export type MTProtoManagerTaskPayload = {name: string, method: string, args: any[], accountNumber: ActiveAccountNumber};
-export type MTProtoSingleManagerTaskPayload = {name: string, method: string, args: any[]};
-
 type CallNotificationPayload = {
   callerId: string | number,
   callId: string | number,
@@ -41,7 +39,6 @@ export default class MTProtoMessagePort<Master extends boolean = true> extends S
   crypto: (payload: {method: string, args: any[]}) => Promise<any>,
   state: (payload: {accountNumber: ActiveAccountNumber} & LoadStateResult) => void,
   manager: (payload: MTProtoManagerTaskPayload) => any,
-  singleManager: (payload: MTProtoSingleManagerTaskPayload) => any,
   toggleStorages: (payload: {enabled: boolean, clearWrite: boolean}) => ReturnType<typeof toggleStorages>,
   mirrorAll: (payload: {accountNumber: ActiveAccountNumber}, source: MessageEventSource) => MaybePromise<void>,
   serviceWorkerOnline: (online: boolean) => void,

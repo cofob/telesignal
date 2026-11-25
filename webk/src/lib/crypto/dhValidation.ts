@@ -9,16 +9,14 @@
  *   - substitute a degenerate peer public value (0, 1, p-1) to force the key.
  *
  * Mirrors tdesktop's MTP::IsPrimeAndGood / IsGoodModExpFirst
- * (Telegram/SourceFiles/mtproto/mtproto_dh_utils.cpp) and the same checks
- * already applied to the MTProto auth handshake in authorizer.ts verifyDhParams.
+ * (Telegram/SourceFiles/mtproto/mtproto_dh_utils.cpp).
  */
 import bigInt from 'big-integer';
 import {bigIntFromBytes} from '@helpers/bigInt/bigIntConversion';
 import bytesToHex from '@helpers/bytes/bytesToHex';
 
 // The well-known 2048-bit safe prime, from
-// https://core.telegram.org/mtproto/security_guidelines — the same value
-// pinned in authorizer.ts for the auth-key handshake.
+// https://core.telegram.org/mtproto/security_guidelines.
 const KNOWN_DH_PRIME_HEX =
   'c71caeb9c6b1c9048e6c522f70f13f73980d40238e3e21c14934d037563d930f' +
   '48198a0aa7c14058229493d22530f4dbfa336f6e0ac925139543aed44cce7c37' +
@@ -31,8 +29,8 @@ const KNOWN_DH_PRIME_HEX =
 
 const DH_PRIME_BITS = 2048;
 
-// Lower/upper guard for public values: 2^(2048-64). Matches authorizer.ts
-// verifyDhParams and tdesktop's IsGoodModExpFirst bit-length guard.
+// Lower/upper guard for public values: 2^(2048-64). Matches tdesktop's
+// IsGoodModExpFirst bit-length guard.
 const TWO_POW = bigInt(2).pow(DH_PRIME_BITS - 64);
 
 // Miller-Rabin rounds for the (rare) slow path. The fast path pins the known
