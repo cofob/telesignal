@@ -75,7 +75,7 @@ import I18n, {i18n} from '@lib/langPack';
 import iconButtonLabel from '@helpers/dom/iconButtonLabel';
 import {setDirection} from '@helpers/dom/setInnerHTML';
 import isDocumentRTL from '@helpers/dom/isDocumentRTL';
-import getInlineArrowKeys from '@helpers/dom/getInlineArrowKeys';
+import {getInlineKeyboardShortcut, getIsKeyboardShortcut, getIsKeyCombo, WEBK_VIEWER_COMBOS} from '@lib/keyboardShortcuts';
 import getQualityLevels, {playsOverHls} from '@lib/hls/getQualityLevels';
 import {snapQualityHeight} from '@lib/hls/snapQualityHeight';
 import {ButtonMenuItemWithAuxiliaryText} from '@lib/mediaPlayer/qualityLevelsSwitchButton';
@@ -1237,18 +1237,13 @@ export default class AppMediaViewerBase<
       return;
     }
 
-    const key = e.key;
-
-    const inlineKeys = getInlineArrowKeys();
+    const direction = getInlineKeyboardShortcut(e, 'nextMedia', 'previousMedia');
+    const isZoomIn = getIsKeyCombo(e, WEBK_VIEWER_COMBOS.zoomIn);
     let good = true;
-    if(key === inlineKeys.next) {
-      !this.isZooming && this.buttons.next.click();
-    } else if(key === inlineKeys.previous) {
-      !this.isZooming && this.buttons.prev.click();
-    } else if(key === '-' || key === '=') {
-      if(this.ctrlKeyDown) {
-        this.addZoomStep(key === '=');
-      }
+    if(direction) {
+      !this.isZooming && this.buttons[direction === 'next' ? 'next' : 'prev'].click();
+    } else if(isZoomIn || getIsKeyCombo(e, WEBK_VIEWER_COMBOS.zoomOut)) {
+      this.addZoomStep(isZoomIn);
     } else {
       good = false;
     }
@@ -2434,6 +2429,7 @@ export default class AppMediaViewerBase<
     } else {
       this.navigationItem = {
         type: 'media',
+        onEscape: (e) => getIsKeyboardShortcut(e, 'closeMediaViewer'),
         onPop: (canAnimate) => {
           if(this.setMoverAnimationPromise) {
             return false;

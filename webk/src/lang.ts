@@ -814,7 +814,6 @@ const lang = {
   'KeyboardShortcuts.Action.NextStory': 'Next story',
   'KeyboardShortcuts.Action.PreviousStory': 'Previous story',
   'KeyboardShortcuts.Action.CloseStories': 'Close stories',
-  'KeyboardShortcuts.Action.PlayPauseStory': 'Play / pause story',
   'KeyboardShortcuts.Action.Undo': 'Undo',
   'KeyboardShortcuts.Action.Redo': 'Redo',
   'KeyboardShortcuts.Action.LockPasscode': 'Lock by passcode',
