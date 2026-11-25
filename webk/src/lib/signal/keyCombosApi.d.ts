@@ -25,3 +25,6 @@ export function getKeyComboText(combo: string, lang: KeyLabelLang): string;
 export function getModifierLabels(modifiers: (KeyComboModifier | 'Mod')[]): string[];
 export function getKeyLabel(key: string, lang: KeyLabelLang): string;
 export function getIsFunctionKey(key: string): boolean;
+/** The keys a search query names (`ctrl k`, `⌘⇧F`), or `undefined` when a word of it is no key */
+export function parseKeyQuery(query: string): string[] | undefined;
+export function getIsComboWithKeys(combo: string, keys: string[]): boolean;

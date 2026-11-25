@@ -9,6 +9,7 @@
 import {createSignal} from 'solid-js';
 import {
   KEYBOARD_SHORTCUT_IDS,
+  KEYBOARD_SHORTCUT_SECTIONS,
   KEYBOARD_SHORTCUTS,
   type KeyboardShortcutCondition,
   type KeyboardShortcutDefault,
@@ -18,6 +19,7 @@ import {getKeyComboFromEvent, IS_APPLE_KEYBOARD, normalizeKeyCombo, parseKeyComb
 import {IS_WINDOWS} from '@signal-app/platform';
 import {IS_FIREFOX} from '@environment/userAgent';
 import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
+import I18n from '@lib/langPack';
 import {readWebASharedSettings, updateWebASharedSettings} from '@lib/signal/webAState';
 
 export type ResolvedKeyboardShortcutCombo = {combo: string, condition?: KeyboardShortcutCondition};
@@ -33,6 +35,55 @@ const DEFAULT_COMBOS: Record<SendKeyCombo, Record<KeyboardShortcutId, ResolvedKe
   'enter': buildDefaultCombos('enter'),
   'ctrl-enter': buildDefaultCombos('ctrl-enter')
 };
+
+// * the shortcuts that Web K handles, by Web A's ids; the others of the registry are features Web K does not have
+const WEBK_SHORTCUT_IDS = new Set<KeyboardShortcutId>([
+  'globalSearch', 'quickChatPicker', 'savedMessages', 'archivedChats', 'openSettings', 'lockScreen', 'quitApp',
+  'closeOrGoBack', 'previousChat', 'nextChat', 'openFolderByNumber', 'searchInChat', 'focusMessageInput',
+  'editLastMessage', 'replyToPreviousMessage', 'replyToNextMessage', 'copySelectedMessages', 'deleteSelectedMessages',
+  'pauseVoiceRecording', 'bold', 'italic', 'underline', 'strikethrough', 'monospace', 'spoiler', 'link',
+  'mediaEditorUndo', 'mediaEditorRedo'
+]);
+
+// * shortcuts that Web K's own code handles, outside the registry, by sections of the settings screen; a combo is shown
+// * as it is
+export type WebKOwnShortcutSection = {
+  titleKey: string,
+  captionKey?: string,
+  shortcuts: {titleKey: string, combo: () => string}[]
+};
+
+const getNextKey = () => I18n.isRTL() ? 'ArrowLeft' : 'ArrowRight';
+const getPreviousKey = () => I18n.isRTL() ? 'ArrowRight' : 'ArrowLeft';
+
+// * with the way of sending that both frontends share (`messageSendKeyCombo` of Web A)
+export const WEBK_MESSAGES_SECTION: WebKOwnShortcutSection = {
+  titleKey: 'KeyboardShortcuts.Section.Messages',
+  captionKey: 'KeyboardShortcuts.Section.Messages.Caption',
+  shortcuts: [
+    {titleKey: 'KeyboardShortcuts.Action.NewLine', combo: () => getMessageSendKeyCombo() === 'ctrl-enter' ? 'Enter' : 'Shift+Enter'},
+    {titleKey: 'KeyboardShortcuts.Action.JumpToInputStart', combo: () => 'Ctrl+PageUp'},
+    {titleKey: 'KeyboardShortcuts.Action.JumpToInputEnd', combo: () => 'Ctrl+PageDown'}
+  ]
+};
+// * the viewers keep their own keys, which are not in the shared registry's handling yet
+export const WEBK_VIEWER_SECTIONS: WebKOwnShortcutSection[] = [{
+  titleKey: 'KeyboardShortcuts.Section.MediaViewer',
+  shortcuts: [
+    {titleKey: 'KeyboardShortcuts.Action.NextMedia', combo: getNextKey},
+    {titleKey: 'KeyboardShortcuts.Action.PreviousMedia', combo: getPreviousKey},
+    {titleKey: 'KeyboardShortcuts.Action.ZoomIn', combo: () => 'Mod+='},
+    {titleKey: 'KeyboardShortcuts.Action.ZoomOut', combo: () => 'Mod+-'}
+  ]
+}, {
+  titleKey: 'KeyboardShortcuts.Section.Stories',
+  shortcuts: [
+    {titleKey: 'KeyboardShortcuts.Action.NextStory', combo: getNextKey},
+    {titleKey: 'KeyboardShortcuts.Action.PreviousStory', combo: getPreviousKey},
+    {titleKey: 'KeyboardShortcuts.Action.PlayPauseStory', combo: () => 'Space'},
+    {titleKey: 'KeyboardShortcuts.Action.CloseStories', combo: () => 'ArrowDown'}
+  ]
+}];
 
 const [overrides, setOverrides] = createSignal<KeyboardShortcutOverrides>({});
 const [sendKeyCombo, setSendKeyCombo] = createSignal<SendKeyCombo>('enter');
@@ -60,6 +111,18 @@ export function getKeyboardShortcutCombos(id: KeyboardShortcutId, custom: Keyboa
 
 export function getDefaultKeyboardShortcutCombos(id: KeyboardShortcutId) {
   return DEFAULT_COMBOS[sendKeyCombo()][id];
+}
+
+/** The sections of the registry that the settings screen shows, each with its shortcuts that Web K handles and has */
+export function getShownKeyboardShortcutSections() {
+  return KEYBOARD_SHORTCUT_SECTIONS.map((section) => ({
+    ...section,
+    ids: KEYBOARD_SHORTCUT_IDS.filter((id) => {
+      const shortcut = KEYBOARD_SHORTCUTS[id];
+      return shortcut.section === section.section && WEBK_SHORTCUT_IDS.has(id) &&
+        (shortcut.isEditable || getDefaultKeyboardShortcutCombos(id).length > 0);
+    })
+  })).filter(({ids}) => ids.length);
 }
 
 /** Whether a key event is one of the shortcut's combos; the condition of a combo is the handler's to check */
