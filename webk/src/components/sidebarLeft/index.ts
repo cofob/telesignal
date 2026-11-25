@@ -1501,7 +1501,7 @@ export class AppSidebarLeft extends SidebarSlider {
       this.inputSearch.value = '';
       this.inputSearch.onChange?.('');
       simulateClickEvent(this.backBtn);
-      appImManager.openUrl(trimmed);
+      appImManager.openContentUrl(trimmed);
     };
 
     type UpdateSearchQueryArgs = {

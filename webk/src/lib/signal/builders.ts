@@ -30,7 +30,8 @@ import type {
   SignalNotifySettings,
   SignalReactions,
   SignalReadState,
-  SignalRights,
+  SignalAdminRights,
+  SignalBannedRights,
   SignalUser
 } from '@lib/signal/signalApi';
 import tsNow from '@helpers/tsNow';
@@ -71,7 +72,7 @@ export function buildUser(user: SignalUser): User.user {
     pFlags: {
       self: user.isSelf,
       contact: user.isContact,
-      stories_hidden: user.areStoriesHidden
+      stories_hidden: user.areStoriesHidden || undefined
     },
     id: toPeerId(user.id),
     access_hash: '0',
@@ -86,7 +87,7 @@ export function buildUser(user: SignalUser): User.user {
 }
 
 // * the provider's rights of a group (`ApiChatAdminRights`, `ApiChatBannedRights`) under Telegram's flag names
-const ADMIN_RIGHT_FLAGS: Record<string, keyof ChatAdminRights.chatAdminRights['pFlags']> = {
+const ADMIN_RIGHT_FLAGS: Record<keyof SignalAdminRights, keyof ChatAdminRights.chatAdminRights['pFlags']> = {
   changeInfo: 'change_info',
   postMessages: 'post_messages',
   editMessages: 'edit_messages',
@@ -97,7 +98,7 @@ const ADMIN_RIGHT_FLAGS: Record<string, keyof ChatAdminRights.chatAdminRights['p
   addAdmins: 'add_admins',
   manageRanks: 'manage_ranks'
 };
-const BANNED_RIGHT_FLAGS: Record<string, keyof ChatBannedRights.chatBannedRights['pFlags']> = {
+const BANNED_RIGHT_FLAGS: Record<keyof SignalBannedRights, keyof ChatBannedRights.chatBannedRights['pFlags']> = {
   viewMessages: 'view_messages',
   // * Web K's "Send Messages" permission is `send_plain`
   sendMessages: 'send_plain',
@@ -119,19 +120,19 @@ const BANNED_RIGHT_FLAGS: Record<string, keyof ChatBannedRights.chatBannedRights
  * groups always have default banned rights, so an empty set is a set of its own: a group without them hides its
  * members from Web K.
  */
-function buildAdminRights(rights?: SignalRights): ChatAdminRights.chatAdminRights | undefined {
+function buildAdminRights(rights?: SignalAdminRights): ChatAdminRights.chatAdminRights | undefined {
   if(!rights) return undefined;
   const pFlags: ChatAdminRights.chatAdminRights['pFlags'] = {};
   Object.entries(ADMIN_RIGHT_FLAGS).forEach(([name, flag]) => {
-    if(rights[name]) pFlags[flag] = true;
+    if(rights[name as keyof SignalAdminRights]) pFlags[flag] = true;
   });
   return {_: 'chatAdminRights', pFlags};
 }
 
-function buildBannedRights(rights?: SignalRights): ChatBannedRights.chatBannedRights {
+function buildBannedRights(rights?: SignalBannedRights): ChatBannedRights.chatBannedRights {
   const pFlags: ChatBannedRights.chatBannedRights['pFlags'] = {};
   Object.entries(BANNED_RIGHT_FLAGS).forEach(([name, flag]) => {
-    if(rights?.[name]) pFlags[flag] = true;
+    if(rights?.[name as keyof SignalBannedRights]) pFlags[flag] = true;
   });
   return {_: 'chatBannedRights', pFlags, until_date: 0};
 }
@@ -279,16 +280,18 @@ function buildViewOnceMedia(media: any, date: number) {
 // * a reply to a message of the chat names it; a quote of a message that is not in the chat, or is gone, keeps the
 // * text the quote carries
 function buildReplyHeader(replyInfo: SignalMessage['replyInfo']): MessageReplyHeader.messageReplyHeader | undefined {
-  if(replyInfo?.replyToMsgId) {
+  if(replyInfo?.type !== 'message') return undefined;
+  if(replyInfo.replyToMsgId) {
     return {_: 'messageReplyHeader', pFlags: {}, reply_to_msg_id: replyInfo.replyToMsgId};
   }
 
-  if(!replyInfo?.quoteText) return undefined;
+  if(!replyInfo.quoteText) return undefined;
   const {replyFrom, quoteText} = replyInfo;
   return {
     _: 'messageReplyHeader',
     pFlags: {quote: true},
-    reply_from: replyFrom ? {_: 'messageFwdHeader', pFlags: {}, from_id: buildPeer(replyFrom.fromId), date: replyFrom.date} : undefined,
+    // * the author of a quote of a message that is gone may be unknown
+    reply_from: replyFrom?.fromId ? {_: 'messageFwdHeader', pFlags: {}, from_id: buildPeer(replyFrom.fromId), date: replyFrom.date} : undefined,
     quote_text: quoteText.text,
     quote_entities: quoteText.entities?.map(buildEntity).filter(Boolean)
   };

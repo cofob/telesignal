@@ -162,7 +162,7 @@ import wrapUnsupportedMessagePlate from '@components/chat/bubbleParts/unsupporte
 import {FullMid, makeFullMid, splitFullMid} from '@appManagers/utils/messages/fullMid';
 import apiManagerProxy from '@lib/apiManagerProxy';
 import setBlankToAnchor from '@lib/richTextProcessor/setBlankToAnchor';
-import addAnchorListener, {UNSAFE_ANCHOR_LINK_TYPES} from '@helpers/addAnchorListener';
+import addAnchorListener, {runContentAnchorHandler, UNSAFE_ANCHOR_LINK_TYPES} from '@helpers/addAnchorListener';
 import {formatDaysDuration, formatMonthsDuration} from '@helpers/date';
 import {JSX} from 'solid-js';
 import Giveaway, {getGiftAssetName, onGiveawayClick} from '@components/chat/giveaway';
@@ -8315,7 +8315,8 @@ export default class ChatBubbles {
 
     const callback = webPageContainer.dataset.callback as Parameters<typeof addAnchorListener>[0]['name'];
     if(callback) {
-      (window as any)[callback](targetAnchor, event);
+      // * TeleSignal: a link preview runs only what a link of a message may (`runContentAnchorHandler`)
+      runContentAnchorHandler(callback, targetAnchor, event);
       cancelWebPageLink(event);
     }
 

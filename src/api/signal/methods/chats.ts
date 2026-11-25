@@ -40,6 +40,9 @@ import { collectShownMessages } from './messages';
 // The error codes of the dialog, see `READABLE_ERROR_KEYS` in `src/util/getReadableErrorText.ts`
 const PINNED_LIMIT_ERROR = 'SIGNAL_PINNED_LIMIT';
 const CHAT_CHANGE_ERROR = 'SIGNAL_CHAT_CHANGE_FAILED';
+// A query of a phone number as people type one: digits with a `+`, spaces, dashes or brackets
+const PHONE_QUERY_PATTERN = /^\+?[\d\s()-]+$/;
+const NON_DIGIT_PATTERN = /\D/g;
 
 // E.164: a country code and at most 15 digits in all
 const E164_PATTERN = /^\+[1-9]\d{6,14}$/;
@@ -222,11 +225,16 @@ export async function searchChats({ query }: { query: string }) {
   const selfAci = getCurrentAccount()?.aci;
   const normalizedQuery = query.trim().toLowerCase();
   if (!selfAci || !normalizedQuery) return undefined;
+  // A number matches however it is spaced or punctuated
+  const phoneDigits = PHONE_QUERY_PATTERN.test(normalizedQuery)
+    ? normalizedQuery.replace(NON_DIGIT_PATTERN, '')
+    : undefined;
 
   const found = (await db.getConversations())
     .filter((conversation) => (
       (getIsChatListed(conversation, selfAci) || getIsContact(conversation, selfAci))
-      && getSearchTexts(conversation).some((text) => text.toLowerCase().includes(normalizedQuery))
+      && (getSearchTexts(conversation).some((text) => text.toLowerCase().includes(normalizedQuery))
+        || Boolean(phoneDigits && conversation.e164?.replace(NON_DIGIT_PATTERN, '').includes(phoneDigits)))
     ))
     .sort(compareChatOrder)
     .slice(0, GLOBAL_SEARCH_CONTACTS_LIMIT);

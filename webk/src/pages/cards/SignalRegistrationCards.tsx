@@ -19,6 +19,7 @@ import rootScope from '@lib/rootScope';
 
 import AuthCard from '@/pages/AuthCard';
 import AuthCardError from '@/pages/AuthCardError';
+import type {SignalMethodName} from '@lib/signal/signalApi';
 import {useAuthFlow} from '@/pages/authFlow';
 import styles from '@/pages/authFlow.module.scss';
 import {
@@ -51,8 +52,8 @@ const RESTORE_STEP_KEYS: Record<string, LangPackKey> = {
  */
 function useSubmit() {
   const {managers} = useAuthFlow();
-  const [submitted, setSubmitted] = createSignal<string>();
-  const submit = (name: string, ...args: any[]) => {
+  const [submitted, setSubmitted] = createSignal<SignalMethodName>();
+  const submit = (name: SignalMethodName, ...args: any[]) => {
     clearSignalAuthError();
     setSubmitted(name);
     managers.appSignalManager.callSignal(name, ...args);
