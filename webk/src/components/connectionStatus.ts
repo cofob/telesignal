@@ -3,7 +3,7 @@ import DEBUG from '@config/debug';
 import {LangPackKey, i18n} from '@lib/langPack';
 import {logger} from '@lib/logger';
 import rootScope from '@lib/rootScope';
-import {ConnectionStatus} from '@lib/mtproto/connectionStatus';
+import {ConnectionStatus} from '@lib/connectionStatus';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import {TabManagers} from '@lib/managers';
@@ -164,7 +164,6 @@ export default class ConnectionStatusComponent {
     let setText: () => void;
     if(this.connecting) {
       if(this.timedOut) {
-        // const a = this.getA('ConnectionStatus.ForceReconnect', () => this.managers.networkerFactory.forceReconnect());
         // setText = this.wrapSetStatusText('ConnectionStatus.TimedOut', [a]);
         setText = this.wrapSetStatusText('Updating');
       } else if(this.hadConnect) {
@@ -182,7 +181,7 @@ export default class ConnectionStatusComponent {
           setTime();
 
           if(HAVE_RECONNECT_BUTTON) {
-            const a = this.getA('ConnectionStatus.Reconnect', () => this.managers.networkerFactory.forceReconnectTimeout());
+            const a = this.getA('ConnectionStatus.Reconnect', () => this.managers.appSignalManager.reconnect());
             setText = this.wrapSetStatusText('ConnectionStatus.ReconnectIn', [timerSpan, a]);
           } else {
             setText = this.wrapSetStatusText('ConnectionStatus.ReconnectInPlain', [timerSpan]);

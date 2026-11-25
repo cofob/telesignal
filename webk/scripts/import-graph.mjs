@@ -42,7 +42,7 @@ if(process.cwd() !== ROOT) process.chdir(ROOT);
 const BUDGET_PATH = 'scripts/import-graph.budget.json';
 const PAGE_ENTRY = 'src/index.ts';
 // worker code runs beside the page and a page-side boundary does nothing for it: counted apart, as "worker side"
-const WORKER_SIDE = /^src\/lib\/(appManagers|mtproto|crypto|storages|mainWorker|serviceWorker|calls)\//;
+const WORKER_SIDE = /^src\/lib\/(appManagers|crypto|storages|mainWorker|serviceWorker|calls)\//;
 const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/;
 // vitest's default include, minus its excludes in vite.config.ts
 const TEST_SKIP_DIRS = new Set(['node_modules', 'dist', '.claude', '.pnpm-store', 'cypress', '.idea', '.git', '.cache',

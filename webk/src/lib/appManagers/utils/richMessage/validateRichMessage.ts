@@ -2,7 +2,6 @@ import hasRichTextContent from '@lib/richTextProcessor/hasRichTextContent';
 import {getRichTextFlatText} from '@lib/richMessage';
 import type {InlineButtonType, InputRichMessage, PageBlock, PageCaption, PageTableCell, PageTableRow, RichText} from '@layer';
 import {MESSAGES_ALBUM_MAX_SIZE} from '@appManagers/constants';
-import {TLSerialization} from '@lib/mtproto/tl_utils';
 import emojiRegExp from '@vendor/emoji/regex';
 import {getOrderedListTypePresentation} from '@lib/richTextProcessor/orderedList';
 import measureTableGrid, {tableSpan} from '@lib/richTextProcessor/tableGrid';
@@ -639,11 +638,11 @@ function validateBlocksStructure(
   }
 }
 
+// * TeleSignal: the size of the blocks as text, in bytes: no MTProto serializer is left to count them as Telegram's
+// * servers do, and Signal sends no rich messages
 function serializedBlocksSize(blocks: PageBlock[]) {
   try {
-    const serializer = new TLSerialization();
-    serializer.storeObject(blocks, 'Vector<PageBlock>', 'rich_message.blocks');
-    return serializer.getOffset();
+    return new TextEncoder().encode(JSON.stringify(blocks)).length;
   } catch{
     return Number.POSITIVE_INFINITY;
   }

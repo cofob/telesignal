@@ -5,7 +5,6 @@ import {InvokeApiOptions} from '@types';
 import {AppManager} from '@appManagers/manager';
 import rootScope from '@lib/rootScope';
 import {UserAuth} from '@appManagers/constants';
-import {MTMessage} from '@lib/mtproto/networker';
 import LIMIT_DEFAULTS from '@config/limitDefaults';
 
 type HashResult = {
@@ -26,7 +25,6 @@ export type ApiLimitType = 'pin' | 'folderPin' | 'folders' |
   'savedPin';
 
 export default abstract class ApiManagerMethods extends AppManager {
-  private afterMessageIdTemp: number;
   private hashes: {[method: string]: HashOptions} = {};
   private apiPromisesSingleProcess: {
     [q: string]: Map<any, Promise<any>>
@@ -56,7 +54,6 @@ export default abstract class ApiManagerMethods extends AppManager {
 
   constructor() {
     super();
-    this.afterMessageIdTemp = 0;
   }
 
   protected after() {
@@ -88,14 +85,8 @@ export default abstract class ApiManagerMethods extends AppManager {
   abstract invokeApi<T extends keyof MethodDeclMap>(method: T, params?: MethodDeclMap[T]['req'], options?: InvokeApiOptions): Promise<MethodDeclMap[T]['res']>;
 
   public invokeApiAfter<T extends keyof MethodDeclMap>(method: T, params: MethodDeclMap[T]['req'] = {}, options: InvokeApiOptions = {}): Promise<MethodDeclMap[T]['res']> {
-    let o = options;
-    o.prepareTempMessageId = '' + ++this.afterMessageIdTemp;
-
-    o = {...options};
-    (options as MTMessage).messageId = o.prepareTempMessageId;
-
-    // console.log('will invokeApi:', method, params, options);
-    return this.invokeApi(method, params, o);
+    // * the Signal adapter answers in the order it is asked: no request waits on another's message id
+    return this.invokeApi(method, params, options);
   }
 
   public invokeApiHashable<T extends keyof MethodDeclMap, R>(o: {

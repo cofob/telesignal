@@ -4,7 +4,7 @@ import type {MyDialogFilter} from '@lib/storages/filters';
 import type {AnyDialog, Folder} from '@lib/storages/dialogs';
 import type {UserTyping} from '@appManagers/appProfileManager';
 import type {MyDraftMessage} from '@appManagers/appDraftsManager';
-import type {ConnectionStatusChange} from '@lib/mtproto/connectionStatus';
+import type {ConnectionStatusChange} from '@lib/connectionStatus';
 import type {GroupCallId} from '@appManagers/appGroupCallsManager';
 import type {TabManagers} from '@lib/managers';
 import type {GlobalNotifySettingsKey, StateSettings} from '@config/state';

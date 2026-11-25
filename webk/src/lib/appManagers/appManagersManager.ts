@@ -12,7 +12,6 @@ import createManagers from '@appManagers/createManagers';
 import {ActiveAccountNumber} from '@lib/accounts/types';
 import AppStateManager from '@appManagers/appStateManager';
 import rootScope from '@lib/rootScope';
-import pushSingleManager from '@appManagers/pushSingleManager';
 import Modes from '@config/modes';
 import SuperMessagePort from '@lib/superMessagePort';
 import objectUrlRegistry from '@lib/mainWorker/objectUrlRegistry';
@@ -269,9 +268,6 @@ export class AppManagersManager {
             const {appDocsManager} = managersByAccount[accountNumber];
             return appDocsManager.getAltDocsByDocument(docId);
           });
-        },
-        decryptPush(payload) {
-          return pushSingleManager.decryptPush(payload.p, payload.keyIdBase64);
         }
       });
     }

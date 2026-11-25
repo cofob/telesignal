@@ -6,7 +6,6 @@ import type {GroupCallRtmpState} from '@appManagers/appGroupCallsManager';
 import type {ActiveAccountNumber} from '@lib/accounts/types';
 import type {getEnvironment} from '@environment/utils';
 import type {VideoStreamInfo} from '@lib/calls/videoStreamInfo';
-import type {PushKey, PushSingleManager} from '@appManagers/pushSingleManager';
 import SuperMessagePort from '@lib/superMessagePort';
 import type {LogEntry} from '@lib/debug/logsBuffer';
 import {MOUNT_CLASS_TO} from '@config/debug';
@@ -108,7 +107,6 @@ export default class ServiceMessagePort<Master extends boolean = false> extends 
   downloadDoc: (payload: {docId: DocId, accountNumber: ActiveAccountNumber}) => MaybePromise<Blob>,
   requestDoc: (payload: {docId: DocId, accountNumber: ActiveAccountNumber}) => MaybePromise<Document.document>,
   requestAltDocsByDoc: (payload: {docId: DocId, accountNumber: ActiveAccountNumber}) => MaybePromise<Document.document[]>,
-  decryptPush: (payload: {p: string, keyIdBase64: string}) => ReturnType<PushSingleManager['decryptPush']>
 } & ServiceEvent, Master> {
   constructor() {
     super('SERVICE');

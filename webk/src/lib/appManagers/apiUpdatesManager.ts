@@ -958,7 +958,7 @@ class ApiUpdatesManager {
       };
 
       let delivered = false, failed = false;
-      const languages = filterUnique([this.networkerFactory.language, 'en']);
+      const languages = filterUnique([this.apiManager.language, 'en']);
       for(const language of languages) {
         try {
           if(await getChangelog(language)) {

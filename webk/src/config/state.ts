@@ -170,10 +170,8 @@ export type StateSettings = {
     textStyle?: string;
     textFont?: FontKey;
   },
-  // Name this browser reports to Telegram as `device_model` in initConnection —
-  // what other devices see in Active Sessions. Empty = the raw user agent.
-  // Renaming only reaches the server on the next initConnection, which
-  // networkerFactory forces by dropping `connectionInited`.
+  // The name of this browser in Telegram's Active Sessions, kept from Telegram's state: with MTProto gone no
+  // `initConnection` sends it. Empty = the raw user agent.
   customDeviceModel: string,
   // Persisted device choices for the audio/video stack used by the
   // SettingsCallsPanel ("Speakers and Camera" tab) and the per-call settings
@@ -272,7 +270,8 @@ export type State = {
   dontShowPaidMessageWarningFor: PeerId[],
   ageVerification?: {
     date: string,
-    layer: number,
+    // * the MTProto layer of the client that verified, which Telegram's clients of earlier versions wrote
+    layer?: number,
     clientVersion: string,
   },
   accountContentSettings: CacheSomething<AccountContentSettings>,

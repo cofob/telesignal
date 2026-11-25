@@ -1128,7 +1128,7 @@ export class AppStickersManager extends AppManager {
    * which a browser does not tell.
    */
   private getStickersSearchLangCodes() {
-    return filterUnique([this.networkerFactory.language, App.langPackCode]);
+    return filterUnique([this.apiManager.language, App.langPackCode]);
   }
 
   /**

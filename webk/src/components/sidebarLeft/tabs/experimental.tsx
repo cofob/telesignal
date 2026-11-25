@@ -5,7 +5,6 @@ import CheckboxFieldTsx from '@components/checkboxFieldTsx';
 import confirmationPopup from '@components/confirmationPopup';
 import MediaHeader from '@components/mediaHeader';
 import {shareToPeers} from '@components/popups/shareUrl';
-import RadioFieldTsx from '@components/radioFieldTsx';
 import Row from '@components/rowTsx';
 import SaveButton from '@components/saveButton';
 import Section from '@components/section';
@@ -49,19 +48,6 @@ const FORCED: Partial<Record<RestartFlag, boolean>> = {
 
 const isStartedWith = (flag: RestartFlag) => !!FORCED[flag] || (flag === 'test' ? isFlagInURL(flag) : isFlagOn(flag));
 
-const TRANSPORTS_AVAILABLE = !!(
-  import.meta.env.VITE_MTPROTO_AUTO &&
-  import.meta.env.VITE_MTPROTO_HAS_HTTP &&
-  import.meta.env.VITE_MTPROTO_HAS_WS
-);
-
-type Transport = 'auto' | 'websocket' | 'http';
-
-const TRANSPORTS: {value: Transport, title: LangPackKey, subtitle?: LangPackKey}[] = [
-  {value: 'auto', title: 'Experimental.Transport.Auto', subtitle: 'Experimental.Transport.Auto.Subtitle'},
-  {value: 'websocket', title: 'Experimental.Transport.WebSocket'},
-  {value: 'http', title: 'Experimental.Transport.HTTP'}
-];
 
 type ToolOpener = 'showBubbleSandbox' | 'showIconLibrary';
 type ToolWindow = typeof window & Partial<Record<ToolOpener, () => void>>;
@@ -137,16 +123,6 @@ const ExperimentalTab = () => {
     saveAllSettings: async() => restart(),
     descriptionLangKey: 'UnsavedChangesDescription.Experimental'
   });
-
-  const transport = (): Transport => isSet('http') ? 'http' : isSet('noMultipleTransports') ? 'websocket' : 'auto';
-  const setTransport = (value: Transport) => {
-    const next = new Set(flags());
-    next.delete('http');
-    next.delete('noMultipleTransports');
-    if(value === 'http') next.add('http');
-    else if(value === 'websocket') next.add('noMultipleTransports');
-    setFlags(next);
-  };
 
   // ── Switches that apply at once, and are kept for the site the same way. One switched off leaves this tab's URL
   //    too, without a reload: the URL would turn it on again at the next start.
@@ -394,28 +370,8 @@ const ExperimentalTab = () => {
       </Section>
 
       <Section name="Experimental.Connection">
-        <RestartToggle flag="noPfs" title="Experimental.Pfs" subtitle="Experimental.Pfs.Subtitle" inverted />
         <RestartToggle flag="test" title="Experimental.TestServer" subtitle="Experimental.TestServer.Subtitle" />
       </Section>
-
-      <Show when={TRANSPORTS_AVAILABLE}>
-        <Section name="Experimental.Transport">
-          <For each={TRANSPORTS}>{(item) => (
-            <Row>
-              <Row.RadioField>
-                <RadioFieldTsx
-                  name="experimental-transport"
-                  value={item.value}
-                  checked={transport() === item.value}
-                  onChange={(checked) => checked && setTransport(item.value)}
-                />
-              </Row.RadioField>
-              <Row.Title>{i18n(item.title)}</Row.Title>
-              {item.subtitle && <Row.Subtitle>{i18n(item.subtitle)}</Row.Subtitle>}
-            </Row>
-          )}</For>
-        </Section>
-      </Show>
 
       <Section name="Experimental.Engine">
         <RestartToggle flag="noSharedWorker" title="Experimental.SharedWorker" subtitle="Experimental.SharedWorker.Subtitle" inverted />

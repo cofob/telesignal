@@ -643,8 +643,9 @@ class ApiManagerProxy extends MTProtoMessagePort {
       });
     });
 
+    // * TeleSignal: the Signal engine connects again when the device is back online
     window.addEventListener('online', () => {
-      rootScope.managers.networkerFactory.forceReconnectTimeout();
+      rootScope.managers.appSignalManager.reconnect();
     });
 
     // * TeleSignal: the reason comes before the log out that reloads the page (@lib/signal/deauthorization)
@@ -742,7 +743,7 @@ class ApiManagerProxy extends MTProtoMessagePort {
   }
 
   public onLanguageChange = (language: string) => {
-    rootScope.managers.all.networkerFactory.setLanguage(language);
+    rootScope.managers.all.apiManager.setLanguage(language);
   };
 
   public sendEnvironment() {

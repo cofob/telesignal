@@ -6,11 +6,8 @@ import type {aesCtrDestroy, aesCtrPrepare, aesCtrProcess} from '@lib/crypto/aesC
 import type computeDhKey from '@lib/crypto/computeDhKey';
 import type generateDh from '@lib/crypto/generateDh';
 import type computeSRP from '@lib/crypto/srp';
-import type {aesEncryptSync, aesDecryptSync} from '@lib/crypto/utils/aesIGE';
 import type {encryptLocalData, decryptLocalData} from '@lib/crypto/utils/aesLocal';
-import type factorizeBrentPollardPQ from '@lib/crypto/utils/factorize/BrentPollard';
 import type pbkdf2 from '@lib/crypto/utils/pbkdf2';
-import type rsaEncrypt from '@lib/crypto/utils/rsa';
 import type sha1 from '@lib/crypto/utils/sha1';
 import type sha256 from '@lib/crypto/utils/sha256';
 
@@ -18,11 +15,6 @@ export type CryptoMethods = {
   'sha1': typeof sha1,
   'sha256': typeof sha256,
   'pbkdf2': typeof pbkdf2,
-  'aes-encrypt': typeof aesEncryptSync,
-  'aes-decrypt': typeof aesDecryptSync,
-  'rsa-encrypt': typeof rsaEncrypt,
-  'factorize': typeof factorizeBrentPollardPQ,
-  // 'factorize-tdlib': typeof factorizeTdlibPQ,
   'mod-pow': typeof bytesModPow,
   // 'gzipCompress': typeof gzipCompress,
   'gzipUncompress': typeof gzipUncompress,

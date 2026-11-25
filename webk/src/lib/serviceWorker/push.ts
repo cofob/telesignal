@@ -259,14 +259,9 @@ function onPushEvent(event: PushEvent) {
   emptyNotification.accountNumber = keyIndex + 1 as ActiveAccountNumber;
   emptyNotification.p = p;
   emptyNotification.keyIdBase64 = keyIdBase64;
-  event.waitUntil(
-    serviceMessagePort.invoke('decryptPush', {p, keyIdBase64}, undefined, undefined, undefined, 1000)
-    .catch((err) => {
-      log.error('decryptPush error', err);
-      return emptyNotification;
-    })
-    .then(handlePushNotificationObject)
-  );
+  // * TeleSignal: a push that Telegram's servers encrypted with the account's MTProto key is no longer read: no such key
+  // * is left, so it shows as an empty notification
+  event.waitUntil(handlePushNotificationObject(emptyNotification));
 }
 
 async function isPasscodeLocked() {

@@ -2,7 +2,6 @@ import {InputPrivacyKey, InputPrivacyRule, PrivacyRule, PrivacyKey, GlobalPrivac
 import convertInputKeyToKey from '@helpers/string/convertInputKeyToKey';
 import {AppManager} from '@appManagers/manager';
 import App from '@config/app';
-import Schema from '@lib/mtproto/schema';
 import noop from '@helpers/noop';
 import {IgnoredRestrictionReasons, makeIgnoredRestrictionReasons, SENSITIVE_RESTRICTION_REASON} from '@helpers/restrictions';
 import forgetFailedRequest from '@helpers/forgetFailedRequest';
@@ -228,7 +227,6 @@ export class AppPrivacyManager extends AppManager {
   public async notifyAgeVerified() {
     await this.appStateManager.pushToState('ageVerification', {
       date: new Date().toISOString(),
-      layer: Schema.layer,
       clientVersion: App.versionFull
     });
     await this.setContentSettings({sensitive_enabled: true});
