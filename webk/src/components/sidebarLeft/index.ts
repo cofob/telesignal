@@ -488,9 +488,6 @@ export class AppSidebarLeft extends SidebarSlider {
     });
 
     this.initSidebarResize();
-    appDialogsManager.onSomeDrawerToggle = () => {
-      this.onSomethingOpenInsideChange();
-    };
 
     // * Web A's global shortcuts by its registry and its user's changes (`lib/keyboardShortcuts`)
     listenKeyboardShortcuts();
@@ -576,19 +573,18 @@ export class AppSidebarLeft extends SidebarSlider {
   }
 
   public hasSomethingOpenInside() {
-    return this.hasTabsInNavigation() || this.isSearchActive || !!appDialogsManager.forumTab;
+    return this.hasTabsInNavigation() || this.isSearchActive;
   }
 
   public closeEverythingInside() {
     this.closeSearch();
-    appDialogsManager.toggleForumTab();
 
     return this.closeAllTabs();
   }
 
   // Like closeEverythingInside, but closes stacked tabs the "natural" way (via
   // the back arrow) so a tab can still confirm before closing. Returns false —
-  // without touching the search or the forum — if the user declines a tab's
+  // without touching the search — if the user declines a tab's
   // close confirmation, so the caller can cancel whatever triggered the close.
   public async closeEverythingInsideNaturally() {
     if(!await this.closeAllTabsNaturally()) {
@@ -598,7 +594,6 @@ export class AppSidebarLeft extends SidebarSlider {
     if(this.isSearchActive) {
       this.closeSearch();
     }
-    appDialogsManager.toggleForumTab();
 
     return true;
   }
@@ -614,12 +609,6 @@ export class AppSidebarLeft extends SidebarSlider {
 
     this.sidebarEl.classList.toggle('has-open-tabs', isFloating);
     this.sidebarEl.classList.toggle('has-real-tabs', hasRealTabs);
-    this.sidebarEl.classList.toggle('has-forum-open', !!appDialogsManager.forumTab);
-    // A floating forum stays mounted under its own management tabs — take it out
-    // of hit-testing so the selected tab gets pointer and keyboard interaction.
-    if(appDialogsManager.forumTab) {
-      appDialogsManager.forumTab.container.inert = hasRealTabs;
-    }
     useHasOpenLeftTabs()[1](isFloating);
 
     // Keep the pop-out flag in sync with the actual tabs state regardless of
@@ -669,8 +658,7 @@ export class AppSidebarLeft extends SidebarSlider {
           'force-chatlist-thin'
         );
       });
-      if(!appDialogsManager.forumTab)
-        appDialogsManager.xd?.toggleAvatarUnreadBadges(false, undefined);
+      appDialogsManager.xd?.toggleAvatarUnreadBadges(false, undefined);
     } else {
       this.sidebarEl.classList.add(
         'force-fixed',

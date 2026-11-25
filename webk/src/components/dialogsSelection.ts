@@ -66,7 +66,6 @@ export default class DialogsSelection extends DialogsSelectionBase<DialogsSelect
       !this.isListNarrow() &&
       !!element.dataset.peerId &&
       !element.dataset.threadId &&
-      !element.dataset.monoforumParentPeerId &&
       !element.dataset.isAllChats &&
       !element.dataset.mid &&
       element.dataset.sponsored !== 'true';

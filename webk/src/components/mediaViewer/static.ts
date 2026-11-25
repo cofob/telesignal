@@ -70,7 +70,7 @@ export default class AppMediaViewerStatic extends AppMediaViewerBase<never, 'for
     if(target.mid) {
       hotReloadGuard.showForwardPopup({
         [target.peerId]: [target.mid]
-      }, undefined, undefined, () => {
+      }, undefined, () => {
         return this.close();
       });
     }

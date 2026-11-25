@@ -20,7 +20,6 @@ import {BooleanKeyValue, InviteKeyValue, KeyValuePair, ParticipantKeyValue} from
 import {LogDiff} from '@components/sidebarRight/tabs/adminRecentActions/logDiff';
 import {participantRightsMap} from '@components/sidebarRight/tabs/adminRecentActions/participantRightsMap';
 import {PreviewMessageButtons} from '@components/sidebarRight/tabs/adminRecentActions/previewMessageButtons';
-import {TopicName} from '@components/sidebarRight/tabs/adminRecentActions/topicName';
 import {diffFlags, getPhoto, useParticipantClickHandler} from '@components/sidebarRight/tabs/adminRecentActions/utils';
 
 
@@ -37,10 +36,8 @@ export type GroupType =
   | 'links'
   | 'location'
   | 'calls'
-  | 'topics'
   | 'appearance'
   | 'reactions'
-  | 'forum'
   | 'translations'
   | 'pinned'
   | 'other';
@@ -57,13 +54,13 @@ type MapCallbackArgs<Key extends ChannelAdminLogEventAction['_']> = {
   channelId: ChatId;
   action: Extract<ChannelAdminLogEventAction, {_: Key}>;
   isBroadcast: boolean;
-  isForum: boolean;
 };
 
 type MapCallback<Key extends ChannelAdminLogEventAction['_']> = (args: MapCallbackArgs<Key>) => MapCallbackResult;
 
 
-const logEntriesMap: {[Key in ChannelAdminLogEventAction['_']]: MapCallback<Key>} = {
+// * forum and topic events have no entry: Signal groups have no topics
+const logEntriesMap: {[Key in ChannelAdminLogEventAction['_']]?: MapCallback<Key>} = {
   'channelAdminLogEventActionChangeTitle': ({action, isBroadcast}) => ({
     group: 'info',
     Message: () => i18n(isBroadcast ? 'AdminRecentActionMessage.ChangeTitleChannel' : 'AdminRecentActionMessage.ChangeTitleGroup'),
@@ -79,14 +76,14 @@ const logEntriesMap: {[Key in ChannelAdminLogEventAction['_']]: MapCallback<Key>
     Message: () => i18n(isBroadcast ? 'AdminRecentActionMessage.ChangeUsernameChannel' : 'AdminRecentActionMessage.ChangeUsernameGroup'),
     ExpandableContent: () => <LogDiff added={action.new_value} removed={action.prev_value} />
   }),
-  'channelAdminLogEventActionChangePhoto': ({action, isBroadcast, isForum}) => ({
+  'channelAdminLogEventActionChangePhoto': ({action, isBroadcast}) => ({
     group: 'media',
     Message: () => i18n(isBroadcast ? 'AdminRecentActionMessage.ChangePhotoChannel' : 'AdminRecentActionMessage.ChangePhotoGroup'),
     ExpandableContent: () => (
       <LogDiff
         vertical
-        added={action.new_photo?._ === 'photo' && <ChatPhoto photo={action.new_photo} rounded isForum={isForum} />}
-        removed={action.prev_photo?._ === 'photo' && <ChatPhoto photo={action.prev_photo} rounded isForum={isForum} />}
+        added={action.new_photo?._ === 'photo' && <ChatPhoto photo={action.new_photo} rounded />}
+        removed={action.prev_photo?._ === 'photo' && <ChatPhoto photo={action.prev_photo} rounded />}
       />
     )
   }),
@@ -522,49 +519,6 @@ const logEntriesMap: {[Key in ChannelAdminLogEventAction['_']]: MapCallback<Key>
     group: 'identity',
     Message: () => i18n('AdminRecentActionMessage.ChangeUsernames')
   }),
-  'channelAdminLogEventActionToggleForum': ({action}) => ({
-    group: 'forum',
-    Message: () => i18n('AdminRecentActionMessage.ToggleForum'),
-    ExpandableContent: () => (
-      <BooleanKeyValue value={action.new_value} />
-    )
-  }),
-  'channelAdminLogEventActionCreateTopic': ({action}) => ({
-    group: 'topics',
-    Message: () => i18n('AdminRecentActionMessage.TopicCreated'),
-    ExpandableContent: () => (
-      <LogDiff added={<TopicName topic={action.topic} />} />
-    )
-  }),
-  'channelAdminLogEventActionEditTopic': ({action}) => ({
-    group: 'topics',
-    Message: () => i18n('AdminRecentActionMessage.TopicEdited'),
-    ExpandableContent: () => (
-      <LogDiff
-        added={<TopicName topic={action.new_topic} />}
-        removed={<TopicName topic={action.prev_topic} />}
-      />
-    )
-  }),
-  'channelAdminLogEventActionDeleteTopic': ({action}) => ({
-    group: 'topics',
-    Message: () => i18n('AdminRecentActionMessage.TopicDeleted'),
-    ExpandableContent: () => (
-      <LogDiff
-        removed={<TopicName topic={action.topic} />}
-      />
-    )
-  }),
-  'channelAdminLogEventActionPinTopic': ({action}) => ({
-    group: 'topics',
-    Message: () => i18n(action.new_topic ? 'AdminRecentActionMessage.TopicPinned' : 'AdminRecentActionMessage.TopicUnpinned'),
-    ExpandableContent: () => (
-      <LogDiff
-        added={action.new_topic ? <TopicName topic={action.new_topic} /> : undefined}
-        removed={action.prev_topic ? <TopicName topic={action.prev_topic} /> : undefined}
-      />
-    )
-  }),
   'channelAdminLogEventActionToggleAntiSpam': ({action}) => ({
     group: 'permissions',
     Message: () => i18n('AdminRecentActionMessage.ToggleAntiSpam'),
@@ -623,15 +577,14 @@ type ResolveLogEntryArgs = {
   channelId: ChatId;
   event: ChannelAdminLogEvent;
   isBroadcast: boolean;
-  isForum: boolean;
 };
 
-export const resolveLogEntry = ({channelId, event, isBroadcast, isForum}: ResolveLogEntryArgs) => {
+export const resolveLogEntry = ({channelId, event, isBroadcast}: ResolveLogEntryArgs) => {
   const resolver = logEntriesMap[event.action._];
   if(!resolver) {
     return null;
   }
-  return resolver({channelId, action: event.action as never, isBroadcast, isForum});
+  return resolver({channelId, action: event.action as never, isBroadcast});
 };
 
 export const groupToIconMap: Record<GroupType, Icon> = {
@@ -647,10 +600,8 @@ export const groupToIconMap: Record<GroupType, Icon> = {
   links: 'link',
   location: 'location',
   calls: 'phone',
-  topics: 'topics',
   appearance: 'brush',
   reactions: 'reactions',
-  forum: 'comments',
   translations: 'language',
   pinned: 'pin',
   other: 'more'

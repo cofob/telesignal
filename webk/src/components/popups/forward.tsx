@@ -108,8 +108,7 @@ export type ForwardPopupStory = {
 
 export default async function showForwardPopup(
   peerIdMids?: {[fromPeerId: PeerId]: number[]},
-  _onSelect?: (peerId: PeerId, threadId?: number) => Promise<void> | void,
-  noTopics?: boolean,
+  _onSelect?: (peerId: PeerId) => Promise<void> | void,
   onClose?: () => void,
   story?: ForwardPopupStory,
   /** a video's forward starts it at this second for whoever gets it ("Share at 0:42"), as its link does */
@@ -309,7 +308,7 @@ export default async function showForwardPopup(
 
   let onSelect: Parameters<typeof showPickUserPopup>[0]['onSelect'];
   if(!peerIdMids && _onSelect) {
-    onSelect = (chosen) => _onSelect(chosen[0].peerId, chosen[0].threadId);
+    onSelect = (chosen) => _onSelect(chosen[0].peerId);
   } else {
     onSelect = async(chosen) => {
       const sentToPeerIds: Set<PeerId> = new Set();
@@ -371,7 +370,6 @@ export default async function showForwardPopup(
     placeholder: 'ShareModal.Search.ForwardPlaceholder',
     chatRightsActions,
     selfPresence: 'ChatYourSelf',
-    useTopics: !noTopics,
     ...(videoTimestamp !== undefined ? {
       titleLangKey: 'ShareAtTimeWith',
       titleLangArgs: [toHHMMSS(videoTimestamp)]

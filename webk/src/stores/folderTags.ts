@@ -1,4 +1,4 @@
-import {createMemo, createRoot, createSignal} from 'solid-js';
+import {createMemo, createRoot} from 'solid-js';
 import type {MyDialogFilter} from '@lib/storages/filters';
 import type {AnyDialog} from '@lib/storages/dialogs';
 import {REAL_FOLDERS} from '@appManagers/constants';
@@ -45,11 +45,10 @@ const store = createRoot(() => {
   const premium = usePremium();
   const [isSidebarCollapsed] = useIsSidebarCollapsed();
   const mediaSizes = useMediaSizes();
-  const [forumOpen, setForumOpen] = createSignal(false);
 
   // * `appSidebarLeft.isCollapsed`, as a signal: the floating sidebar keeps the class, and is wide
   const chatListNarrow = createMemo(() => {
-    return forumOpen() || (isSidebarCollapsed() && !mediaSizes.isLessThanFloatingLeftSidebar);
+    return isSidebarCollapsed() && !mediaSizes.isLessThanFloatingLeftSidebar;
   });
 
   // * the switch is Premium's: an account without it does not see the tags even with the flag on,
@@ -64,7 +63,7 @@ const store = createRoot(() => {
     .sort((a, b) => a.localId - b.localId);
   });
 
-  return {shown, filters, chatListNarrow, setForumOpen};
+  return {shown, filters, chatListNarrow};
 });
 
 /** Whether the chat list shows folder tags at all - the account's switch, and Premium */
@@ -78,15 +77,10 @@ export function useFolderTagFilters() {
 }
 
 /**
- * Whether the chat list is down to its avatars: a forum open over it, or the sidebar collapsed
+ * Whether the chat list is down to its avatars, in the collapsed sidebar
  * (`appDialogsManager.isChatListNarrow` reads it). Its rows have no room for a tag then, and go back
  * to their height.
  */
 export function useChatListNarrow() {
   return store.chatListNarrow;
-}
-
-/** Whether a forum is open over the chat list - `appDialogsManager.forumTab` says so as it changes */
-export function setChatListForumOpen(open: boolean) {
-  store.setForumOpen(open);
 }

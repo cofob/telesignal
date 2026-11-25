@@ -20,7 +20,7 @@ import cancelEvent from '@helpers/dom/cancelEvent';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import {toastNew} from '@components/toast';
 import replaceContent from '@helpers/dom/replaceContent';
-import {ChatFull, Chat as MTChat, GroupCall, Dialog, InputGroupCall, User, UserFull} from '@layer';
+import {ChatFull, Chat as MTChat, GroupCall, InputGroupCall, User, UserFull} from '@layer';
 import IS_GROUP_CALL_SUPPORTED from '@environment/groupCallSupport';
 import IS_CALL_SUPPORTED from '@environment/callSupport';
 import {CallType} from '@lib/calls/types';
@@ -29,7 +29,6 @@ import {AppManagers} from '@lib/managers';
 import hasRights from '@appManagers/utils/chats/hasRights';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import groupCallsController from '@lib/calls/groupCallsController';
-import apiManagerProxy from '@lib/apiManagerProxy';
 import {makeMediaSize} from '@helpers/mediaSize';
 import {FOLDER_ID_ALL} from '@appManagers/constants';
 import formatNumber from '@helpers/number/formatNumber';
@@ -49,7 +48,6 @@ import {ChatType} from './chatType';
 import {showRtmpStartStreamPopup} from '@components/rtmp/adminPopup';
 import {createTopbarPlates, TopbarPlates} from '@components/chat/topbarPlates';
 import pause from '@helpers/schedulers/pause';
-import getPeerId from '@appManagers/utils/peers/getPeerId';
 import {createEffect, createRoot, on, untrack} from 'solid-js';
 import SolidJSHotReloadGuardProvider, {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {setAppSettings} from '@stores/appSettings';
@@ -407,8 +405,7 @@ export default class ChatTopbar {
   private verifyIfCanReportChat = () => {
     if(
       this.chat.type !== ChatType.Chat ||
-      this.chat.threadId ||
-      this.chat.isMonoforum
+      this.chat.threadId
     ) {
       return false;
     }
@@ -422,11 +419,6 @@ export default class ChatTopbar {
   };
 
   private verifyIfCanDeleteChat = async() => {
-    if(this.chat.isMonoforum) {
-      const chat = this.chat.peer;
-      return chat?._ === 'channel' && !chat?.pFlags?.creator && !chat?.pFlags?.left;
-    }
-
     if(this.chat.type === ChatType.Saved) return true;
 
     return (
@@ -521,33 +513,11 @@ export default class ChatTopbar {
       verify: this.verifyVideoChatButton.bind(this, 'group')
     }, {
       icon: 'topics',
-      text: 'TopicViewAsTopics',
-      onClick: () => {
-        this.chat.appImManager.toggleViewAsMessages(this.peerId, false);
-      },
-      verify: async() => {
-        // the flag outlives the forum it was set for, so ask the peer too
-        if(!apiManagerProxy.isForum(this.peerId)) {
-          return false;
-        }
-
-        const dialog = await this.managers.appMessagesManager.getDialogOnly(this.peerId);
-        return !!(dialog && (dialog as Dialog.dialog).pFlags.view_forum_as_messages);
-      }
-    }, {
-      icon: 'topics',
       text: 'SavedViewAsChats',
       onClick: () => {
-        this.chat.appImManager.toggleViewAsMessages(this.peerId, false);
+        this.chat.appImManager.toggleSavedViewAsMessages(false);
       },
       verify: () => this.peerId === rootScope.myId && !this.chat.threadId && !this.chat.appSettings.savedAsForum
-    }, {
-      icon: 'message',
-      text: 'ChannelDirectMessages.ViewChats',
-      onClick: () => {
-        hotReloadGuard.appDialogsManager.toggleForumTabByPeerId(this.peerId, true);
-      },
-      verify: () => this.chat.isMonoforum && !this.chat.monoforumThreadId && this.chat.canManageDirectMessages && !mediaSizes.isLessThanFloatingLeftSidebar && !hotReloadGuard.appDialogsManager.hasForumOpenFor(this.peerId)
     }, {
       icon: 'select',
       text: 'Chat.Menu.SelectMessages',
@@ -600,11 +570,6 @@ export default class ChatTopbar {
       text: 'SetWallpapers',
       onClick: () => this.chat.toggleThemeChooser(),
       verify: () => this.chat.canChooseTheme()
-    }, {
-      icon: 'message',
-      text: 'ChannelDirectMessages.Manage',
-      onClick: () => this.onDirectMessagesClick(),
-      verify: () => this.chat.isChannel && this.chat.canManageDirectMessages && !this.chat.isMonoforum && !!(this.chat.peer as MTChat.channel).linked_monoforum_id && this.chat.type !== ChatType.Logs
     }, {
       icon: 'premium_translate',
       text: 'Translate',
@@ -940,20 +905,6 @@ export default class ChatTopbar {
       }
 
       button.removeAttribute('disabled');
-    });
-  };
-
-  private canClickOnDirectMessagesBtn = true;
-  private onDirectMessagesClick = async() => {
-    if(!this.canClickOnDirectMessagesBtn || !this.peerId.isAnyChat()) return;
-    this.canClickOnDirectMessagesBtn = false;
-    pause(200).then(() => this.canClickOnDirectMessagesBtn = true);
-
-    const chat = this.chat.peer;
-    if(chat._ !== 'channel') return;
-
-    hotReloadGuard.appImManager.setInnerPeer({
-      peerId: chat.linked_monoforum_id.toPeerId(true)
     });
   };
 
@@ -1312,14 +1263,13 @@ export default class ChatTopbar {
     } else if(this.chat.type === ChatType.Discussion) {
       const el = this.messagesCounter({
         middleware,
-        key: 'Chat.Title.Comments',
-        minusFirst: this.chat.isForum
+        key: 'Chat.Title.Comments'
       });
       if(count === undefined && middleware()) {
         const historyStorage = this.chat.getHistoryStorage();
         el.compareAndUpdate(typeof(historyStorage.count) !== 'number' ?
           {key: 'Loading', args: undefined} :
-          {args: [historyStorage.count - (this.chat.isForum ? 1 : 0)]}
+          {args: [historyStorage.count]}
         );
       }
 
@@ -1407,12 +1357,10 @@ export default class ChatTopbar {
   private messagesCounter({
     middleware,
     key,
-    minusFirst,
     displayLoading
   }: {
     middleware: Middleware,
     key: LangPackKey,
-    minusFirst?: boolean,
     displayLoading?: boolean
   }) {
     const el = new I18n.IntlElement(displayLoading ? {
@@ -1428,7 +1376,7 @@ export default class ChatTopbar {
       createEffect(on(
         () => [this.chat.historyStorage.count, this.chat.historyStorage.wasFetched] as const,
         ([count]) => {
-          el.compareAndUpdate({key, args: [count - (minusFirst ? 1 : 0)]});
+          el.compareAndUpdate({key, args: [count]});
         },
         {defer: displayLoading ? !this.chat.historyStorage.wasFetched : true}
       ));
@@ -1454,72 +1402,6 @@ export default class ChatTopbar {
       prepare = async() => {
         const historyStorage = this.chat.getHistoryStorage();
         el.compareAndUpdate({args: [historyStorage.count]});
-        return () => replaceContent(this.subtitle, el.element);
-      };
-    } else if(this.chat.threadId) {
-      prepare = async() => {
-        const title = await wrapPeerTitle({peerId: this.peerId, dialog: true});
-        const span = i18n('TopicProfileStatus', [title]);
-
-        return () => replaceContent(this.subtitle, span);
-      };
-    } else if(this.chat.isMonoforum && this.chat.canManageDirectMessages && !this.chat.monoforumThreadId) {
-      listenerSetter.add(rootScope)('monoforum_dialogs_update', ({dialogs}) => {
-        if(!dialogs.find(dialog => dialog.parentPeerId === this.chat.peerId)) return;
-        setAuto();
-      });
-
-      listenerSetter.add(rootScope)('monoforum_dialogs_drop', () => {
-        setAuto();
-      });
-
-      prepare = async() => {
-        const ackedResult = await this.managers.acknowledged.monoforumDialogsStorage.getDialogs({parentPeerId: this.peerId, limit: 1});
-        const initialCount = ackedResult.cached ? (await ackedResult.result).count || 0 : '~';
-
-        const el = new I18n.IntlElement({
-          key: 'ChannelDirectMessages.ThreadsCount',
-          args: [initialCount]
-        });
-
-        if(!ackedResult.cached) ackedResult.result?.then(({count}) => el.compareAndUpdate({
-          key: 'ChannelDirectMessages.ThreadsCount',
-          args: [count]
-        }));
-
-        return () => replaceContent(this.subtitle, el.element);
-      };
-    } else if(this.chat.isMonoforum) {
-      listenerSetter.add(rootScope)('history_multiappend', (message) => {
-        if(message.peerId !== this.chat.peerId) return;
-        if(this.chat.monoforumThreadId && getPeerId(message?.saved_peer_id) !== this.chat.monoforumThreadId) return;
-        setAuto();
-      });
-
-      listenerSetter.add(rootScope)('history_delete', ({peerId}) => {
-        if(peerId !== this.chat.peerId) return;
-        setAuto();
-      });
-
-      prepare = async() => {
-        const ackedResult = await this.managers.acknowledged.appMessagesManager.getHistory({
-          ...this.chat.requestHistoryOptionsPart,
-          fetchIfWasNotFetched: true,
-          limit: 1
-        });
-
-        const initialCount = ackedResult.cached ? (await ackedResult.result).count || 0 : '~';
-
-        const el = new I18n.IntlElement({
-          key: 'ChannelDirectMessages.MessagesCount',
-          args: [initialCount]
-        });
-
-        if(!ackedResult.cached) ackedResult.result?.then(({count}) => el.compareAndUpdate({
-          key: 'ChannelDirectMessages.MessagesCount',
-          args: [count]
-        }));
-
         return () => replaceContent(this.subtitle, el.element);
       };
     } else {

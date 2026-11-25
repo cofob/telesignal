@@ -2,7 +2,7 @@ import {Component, For, JSX, Show} from 'solid-js';
 import {makeDateFromTimestamp} from '@helpers/date/makeDateFromTimestamp';
 import formatDuration from '@helpers/formatDuration';
 import {I18nTsx} from '@helpers/solid/i18n';
-import {ChannelAdminLogEvent, ChannelAdminLogEventAction, ChatBannedRights, ForumTopic} from '@layer';
+import {ChannelAdminLogEvent, ChannelAdminLogEventAction, ChatBannedRights} from '@layer';
 import {AdminLog} from '@appManagers/appChatsManager';
 import {MyMessage} from '@appManagers/appMessagesManager';
 import getParticipantPeerId from '@appManagers/utils/chats/getParticipantPeerId';
@@ -15,7 +15,6 @@ import wrapTelegramUrlToAnchor from '@lib/richTextProcessor/wrapTelegramUrlToAnc
 import {useHotReloadGuard} from '@lib/solidjs/hotReloadGuard';
 import {resolveAdminRightFlagI18n} from '@components/sidebarRight/tabs/adminRecentActions/adminRightsI18nResolver';
 import {participantRightsMap} from '@components/sidebarRight/tabs/adminRecentActions/participantRightsMap';
-import {TopicName} from '@components/sidebarRight/tabs/adminRecentActions/topicName';
 import {diffFlags} from '@components/sidebarRight/tabs/adminRecentActions/utils';
 import Space from '@components/space';
 import {wrapFormattedDuration} from '@components/wrappers/wrapDuration';
@@ -29,7 +28,6 @@ type RenderArgs = {
   channelId: ChatId;
   event: AdminLog;
   isBroadcast: boolean;
-  isForum: boolean;
   peerId: PeerId;
   makePeerTitle: (peerId: PeerId) => Node;
   makeMessagePeerTitle: (peerId: PeerId) => Node;
@@ -154,27 +152,6 @@ function makeDefaultMessageEntry(
   };
 }
 
-function makeTopicServiceEntry(
-  key: LangPackKey,
-  topic: ForumTopic,
-  peerId: PeerId,
-  event: AdminLog,
-  makePeerTitle: RenderArgs['makePeerTitle']
-): ServiceResult {
-  return {
-    type: 'service',
-    Content: () => <I18nTsx key={key} args={[makePeerTitle(peerId), <TopicName topic={topic} />]} />,
-    getCopyText: () => createSimpleServiceCopyText(
-      event.date,
-      peerId,
-      (peerTitle) => {
-        const topicTitle = topic._ === 'forumTopicDeleted' ? '' : topic.title;
-        return I18n.format(key, true, [peerTitle, topicTitle]);
-      }
-    )
-  };
-}
-
 function makeDurationToggleServiceEntry(
   enabledKey: LangPackKey,
   disabledKey: LangPackKey,
@@ -247,7 +224,8 @@ function makeRankServiceEntry(
   };
 }
 
-const adminLogsMap: {[Key in ChannelAdminLogEventAction['_']]: MapCallback<Key>} = {
+// * forum and topic events have no entry: Signal groups have no topics
+const adminLogsMap: {[Key in ChannelAdminLogEventAction['_']]?: MapCallback<Key>} = {
   'channelAdminLogEventActionChangeTitle': ({isBroadcast, action, peerId, makePeerTitle, event}) =>
     makeSimpleServiceEntryWithArgs(
       isBroadcast ? 'AdminLog.ChangeTitleChannel' : 'AdminLog.ChangeTitleGroup',
@@ -674,24 +652,6 @@ const adminLogsMap: {[Key in ChannelAdminLogEventAction['_']]: MapCallback<Key>}
     makeSimpleServiceEntry('AdminLog.ChangeAvailableReactions', peerId, event, makePeerTitle),
   'channelAdminLogEventActionChangeUsernames': ({peerId, makePeerTitle, event}) =>
     makeSimpleServiceEntry('AdminLog.ChangeUsernames', peerId, event, makePeerTitle),
-  'channelAdminLogEventActionToggleForum': ({action, peerId, makePeerTitle, event}) =>
-    makeToggleServiceEntry(
-      action.new_value,
-      'AdminLog.ToggleForumEnabled', 'AdminLog.ToggleForumDisabled',
-      peerId, event, makePeerTitle
-    ),
-  'channelAdminLogEventActionCreateTopic': ({peerId, action, makePeerTitle, event}) =>
-    makeTopicServiceEntry('AdminLog.TopicCreated', action.topic, peerId, event, makePeerTitle),
-  'channelAdminLogEventActionEditTopic': ({peerId, action, makePeerTitle, event}) =>
-    makeTopicServiceEntry('AdminLog.TopicEdited', action.new_topic, peerId, event, makePeerTitle),
-  'channelAdminLogEventActionDeleteTopic': ({peerId, action, makePeerTitle, event}) =>
-    makeTopicServiceEntry('AdminLog.TopicDeleted', action.topic, peerId, event, makePeerTitle),
-  'channelAdminLogEventActionPinTopic': ({action, peerId, makePeerTitle, event}) => {
-    const pinned = !!action.new_topic;
-    const key: LangPackKey = pinned ? 'AdminLog.TopicPinned' : 'AdminLog.TopicUnpinned';
-    const topic = action.new_topic ? action.new_topic : action.prev_topic;
-    return makeTopicServiceEntry(key, topic, peerId, event, makePeerTitle);
-  },
   'channelAdminLogEventActionToggleAntiSpam': ({action, peerId, makePeerTitle, event}) =>
     makeToggleServiceEntry(
       action.new_value,

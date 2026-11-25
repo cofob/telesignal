@@ -24,7 +24,6 @@ import {copyTextToClipboard} from '@helpers/clipboard';
 import {copyPeerId, copyPhoneNumber, copyUsername} from '@helpers/copyContact';
 import safeWindowOpen from '@helpers/dom/safeWindowOpen';
 import anchorCopy from '@helpers/dom/anchorCopy';
-import getServerMessageId from '@appManagers/utils/messageId/getServerMessageId';
 import getPeerActiveUsernames from '@appManagers/utils/peers/getPeerActiveUsernames';
 import isCollectibleUsername from '@appManagers/utils/peers/isCollectibleUsername';
 import {useAppConfig} from '@stores/appState';
@@ -37,7 +36,6 @@ import type SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvi
 import type Scrollable from '@components/scrollable';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import {HIDDEN_PEER_ID} from '@appManagers/constants';
-import {attachClickEvent} from '@helpers/dom/clickEvent';
 import attachClickEventRef from '@helpers/solid/attachClickEventRef';
 import ListenerSetter from '@helpers/listenerSetter';
 import {resolveFirst} from '@solid-primitives/refs';
@@ -91,14 +89,11 @@ keepMe(ripple);
 
 /** What the profile is called in the header above it: the sidebar's and the profile popup's. */
 export function getPeerProfileTitleKey(peer: {
-  isTopic?: boolean,
   isBot: boolean,
   isBroadcast: boolean,
   isUser: boolean
 }): LangPackKey {
-  if(peer.isTopic) {
-    return 'Profile.Info.Topic';
-  } else if(peer.isBot) {
+  if(peer.isBot) {
     return 'Profile.Info.Bot';
   } else if(peer.isBroadcast) {
     return 'Profile.Info.Channel';
@@ -126,8 +121,6 @@ type PeerProfileContextValue = {
   fullPeer: ReturnType<ReturnType<typeof useFullPeer>>,
   canBeDetailed: () => boolean,
   isSavedDialog: boolean,
-  isTopic: boolean,
-  isBotforum: boolean,
   hasSavedMusic: boolean,
   getDetailsForUse: () => {peerId: PeerId, threadId?: number},
   verifyContext: (peerId: PeerId, threadId?: number) => boolean,
@@ -212,12 +205,6 @@ const PeerProfile = (props: {
       return fullPeer();
     },
     isSavedDialog: !!(props.peerId === rootScope.myId && props.threadId),
-    get isTopic() {
-      return !!(props.threadId && ((value.peer as Chat.channel).pFlags.forum || value.isBotforum));
-    },
-    get isBotforum() {
-      return !!(value.peer as User.user).pFlags.bot_forum_view;
-    },
     get hasSavedMusic() {
       return !!(value.fullPeer as UserFull)?.saved_music;
     },
@@ -232,18 +219,7 @@ const PeerProfile = (props: {
         threadId
       };
     },
-    verifyContext: (peerId: PeerId, threadId?: number) => {
-      if(value.peerId !== peerId) {
-        return false;
-      }
-
-      const isForum = !!(value.peer as Chat.channel).pFlags.forum;
-      if(isForum && value.threadId ? value.threadId === threadId : true) {
-        return true;
-      }
-
-      return false;
-    }
+    verifyContext: (peerId: PeerId) => value.peerId === peerId
   };
 
   props.setCollapsedOn.classList.add('profile-container');
@@ -305,9 +281,7 @@ PeerProfile.Avatar = () => {
   // setPeer pipeline (peer photo IPC + appearance + thumb load) and the
   // avatar pops in mid-transition. NOTE: optional-call short-circuits arg
   // evaluation, so we MUST call setPeer first and pass the result through.
-  // Topics render through the same carousel header (as a single topic-icon
-  // avatar) — just like a chat with no avatar photo — so pass the topic id.
-  const setPeerPromise = avatars.setPeer(context.peerId, context.isTopic ? context.threadId : undefined);
+  const setPeerPromise = avatars.setPeer(context.peerId);
   context.onAvatarReady?.(setPeerPromise);
   avatars.info.append(name, subtitle);
   avatars.container.append(
@@ -377,7 +351,7 @@ PeerProfile.Subtitle = () => {
 
 PeerProfile.SubtitleStatus = () => {
   const context = useContext(PeerProfileContext);
-  const {rootScope, appDialogsManager, appImManager, wrapTopicNameButton} = useHotReloadGuard();
+  const {rootScope, appImManager} = useHotReloadGuard();
   const needWhen = createMemo(() => {
     const user = (context.peer as User.user);
     return !!(user.status as UserStatus.userStatusRecently)?.pFlags?.by_me;
@@ -394,32 +368,6 @@ PeerProfile.SubtitleStatus = () => {
 
     const {peerId, isDialog} = context;
     const middleware = createMiddleware().get();
-    if(context.isTopic) {
-      const [element] = createResource(() => {
-        const listenerSetter = new ListenerSetter();
-        onCleanup(() => listenerSetter.removeAll());
-        return wrapTopicNameButton({
-          peerId,
-          withIcons: false,
-          noAvatarAndLink: true,
-          wrapOptions: {
-            middleware
-          }
-        }).then(({element}) => {
-          attachClickEvent(element, () => {
-            // the subtitle under a topic's title is its forum — open the topics
-            // tab, like the anchor this button replaced used to
-            appDialogsManager.toggleForumTabByPeerId(peerId, true, true);
-          }, {listenerSetter});
-          return element;
-        });
-      });
-
-      return (
-        <Show when={element()}>{element()}</Show>
-      );
-    }
-
     let span: HTMLSpanElement;
     const ret = (<span ref={span} class="profile-subtitle-status"></span>);
     let first = true;
@@ -944,7 +892,7 @@ PeerProfile.PeerId = () => {
   const context = useContext(PeerProfileContext);
   const {i18n} = useHotReloadGuard();
   const peerId = createMemo(() => {
-    if(!appSettings.showPeerIds || !context.canBeDetailed() || context.isTopic) {
+    if(!appSettings.showPeerIds || !context.canBeDetailed()) {
       return;
     }
 
@@ -1062,26 +1010,13 @@ PeerProfile.Link = () => {
   const context = useContext(PeerProfileContext);
   const {i18n, I18n, toast, showMyQrCodePopup} = useHotReloadGuard();
 
-  // `username` only where the link is the bare username one — a topic's link is not
+  // `username` only where the link is the bare username one
   const toFill = createMemo<Partial<{url: string, username: string, also: JSX.Element}>>(() => {
     if(context.peerId.isUser()) {
       return;
     }
 
     const usernames = getPeerActiveUsernames(context.peer as Chat.channel);
-    if(context.isTopic) {
-      let url = 't-me.invalid/';
-      const threadId = getServerMessageId(context.threadId);
-      const username = usernames[0];
-      if(username) {
-        url += `${username}/${threadId}`;
-      } else {
-        url += `c/${context.peerId.toChatId()}/${threadId}`;
-      }
-
-      return {url};
-    }
-
     if(usernames.length) {
       return {
         url: 't-me.invalid/' + usernames[0],
@@ -1129,7 +1064,7 @@ PeerProfile.Link = () => {
         <Row.Icon icon="link_filled" />
         <Row.Title>{toFill().url}</Row.Title>
         <Row.Subtitle>{toFill().also || i18n('SetUrlPlaceholder')}</Row.Subtitle>
-        {/* the code of a public chat, as on Android: a topic's or an invite link is not one the QR screen carries */}
+        {/* the code of a public chat, as on Android: an invite link is not one the QR screen carries */}
         <Show when={toFill().username}>
           <PeerProfile.QrButton />
         </Show>
@@ -1410,9 +1345,9 @@ PeerProfile.Actions = () => {
   const chat = () => isUser ? undefined : context.peer as Chat.channel | Chat.chat;
   const isBroadcast = () => !!(chat() as Chat.channel)?.pFlags.broadcast;
   const canOpenChat = peerId !== appImManager.chat?.peerId;
-  // * joining and leaving are the chat's, not a topic's; a basic group is not joined from outside
+  // * a basic group is not joined from outside
   const membership = createMemo(() => {
-    const action = context.isTopic ? undefined : getChatMembershipAction(chat());
+    const action = getChatMembershipAction(chat());
     return action === 'leave' || chat()?._ === 'channel' ? action : undefined;
   });
   const linkedChatId = () => isBroadcast() ? (context.fullPeer as ChatFull.channelFull)?.linked_chat_id : undefined;
@@ -1440,7 +1375,6 @@ PeerProfile.Actions = () => {
     if(
       !IS_GROUP_CALL_SUPPORTED ||
       !_chat ||
-      context.isTopic ||
       (!_chat.pFlags.call_active && !hasRights(_chat, 'manage_call'))
     ) {
       return false;
@@ -1781,11 +1715,9 @@ PeerProfile.StoryPreviews = (props: {
 };
 
 PeerProfile.MainSection = () => {
-  const context = useContext(PeerProfileContext);
-
   // * no card for a profile with none of these rows (a group of no link and no description)
   const rows = children(() => (
-    <Show when={!(context.isBotforum && context.threadId)}>
+    <>
       <PeerProfile.Phone />
       <PeerProfile.Username />
       <PeerProfile.Location />
@@ -1803,7 +1735,7 @@ PeerProfile.MainSection = () => {
       <PeerProfile.BotPrivacyPolicy />
       <PeerProfile.BotReport />
       <PeerProfile.ContactActions />
-    </Show>
+    </>
   ));
 
   return (

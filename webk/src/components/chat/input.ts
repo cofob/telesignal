@@ -4197,7 +4197,6 @@ export default class ChatInput {
       () => {
         selected = true;
       },
-      undefined,
       () => {
         this.helperWaitingForward = false;
 
@@ -4230,12 +4229,8 @@ export default class ChatInput {
   }
 
   public async createReplyPicker(replyTo: ChatInputReplyTo) {
-    const {peerId, threadId, monoforumThreadId} = await showReplyPickerPopup({
-      excludeBotforums: true,
-      ...(this.chat.isMonoforum ? {excludeMonoforums: true} : undefined)
-    });
-    this.appImManager.setInnerPeer({peerId, threadId, monoforumThreadId}).then(() => {
-      replyTo.replyToMonoforumPeerId = monoforumThreadId;
+    const {peerId} = await showReplyPickerPopup();
+    this.appImManager.setInnerPeer({peerId}).then(() => {
       this.appImManager.chat.input.initMessageReply(replyTo);
     });
   }

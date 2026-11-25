@@ -8,15 +8,11 @@ import safeAssign from '@helpers/object/safeAssign';
 import wrapEmojiText from '@lib/richTextProcessor/wrapEmojiText';
 import getPeerTitle from '@components/wrappers/getPeerTitle';
 import generateTitleIcons from '@components/generateTitleIcons';
-import {wrapTopicIcon} from '@components/wrappers/messageActionTextNewUnsafe';
 import lottieLoader from '@lib/lottie/lottieLoader';
-import type {AsAllChatsType} from '@components/dialogElement';
-import IS_EMOJI_SUPPORTED from '@environment/emojiSupport';
 import buildURLHash from '@helpers/buildURLHash';
 import Modes from '@config/modes';
 import {hotListen} from '@helpers/hotModule';
 import type {ActiveAccountNumber} from '@lib/accounts/types';
-import {bindManagersToSession} from '@lib/accounts/bindManagersToAccount';
 
 export type PeerTitleOptions = {
   peerId?: PeerId,
@@ -34,7 +30,6 @@ export type PeerTitleOptions = {
   threadId?: number,
   meAsNotes?: boolean,
   iconsColor?: string,
-  asAllChats?: AsAllChatsType,
   wrapOptions?: WrapSomethingOptions,
   /**
    * A name that opens its peer on click (a sender's in a message): an `<a href="#<peerId>">`, as a
@@ -57,19 +52,6 @@ hotListen(import.meta.hot, rootScope, 'peer_title_edit', ({peerId, threadId}) =>
   elements.forEach((element) => {
     const peerTitle = weakMap.get(element);
     peerTitle?.update();
-  });
-});
-
-hotListen(import.meta.hot, rootScope, 'botforum_pending_topic_created', ({peerId, tempId, newId}) => {
-  if(!newId) return;
-
-  const query = `.peer-title[data-peer-id="${peerId}"][data-thread-id="${tempId}"]`;
-
-  const elements = Array.from(document.querySelectorAll(query)) as HTMLElement[];
-
-  elements.forEach((element) => {
-    const peerTitle = weakMap.get(element);
-    peerTitle?.update({...peerTitle.options, threadId: newId});
   });
 });
 
@@ -135,7 +117,6 @@ export default class PeerTitle {
   }
 
   public async update(options?: PeerTitleOptions) {
-    const managers = bindManagersToSession(rootScope.managers);
     this.setOptions(options);
 
     let fromName = this.options.fromName;
@@ -159,26 +140,8 @@ export default class PeerTitle {
     }
 
     let hasInner: boolean;
-    let {peerId, threadId} = this.options;
-    if(this.options.asAllChats === 'topics') {
-      const title = i18n('AllMessages');
-
-      const inner = document.createElement('span');
-      inner.classList.add('peer-title-inner');
-      hasInner = true;
-      setInnerHTML(inner, title);
-
-      const fragment = document.createDocumentFragment();
-      const emojiText = document.createElement('span');
-      /* !IS_EMOJI_SUPPORTED && */ emojiText.classList.add('emoji-topic-icon');
-      emojiText.append(wrapEmojiText('💬'));
-      fragment.append(emojiText, inner);
-
-      setInnerHTML(this.element, fragment);
-    } else if(this.options.asAllChats === 'monoforum') {
-      const element = i18n('AllChats');
-      replaceContent(this.element, element);
-    } else if(peerId === rootScope.myId && this.options.dialog) {
+    const {peerId} = this.options;
+    if(peerId === rootScope.myId && this.options.dialog) {
       let element: HTMLElement;
       if(this.options.meAsNotes) {
         element = i18n(this.options.onlyFirstName ? 'MyNotesShort' : 'MyNotes');
@@ -190,53 +153,13 @@ export default class PeerTitle {
     } else if(peerId === HIDDEN_PEER_ID) {
       replaceContent(this.element, i18n(this.options.onlyFirstName ? 'AuthorHiddenShort' : 'AuthorHidden'));
     } else {
-      if(threadId) {
-        const [topic, isForum, isBotforum, isMonoforum] = await Promise.all([
-          managers.dialogsStorage.getForumTopic(peerId, threadId),
-          managers.appPeersManager.isForum(peerId),
-          managers.appPeersManager.isBotforum(peerId),
-          managers.appPeersManager.isMonoforum(peerId)
-        ]);
-
-        // * fix monoforum
-        if(isMonoforum) {
-          peerId = threadId;
-          threadId = undefined;
-        } else if(!topic && (isForum || isBotforum)) {
-          managers.dialogsStorage.getForumTopicById(peerId, threadId).then((forumTopic) => {
-            if(!forumTopic && this.options.threadId === threadId) {
-              this.options.threadId = undefined;
-              this.update({threadId: undefined});
-              return;
-            }
-
-            this.update();
-          }, () => {
-            if(this.options.threadId === threadId) {
-              this.options.threadId = undefined;
-              this.update({threadId: undefined});
-            }
-          });
-
-          setInnerHTML(this.element, i18n('Loading'));
-          this.setHasInner(false);
-          return;
-        }
-      }
-
-      const getTopicIconPromise = threadId && this.options.withIcons ?
-        managers.dialogsStorage.getForumTopic(peerId, threadId).then((topic) => wrapTopicIcon({...(this.options.wrapOptions ?? {}), topic})) :
-        undefined;
-
-      const [title, icons, topicIcon] = await Promise.all([
+      const [title, icons] = await Promise.all([
         getPeerTitle({
           ...this.options as Required<PeerTitleOptions>,
-          peerId,
-          threadId
+          peerId
         }),
         (this.options.withIcons && generateTitleIcons({peerId, clickableEmojiStatus: this.options.clickableEmojiStatus, noPremiumIcon: this.options.noPremiumIcon, wrapOptions: {...this.options.wrapOptions, textColor: this.options.iconsColor || this.options.wrapOptions?.textColor}})) ||
-          (this.options.withPremiumIcon && generateTitleIcons({peerId, wrapOptions: {...this.options.wrapOptions, textColor: this.options.iconsColor || this.options.wrapOptions?.textColor}, noVerifiedIcon: true, noFakeIcon: true})),
-        getTopicIconPromise
+          (this.options.withPremiumIcon && generateTitleIcons({peerId, wrapOptions: {...this.options.wrapOptions, textColor: this.options.iconsColor || this.options.wrapOptions?.textColor}, noVerifiedIcon: true, noFakeIcon: true}))
       ]);
 
       const createInnerTitleSpan = () => {
@@ -255,14 +178,10 @@ export default class PeerTitle {
         setInnerHTML(this.element, fragment);
       }
 
-      if(topicIcon) {
-        setElementContent(
-          [topicIcon, createInnerTitleSpan()].filter(Boolean)
-        );
-      } else if(icons?.elements?.length || icons?.botVerification) {
+      if(icons?.elements?.length || icons?.botVerification) {
         setElementContent(
           [
-            icons.botVerification, topicIcon, createInnerTitleSpan(), ...(icons.elements ?? [])
+            icons.botVerification, createInnerTitleSpan(), ...(icons.elements ?? [])
           ].filter(Boolean)
         );
       } else {

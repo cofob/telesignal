@@ -17,7 +17,6 @@ export default function applyAutoDeleteToChats(managers: AppManagers, period: nu
     peerType: ['dialogs'],
     multiSelect: true,
     exceptSelf: true,
-    excludeMonoforums: true,
     excludePeerIds: new Set(getAutoDeleteUnavailablePeerIds()),
     chatRightsActions: ['change_info'],
     footerButtonProps: {langKey: 'Apply'},

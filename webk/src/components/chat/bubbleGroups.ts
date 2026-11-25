@@ -5,7 +5,7 @@ import type Chat from '@components/chat/chat';
 import indexOfAndSplice from '@helpers/array/indexOfAndSplice';
 import insertInDescendSortedArray from '@helpers/array/insertInDescendSortedArray';
 import positionElementByIndex from '@helpers/dom/positionElementByIndex';
-import {Message, ReplyMarkup} from '@layer';
+import {Message} from '@layer';
 import {NULL_PEER_ID, REPLIES_PEER_ID, VERIFICATION_CODES_BOT_ID} from '@appManagers/constants';
 import ChatBubbles, {SERVICE_AS_REGULAR, STICKY_OFFSET} from '@components/chat/bubbles';
 import forEachReverse from '@helpers/array/forEachReverse';
@@ -17,7 +17,6 @@ import {ChatType} from './chatType';
 import getFwdFromName from '@appManagers/utils/messages/getFwdFromName';
 import {getGuestChatViaFromId, getMid, isMessage, isMessageForVerificationBot} from '@components/chat/utils';
 import getPeerId from '@appManagers/utils/peers/getPeerId';
-import type {BubbleElementAddons} from '@components/chat/types';
 import {AdminLog} from '@appManagers/appChatsManager';
 import isEphemeralMessage from '@appManagers/utils/messages/isEphemeralMessage';
 import isAnchoredEphemeralMessage from '@appManagers/utils/messages/isAnchoredEphemeralMessage';
@@ -503,34 +502,10 @@ export default class BubbleGroups {
     });
 
     this.addChatThreadSeparators();
-    this.addContinueLastTopicReplyMarkup();
   }
 
   private addChatThreadSeparators() {
     updateChatThreadSeparators(this.itemsArr, this.chat);
-  }
-
-  /**
-   * Makes the reply markup of the last message bubble visible
-   */
-  private addContinueLastTopicReplyMarkup() {
-    if(!this.chat.isBotforum) return;
-
-    let visible = true;
-
-    this.itemsArr.forEach((item) => {
-      const bubbleAddons = item.bubble as BubbleElementAddons;
-
-      if(item.message._ !== 'message') return;
-      if(!bubbleAddons.continueLastTopicReplyMarkup) return;
-      if(!getMessageThreadId(item.message, {isBotforum: this.chat.isBotforum})) return;
-
-      bubbleAddons.continueLastTopicReplyMarkup.feedProps<false>({
-        visible: visible && !(item.message.reply_markup as ReplyMarkup.replyInlineMarkup)?.rows
-      });
-
-      visible = false;
-    });
   }
 
   f(items: GroupItem[], index: number = 0, length = items.length) {

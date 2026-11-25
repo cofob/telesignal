@@ -50,7 +50,7 @@ export function handleShareStory(options: {
   onSent?: (text: HTMLElement) => void
 }) {
   const {story, peerId} = options;
-  hotReloadGuard.showForwardPopup(undefined, undefined, undefined, options.onClose, {
+  hotReloadGuard.showForwardPopup(undefined, undefined, options.onClose, {
     peerId,
     id: story.id,
     canCopyLink: hasStoryLink(story, peerId),

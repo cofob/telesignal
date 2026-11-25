@@ -980,8 +980,8 @@ export class AppImManager extends EventListenerBase<{
 
     apiManagerProxy.share = undefined;
     if(share.files?.length) {
-      showForwardPopup(undefined, async(peerId, threadId) => {
-        await this.setPeer({peerId, threadId});
+      showForwardPopup(undefined, async(peerId) => {
+        await this.setPeer({peerId});
         const foundMedia = share.files.some((file) => MEDIA_MIME_TYPES_SUPPORTED.has(getFileMimeType(file)) || isConvertibleMov(file));
         showNewMediaPopup(this.chat, share.files, foundMedia ? 'media' : 'document');
       });
@@ -1751,8 +1751,6 @@ export class AppImManager extends EventListenerBase<{
     ];
 
     const channelId = isChannel ? (options.peer as MTChat.channel).id : undefined;
-    const isForum = !!(options.peer as MTChat.channel).pFlags.forum;
-    const isBotforum = !!(isUser && (options.peer as User.user).pFlags.bot_forum_view);
 
     await Promise.all(keys.map(async(key) => {
       options[key] &&= await managers.appMessagesIdsManager.generateMessageId(options[key], channelId);
@@ -1765,36 +1763,7 @@ export class AppImManager extends EventListenerBase<{
       peerId = channelId.toPeerId(true);
     }
 
-    let {commentId, threadId, lastMsgId} = options;
-
-    // open forum tab
-    if(!commentId && !threadId && !lastMsgId && isForum) {
-      appDialogsManager.toggleForumTabByPeerId(peerId, true, true);
-      return;
-    }
-
-    if(isBotforum && this.chat.peerId !== peerId) {
-      appDialogsManager.toggleForumTabByPeerId(peerId, true);
-    }
-
-    // handle t.me/username/thread or t.me/username/messageId
-    if(lastMsgId && !threadId) {
-      if(isForum) {
-        const message = await managers.appMessagesManager.reloadMessage(peerId, lastMsgId);
-        if(message) {
-          threadId = options.threadId = getMessageThreadId(message, {isForum});
-        } else {
-          threadId = options.threadId = lastMsgId;
-          lastMsgId = options.lastMsgId = undefined;
-        }
-      } else if(isBotforum) {
-        const topic = await managers.dialogsStorage.getForumTopicById(peerId, lastMsgId);
-        if(topic) {
-          threadId = options.threadId = lastMsgId;
-          lastMsgId = options.lastMsgId = undefined;
-        }
-      }
-    }
+    const {commentId, threadId, lastMsgId} = options;
 
     if(options.call) {
       await callsController.ringRequestedCall(options.call);
@@ -3514,15 +3483,11 @@ export class AppImManager extends EventListenerBase<{
     });
   }
 
-  public async toggleViewAsMessages(peerId: PeerId, enabled: boolean) {
-    if(peerId === rootScope.myId) {
-      setAppState('settings', 'savedAsForum', !enabled);
-    } else {
-      await this.managers.appChatsManager.toggleViewForumAsMessages(peerId.toChatId(), enabled);
-    }
-
+  /** Shows Saved Messages as one chat, or as its sublists */
+  public toggleSavedViewAsMessages(enabled: boolean) {
+    setAppState('settings', 'savedAsForum', !enabled);
     this.selectTab(APP_TABS.CHATLIST);
-    appDialogsManager.toggleForumTabByPeerId(peerId, !enabled, false);
+    appDialogsManager.toggleSavedDialogsTab(!enabled);
   }
 
   private getTypingElement(action: SendMessageAction) {

@@ -3,7 +3,6 @@
 // sandbox) — and handed to the provider, which stays light enough for any component to mount.
 import AppMediaViewer, {onMediaCaptionClick} from '@components/mediaViewer';
 import AppMediaViewerStatic from '@components/mediaViewer/static';
-import {AutonomousMonoforumThreadList} from '@components/autonomousDialogList/monoforumThreads';
 import {openInstantViewInAppBrowser} from '@components/browser';
 import {avatarNew, AvatarNewTsx, StoriesSegments} from '@components/avatarNew';
 import BusinessHours from '@components/businessHours';
@@ -48,14 +47,12 @@ import DocumentTsx from '@components/wrappers/documentTsx';
 import wrapFolderTitle from '@components/wrappers/folderTitle';
 import wrapGeo from '@components/wrappers/geo';
 import getPeerTitle from '@components/wrappers/getPeerTitle';
-import {wrapTopicIcon} from '@components/wrappers/messageActionTextNewUnsafe';
 import wrapPeerTitle from '@components/wrappers/peerTitle';
 import wrapPhoto from '@components/wrappers/photo';
 import PhotoTsx from '@components/wrappers/photoTsx';
 import wrapReply from '@components/wrappers/reply';
 import wrapSticker from '@components/wrappers/sticker';
 import wrapStickerSetThumb from '@components/wrappers/stickerSetThumb';
-import wrapTopicNameButton from '@components/wrappers/topicNameButton';
 import VideoTsx from '@components/wrappers/videoTsx';
 import {formatDate} from '@helpers/date';
 import {getFileAndOpenEditor} from '@helpers/getFileAndOpenEditor';
@@ -96,14 +93,12 @@ registerHotReloadGuard({
   EmoticonsDropdown,
   EmojiTab,
   appDialogsManager,
-  AutonomousMonoforumThreadList,
   uiNotificationsManager,
   I18n,
   i18n,
   join,
   showToggleReadDatePopup,
   wrapSticker,
-  wrapTopicNameButton,
   wrapRichText,
   getPeerTitle,
   wrapPeerTitle,
@@ -126,7 +121,6 @@ registerHotReloadGuard({
   useAppSettings,
   ChatType,
   wrapReply,
-  wrapTopicIcon,
   VideoTsx,
   Row,
   PhotoTsx,
