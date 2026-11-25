@@ -2119,7 +2119,8 @@ export default class AppMediaViewerBase<
     });
 
     newAvatar.node.classList.add(MEDIA_VIEWER_CLASSNAME + '-userpic');
-    replaceContent(this.author.date, this.live ? i18n('Rtmp.MediaViewer.Streaming') : formatFullSentTime(timestamp));
+    // * TeleSignal: a Signal profile photo has no date (`fetchProfilePhotos`)
+    replaceContent(this.author.date, this.live ? i18n('Rtmp.MediaViewer.Streaming') : (timestamp ? formatFullSentTime(timestamp) : ''));
 
     if(oldAvatar?.node && oldAvatar.node.parentElement) {
       oldAvatar.node.replaceWith(newAvatar.node);

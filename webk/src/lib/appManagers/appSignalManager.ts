@@ -58,6 +58,7 @@ import {buildCallLogHandlers, fetchCallLogMessages} from '@lib/signal/callLog';
 import {buildMentionHandlers} from '@lib/signal/mentions';
 import {closeViewOnceMedia, getViewOnceMedia, openViewOnceMedia} from '@lib/signal/viewOnce';
 import {buildSharedMediaHandlers, getSearchType} from '@lib/signal/sharedMedia';
+import {buildProfilePhotoHandlers} from '@lib/signal/profilePhotos';
 import {buildStoryMethodHandlers, buildStoryUpdates, sendStory, sendStoryReply} from '@lib/signal/stories';
 import type {SignalNewStory} from '@lib/signal/storySettingsApi';
 import {buildOutgoingPoll, buildPollHandlers, buildPollUpdate, closePollByEdit, rememberPolls} from '@lib/signal/polls';
@@ -324,7 +325,6 @@ export default class AppSignalManager extends AppManager {
       'messages.getSavedReactionTags': () => ({_: 'messages.savedReactionTags', tags: [], hash: 0}),
       'contacts.getBirthdays': () => ({_: 'contacts.contactBirthdays', contacts: [], users: []}),
       'account.getAuthorizations': () => ({_: 'account.authorizations', authorization_ttl_days: 0, authorizations: []}),
-      'photos.getUserPhotos': () => ({_: 'photos.photos', photos: [], users: []}),
       'messages.getScheduledHistory': () => ({_: 'messages.messages', messages: [], chats: [], users: [], topics: []}),
       'messages.getSavedDialogs': () => ({_: 'messages.savedDialogs', dialogs: [], messages: [], chats: [], users: []}),
       'messages.getStickerSet': () => Promise.reject(makeError('STICKERSET_INVALID' as ErrorType)),
@@ -338,6 +338,7 @@ export default class AppSignalManager extends AppManager {
       ...buildUserMethodHandlers(host),
       ...buildPinnedMessageHandlers(host),
       ...buildSharedMediaHandlers(host),
+      ...buildProfilePhotoHandlers(host),
       ...buildPollHandlers(host),
       ...buildCallLogHandlers(host),
       ...buildMentionHandlers(host, {

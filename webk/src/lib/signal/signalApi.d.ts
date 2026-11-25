@@ -373,6 +373,7 @@ export type SignalMethodName =
   | 'fetchNotifyDefaultSettings'
   | 'fetchPeerColors'
   | 'fetchPeerSettings'
+  | 'fetchProfilePhotos'
   | 'fetchPeerStories'
   | 'fetchPeerStoriesByIds'
   | 'fetchPhoneNumberPrivacy'
