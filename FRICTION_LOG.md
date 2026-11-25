@@ -300,7 +300,7 @@ Web K's sign-in now links with the QR code or registers a phone number through t
 (`webk/src/pages/signalRegistration.tsx`), and the number card (`webk/src/pages/cards/SignInCard.tsx`) sends the
 number to the engine. Telegram's cards for the code, the cloud password, the sign-up, the e-mail setup and recovery
 and the web token import (`AuthCodeCard`, `PasswordCard`, `SignUpCard`, `Email*Card`, `SignImportCard`), the
-`continueLogin` and `sentCode` helpers and the passkey button stay in `webk/src/pages/` and `authFlow.tsx`, and
+`continueLogin` and `sentCode` helpers stay in `webk/src/pages/` and `authFlow.tsx`, and
 `index.ts` still maps Telegram's auth states to them. No step of the engine leads there, so they are dead code that
 reads as live; removing them needs the auth states of `AuthState` in `webk/src/types.d.ts` trimmed with them.
 
