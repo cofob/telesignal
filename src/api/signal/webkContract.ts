@@ -7,12 +7,14 @@
 
 import type * as webKKeyboardShortcuts from '../../../webk/src/lib/signal/keyboardShortcutsApi';
 import type * as webKKeyCombos from '../../../webk/src/lib/signal/keyCombosApi';
+import type * as webKPlatform from '../../../webk/src/lib/signal/platformApi';
 import type {
   SignalAdminRights, SignalAttachment, SignalAudio, SignalBannedRights, SignalChat, SignalContact, SignalDocument,
   SignalInitialArgs, SignalMessage, SignalMethodName, SignalPhoto, SignalReadState, SignalSticker, SignalStickerSet,
   SignalUser, SignalVideo, SignalVoice, SignalWebPage,
 } from '../../../webk/src/lib/signal/signalApi';
 import type { ThreadReadState } from '../../types';
+import type * as platform from '../../util/browser/platform';
 import type * as keyCombos from '../../util/keyboardShortcuts/keyCombos';
 import type * as keyboardShortcuts from '../../util/keyboardShortcuts/registry';
 import type {
@@ -70,4 +72,5 @@ export type WebKKeyCombos = Assert<Extends<
   Pick<typeof keyCombos, Exclude<keyof typeof webKKeyCombos, KeyLabelFunctions>>,
   Omit<typeof webKKeyCombos, KeyLabelFunctions>
 >>;
+export type WebKPlatform = Assert<Extends<Pick<typeof platform, keyof typeof webKPlatform>, typeof webKPlatform>>;
 export type WebKKeyLabels = Assert<Extends<KeyLabelFunctions, keyof typeof keyCombos>>;

@@ -74,6 +74,7 @@
       "@signal-app/signal-links": ["./src/lib/signal/signalLinksApi.d.ts"],
       "@signal-app/keyboard-shortcuts": ["./src/lib/signal/keyboardShortcutsApi.d.ts"],
       "@signal-app/key-combos": ["./src/lib/signal/keyCombosApi.d.ts"],
+      "@signal-app/platform": ["./src/lib/signal/platformApi.d.ts"],
       "@signal-app/native-transport": ["./src/lib/signal/nativeTransportApi.d.ts"],
       "@signal-app/serve-native-transport": ["./src/lib/signal/serveNativeTransportApi.d.ts"],
       "@tauri-apps/*": ["../node_modules/@tauri-apps/*"],

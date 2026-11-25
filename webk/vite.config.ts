@@ -234,6 +234,7 @@ const ADDITIONAL_ALIASES = {
   // * the keyboard shortcuts both frontends share: their ids, defaults and editable ones, and the reading of key combos
   '@signal-app/keyboard-shortcuts': path.join(signalAppDir, 'util/keyboardShortcuts/registry.ts'),
   '@signal-app/key-combos': path.join(signalAppDir, 'util/keyboardShortcuts/keyCombos.ts'),
+  '@signal-app/platform': path.join(signalAppDir, 'util/browser/platform.ts'),
   // * the desktop app's native transport: the engine's side in the worker, and the page's side that calls the app
   '@signal-app/native-transport': path.join(signalAppDir, 'lib/signal/net/NativeTransport.ts'),
   '@signal-app/serve-native-transport': path.join(signalAppDir, 'util/tauri/serveNativeTransport.ts'),

@@ -6,7 +6,7 @@ import { APP_CODE_NAME, INTERCLIENT_BROADCAST_CHANNEL } from '../../config';
 import { stopCaching } from '../../global/cache';
 import { updateTabState } from '../../global/reducers/tabs';
 import { selectTabState } from '../../global/selectors';
-import { normalizeKeyCombo } from '../keyboardShortcuts/keyCombos';
+import { normalizeKeyCombo, parseKeyCombo } from '../keyboardShortcuts/keyCombos';
 import { KEYBOARD_SHORTCUT_IDS } from '../keyboardShortcuts/registry';
 import { parseSignalProxyUrl } from '../signalProxy';
 
@@ -67,7 +67,7 @@ function parseProxySettings(settings: unknown) {
 }
 
 // The shortcuts that the other frontend changed (`webk/src/lib/keyboardShortcuts.ts`): only the registry's ids, each
-// with a combo in the form that this app writes, or `false` for none
+// with a combo that has a key, in the form that this app writes, or `false` for none
 function parseKeyboardShortcuts(settings: unknown) {
   if (typeof settings !== 'object' || !settings || !('keyboardShortcuts' in settings)) return undefined;
   const value = (settings).keyboardShortcuts;
@@ -76,7 +76,9 @@ function parseKeyboardShortcuts(settings: unknown) {
   const shortcuts: SharedState['settings']['keyboardShortcuts'] = {};
   KEYBOARD_SHORTCUT_IDS.forEach((id) => {
     const combo = (value as Record<string, unknown>)[id];
-    if (combo === false || (typeof combo === 'string' && combo && normalizeKeyCombo(combo) === combo)) {
+    if (combo === false || (
+      typeof combo === 'string' && parseKeyCombo(combo).key && normalizeKeyCombo(combo) === combo
+    )) {
       shortcuts[id] = combo;
     }
   });

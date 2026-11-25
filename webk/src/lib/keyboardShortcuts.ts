@@ -14,7 +14,8 @@ import {
   type KeyboardShortcutDefault,
   type KeyboardShortcutId
 } from '@signal-app/keyboard-shortcuts';
-import {getKeyComboFromEvent, IS_APPLE_KEYBOARD, normalizeKeyCombo} from '@signal-app/key-combos';
+import {getKeyComboFromEvent, IS_APPLE_KEYBOARD, normalizeKeyCombo, parseKeyCombo} from '@signal-app/key-combos';
+import {IS_WINDOWS} from '@signal-app/platform';
 import {IS_FIREFOX} from '@environment/userAgent';
 import {IS_DESKTOP_APP} from '@lib/signal/desktopApp';
 import {readWebASharedSettings, updateWebASharedSettings} from '@lib/signal/webAState';
@@ -26,7 +27,6 @@ type SendKeyCombo = 'enter' | 'ctrl-enter';
 
 const NO_COMBOS: ResolvedKeyboardShortcutCombo[] = [];
 // * Web A's environments of the defaults (`getIsDefaultAvailable`): `IS_APP` is a standalone window or the desktop app
-const IS_WINDOWS = /^Win/.test(navigator.platform);
 export const IS_APP = IS_DESKTOP_APP || window.matchMedia('(display-mode: standalone)').matches ||
   !!(navigator as {standalone?: boolean}).standalone;
 const DEFAULT_COMBOS: Record<SendKeyCombo, Record<KeyboardShortcutId, ResolvedKeyboardShortcutCombo[]>> = {
@@ -105,14 +105,14 @@ async function loadKeyboardShortcuts() {
   setSendKeyCombo(settings.messageSendKeyCombo === 'ctrl-enter' ? 'ctrl-enter' : 'enter');
 }
 
-// * only the ids of the registry, each with a combo or `false`
+// * only the ids of the registry, each with a combo that has a key or `false`
 function parseOverrides(value: unknown): KeyboardShortcutOverrides {
   if(typeof value !== 'object' || !value) return {};
 
   const parsed: KeyboardShortcutOverrides = {};
   for(const id of KEYBOARD_SHORTCUT_IDS) {
     const combo = (value as Record<string, unknown>)[id];
-    if(combo === false || (typeof combo === 'string' && combo)) parsed[id] = combo;
+    if(combo === false || (typeof combo === 'string' && parseKeyCombo(combo).key)) parsed[id] = combo;
   }
 
   return parsed;

@@ -315,3 +315,16 @@ cursor takes the highest id seen and the newest rendered bubble (`webk/src/compo
 unread divider is the first bubble above the read id (`getFirstUnreadBubble`), and the viewport's bottom is compared by id
 (`isScrolledPast`). With an inversion, a message above the divider can be unread, or one below it read; Web A has the same
 assumption. Observed with the demo's call 66 in Alice's chat, which is read, so it shows no wrong divider there.
+
+## Web K repeats Web A's resolution and checks of keyboard shortcuts
+
+Both frontends take the registry and the key combos from one place (`src/util/keyboardShortcuts/registry.ts` and
+`keyCombos.ts`, which Web K imports through `@signal-app/keyboard-shortcuts` and `@signal-app/key-combos`), but the code
+around them is written twice. Web A resolves a shortcut's combos (`buildDefaultCombos`, `getIsDefaultAvailable` and
+`getKeyboardShortcutCombos` in `src/util/keyboardShortcuts/index.ts`) and checks a recorded combo
+(`src/components/left/settings/keyboardShortcuts/helpers.ts`); Web K has its own copies in
+`webk/src/lib/keyboardShortcuts.ts` and `webk/src/lib/keyboardShortcutConflicts.ts`. Web A's modules read the global
+state (`getGlobal`), the app environment (`IS_APP`, `IS_TAURI`, `IS_FIREFOX` of `windowEnvironment.ts` and
+`globalEnvironment.ts`, which pull in `fasterdom` and Tauri) and the settings search, so Web K cannot import them, and
+a change to the environments of the defaults, the reserved combos or the conflict rules must be made in both copies.
+Pure versions that take the environment and the settings as arguments would let both frontends share them.

@@ -24,6 +24,7 @@ import {
 import getRichValueWithCaret from '@helpers/dom/getRichValueWithCaret';
 import {handleMarkdownShortcut} from '@helpers/dom/markdown';
 import {getIsKeyboardShortcut} from '@lib/keyboardShortcuts';
+import type {KeyboardShortcutId} from '@signal-app/keyboard-shortcuts';
 import type {MarkdownType} from '@helpers/dom/getRichElementValue';
 import classNames from '@helpers/string/classNames';
 import type {Document, MessageEntity, PageBlock, Photo, RichMessage, RichText} from '@layer';
@@ -142,6 +143,13 @@ import {canonicalOrderedListType} from '@lib/richTextProcessor/orderedList';
 import {isCollapsibleQuote} from '@components/chat/inputEditor/extensions/quotes';
 import {createRichButtonNode} from '@components/chat/inputEditor/extensions/richButtons';
 import {BUTTON_ROW_NODE_NAME, RICH_BUTTON_NODE_NAME} from '@components/chat/inputEditor/richButtonModel';
+
+// * the marks that Web A's shortcuts set on no selection, by its ids, as Tiptap names them
+const STORED_MARK_SHORTCUTS: [KeyboardShortcutId, string][] = [
+  ['bold', 'bold'],
+  ['italic', 'italic'],
+  ['underline', 'underline']
+];
 
 const SILENT_EDITOR_UPDATE_META = 'chatInputEditorSilentUpdate';
 const TEST_DATA_QUERY_PARAM = 'fillChatInputEditorTestData';
@@ -1885,6 +1893,15 @@ class TiptapChatInputEditor implements ChatInputEditor {
           if(getIsKeyboardShortcut(event, 'link') && this.requestLinkEditor()) {
             event.preventDefault();
             return true;
+          }
+          // * on no selection, Web A's bold, italic and underline set the mark of what is typed next
+          if(this.editor.state.selection.empty) {
+            const markName = STORED_MARK_SHORTCUTS.find(([id]) => getIsKeyboardShortcut(event, id))?.[1];
+            if(markName && this.editor.schema.marks[markName]) {
+              event.preventDefault();
+              this.editor.commands.toggleMark(markName);
+              return true;
+            }
           }
           handleMarkdownShortcut(input, event);
           return event.defaultPrevented;

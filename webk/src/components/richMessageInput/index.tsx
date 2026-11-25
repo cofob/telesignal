@@ -346,8 +346,10 @@ export class RichMessageInputController {
     });
     this.listenerSetter.add(this.input)('keydown', (event) => {
       if(event.defaultPrevented) return;
-      if(event.ctrlKey || event.metaKey) handleMarkdownShortcut(this.input, event);
-      else if((event.key === 'PageUp' || event.key === 'PageDown') && !event.shiftKey) {
+      // * any combo the user gave a format, Alt-only ones too (`lib/keyboardShortcuts`)
+      handleMarkdownShortcut(this.input, event);
+      if(event.defaultPrevented) return;
+      if((event.key === 'PageUp' || event.key === 'PageDown') && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
         if(event.key === 'PageDown') placeCaretAtEnd(this.input);
         else {
