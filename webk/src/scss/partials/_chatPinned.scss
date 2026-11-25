@@ -1146,29 +1146,11 @@
   }
 }
 
-// Explanatory line inside a plate: the fee notice above its button, the emoji-status
-// note below the contact-status buttons.
-.pinned-remove-fee-text,
+// Explanatory line inside a plate: the emoji-status note below the contact-status buttons.
 .pinned-actions-text {
   font-size: var(--font-size-14);
   text-align: center;
   color: var(--secondary-text-color);
   line-height: var(--line-height-14);
   word-break: break-word;
-}
-
-.pinned-remove-fee {
-  --container-height: var(--pinned-fee-height);
-
-  &-text {
-    margin-bottom: .125rem;
-  }
-
-  &-content {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    width: 100%;
-    height: 100%;
-  }
 }

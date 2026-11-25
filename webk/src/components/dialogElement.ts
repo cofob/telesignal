@@ -70,7 +70,7 @@ export type DialogDom = {
   lastMessageRenderKey?: string,
   /**
    * The nodes that signature was rendered as. Plenty of other places
-   * (community dialogs, search results, sidebar pickers) write their own
+   * (search results, sidebar pickers) write their own
    * subtitle into `lastMessageSpan`, so a matching key alone does not mean the
    * rendered subtitle is still the one in the DOM.
    */
@@ -136,9 +136,8 @@ export function setDialogSubtitle(dom: DialogDom, nodes: Node[], middlewareHelpe
 
 /**
  * Whether the subtitle in the DOM is still exactly what `setLastMessage` put
- * there — anyone else writing into `lastMessageSpan` (a community dialog
- * falling back to its chat count, a search result, a sidebar picker) has to
- * invalidate the skip.
+ * there — anyone else writing into `lastMessageSpan` (a search result, a
+ * sidebar picker) has to invalidate the skip.
  */
 export function isRenderedSubtitleIntact(dom: DialogDom) {
   const parts = dom.lastMessageRenderParts;
@@ -484,7 +483,7 @@ export class DialogElement {
   /**
    * The pill a pinned row's time stands in, with the pin in front of it: drawn only while the row
    * is pinned, and kept once made, as the grip is. The time itself is rewritten by several hands
-   * (the last message, search, a community row), so the pin stays out of it
+   * (the last message, search), so the pin stays out of it
    */
   public createTimePill() {
     if(this.dom.timePill) return;

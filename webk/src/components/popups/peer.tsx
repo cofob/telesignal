@@ -35,9 +35,6 @@ export type PopupPeerOptions = PopupOptions & Partial<{
   threadId: number,
   /** The peer's account, when the tab may show another one meanwhile (a call's). */
   accountNumber: ActiveAccountNumber,
-  // for a peer the plain avatar can't draw on its own (a Community and its decoration);
-  // the caller owns it and its teardown
-  avatar: HTMLElement,
   title: string | HTMLElement | DocumentFragment,
   titleLangKey: LangPackKey,
   titleLangArgs: any[],
@@ -199,9 +196,7 @@ export default function showPeerPopup(className: string, options: PopupPeerOptio
       >
         <Show when={!options.noHeader}>
           <PopupElement.Header>
-            <Show when={options.avatar} fallback={options.peerId && <PeerAvatar options={options} />}>
-              {options.avatar}
-            </Show>
+            {options.peerId && <PeerAvatar options={options} />}
             <Show when={!options.noTitle}>
               <PopupElement.Title>{title(options)}</PopupElement.Title>
             </Show>

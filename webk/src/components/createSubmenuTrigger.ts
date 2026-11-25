@@ -14,8 +14,7 @@ export type CreateSubmenuArgs = {
   middleware: Middleware;
 };
 
-// `T` carries the menu-specific fields its owner puts on every one of its buttons
-// (DialogsContextMenu's community mode, and the like) straight through to the result
+// `T` carries the menu-specific fields its owner puts on every one of its buttons straight through to the result
 type CreateSubmenuTriggerArgs<T> = {
   options: Pick<ButtonMenuItemOptionsVerifiable, 'text' | 'regularText' | 'icon' | 'verify' | 'separator' | 'separatorDown' | 'onClose'> & T;
   createSubmenu: (args: CreateSubmenuArgs) => MaybePromise<HTMLElement>;
