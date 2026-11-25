@@ -187,8 +187,8 @@ pagination offsets) with its callers in `appMessagesManager` (channel cutoff top
 in `appNotificationsManager`, `getInputNotifyPeerById`). The cache shares the virtual filter path with the Saved
 Messages sublists, and the settings are cached under topic keys, so removing them means reworking
 `dialogsStorage`'s virtual filters and a cache migration. Saved Messages "view as chats" still uses the forum
-avatar class (`is-forum`) and the `savedAsForum` setting. About 90 `.invalid` links of the removed Telegram features remain in `src`; the
-strings that Signal chats can show point to Signal on the phone instead.
+avatar class (`is-forum`) and the `savedAsForum` setting. About 90 `.invalid` links of the removed Telegram
+features remain in `src`; the strings that Signal chats can show point to Signal on the phone instead.
 
 ## Web A calls Note to Self «Your Cloud Storage»
 
