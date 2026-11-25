@@ -25,6 +25,7 @@ export const NON_NAVIGABLE_SECTIONS = new Set([
   'AppTwoStepVerificationEmailTab',
   'AppTwoStepVerificationEmailConfirmationTab',
   'AppTwoStepVerificationSetTab',
+  'AppPasscodeEnterPasswordTab',
   'AppEditFolderTab',
   // its list is a store owned by the Privacy tab
   'AppPasskeysTab',
@@ -95,6 +96,8 @@ const SECTION_OPENERS: {[sectionId: string]: SectionOpener} = {
     const {peerIds} = await rootScope.managers.appUsersManager.getBlocked();
     return openTab(slider, hotReloadGuard.tabs.AppBlockedUsersTab, middleware, {peerIds});
   },
+  // the current passcode is asked for first, as it is from Privacy and Security
+  AppPasscodeLockTab: (slider) => hotReloadGuard.tabs.AppPasscodeLockTab.openChecked(slider),
   // and so is the cloud password while one is set
   AppTwoStepVerificationTab: async(slider, middleware) => {
     const state = await rootScope.managers.passwordManager.getState();

@@ -64,12 +64,69 @@ export async function updateWebASharedSettings(changes: WebASharedSettings) {
 
 /** Removes Web A's cached global state of a slot that logged out, with its copy in `localStorage` */
 export async function removeWebAGlobalState(accountNumber: ActiveAccountNumber) {
-  // * `getGlobalStateCacheKey` of Web A
-  const key = accountNumber === 1 ? GLOBAL_STATE_KEY_PREFIX : `${GLOBAL_STATE_KEY_PREFIX}_${accountNumber}`;
+  const key = getGlobalStateKey(accountNumber);
   localStorage.removeItem(key);
   await runInStore<void>('readwrite', (store, resolve) => {
     store.delete(key).onsuccess = () => resolve();
   });
+}
+
+/** Web A's cached global state of each account slot that has one, as stored (`loadCachedGlobalForSlot`) */
+export async function readWebAGlobalStates() {
+  const states: {slot: number, state: Record<string, unknown>}[] = [];
+  await runInStore<void>('readonly', (store, resolve) => {
+    const request = store.openCursor();
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if(!cursor) {
+        resolve();
+        return;
+      }
+
+      const slot = typeof cursor.key === 'string' ? getGlobalStateSlot(cursor.key) : undefined;
+      if(slot && cursor.value) states.push({slot, state: cursor.value});
+      cursor.continue();
+    };
+  });
+  return states;
+}
+
+/** Saves Web A's cached global state of a slot (`cacheGlobalForSlot`) */
+export async function writeWebAGlobalState(slot: number, state: unknown) {
+  await runInStore<void>('readwrite', (store, resolve) => {
+    store.put(state, getGlobalStateKey(slot)).onsuccess = () => resolve();
+  });
+}
+
+/** Removes Web A's cached global states of all slots, with their copies in `localStorage` (`removeAllGlobalCaches`) */
+export async function removeWebAGlobalStates() {
+  Object.keys(localStorage).filter(isGlobalStateKey).forEach((key) => localStorage.removeItem(key));
+  await runInStore<void>('readwrite', (store, resolve) => {
+    const request = store.getAllKeys();
+    request.onsuccess = () => {
+      request.result
+      .filter((key): key is string => typeof key === 'string' && isGlobalStateKey(key))
+      .forEach((key) => store.delete(key));
+      resolve();
+    };
+  });
+}
+
+/** `getGlobalStateCacheKey` of Web A */
+function getGlobalStateKey(slot: number) {
+  return slot === 1 ? GLOBAL_STATE_KEY_PREFIX : `${GLOBAL_STATE_KEY_PREFIX}_${slot}`;
+}
+
+/** `isGlobalStateCacheKey` of Web A */
+function isGlobalStateKey(key: string) {
+  return key === GLOBAL_STATE_KEY_PREFIX || key.startsWith(`${GLOBAL_STATE_KEY_PREFIX}_`);
+}
+
+function getGlobalStateSlot(key: string) {
+  if(key === GLOBAL_STATE_KEY_PREFIX) return 1;
+  if(!key.startsWith(`${GLOBAL_STATE_KEY_PREFIX}_`)) return undefined;
+  const slot = Number(key.slice(GLOBAL_STATE_KEY_PREFIX.length + 1));
+  return slot > 0 && Number.isInteger(slot) ? slot : undefined;
 }
 
 function openDb() {

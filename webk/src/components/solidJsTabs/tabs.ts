@@ -19,6 +19,75 @@ import type {
 } from '@components/appSelectPeers';
 import type {IsPeerType} from '@appManagers/appPeersManager';
 import type {AppChatFull} from '@appManagers/appProfileManager';
+import {isSignalPasscodeEnabled} from '@lib/signal/frontend';
+import {verifyPasscode} from '@signal-app/passcode';
+
+
+/**
+ * The passcode's screen turns the passcode off and sets a new one without asking for it again, so every way there
+ * (the Privacy and Security row, the settings search, a `tg://settings/privacy/passcode` link) goes through here and
+ * asks for the current passcode first while one is set. Resolves with the passcode's screen once it is open, so a
+ * search result or a link can point at its control there, or with nothing when the check is given up.
+ */
+async function openPasscodeLockTabChecked(slider: SidebarSlider): Promise<SliderSuperTab> {
+  if(!isSignalPasscodeEnabled()) {
+    const tab = slider.createTab(AppPasscodeLockTab);
+    await tab.open();
+    return tab;
+  }
+
+  const opened = deferredPromise<SliderSuperTab>();
+  const checkTab = slider.createTab(AppPasscodeEnterPasswordTab);
+  checkTab.middlewareHelper.onDestroy(() => opened.resolve(undefined));
+  await checkTab.open({
+    buttonText: 'PasscodeLock.Next',
+    inputLabel: 'PasscodeLock.EnterYourPasscode',
+    errorLabel: 'PasscodeLock.WrongPasscode',
+    onSubmit: async(passcode) => {
+      const isCorrect = await verifyPasscode(passcode);
+      passcode = '';
+      if(!isCorrect) throw new Error('wrong passcode');
+      // * the check was left while the passcode was being verified (Back, an account switch): it opens nothing
+      if(!slider.getHistory().includes(checkTab)) return;
+
+      const tab = slider.createTab(AppPasscodeLockTab);
+      await tab.open();
+      opened.resolve(tab);
+    }
+  });
+  return opened;
+}
+
+export const AppPasscodeLockTab = Object.assign(
+  scaffoldSolidJSTab({
+    title: 'PasscodeLock.Title',
+    getComponentModule: () => import('../sidebarLeft/tabs/passcodeLock/mainTab'),
+    onOpenAfterTimeout: async function() {
+      // * the check that let us in is no step to go back to: Back lands where the passcode was opened from
+      const history = this.slider.getHistory();
+      const below = history[history.indexOf(this) - 1];
+      if(below instanceof AppPasscodeEnterPasswordTab) {
+        this.slider.removeTabFromHistory(below);
+      }
+    }
+  }),
+  {openChecked: openPasscodeLockTabChecked}
+);
+
+
+type AppPasscodeEnterPasswordTabPayload = {
+  onSubmit: (passcode: string, tab: InstanceOf<typeof AppPasscodeEnterPasswordTab>) => MaybePromise<void>,
+  inputLabel: LangPackKey,
+  buttonText: LangPackKey,
+  // * shown when `onSubmit` throws
+  errorLabel: LangPackKey
+};
+
+export const AppPasscodeEnterPasswordTab =
+  scaffoldSolidJSTab<AppPasscodeEnterPasswordTabPayload>({
+    title: 'PasscodeLock.Title',
+    getComponentModule: () => import('../sidebarLeft/tabs/passcodeLock/enterPasswordTab')
+  });
 
 
 export const AppNotificationsTab =

@@ -2,7 +2,7 @@
  * TeleSignal: the passcode of the account, as Web K unlocks and locks it. The vault is Web A's (`src/util/passcode`):
  * the page unlocks it with the same passcode, restores the sessions from it and gives the engine the key of its
  * stores, the way Web A does (`finishUnlock` and `unlockScreen` in `src/global/actions/api/passcode.ts`). Passcodes are
- * set and changed in the A version. Nothing here erases data unless the user asks for it.
+ * set, changed and removed in `lib/signal/passcodeSettings`. Nothing here erases data unless the user asks for it.
  */
 
 import {
@@ -21,10 +21,13 @@ import {
   unlockDekWithPasscode,
   updatePasscodeMeta
 } from '@signal-app/passcode';
-import {broadcastPasscodeState} from '@signal-app/passcode-channel';
+import {broadcastPasscodeSessionsChanged, broadcastPasscodeState} from '@signal-app/passcode-channel';
+import {resetSessionStore} from '@signal-app/passcode-session';
 import clearSignalLocalData from '@signal-app/clear-local-data';
 import {callSignalApi} from '@lib/signal/settingsApi';
+import rootScope from '@lib/rootScope';
 import noop from '@helpers/noop';
+import throttle from '@helpers/schedulers/throttle';
 
 // * Web A's `IS_SCREEN_LOCKED_CACHE_KEY` (`src/config.ts`): it is there while Web A has a passcode, and says whether the
 // * vault is locked
@@ -37,6 +40,17 @@ const INVALID_ATTEMPTS_TIMEOUT_MAX_MS = 5 * 60 * 1000;
 const ENGINE_STOP_TIMEOUT_MS = 3000;
 // * Web A's `CHANNEL_NAME` (`src/util/passcode/channel.ts`)
 const PASSCODE_CHANNEL_NAME = 'tt-passcode';
+// * Web A's auto-lock (`src/util/passcode/autolock.ts`): the last activity in any tab of either frontend
+const ACTIVITY_STORAGE_KEY = 'tt-last-activity';
+const ACTIVITY_WRITE_THROTTLE_MS = 5000;
+const AUTOLOCK_CHECK_INTERVAL_MS = 10000;
+const ACTIVITY_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
+
+type PasscodeChannelMessage = {
+  type: string,
+  dek?: ArrayBuffer,
+  generation?: string
+};
 
 // * set once this page goes to the lock screen: from then on it shows nothing of the account
 let isLocking = false;
@@ -71,15 +85,26 @@ export async function getIsSignalVaultLocked() {
 }
 
 /**
- * Follows the vault and its sessions as other tabs of the origin change them, Web A's or Web K's of any slot: a lock
- * stops the engine and reloads the page onto the lock screen (Web A's `onPasscodeStateChangedRemotely`), and Web A's
- * reset of all data reloads it as well.
+ * Follows the vault and its sessions as other tabs of the origin change them, Web A's or Web K's of any slot (Web A's
+ * `onPasscodeStateChangedRemotely`): a lock stops the engine and reloads the page onto the lock screen, a new or
+ * changed passcode moves the page's sessions into the vault under its key, and a removed one back to plain storage.
+ * Web A's reset of all data reloads the page as well. The page also gives its key to a tab that asks for it, as Web A's
+ * tabs do, so that a tab opened while the vault is unlocked opens unlocked.
  */
 export function listenSignalPasscodeChannel() {
   const channel = new BroadcastChannel(PASSCODE_CHANNEL_NAME);
-  channel.addEventListener('message', async({data}: MessageEvent<{type: string, generation?: string}>) => {
+  channel.addEventListener('message', async({data}: MessageEvent<PasscodeChannelMessage>) => {
     if(data?.type === 'reset') {
       location.reload();
+      return;
+    }
+
+    if(data?.type === 'requestDek') {
+      const dek = getDek();
+      const generation = getDekGeneration();
+      if(dek && generation === data.generation && !isLocking) {
+        channel.postMessage({type: 'dek', dek, generation});
+      }
       return;
     }
 
@@ -95,12 +120,78 @@ export function listenSignalPasscodeChannel() {
 
     if(data?.type !== 'stateChanged' || isLocking) return;
 
-    const meta = await loadPasscodeMeta().catch((): undefined => undefined);
-    if(!meta?.isLocked) return;
-
-    forgetDek(meta.generation);
-    await stopEngineAndReload();
+    const shouldLock = await requestPasscodeStateLock(() => applyRemotePasscodeState(data)).catch(() => true);
+    if(shouldLock) await stopEngineAndReload();
   });
+}
+
+/** Resolves with whether the page has to go to the lock screen */
+async function applyRemotePasscodeState(data: PasscodeChannelMessage) {
+  const meta = await loadPasscodeMeta();
+  if(meta?.isDisabling) return false;
+  if(!meta) {
+    if(!getDekGeneration()) return false;
+    // * the tab that removed the passcode put the sessions back into plain storage
+    forgetDek();
+    resetSessionStore();
+    rootScope.dispatchEvent('toggle_using_passcode', false);
+    return false;
+  }
+
+  if(meta.isLocked) {
+    forgetDek(meta.generation);
+    return true;
+  }
+
+  const previousGeneration = getDekGeneration();
+  const dek = previousGeneration === meta.generation ? getDek() : (data.generation === meta.generation ? data.dek : undefined);
+  // * a passcode that this page has no key of is asked for on the lock screen
+  if(!dek) return true;
+
+  setDek(dek, meta.generation);
+  if(previousGeneration !== meta.generation) {
+    await restoreSessionsFromVault(meta.generation);
+    if(await refreshSessionsVault()) broadcastPasscodeSessionsChanged(meta.generation);
+  }
+
+  rootScope.dispatchEvent('toggle_using_passcode', true);
+  return false;
+}
+
+/**
+ * Locks the vault after the time without activity that the passcode sets, as Web A's auto-lock does: the last activity
+ * is shared with the other tabs of both frontends, so a tab in use keeps the others open
+ */
+export function initSignalAutolock() {
+  const writeActivity = throttle(() => {
+    localStorage.setItem(ACTIVITY_STORAGE_KEY, String(Date.now()));
+  }, ACTIVITY_WRITE_THROTTLE_MS, true);
+  const checkAndWriteActivity = () => {
+    checkAutolock().catch(noop).finally(writeActivity);
+  };
+
+  ACTIVITY_EVENTS.forEach((eventName) => {
+    window.addEventListener(eventName, writeActivity, {passive: true, capture: true});
+  });
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden) checkAndWriteActivity();
+  });
+
+  checkAndWriteActivity();
+  setInterval(() => checkAutolock().catch(noop), AUTOLOCK_CHECK_INTERVAL_MS);
+}
+
+async function checkAutolock() {
+  if(isLocking || !getDek()) return;
+
+  const meta = await loadPasscodeMeta();
+  if(!meta || meta.isLocked || !meta.autolockDuration) return;
+
+  const now = Date.now();
+  const lastActivity = Math.min(Number(localStorage.getItem(ACTIVITY_STORAGE_KEY)) || now, now);
+  if(now - lastActivity < meta.autolockDuration) return;
+
+  await lockSignalPasscode();
 }
 
 /** The time until which the passcode is not accepted, while it is not */

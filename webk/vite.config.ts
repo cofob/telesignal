@@ -227,6 +227,15 @@ const ADDITIONAL_ALIASES = {
   '@signal-app/passcode-channel': path.join(signalAppDir, 'util/passcode/channel.ts'),
   '@signal-app/clear-local-data': path.join(signalAppDir, 'lib/signal/clearLocalData.ts'),
   '@signal-app/passcode-session': path.join(signalAppDir, 'util/passcode/sessionStore.ts'),
+  // * what the passcode moves into and out of the vault when the page sets or removes it, as Web A's actions do
+  '@signal-app/engine-slots': path.join(signalAppDir, 'lib/signal/engineSlots.ts'),
+  '@signal-app/engine-lock': path.join(signalAppDir, 'lib/signal/store/engineLock.ts'),
+  '@signal-app/engine-at-rest': path.join(signalAppDir, 'lib/signal/store/atRestMigration.ts'),
+  '@signal-app/wallpaper-vault': path.join(signalAppDir, 'util/wallpaper/vaultBlobs.ts'),
+  '@signal-app/cache-api': path.join(signalAppDir, 'util/cacheApi.ts'),
+  '@signal-app/initial-state': path.join(signalAppDir, 'global/initialState.ts'),
+  '@signal-app/numbers': path.join(signalAppDir, 'util/numbers.ts'),
+  '@signal-app/multiaccount': path.join(signalAppDir, 'util/multiaccount.ts'),
   // * the check of a proxy server's URL that Web A's settings make
   '@signal-app/signal-proxy': path.join(signalAppDir, 'util/signalProxy.ts'),
   // * the parser of Signal links that Web A's search and message links open
