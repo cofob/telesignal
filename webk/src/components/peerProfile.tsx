@@ -653,7 +653,6 @@ PeerProfile.Notifications = () => {
   const muted = createPeerMuted();
   const change = (isOn: boolean) => rootScope.managers.appMessagesManager.togglePeerMute({
     peerId: context.peerId,
-    threadId: context.threadId,
     mute: !isOn
   });
 
@@ -1297,14 +1296,13 @@ type PeerProfileActionItem = {
 function createPeerMuted() {
   const context = useContext(PeerProfileContext);
   const {rootScope} = useHotReloadGuard();
-  const {peerId, threadId} = context;
+  const {peerId} = context;
 
   // * the peer's own settings come with its full peer, and an update changes them whether or not
   // * there is a dialog with it (`dialog_notify_settings` needs one)
   const [muted, {refetch}] = createResource(() => ({fullPeer: context.fullPeer}), () => {
     return rootScope.managers.appNotificationsManager.isPeerLocalMuted({
       peerId,
-      threadId,
       respectType: false
     });
   });
@@ -1316,7 +1314,7 @@ function createPeerMuted() {
   });
 
   subscribeOn(rootScope)('notify_settings', ({peer}) => {
-    if((peer._ === 'notifyPeer' || peer._ === 'notifyForumTopic') && getPeerId(peer.peer) !== peerId) {
+    if(peer._ === 'notifyPeer' && getPeerId(peer.peer) !== peerId) {
       return;
     }
 
@@ -1338,7 +1336,7 @@ const PEER_PROFILE_ACTIONS_MAX = 4;
 PeerProfile.Actions = () => {
   const context = useContext(PeerProfileContext);
   const {rootScope, appImManager, toastNew} = useHotReloadGuard();
-  const {peerId, threadId} = context;
+  const {peerId} = context;
   const isUser = peerId.isUser();
   const userFull = () => isUser ? context.fullPeer as UserFull.userFull : undefined;
   const isContact = () => isUser && !!(context.peer as User.user).pFlags.contact;
@@ -1418,8 +1416,8 @@ PeerProfile.Actions = () => {
     menuText: () => muted.latest ? 'ChatList.Context.Unmute' : 'ChatList.Context.Mute',
     shown: () => true,
     onClick: () => {
-      if(muted.latest) rootScope.managers.appMessagesManager.togglePeerMute({peerId, threadId, mute: false});
-      else showMutePopup(peerId, threadId);
+      if(muted.latest) rootScope.managers.appMessagesManager.togglePeerMute({peerId, mute: false});
+      else showMutePopup(peerId);
     }
   }, {
     icon: () => isRtmp() ? 'livestream' : 'videochat',

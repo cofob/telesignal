@@ -3,7 +3,7 @@ import {Dialog} from '@appManagers/appMessagesManager';
 import {FOLDER_ID_ALL, FOLDER_ID_ARCHIVE, REAL_FOLDERS} from '@appManagers/constants';
 import getDialogIndex from '@appManagers/utils/dialogs/getDialogIndex';
 import getDialogIndexKey from '@appManagers/utils/dialogs/getDialogIndexKey';
-import {isDialog, isForumTopic} from '@appManagers/utils/dialogs/isDialog';
+import {isDialog} from '@appManagers/utils/dialogs/isDialog';
 import {setRollingText} from '@components/animatedCounter';
 import ArchiveDialog, {createArchiveDialogState, DisposableArchiveDialogState} from '@components/archiveDialog';
 import {AutonomousDialogListBase, BaseConstructorArgs, LoadDialogsInnerArgs} from '@components/autonomousDialogList/base';
@@ -159,7 +159,7 @@ export class AutonomousDialogList extends AutonomousDialogListBase<Dialog> {
         return;
       }
 
-      for(const [peerId, {dialog, topics}] of dialogs) {
+      for(const [peerId, {dialog}] of dialogs) {
         if(!isDialog(dialog)) {
           continue;
         }
@@ -219,7 +219,7 @@ export class AutonomousDialogList extends AutonomousDialogListBase<Dialog> {
     });
 
     this.listenerSetter.add(rootScope)('dialog_draft', ({dialog, drop, peerId}) => {
-      if(!this.isActive || isForumTopic(dialog)) {
+      if(!this.isActive) {
         return;
       }
 

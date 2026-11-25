@@ -292,17 +292,13 @@ export class AppPeersManager extends AppManager {
   // public getInputNotifyPeerById(peerId: PeerId, ignorePeerId?: boolean): InputNotifyPeer {
   public getInputNotifyPeerById<T extends {
     peerId: PeerId,
-    ignorePeerId?: boolean,
-    threadId?: number
+    ignorePeerId?: boolean
   }>({
     peerId,
-    ignorePeerId,
-    threadId
+    ignorePeerId
   }: T): T['ignorePeerId'] extends true ?
     InputNotifyPeer.inputNotifyUsers | InputNotifyPeer.inputNotifyChats | InputNotifyPeer.inputNotifyBroadcasts :
-    (T['threadId'] extends number ?
-      InputNotifyPeer.inputNotifyForumTopic :
-      InputNotifyPeer.inputNotifyPeer) {
+    InputNotifyPeer.inputNotifyPeer {
     if(ignorePeerId) {
       if(peerId.isUser()) {
         return {_: 'inputNotifyUsers'} as any;
@@ -313,12 +309,6 @@ export class AppPeersManager extends AppManager {
           return {_: 'inputNotifyChats'} as any;
         }
       }
-    } else if(threadId) {
-      return {
-        _: 'inputNotifyForumTopic',
-        peer: this.getInputPeerById(peerId),
-        top_msg_id: getServerMessageId(threadId)
-      } as any;
     } else {
       return {
         _: 'inputNotifyPeer',

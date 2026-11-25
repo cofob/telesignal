@@ -468,12 +468,12 @@ export default class ChatTopbar {
       icon: 'mute',
       text: 'ChatList.Context.Mute',
       onClick: this.onMuteClick,
-      verify: async() => this.chat.type === ChatType.Chat && rootScope.myId !== this.peerId && !(await this.managers.appNotificationsManager.isPeerLocalMuted({peerId: this.peerId, respectType: false, threadId: this.chat.threadId}))
+      verify: async() => this.chat.type === ChatType.Chat && rootScope.myId !== this.peerId && !(await this.managers.appNotificationsManager.isPeerLocalMuted({peerId: this.peerId, respectType: false}))
     }, {
       icon: 'unmute',
       text: 'ChatList.Context.Unmute',
       onClick: this.onUnmuteClick,
-      verify: () => this.chat.type === ChatType.Chat && rootScope.myId !== this.peerId && this.managers.appNotificationsManager.isPeerLocalMuted({peerId: this.peerId, respectType: false, threadId: this.chat.threadId})
+      verify: () => this.chat.type === ChatType.Chat && rootScope.myId !== this.peerId && this.managers.appNotificationsManager.isPeerLocalMuted({peerId: this.peerId, respectType: false})
     }, {
       icon: 'comments',
       text: 'ViewDiscussion',
@@ -908,12 +908,11 @@ export default class ChatTopbar {
   };
 
   private onMuteClick = () => {
-    // * the topic's, as the menu item's own check and Unmute read it
-    showMutePopup(this.peerId, this.chat.threadId);
+    showMutePopup(this.peerId);
   };
 
   private onUnmuteClick = () => {
-    this.managers.appMessagesManager.togglePeerMute({peerId: this.peerId, threadId: this.chat.threadId});
+    this.managers.appMessagesManager.togglePeerMute({peerId: this.peerId});
   };
 
   private onResize = () => {

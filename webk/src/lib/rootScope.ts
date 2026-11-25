@@ -1,5 +1,5 @@
 import type {Message, StickerSet, Update, NotifyPeer, PeerNotifySettings, PollResults, Poll, WebPage, GroupCall, GroupCallParticipant, ReactionCount, MessagePeerReaction, PhoneCall, Config, Reaction, PeerSettings, StoryItem, PeerStories, SavedDialog, SavedReactionTag, InputSavedStarGift, LangPackDifference, StarsAmount, MessageEntity, HelpPromoData, StoriesStealthMode, StoryAlbum, GlobalPrivacySettings, ConnectedBot} from '@layer';
-import type {Dialog, ForumTopic, MessagesStorageKey, MyEphemeralMessage, MyMessage} from '@appManagers/appMessagesManager';
+import type {Dialog, MessagesStorageKey, MyEphemeralMessage, MyMessage} from '@appManagers/appMessagesManager';
 import type {MyDialogFilter} from '@lib/storages/filters';
 import type {AnyDialog, Folder} from '@lib/storages/dialogs';
 import type {UserTyping} from '@appManagers/appProfileManager';
@@ -86,15 +86,15 @@ export type BroadcastEvents = {
 
   'folder_unread': Omit<Folder, 'dialogs' | 'dispatchUnreadTimeout'>,
 
-  'dialog_draft': {peerId: PeerId, dialog: Dialog | ForumTopic, drop: boolean, draft: MyDraftMessage | undefined},
-  'dialog_unread': {peerId: PeerId, dialog: Dialog | ForumTopic},
+  'dialog_draft': {peerId: PeerId, dialog: Dialog, drop: boolean, draft: MyDraftMessage | undefined},
+  'dialog_unread': {peerId: PeerId, dialog: Dialog},
   'dialog_flush': {peerId: PeerId, dialog: Dialog},
   'dialog_drop': AnyDialog,
   'dialog_migrate': {migrateFrom: PeerId, migrateTo: PeerId},
   // 'dialog_top': Dialog,
-  'dialog_notify_settings': Dialog | ForumTopic,
+  'dialog_notify_settings': Dialog,
   // 'dialog_order': {dialog: Dialog, pos: number},
-  'dialogs_multiupdate': Map<PeerId, {dialog?: Dialog, topics?: Map<number, ForumTopic>, saved?: Map<PeerId, SavedDialog>}>,
+  'dialogs_multiupdate': Map<PeerId, {dialog?: Dialog, saved?: Map<PeerId, SavedDialog>}>,
 
 
   'history_append': {storageKey: MessagesStorageKey, message: MyMessage},

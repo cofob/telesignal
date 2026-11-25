@@ -33,7 +33,6 @@ export type MediaEditorProps = {
   getMediaBlob: () => Promise<Blob | null>;
   editingMediaState?: EditingMediaState;
   isEditingForAvatar?: boolean;
-  isEditingForumAvatar?: boolean;
   canFinishWithoutChanges?: boolean;
   isVideoAvatarMode?: boolean;
   canImageResultInGIF?: boolean;

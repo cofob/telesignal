@@ -213,7 +213,7 @@
 
   --avatar-color-top: var(--peer-avatar-saved-top);
   --avatar-color-bottom: var(--peer-avatar-saved-bottom);
-  --avatar-border-radius-forum: 37%;
+  --avatar-border-radius-saved-sublists: 37%;
 
   --premium-gradient: linear-gradient(52.62deg, #6B93FF 12.22%, #976FFF 50.25%, #E46ACE 98.83%);
   --star-background-color: var(--surface-color);
@@ -883,10 +883,6 @@ b {
   border-radius: 50%;
   cursor: pointer;
   overflow: hidden;
-
-  &.is-forum {
-    border-radius: var(--avatar-border-radius-forum);
-  }
 
   // * the photo on a tab's edit screen, in a sidebar or in a popup's slider
   .sidebar-slider & {
