@@ -2749,11 +2749,6 @@ const lang = {
     'other_value': 'Delete topics'
   },
   'DeleteSelectedTopic': 'Are you sure you want delete %s?',
-  'DeleteSelectedTopics': 'Are you sure you want delete these topics?',
-  'TopicsSelected': {
-    'one_value': '%d topic selected',
-    'other_value': '%d topics selected'
-  },
   'NewTopic': 'New Topic',
   'CreateTopicTitle': 'Choose a topic name and icon',
   'CreateGeneralTopicTitle': 'Choose topic name',
@@ -4248,10 +4243,6 @@ const lang = {
   'DiscussionController.Channel.Title': 'Discussion Group',
   'DiscussionController.PrivateGroup': 'private group',
   'DiscussionController.PrivateChannel': 'private channel',
-  'ForumTopic.Context.Info': 'Group Info',
-  'ForumTopic.Context.AddMember': 'Add Members',
-  'ForumTopic.Context.ShowAsMessages': 'View as Messages',
-  'ForumTopic.Context.New': 'Create Topic',
   'ForumTopic.Context.ApplyToJoin': 'Apply to Join',
   'ForumTopic.Name.Placeholder': 'Topic Name',
   'ForumTopic.Title.Edit': 'Edit Topic',
