@@ -1,7 +1,8 @@
 /*
  * TeleSignal: what Web K's main screen adds in the desktop app, as Web A's main screen does (`src/components/main`,
  * `src/hooks/tauri/useDesktopApp.ts`): the window title of the open chat, the labels of the tray and macOS menus, the
- * `sgnl:` links that reached the app, and its updates. Loaded once the account's chats are shown.
+ * `sgnl:` links that reached the app (`lib/signal/signalLinks.ts`), and its updates. Loaded once the account's chats are
+ * shown.
  */
 
 import type {Update} from '@tauri-apps/plugin-updater';
@@ -11,12 +12,11 @@ import {listen} from '@tauri-apps/api/event';
 import I18n, {LangPackKey} from '@lib/langPack';
 import rootScope from '@lib/rootScope';
 import getPeerTitle from '@components/wrappers/getPeerTitle';
-import confirmationPopup from '@components/confirmationPopup';
 import {hotReloadGuard} from '@lib/solidjs/hotReloadGuardProvider';
 import {readWebASharedSettings, WebASharedSettings} from '@lib/signal/webAState';
 import noop from '@helpers/noop';
-import appNavigationController from '@components/appNavigationController';
-import {getWebAUrl} from '@lib/signal/frontend';
+import {parseSignalLink} from '@signal-app/signal-links';
+import {openSignalLink} from '@lib/signal/signalLinks';
 
 // * a link that reached the app while this page shows (`tauri/src/deeplink.rs`)
 const DEEP_LINK_EVENT = 'deeplink';
@@ -26,9 +26,9 @@ const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
 const APP_NAME = 'TeleSignal';
 
 let titlePeerId: PeerId;
-// * the newest link that waits for the user's answer, and whether the question is open
-let pendingLink: string;
-let isAskingForLink = false;
+// * the links that wait for the one before them, and whether one is open
+const pendingLinks: string[] = [];
+let isOpeningLinks = false;
 
 export function startDesktopIm() {
   trackWindowTitle();
@@ -83,30 +83,24 @@ function sendMenuTranslations() {
 }
 
 /**
- * The `sgnl:` links that launched the app or reached it since. Web A opens Signal links (`openSignalLink` in
- * `src/util/deeplink.ts`) and takes one from its address (`tgaddr`), so a link moves the window to the A version, in
- * the same account slot, once the user agrees. One question is open at a time, and it opens the newest link.
+ * The `sgnl:` links that launched the app or reached it since, opened in the order they came as Web A's `Main` opens
+ * them (`processDeepLink`). Each link asks what it needs to (`openSignalLink`): a number before its lookup, a group or a
+ * sticker pack with its preview, a device before it is linked; the next link waits for the answer.
  */
 async function takeDeepLinks() {
   const urls = await invoke<string[]>('take_deep_links').catch((): string[] => []);
-  if(urls.length) pendingLink = urls[urls.length - 1];
-  if(!pendingLink || isAskingForLink) return;
+  pendingLinks.push(...urls);
+  if(isOpeningLinks) return;
 
-  isAskingForLink = true;
+  isOpeningLinks = true;
   try {
-    await confirmationPopup({
-      titleLangKey: 'Signal.Desktop.LinkTitle',
-      descriptionLangKey: 'Signal.Desktop.LinkText',
-      button: {langKey: 'Signal.Desktop.LinkConfirm'}
-    });
-  } catch(err) {
-    pendingLink = undefined;
-    return;
+    for(let url: string; (url = pendingLinks.shift()) !== undefined;) {
+      const link = parseSignalLink(url);
+      if(link) await openSignalLink(link);
+    }
   } finally {
-    isAskingForLink = false;
+    isOpeningLinks = false;
   }
-
-  appNavigationController.navigateToUrl(getWebAUrl('?tgaddr=' + encodeURIComponent(pendingLink)));
 }
 
 /**

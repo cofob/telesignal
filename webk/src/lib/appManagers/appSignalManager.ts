@@ -45,7 +45,13 @@ import {buildChatMethodHandlers} from '@lib/signal/chatMethods';
 import {getErrorLangKey} from '@lib/signal/errors';
 import {buildGroupMethodHandlers} from '@lib/signal/groupMethods';
 import {buildAccountMethodHandlers} from '@lib/signal/accountMethods';
-import {buildUserMethodHandlers, fetchSafetyNumber, updateSafetyNumberVerified} from '@lib/signal/userMethods';
+import {
+  buildUserMethodHandlers,
+  cancelKeyTransparencyCheck,
+  checkKeyTransparency,
+  fetchSafetyNumber,
+  updateSafetyNumberVerified
+} from '@lib/signal/userMethods';
 import {buildPinnedMessageHandlers, buildPinnedMessagesUpdate, fetchPinnedMessages} from '@lib/signal/pinnedMessages';
 import {fetchMessageRecipients} from '@lib/signal/messageInfo';
 import {buildCallLogHandlers, fetchCallLogMessages} from '@lib/signal/callLog';
@@ -159,6 +165,15 @@ export default class AppSignalManager extends AppManager {
 
   public updateSafetyNumberVerified(userId: PeerId, isVerified: boolean) {
     return updateSafetyNumberVerified(this.createMethodHost(), userId, isVerified);
+  }
+
+  /** Automatic key verification of a user for the safety number popup */
+  public checkKeyTransparency(userId: PeerId) {
+    return checkKeyTransparency(this.createMethodHost(), userId);
+  }
+
+  public cancelKeyTransparencyCheck(userId: PeerId) {
+    return cancelKeyTransparencyCheck(this.createMethodHost(), userId);
   }
 
   /** The recipients of an outgoing message for the message info popup (`components/popups/messageInfo.tsx`) */
