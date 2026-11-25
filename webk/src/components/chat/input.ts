@@ -280,8 +280,15 @@ type WatchDownloadProgressArgs<T> = {
   cancel: () => void;
 };
 
-// * TeleSignal: the attach menu's items that Signal has: photos and videos, files, polls and contacts
-const SIGNAL_ATTACH_ACTIONS: Set<RichMessageAttachMenuAction> = new Set(['visualMedia', 'document', 'poll', 'contact']);
+// * TeleSignal: the attach menu's items that Signal has, in Web A's order: photos and videos, files, music, polls,
+// * contacts, a date and the expanded editor
+const SIGNAL_ATTACH_ACTIONS: Set<RichMessageAttachMenuAction> = new Set([
+  'visualMedia', 'document', 'music', 'poll', 'contact', 'date', 'article'
+]);
+// * the date that the attach menu's "Date" writes: Web A's `getDefaultFormattedDateText`
+const INSERTED_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
+};
 
 export default class ChatInput {
   private richMessageInput: RichMessageInputController;
@@ -1253,24 +1260,13 @@ export default class ChatInput {
       verify: () => canUploadAsWhenEditing({asWhat: 'document', message: this.editMessage})
       // verify: () => this.chat.canSend('send_docs')
     }, {
+      // * TeleSignal: music from the device's files, sent as audio with its duration, title and performer, as Web A's
+      // * music picker sends a file it picks; Signal has no music search or profile playlist
       icon: 'note',
+      richMessageAction: 'music',
       text: 'SharedMusicTab2',
-      onClick: async() => {
-        const {default: showMusicSearchPopup} = await import('@components/popups/musicSearch');
-        showMusicSearchPopup({chat: this.chat});
-      },
-      verify: async() => {
-        if(this.editMsgId || this.isWelcomeComposer) return false;
-        // Either half of the picker is reason enough to offer it: the inline-bot search (which the
-        // server gates behind an app-config username) or the user's own profile playlist.
-        // getAppConfig comes off the proxy's warm cache, and the ids list is cached in the worker.
-        const [{music_search_username}, myMusicIds] = await Promise.all([
-          apiManagerProxy.getAppConfig(),
-          this.managers.appSavedMusicManager.getMyIds()
-        ]);
-
-        return !!music_search_username || !!myMusicIds.length;
-      }
+      onClick: () => this.onAttachClick(false, false, false, undefined, true),
+      verify: () => !this.editMsgId && !this.isWelcomeComposer
     }, {
       icon: 'location',
       richMessageAction: 'location',
@@ -1283,21 +1279,6 @@ export default class ChatInput {
         !!this.richMessageInput?.canWriteRich &&
         this.managers.appMessagesManager.isRichMessageMapAvailable()
       )
-    }, {
-      // opens the expanded editor even when it is empty, where the expand button is not shown yet
-      icon: 'text_add',
-      richMessageAction: 'article',
-      textElement: createAttachPremiumLabel('Chat.Input.Attach.Article', true),
-      onClick: () => {
-        this.setMessageInputExpanded(true, true);
-        // the menu's focus trap would pull the caret back and then hand it to the attach button
-        contextMenuController.close();
-        runAttachEditorCommand((editor) => {
-          editor.focus();
-          return true;
-        });
-      },
-      verify: () => !!this.richMessageInput?.expandable
     }, {
       icon: 'group',
       richMessageAction: 'groupCollage',
@@ -1348,8 +1329,43 @@ export default class ChatInput {
         if(contactPeerId) this.managers.appMessagesManager.sendContact({peerId, threadId, contactPeerId});
       },
       verify: () => !this.editMsgId && !this.ephemeralComposer && !this.isWelcomeComposer
+    }, {
+      // * TeleSignal: a date and time as text where the caret is, written as Web A's "Date" writes it
+      // * (`FormattedDateModal`); Signal has no formatted date of its own
+      icon: 'calendar',
+      richMessageAction: 'date',
+      text: 'Signal.AttachDate',
+      onClick: async() => {
+        const {default: showDatePickerPopup} = await import('@components/popups/datePicker');
+        showDatePickerPopup({
+          initDate: new Date(),
+          withTime: true,
+          btnConfirmLangKey: 'AddDate',
+          onPick: (timestamp) => runAttachEditorCommand((editor) => {
+            editor.replaceSelection(I18n.getDateTimeFormat(INSERTED_DATE_FORMAT).format(timestamp * 1000));
+            return true;
+          })
+        });
+      },
+      verify: () => !this.editMsgId && this.canSendPlain()
+    }, {
+      // opens the expanded editor even when it is empty, where the expand button is not shown yet
+      icon: 'text_add',
+      richMessageAction: 'article',
+      // * TeleSignal: without Telegram's Premium star
+      text: 'Chat.Input.Attach.Article',
+      onClick: () => {
+        this.setMessageInputExpanded(true, true);
+        // the menu's focus trap would pull the caret back and then hand it to the attach button
+        contextMenuController.close();
+        runAttachEditorCommand((editor) => {
+          editor.focus();
+          return true;
+        });
+      },
+      verify: () => !!this.richMessageInput?.expandable
     }];
-    // * TeleSignal: Signal sends photos, videos, files, polls and contacts; the other attachments are Telegram's
+    // * TeleSignal: Signal sends photos, videos, files, music, polls, contacts and text; the other attachments are Telegram's
     this.attachMenuButtons = this.attachMenuButtons.filter(({richMessageAction}) => SIGNAL_ATTACH_ACTIONS.has(richMessageAction));
 
     const attachMenuButtons = this.attachMenuButtons.slice();

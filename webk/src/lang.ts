@@ -298,6 +298,7 @@ const lang = {
   'Signal.ViewOnce.Photo': 'View-once photo',
   'Signal.ViewOnce.Video': 'View-once video',
   'Signal.CopyImage': 'Copy Image',
+  'Signal.AttachDate': 'Date',
   'Signal.Keyboard': 'Keyboard',
   'Signal.TextReplacements': 'Automatic text replacements',
   'Signal.TextReplacementsInfo': 'Convert --, << and >> as you type',
