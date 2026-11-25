@@ -62,6 +62,7 @@ import type {SignalAuthState} from '@lib/signal/registrationTypes';
 import makeError from '@helpers/makeError';
 import {storeSignalWebPages} from '@lib/signal/media';
 import {buildOutgoingMedia} from '@lib/signal/outgoingMedia';
+import {restoreMissingDialogs} from '@lib/signal/dialogsSync';
 import noop from '@helpers/noop';
 import {ColorRgb, hexToRgb, mixColors, rgbaToHexa} from '@helpers/color';
 import {ConnectionStatus, SIGNAL_CONNECTION_NAME} from '@lib/connectionStatus';
@@ -126,6 +127,9 @@ export default class AppSignalManager extends AppManager {
     const {initApi} = await getProvider();
     this.isStarted = true;
     await initApi(this.onUpdate, {...args, userAgent: navigator.userAgent});
+    restoreMissingDialogs(this.createMethodHost(), this.dialogsStorage, this.appMessagesManager).catch((err) => {
+      this.log.error('restoring the chats that came back failed', err);
+    });
   }
 
   /**
