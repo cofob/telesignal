@@ -144,15 +144,6 @@ and the loaders `loadChannels`, `loadApps` and `loadPosts`, their entries in `no
 set in `webk/src/components/appSearchSuper.ts`. Nothing reaches them, so they are dead code that reads as live. Removing them
 needs a check of every `mediaTab.type` comparison, which this change did not make.
 
-## A forward whose copy was stored but not sent fails the whole request in Web K
-
-Web K sends one `messages.forwardMessages` request for several messages, each with a `random_id` of its pending copy. The
-adapter (`webk/src/lib/appManagers/appSignalManager.ts`, `forwardMessages`) registers each copy's `random_id` under a local id
-before the engine stores it, so the stored copy replaces Web K's pending one; a copy whose send failed shows once, with the
-failed mark (verified in the demo, where the network is absent, with one message forwarded to Linda). The adapter still
-rejects the whole request when any copy was not sent. With several messages and a partial failure, Web K's failure handling
-of the request runs over copies that are already stored; what it shows then was not reproduced.
-
 ## Web K's worker adapter cannot import UI components
 
 The Web K managers, including `webk/src/lib/appManagers/appSignalManager.ts`, run in a SharedWorker, not on the page.

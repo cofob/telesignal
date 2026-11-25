@@ -769,9 +769,16 @@ export default class AppSignalManager extends AppManager {
       setTimeout(() => localIds.forEach((localId) => this.pendingForwardCopies.delete(localId)), SEND_TIMEOUT_MS);
       throw err;
     });
-    if(!storedIds?.every((id) => id !== undefined)) {
+    if(!storedIds?.some((id) => id !== undefined)) {
       throw makeError('SIGNAL_SEND_FAILED' as ErrorType);
     }
+
+    // * a request with copies that were sent succeeds, and only the copies that were not are marked failed: a failure
+    // * of the request would mark the sent ones too
+    storedIds.forEach((id, index) => {
+      const message = id === undefined && this.appMessagesManager.getPendingMessage(params.random_id[index]);
+      if(message) this.appMessagesManager.toggleError(message, makeError('SIGNAL_SEND_FAILED' as ErrorType));
+    });
 
     return {_: 'updates', updates: [], users: [], chats: [], date: tsNow(true), seq: 0} as Updates;
   }

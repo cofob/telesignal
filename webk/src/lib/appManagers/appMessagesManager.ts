@@ -12927,6 +12927,12 @@ export class AppMessagesManager extends AppManager {
     }
   }
 
+  /** TeleSignal: the message that waits for its send under this random id, if it still waits */
+  public getPendingMessage(randomId: Long) {
+    const pendingData = this.pendingByRandomId[randomId];
+    return pendingData && this.getMessageFromStorage(pendingData.storage, pendingData.tempId) as Message.message;
+  }
+
   public finalizePendingMessage(randomId: Long, finalMessage: MyMessage) {
     const pendingData = this.pendingByRandomId[randomId];
     if(!pendingData) {
