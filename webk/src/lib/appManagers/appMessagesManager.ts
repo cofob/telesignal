@@ -3809,8 +3809,7 @@ export class AppMessagesManager extends AppManager {
           send_as: options.sendAsPeerId ? this.appPeersManager.getInputPeerById(options.sendAsPeerId) : undefined,
           update_stickersets_order: options.updateStickersetOrder,
           invert_media: options.invertMedia,
-          effect: options.effect,
-          suggested_post: message.suggested_post
+          effect: options.effect
         }).then((updates) => {
           this.apiUpdatesManager.processUpdateMessage(updates)
         });
@@ -6215,8 +6214,7 @@ export class AppMessagesManager extends AppManager {
       sentRequestOptions.afterMessageId = this.pendingAfterMsgs[peerId].messageId;
     }
 
-    // Resolved now, not inside `send()`: a paid forward is queued and only sent once the user
-    // confirms, by which time an ephemeral message may already be gone from the storage.
+    // The ids the request names: a server message by its server id, an ephemeral one by its ephemeral id
     const forwardIds = mids.map((mid) => (options.fromEphemeral ?
       (this.getMessageByPeer(fromPeerId, mid) as MyEphemeralMessage).ephemeral_id :
       getServerMessageId(mid)
